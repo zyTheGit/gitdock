@@ -26,17 +26,20 @@ import type {
 } from "./shared/types";
 
 type ViewMode = "graph" | "compare" | "search";
-type PickKind = Extract<WriteKind, "cherry_pick" | "revert">;
 
-const WRITE_LABEL: Record<PickKind, string> = {
+const WRITE_LABEL: Record<WriteKind, string> = {
   cherry_pick: "Cherry Pick",
   revert: "Revert",
+  switch_branch: "切换分支",
+  set_branch_description: "更新分支描述",
 };
 
-function outcomeMessage(kind: PickKind, outcome: WriteOutcomeDto): string {
+function outcomeMessage(kind: WriteKind, outcome: WriteOutcomeDto, branch?: string): string {
   switch (outcome.status) {
     case "succeeded":
-      return `${WRITE_LABEL[kind]} 成功，已刷新图谱`;
+      return kind === "switch_branch"
+        ? `已切换到分支 ${branch ?? ""}`
+        : `${WRITE_LABEL[kind]} 成功，已刷新图谱`;
     case "empty_pick":
       return "无变更（空 pick），已清理本次操作状态";
     case "conflicted":
@@ -65,8 +68,9 @@ export default function App() {
     commit: CommitSummaryDto;
   } | null>(null);
   const [writePrompt, setWritePrompt] = useState<{
-    kind: PickKind;
-    commit: CommitSummaryDto;
+    kind: Extract<WriteKind, "cherry_pick" | "revert" | "switch_branch">;
+    commit?: CommitSummaryDto;
+    branch?: string;
     gate: GateReportDto | null;
     gateError?: string;
   } | null>(null);
@@ -178,49 +182,58 @@ export default function App() {
   }, [toast]);
 
   // 写操作分两步：先取 Gate 结论展示在确认框中，Gate 通过后才允许执行。
-  const startWrite = useCallback(async (kind: PickKind, commit: CommitSummaryDto) => {
-    setRowMenu(null);
-    setError(null);
-    setDiagnostic(null);
-    setWritePrompt({ kind, commit, gate: null });
-    try {
-      const gate = await ipc.validateWrite({ kind, oid: commit.oid });
-      setWritePrompt((current) =>
-        current && current.kind === kind && current.commit.oid === commit.oid
-          ? { ...current, gate }
-          : current,
-      );
-    } catch (err) {
-      setWritePrompt((current) =>
-        current && current.kind === kind && current.commit.oid === commit.oid
-          ? { ...current, gateError: errorText(err) }
-          : current,
-      );
-    }
-  }, []);
+  const startWrite = useCallback(
+    async (
+      kind: Extract<WriteKind, "cherry_pick" | "revert" | "switch_branch">,
+      target: { commit?: CommitSummaryDto; branch?: string },
+    ) => {
+      setRowMenu(null);
+      setError(null);
+      setDiagnostic(null);
+      setWritePrompt({ kind, ...target, gate: null });
+      const stillCurrent = (current: typeof writePrompt) =>
+        Boolean(current) &&
+        current!.kind === kind &&
+        current!.commit?.oid === target.commit?.oid &&
+        current!.branch === target.branch;
+      try {
+        const gate = await ipc.validateWrite({
+          kind,
+          oid: target.commit?.oid,
+          branch: target.branch,
+        });
+        setWritePrompt((current) => (stillCurrent(current) ? { ...current!, gate } : current));
+      } catch (err) {
+        setWritePrompt((current) =>
+          stillCurrent(current) ? { ...current!, gateError: errorText(err) } : current,
+        );
+      }
+    },
+    [],
+  );
 
   const runWrite = useCallback(async () => {
     if (!writePrompt?.gate?.ok) {
       return;
     }
-    const { kind, commit } = writePrompt;
+    const { kind, commit, branch } = writePrompt;
     const repoPath = repo?.path;
-    const knownGeneration = repo?.generation ?? 0;
     setWriteBusy(true);
     setError(null);
     setDiagnostic(null);
     try {
-      const outcome = await ipc.executeWrite({ kind, oid: commit.oid });
+      const outcome = await ipc.executeWrite({ kind, oid: commit?.oid, branch });
       setWritePrompt(null);
-      setToast(outcomeMessage(kind, outcome));
+      setToast(outcomeMessage(kind, outcome, branch));
       if (outcome.status === "failed") {
         setError(outcome.message);
         setDiagnostic(outcome.stderr ?? outcome.message);
       }
       if (outcome.status !== "rejected") {
         const state = await ipc.repositoryState();
-        // 旧 generation / 已切换仓库的结果不覆盖当前界面。
-        if (repoPath && state.path === repoPath && state.generation >= knownGeneration) {
+        // generation 是 refs/HEAD 指纹（随机 64 位），不具备单调性，不能做大小比较；
+        // 写后状态是重新探测的，只需确认仓库未被切换，避免旧仓库结果覆盖新界面。
+        if (!repoPath || state.path === repoPath) {
           setRepo(state);
           await graph.reload({ keepRows: true });
         }
@@ -231,7 +244,7 @@ export default function App() {
     } finally {
       setWriteBusy(false);
     }
-  }, [graph, repo?.generation, repo?.path, writePrompt]);
+  }, [graph, repo?.path, writePrompt]);
 
   // Esc：优先取消待替换选择，其次退出搜索/对比，最后清空双槽。
   useEffect(() => {
@@ -275,12 +288,12 @@ export default function App() {
       {
         label: "Cherry Pick 此提交",
         disabled: writeDisabled,
-        onSelect: () => void startWrite("cherry_pick", commit),
+        onSelect: () => void startWrite("cherry_pick", { commit }),
       },
       {
         label: "Revert 此提交",
         disabled: writeDisabled,
-        onSelect: () => void startWrite("revert", commit),
+        onSelect: () => void startWrite("revert", { commit }),
       },
     ],
     [startWrite, writeDisabled],
@@ -305,6 +318,10 @@ export default function App() {
           },
         },
       ]
+    : [];
+
+  const localBranches = repo
+    ? repo.refs.filter((ref) => ref.kind === "local_branch")
     : [];
 
   const headLabel = repo
@@ -392,6 +409,32 @@ export default function App() {
                 {repo.is_linked_worktree && <dd className="tag">linked worktree</dd>}
                 {repo.is_shallow && <dd className="tag">shallow</dd>}
               </dl>
+            </div>
+          )}
+          {repo && (
+            <div className="branch-list">
+              <h2>本地分支</h2>
+              {localBranches.length === 0 ? (
+                <p className="muted">没有本地分支</p>
+              ) : (
+                <ul>
+                  {localBranches.map((branch) => (
+                    <li key={branch.full_name}>
+                      <button
+                        className={branch.is_head ? "branch-item active" : "branch-item"}
+                        title={branch.description || branch.short_name}
+                        disabled={writeDisabled || branch.is_head}
+                        onClick={() =>
+                          void startWrite("switch_branch", { branch: branch.short_name })
+                        }
+                      >
+                        <span className="branch-name">{branch.short_name}</span>
+                        {branch.is_head && <span className="tag">当前</span>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </aside>
@@ -549,6 +592,7 @@ export default function App() {
         <ConfirmWriteDialog
           kind={writePrompt.kind}
           commit={writePrompt.commit}
+          branch={writePrompt.branch}
           gate={writePrompt.gate}
           gateError={writePrompt.gateError}
           busy={writeBusy}

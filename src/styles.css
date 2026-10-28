@@ -167,6 +167,44 @@ button.large {
   overflow-wrap: anywhere;
 }
 
+.branch-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.branch-list li {
+  margin-bottom: 4px;
+}
+
+.branch-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 5px 8px;
+  color: var(--fg);
+}
+
+.branch-item:hover:not(:disabled) {
+  border-color: var(--border);
+}
+
+.branch-item.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.branch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .main {
   flex: 1;
   min-width: 0;

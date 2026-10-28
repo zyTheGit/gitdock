@@ -1,13 +1,23 @@
 import type { CommitSummaryDto, GateReportDto, WriteKind } from "../../shared/types";
 
-const ACTION_LABEL: Record<"cherry_pick" | "revert", string> = {
+type DialogKind = Extract<WriteKind, "cherry_pick" | "revert" | "switch_branch">;
+
+const ACTION_LABEL: Record<DialogKind, string> = {
   cherry_pick: "Cherry Pick",
   revert: "Revert",
+  switch_branch: "切换分支",
+};
+
+const ACTION_HINT: Record<DialogKind, string> = {
+  cherry_pick: "将在当前 HEAD 上重放该提交；merge commit 不受支持。",
+  revert: "将生成一个反向提交，提交说明由 Git 自动生成。",
+  switch_branch: "仅切换到已存在的本地分支（git switch --no-guess），不会创建分支或猜测远程分支。",
 };
 
 interface ConfirmWriteDialogProps {
-  kind: Extract<WriteKind, "cherry_pick" | "revert">;
-  commit: CommitSummaryDto;
+  kind: DialogKind;
+  commit?: CommitSummaryDto;
+  branch?: string;
   gate: GateReportDto | null;
   gateError?: string;
   busy: boolean;
@@ -19,6 +29,7 @@ interface ConfirmWriteDialogProps {
 export function ConfirmWriteDialog({
   kind,
   commit,
+  branch,
   gate,
   gateError,
   busy,
@@ -39,17 +50,19 @@ export function ConfirmWriteDialog({
         </header>
 
         <section>
-          <p className="confirm-target">
-            <span className="mono">{commit.short_oid}</span>
-            <span className="confirm-summary" title={commit.summary}>
-              {commit.summary}
-            </span>
-          </p>
-          <p className="muted confirm-hint">
-            {kind === "cherry_pick"
-              ? "将在当前 HEAD 上重放该提交；merge commit 不受支持。"
-              : "将生成一个反向提交，提交说明由 Git 自动生成。"}
-          </p>
+          {commit ? (
+            <p className="confirm-target">
+              <span className="mono">{commit.short_oid}</span>
+              <span className="confirm-summary" title={commit.summary}>
+                {commit.summary}
+              </span>
+            </p>
+          ) : (
+            <p className="confirm-target">
+              <span className="mono">{branch ?? ""}</span>
+            </p>
+          )}
+          <p className="muted confirm-hint">{ACTION_HINT[kind]}</p>
         </section>
 
         <section className="gate-report">
