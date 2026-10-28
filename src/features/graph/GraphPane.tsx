@@ -1,4 +1,5 @@
-import type { RepoStateDto, GraphScope } from "../../shared/types";
+import type { MouseEvent } from "react";
+import type { CommitSummaryDto, RepoStateDto, GraphScope } from "../../shared/types";
 import { GraphList } from "./GraphList";
 import type { GraphLoader } from "./useGraph";
 
@@ -8,7 +9,10 @@ interface GraphPaneProps {
   onScopeChange: (scope: GraphScope) => void;
   graph: GraphLoader;
   selectedOid: string | null;
+  focusedOid?: string | null;
   onSelect: (oid: string) => void;
+  onCtrlSelect?: (commit: CommitSummaryDto) => void;
+  onContextMenu?: (event: MouseEvent, commit: CommitSummaryDto) => void;
 }
 
 export function GraphPane({
@@ -17,7 +21,10 @@ export function GraphPane({
   onScopeChange,
   graph,
   selectedOid,
+  focusedOid,
   onSelect,
+  onCtrlSelect,
+  onContextMenu,
 }: GraphPaneProps) {
   const localBranches = repo.refs.filter((ref) => ref.kind === "local_branch");
   const { view, loading, loadingMore, error } = graph;
@@ -72,7 +79,10 @@ export function GraphPane({
           loading={loading}
           loadingMore={loadingMore}
           selectedOid={selectedOid}
+          focusedOid={focusedOid}
           onSelect={onSelect}
+          onCtrlSelect={onCtrlSelect}
+          onContextMenu={onContextMenu}
           onLoadMore={() => void graph.loadMore()}
         />
       </div>

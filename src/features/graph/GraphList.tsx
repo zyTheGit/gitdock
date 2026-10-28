@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { RefBadgeDto } from "../../shared/types";
+import type { CommitSummaryDto, RefBadgeDto } from "../../shared/types";
 import { GraphCell } from "./GraphCell";
 import type { GraphView } from "./model";
 
@@ -35,7 +35,10 @@ interface GraphListProps {
   loading: boolean;
   loadingMore: boolean;
   selectedOid: string | null;
+  focusedOid?: string | null;
   onSelect: (oid: string) => void;
+  onCtrlSelect?: (commit: CommitSummaryDto) => void;
+  onContextMenu?: (event: MouseEvent, commit: CommitSummaryDto) => void;
   onLoadMore: () => void;
 }
 
@@ -44,7 +47,10 @@ export function GraphList({
   loading,
   loadingMore,
   selectedOid,
+  focusedOid,
   onSelect,
+  onCtrlSelect,
+  onContextMenu,
   onLoadMore,
 }: GraphListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -68,6 +74,18 @@ export function GraphList({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [view.viewKey]);
+
+  // 搜索结果定位：把目标行滚动到可视区域并保持高亮。
+  useEffect(() => {
+    if (!focusedOid) {
+      return;
+    }
+    const index = view.rows.findIndex((row) => row.layout.oid === focusedOid);
+    if (index < 0) {
+      return;
+    }
+    virtualizer.scrollToIndex(index, { align: "center" });
+  }, [focusedOid, view.rows, virtualizer]);
 
   const items = virtualizer.getVirtualItems();
   useEffect(() => {
@@ -97,12 +115,33 @@ export function GraphList({
           }
           const commit = row.commit;
           const oid = commit?.oid ?? row.layout.oid;
+          const classes = ["graph-row"];
+          if (selectedOid === oid) {
+            classes.push("selected");
+          }
+          if (focusedOid === oid) {
+            classes.push("located");
+          }
           return (
             <div
               key={item.key}
-              className={selectedOid === oid ? "graph-row selected" : "graph-row"}
+              className={classes.join(" ")}
               style={{ transform: `translateY(${item.start}px)`, height: ROW_HEIGHT }}
-              onClick={() => onSelect(oid)}
+              onClick={(event) => {
+                // Ctrl / Cmd + 点击填对比槽；普通点击打开详情。
+                if ((event.ctrlKey || event.metaKey) && commit && onCtrlSelect) {
+                  event.preventDefault();
+                  onCtrlSelect(commit);
+                  return;
+                }
+                onSelect(oid);
+              }}
+              onContextMenu={(event) => {
+                if (commit && onContextMenu) {
+                  event.preventDefault();
+                  onContextMenu(event, commit);
+                }
+              }}
             >
               <GraphCell layout={row.layout} laneCount={laneCount} height={ROW_HEIGHT} />
               <div className="graph-row-summary">

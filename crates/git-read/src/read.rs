@@ -53,6 +53,12 @@ pub struct GitReadModule {
     pub(crate) searches: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
+/// 外部 diff 工具需要的两侧文件内容；缺失一侧为空字节。
+pub struct FileSides {
+    pub old: Vec<u8>,
+    pub new: Vec<u8>,
+}
+
 #[derive(Default)]
 pub(crate) struct LayoutCache {
     pub(crate) view_key: Option<String>,
@@ -540,6 +546,7 @@ impl GitReadModule {
             });
         }
         Ok(CompareResultDto {
+            generation: self.current_generation()?,
             base: base.clone(),
             compare: compare.clone(),
             merge_base,
@@ -573,6 +580,53 @@ impl GitReadModule {
         let mut dto = diff_file(&repo, old_tree.as_ref(), new_tree.as_ref(), path)?;
         dto.generation = self.current_generation()?;
         Ok(dto)
+    }
+
+    /// 读取对比两侧文件字节；三点模式下左侧固定为 merge-base（无则退回 Base）。
+    pub fn file_sides(
+        &self,
+        left: Option<&Oid>,
+        right: &Oid,
+        path: &str,
+        three_dot: bool,
+    ) -> Result<FileSides> {
+        if path.is_empty() || path.starts_with('/') || path.split('/').any(|part| part == "..") {
+            return Err(UserVisibleError::new(
+                ErrorCode::InvalidArgument,
+                "文件路径无效",
+            ));
+        }
+        let repo = self.repo()?;
+        let right_commit = find_commit(&repo, right)?;
+        let new_tree = Some(tree_oid_of_object(&right_commit)?);
+        let old_commit = match left {
+            Some(left) => {
+                if three_dot {
+                    repo.merge_base(gix_oid(left)?, gix_oid(right)?)
+                        .map_err(gix_error)?
+                        .map(|id| oid_from_id(&id))
+                } else {
+                    Some(left.clone())
+                }
+            }
+            None => None,
+        };
+        let old_tree = match old_commit {
+            Some(commit) => Some(tree_oid_of_commit(&repo, &commit)?),
+            None => None,
+        };
+        let (old, new) =
+            crate::diff::file_bytes(&repo, old_tree.as_ref(), new_tree.as_ref(), path)?;
+        if old.is_none() && new.is_none() {
+            return Err(UserVisibleError::new(
+                ErrorCode::FileNotFound,
+                format!("提交中没有文件 {path}"),
+            ));
+        }
+        Ok(FileSides {
+            old: old.unwrap_or_default(),
+            new: new.unwrap_or_default(),
+        })
     }
 
     fn warnings(&self, repo: &gix::Repository) -> Vec<WarningDto> {

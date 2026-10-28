@@ -299,6 +299,7 @@ pub enum CompareMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareResultDto {
+    pub generation: u64,
     pub base: Oid,
     pub compare: Oid,
     #[serde(skip_serializing_if = "Option::is_none")]

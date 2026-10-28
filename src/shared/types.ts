@@ -160,6 +160,7 @@ export interface FileDiffDto {
 }
 
 export interface CompareResultDto {
+  generation: number;
   base: string;
   compare: string;
   merge_base?: string;

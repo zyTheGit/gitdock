@@ -57,4 +57,12 @@ export const ipc = {
   search: (request: SearchRequest, cursor: string | null) =>
     call<SearchPageDto>("search", { request, cursor }),
   cancelSearch: (searchId: string) => call<void>("cancel_search", { searchId }),
+  launchExternalDiff: (
+    toolIndex: number,
+    left: string | null,
+    right: string,
+    path: string,
+    threeDot: boolean,
+  ) =>
+    call<void>("launch_external_diff", { toolIndex, left, right, path, threeDot }),
 };
