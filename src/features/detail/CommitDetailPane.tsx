@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import type { CommitSummaryDto, FileStatus, RepoStateDto } from "../../shared/types";
+import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
+import type {
+  CommitSummaryDto,
+  ExternalToolConfig,
+  FileStatus,
+  RepoStateDto,
+} from "../../shared/types";
 import { FileDiffView } from "./FileDiffView";
 import { useCommitDetail, useFileDiff } from "./useCommitDetail";
 
@@ -55,12 +61,21 @@ function RefBadges({ commit }: { commit: CommitSummaryDto }) {
 interface CommitDetailPaneProps {
   repo: RepoStateDto;
   oid: string;
+  tools: ExternalToolConfig[];
   onClose: () => void;
+  onExternalDiff: (toolIndex: number, path: string, left: string | null) => void;
 }
 
-export function CommitDetailPane({ repo, oid, onClose }: CommitDetailPaneProps) {
+export function CommitDetailPane({
+  repo,
+  oid,
+  tools,
+  onClose,
+  onExternalDiff,
+}: CommitDetailPaneProps) {
   const detail = useCommitDetail(oid, repo.generation);
   const [filePath, setFilePath] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
   const fileDiff = useFileDiff(oid, filePath, repo.generation);
 
   useEffect(() => {
@@ -75,6 +90,18 @@ export function CommitDetailPane({ repo, oid, onClose }: CommitDetailPaneProps) 
 
   const commit = detail.data?.commit;
   const files = detail.data?.files ?? [];
+  const baseOid = detail.data?.parents[0] ?? null;
+  const menuItems: MenuItem[] =
+    tools.length === 0
+      ? [{ label: "尚未配置外部工具", disabled: true, onSelect: () => undefined }]
+      : tools.map((tool, index) => ({
+          label: `用 ${tool.name} 打开`,
+          onSelect: () => {
+            if (menu) {
+              onExternalDiff(index, menu.path, baseOid);
+            }
+          },
+        }));
 
   return (
     <aside className="detail-pane" aria-label="提交详情">
@@ -158,7 +185,12 @@ export function CommitDetailPane({ repo, oid, onClose }: CommitDetailPaneProps) 
                             filePath === file.path ? "file-row active" : "file-row"
                           }
                           onClick={() => setFilePath(file.path)}
-                          title={file.path}
+                          onContextMenu={(event) => {
+                            event.preventDefault();
+                            setFilePath(file.path);
+                            setMenu({ x: event.clientX, y: event.clientY, path: file.path });
+                          }}
+                          title={`${file.path}（右键可用外部工具对比）`}
                         >
                           <span className={`file-status file-status-${file.status}`}>
                             {STATUS_LETTER[file.status]}
@@ -197,6 +229,10 @@ export function CommitDetailPane({ repo, oid, onClose }: CommitDetailPaneProps) 
           </>
         )}
       </div>
+
+      {menu && (
+        <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />
+      )}
     </aside>
   );
 }

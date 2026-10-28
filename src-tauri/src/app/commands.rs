@@ -233,6 +233,58 @@ pub async fn search(
     .await
 }
 
+const MAX_EXTERNAL_BYTES: usize = 50 * 1024 * 1024;
+
+/// 用已保存的外部工具比较单个文件；临时文件写入独立目录，进程以参数数组启动。
+#[tauri::command]
+pub async fn launch_external_diff(
+    state: State<'_, Shared>,
+    tool_index: usize,
+    left: Option<String>,
+    right: String,
+    path: String,
+    three_dot: bool,
+) -> Result<()> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        let tool = state
+            .settings()?
+            .external_tools
+            .get(tool_index)
+            .cloned()
+            .ok_or_else(|| {
+                UserVisibleError::new(ErrorCode::InvalidArgument, "外部工具不存在，请重新配置")
+            })?;
+        let left = left.map(|value| parse_oid(&value)).transpose()?;
+        let right = parse_oid(&right)?;
+        let sides = state.with_session(|session| {
+            session
+                .read
+                .file_sides(left.as_ref(), &right, &path, three_dot)
+        })?;
+        if sides.old.len() > MAX_EXTERNAL_BYTES || sides.new.len() > MAX_EXTERNAL_BYTES {
+            return Err(UserVisibleError::new(
+                ErrorCode::ExternalToolFailed,
+                "文件超过 50MB，未交给外部工具",
+            ));
+        }
+        let dir = super::external::prepare_dir(&state.paths.external_tmp_dir, &path)?;
+        let name = super::external::safe_file_name(&path);
+        let local = dir.join(format!("local-{name}"));
+        let remote = dir.join(format!("remote-{name}"));
+        let write = |target: &std::path::Path, bytes: &[u8]| {
+            std::fs::write(target, bytes).map_err(|e| {
+                UserVisibleError::new(ErrorCode::Io, "写入外部 diff 临时文件失败")
+                    .with_detail(e.to_string())
+            })
+        };
+        write(&local, &sides.old)?;
+        write(&remote, &sides.new)?;
+        super::external::launch(&tool, &local, &remote)
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn cancel_search(state: State<'_, Shared>, search_id: String) -> Result<()> {
     let state = Arc::clone(&state);

@@ -48,6 +48,7 @@ pub fn run() {
             commands::compare_file_diff,
             commands::search,
             commands::cancel_search,
+            commands::launch_external_diff,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Git Graph 失败");

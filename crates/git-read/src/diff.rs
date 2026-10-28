@@ -424,6 +424,28 @@ pub(crate) fn diff_file(
     Ok(dto)
 }
 
+/// 读取两侧文件原始字节，供外部 diff 工具物化临时文件；缺失侧返回 None。
+pub(crate) fn file_bytes(
+    repo: &gix::Repository,
+    old_tree: Option<&Oid>,
+    new_tree: Option<&Oid>,
+    path: &str,
+) -> Result<(Option<Vec<u8>>, Option<Vec<u8>>)> {
+    let read = |tree: Option<&Oid>| -> Result<Option<Vec<u8>>> {
+        let Some(tree) = tree else {
+            return Ok(None);
+        };
+        let Some((mode, oid)) = lookup_path(repo, tree, path)? else {
+            return Ok(None);
+        };
+        if mode.is_commit() {
+            return Ok(None);
+        }
+        Ok(try_object_bytes(repo, &oid))
+    };
+    Ok((read(old_tree)?, read(new_tree)?))
+}
+
 fn lookup_path(
     repo: &gix::Repository,
     root_tree: &Oid,

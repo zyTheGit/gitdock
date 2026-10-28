@@ -19,6 +19,7 @@ pub struct AppPaths {
     pub config_dir: PathBuf,
     pub log_path: PathBuf,
     pub index_cache_dir: PathBuf,
+    pub external_tmp_dir: PathBuf,
 }
 
 pub struct AppState {
@@ -57,6 +58,7 @@ impl AppState {
                 config_dir,
                 log_path,
                 index_cache_dir: cache_dir.join("graph-index"),
+                external_tmp_dir: cache_dir.join("external-diff"),
             },
         })
     }
