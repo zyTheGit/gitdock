@@ -72,6 +72,9 @@ mod tests {
 
     #[test]
     fn rejects_garbage() {
-        assert_eq!(decode_cursor("not-a-cursor").unwrap_err().code, ErrorCode::CursorInvalid);
+        assert_eq!(
+            decode_cursor("not-a-cursor").unwrap_err().code,
+            ErrorCode::CursorInvalid
+        );
     }
 }

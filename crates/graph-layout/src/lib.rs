@@ -189,8 +189,10 @@ impl GraphLayoutModule {
                                 rows.iter_mut().find(|local| local.oid == row_oid)
                             {
                                 // 同页行尚未交付给前端，直接返回最终状态。
-                                if let Some(local_edge) =
-                                    local.parents.iter_mut().find(|edge| edge.parent == commit.oid)
+                                if let Some(local_edge) = local
+                                    .parents
+                                    .iter_mut()
+                                    .find(|edge| edge.parent == commit.oid)
                                 {
                                     local_edge.pending = false;
                                 }
@@ -302,13 +304,7 @@ mod tests {
         let mut layout = GraphLayoutModule::new();
         layout.reset("all");
         // 5 = merge(4 main, 3 feature); 3 = parent 1; 4 = parent 2; 2 -> 1; 1 root
-        let page = vec![
-            c(5, &[4, 3]),
-            c(3, &[1]),
-            c(4, &[2]),
-            c(2, &[1]),
-            c(1, &[]),
-        ];
+        let page = vec![c(5, &[4, 3]), c(3, &[1]), c(4, &[2]), c(2, &[1]), c(1, &[])];
         let delta = layout.append(&page);
         let rows = delta.rows;
         assert_eq!(rows[0].lane, 0);
@@ -336,7 +332,11 @@ mod tests {
         let page2 = vec![c(3, &[1]), c(1, &[])];
         layout.append(&page2);
         for (commit, lane) in snapshot {
-            assert_eq!(lane_of(layout.rows(), &commit), lane, "lane 不稳定: {commit}");
+            assert_eq!(
+                lane_of(layout.rows(), &commit),
+                lane,
+                "lane 不稳定: {commit}"
+            );
         }
     }
 

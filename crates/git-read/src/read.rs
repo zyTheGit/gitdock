@@ -9,11 +9,10 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use git_core::{
-    encode_cursor, decode_cursor, ChangedFileDto, CommitDetailDto, CommitSummaryDto,
-    CompareMode, CompareResultDto, DiffBaselineDto, ErrorCode, FileDiffDto, GraphPageDto,
-    GraphScope, HeadDto, HeadKind, InterruptionDto, InterruptionKind, ObjectFormat, Oid,
-    RefBadgeDto, RefDto, RefKind, RepoStateDto, ResolvedEdgeDto, Result, RowLayoutDto,
-    UserVisibleError, WarningDto,
+    decode_cursor, encode_cursor, ChangedFileDto, CommitDetailDto, CommitSummaryDto, CompareMode,
+    CompareResultDto, DiffBaselineDto, ErrorCode, FileDiffDto, GraphPageDto, GraphScope, HeadDto,
+    HeadKind, InterruptionDto, InterruptionKind, ObjectFormat, Oid, RefBadgeDto, RefDto, RefKind,
+    RepoStateDto, ResolvedEdgeDto, Result, RowLayoutDto, UserVisibleError, WarningDto,
 };
 use graph_layout::{GraphLayoutModule, LayoutCommit};
 use parking_lot::Mutex;
@@ -21,9 +20,7 @@ use sha2::{Digest, Sha256};
 
 use crate::diff::{collect_changes, diff_file};
 use crate::index::{self, GraphIndex};
-use crate::util::{
-    find_commit, gix_oid, lossy, oid_from_gix, oid_from_id, raw_time_seconds,
-};
+use crate::util::{find_commit, gix_oid, lossy, oid_from_gix, oid_from_id, raw_time_seconds};
 
 pub const DEFAULT_PAGE_LIMIT: usize = 200;
 pub const MAX_PAGE_LIMIT: usize = 500;
@@ -153,10 +150,7 @@ impl GitReadModule {
 
     pub(crate) fn fingerprint(&self, repo: &gix::Repository) -> Result<u64> {
         let mut parts: Vec<String> = Vec::new();
-        parts.push(format!(
-            "path:{}",
-            self.repo_root.to_string_lossy()
-        ));
+        parts.push(format!("path:{}", self.repo_root.to_string_lossy()));
         parts.push(format!("format:{}", self.object_format.as_str()));
         let head = repo.head().map_err(gix_error)?;
         if head.is_unborn() {
@@ -169,7 +163,12 @@ impl GitReadModule {
         if let Ok(id) = repo.head_id() {
             parts.push(format!("head_oid:{}", id.detach()));
         }
-        for reference in repo.references().map_err(gix_error)?.all().map_err(gix_error)? {
+        for reference in repo
+            .references()
+            .map_err(gix_error)?
+            .all()
+            .map_err(gix_error)?
+        {
             let reference = reference.map_err(gix_error)?;
             let name = lossy(reference.name().as_bstr());
             let target = match reference.target() {
@@ -223,7 +222,10 @@ impl GitReadModule {
                     UserVisibleError::new(ErrorCode::CursorInvalid, "分页游标中的 OID 无效")
                         .with_detail(e.to_string())
                 })?;
-                index.position(&after).map(|p| p + 1).ok_or_else(stale_cursor)?
+                index
+                    .position(&after)
+                    .map(|p| p + 1)
+                    .ok_or_else(stale_cursor)?
             }
             None => 0,
         };
@@ -285,9 +287,9 @@ impl GitReadModule {
         } else {
             None
         };
-        let anchor_oid = cursor.and_then(|token| decode_cursor(token).ok()).and_then(|data| {
-            Oid::new(data.after).ok()
-        });
+        let anchor_oid = cursor
+            .and_then(|token| decode_cursor(token).ok())
+            .and_then(|data| Oid::new(data.after).ok());
         Ok(GraphPageDto {
             generation,
             view_key,
@@ -342,12 +344,7 @@ impl GitReadModule {
                 resolved.extend(delta.resolved);
             }
         }
-        let rows = cache
-            .layout
-            .rows()
-            .get(start..end)
-            .unwrap_or(&[])
-            .to_vec();
+        let rows = cache.layout.rows().get(start..end).unwrap_or(&[]).to_vec();
         let resolved = resolved
             .into_iter()
             .filter(|edge| edge.row < end)
@@ -368,13 +365,7 @@ impl GitReadModule {
         generation: u64,
     ) -> Result<GraphIndex> {
         let tips = self.scope_tips(repo, scope)?;
-        index::build(
-            repo,
-            &tips,
-            view_key,
-            generation,
-            self.cache_dir.as_deref(),
-        )
+        index::build(repo, &tips, view_key, generation, self.cache_dir.as_deref())
     }
 
     fn scope_tips(&self, repo: &gix::Repository, scope: &GraphScope) -> Result<Vec<Oid>> {
@@ -424,10 +415,7 @@ impl GitReadModule {
         let parents: Vec<Oid> = commit.parent_ids().map(|id| oid_from_id(&id)).collect();
         let (baseline, baseline_note) = match parents.len() {
             0 => (DiffBaselineDto::Root, "根提交：与空树比较".to_owned()),
-            1 => (
-                DiffBaselineDto::FirstParent,
-                "与第一父提交比较".to_owned(),
-            ),
+            1 => (DiffBaselineDto::FirstParent, "与第一父提交比较".to_owned()),
             _ => (
                 DiffBaselineDto::MergeFirstParent,
                 "合并提交：与第一父提交比较，不展开合并引入的其他分支差异".to_owned(),
@@ -468,7 +456,12 @@ impl GitReadModule {
         let target = gix_oid(oid)?;
         let _ = find_commit(&repo, oid)?;
         let mut names = Vec::new();
-        for reference in repo.references().map_err(gix_error)?.all().map_err(gix_error)? {
+        for reference in repo
+            .references()
+            .map_err(gix_error)?
+            .all()
+            .map_err(gix_error)?
+        {
             let mut reference = reference.map_err(gix_error)?;
             let full_name = lossy(reference.name().as_bstr());
             let Some(name) = full_name.strip_prefix("refs/heads/") else {
@@ -598,12 +591,7 @@ impl GitReadModule {
     }
 
     /// 对比中的单文件 diff，基线与 compare 一致。
-    pub fn compare_file_diff(
-        &self,
-        base: &Oid,
-        compare: &Oid,
-        path: &str,
-    ) -> Result<FileDiffDto> {
+    pub fn compare_file_diff(&self, base: &Oid, compare: &Oid, path: &str) -> Result<FileDiffDto> {
         let repo = self.repo()?;
         let merge_base = repo
             .merge_base(gix_oid(base)?, gix_oid(compare)?)
@@ -704,10 +692,7 @@ impl GitReadModule {
 }
 
 fn stale_cursor() -> UserVisibleError {
-    UserVisibleError::new(
-        ErrorCode::CursorStale,
-        "仓库状态已变化，请刷新后重新加载",
-    )
+    UserVisibleError::new(ErrorCode::CursorStale, "仓库状态已变化，请刷新后重新加载")
 }
 
 fn gix_error(err: impl std::fmt::Display) -> UserVisibleError {
@@ -742,7 +727,12 @@ pub(crate) fn read_refs(
         .map(|branch| format!("refs/heads/{branch}"));
     let descriptions = local_branch_descriptions(repo);
     let mut refs = Vec::new();
-    for reference in repo.references().map_err(gix_error)?.all().map_err(gix_error)? {
+    for reference in repo
+        .references()
+        .map_err(gix_error)?
+        .all()
+        .map_err(gix_error)?
+    {
         let mut reference = reference.map_err(gix_error)?;
         let full_name = lossy(reference.name().as_bstr());
         let (kind, short_name) = classify_ref(&full_name);
@@ -751,10 +741,7 @@ pub(crate) fn read_refs(
             gix::refs::TargetRef::Object(id) => oid_from_gix(id),
             gix::refs::TargetRef::Symbolic(_) => continue,
         };
-        let commit_oid = reference
-            .peel_to_id()
-            .ok()
-            .map(|id| oid_from_id(&id));
+        let commit_oid = reference.peel_to_id().ok().map(|id| oid_from_id(&id));
         let description = if kind == RefKind::LocalBranch {
             descriptions.get(&short_name).cloned()
         } else {
@@ -924,9 +911,7 @@ fn detect_interruption(git_dir: &Path) -> InterruptionDto {
 
 /// 探测系统 Git 版本与最低版本支持情况；供应用外壳展示能力。
 pub fn detect_git_version() -> (Option<String>, bool) {
-    let output = std::process::Command::new("git")
-        .arg("--version")
-        .output();
+    let output = std::process::Command::new("git").arg("--version").output();
     let Ok(output) = output else {
         return (None, false);
     };

@@ -15,7 +15,8 @@ pub fn run() {
             app.manage(Arc::clone(&state));
 
             if let Some(window) = app.get_webview_window("main") {
-                if let (Some(width), Some(height)) = (settings.window_width, settings.window_height) {
+                if let (Some(width), Some(height)) = (settings.window_width, settings.window_height)
+                {
                     let _ = window.set_size(tauri::LogicalSize::new(width, height));
                 }
             }

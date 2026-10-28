@@ -76,12 +76,12 @@ fn substitute(token: &str, local: &str, remote: &str) -> Result<String, UserVisi
     match token {
         "$LOCAL" => Ok(local.to_owned()),
         "$REMOTE" => Ok(remote.to_owned()),
-        other if other.contains("$LOCAL") || other.contains("$REMOTE") => Err(
-            UserVisibleError::new(
+        other if other.contains("$LOCAL") || other.contains("$REMOTE") => {
+            Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
                 "模板变量 $LOCAL / $REMOTE 必须独占一个参数",
-            ),
-        ),
+            ))
+        }
         other => Ok(other.to_owned()),
     }
 }
@@ -94,7 +94,8 @@ pub fn prepare_dir(root: &Path, _path: &str) -> Result<PathBuf, UserVisibleError
         .unwrap_or(0);
     let dir = root.join(format!("{nanos}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).map_err(|e| {
-        UserVisibleError::new(ErrorCode::Io, "创建外部 diff 临时目录失败").with_detail(e.to_string())
+        UserVisibleError::new(ErrorCode::Io, "创建外部 diff 临时目录失败")
+            .with_detail(e.to_string())
     })?;
     Ok(dir)
 }
@@ -161,8 +162,12 @@ mod tests {
 
     #[test]
     fn chinese_and_spaces_are_preserved() {
-        let args = build_args("$LOCAL $REMOTE", "C:\\项目\\旧 文件.txt", "C:\\项目\\新 文件.txt")
-            .unwrap();
+        let args = build_args(
+            "$LOCAL $REMOTE",
+            "C:\\项目\\旧 文件.txt",
+            "C:\\项目\\新 文件.txt",
+        )
+        .unwrap();
         assert_eq!(args[0], "C:\\项目\\旧 文件.txt");
         assert_eq!(args[1], "C:\\项目\\新 文件.txt");
     }

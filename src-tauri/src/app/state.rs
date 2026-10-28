@@ -11,8 +11,8 @@ use refresh::{RefreshCoordinator, RefreshReason};
 use tauri::{AppHandle, Manager};
 
 use super::config::{self, SettingsDto};
-use super::watch::{self, RepositoryWatcher};
 use super::logging;
+use super::watch::{self, RepositoryWatcher};
 
 pub struct Session {
     pub read: GitReadModule,

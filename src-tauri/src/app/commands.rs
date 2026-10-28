@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use git_core::{
-    BranchDescriptionDto, CompareResultDto, CommitDetailDto, ErrorCode, FileDiffDto, GateReportDto,
+    BranchDescriptionDto, CommitDetailDto, CompareResultDto, ErrorCode, FileDiffDto, GateReportDto,
     GraphPageDto, GraphScope, InterruptionDto, Oid, RepoStateDto, Result, SearchPageDto,
     SearchRequest, UserVisibleError, WorkspaceStatusDto, WriteOutcomeDto, WriteRequest,
 };
@@ -78,10 +78,7 @@ pub async fn save_settings(
 }
 
 #[tauri::command]
-pub async fn remember_repository(
-    state: State<'_, Shared>,
-    path: String,
-) -> Result<SettingsDto> {
+pub async fn remember_repository(state: State<'_, Shared>, path: String) -> Result<SettingsDto> {
     let state = Arc::clone(&state);
     blocking(move || state.remember_repository(&PathBuf::from(path))).await
 }
@@ -277,10 +274,8 @@ pub async fn search(
     cursor: Option<String>,
 ) -> Result<SearchPageDto> {
     let state = Arc::clone(&state);
-    blocking(move || {
-        state.with_session(|session| session.read.search(&request, cursor.as_deref()))
-    })
-    .await
+    blocking(move || state.with_session(|session| session.read.search(&request, cursor.as_deref())))
+        .await
 }
 
 const MAX_EXTERNAL_BYTES: usize = 50 * 1024 * 1024;
@@ -406,10 +401,8 @@ pub async fn read_branch_description(
     branch: String,
 ) -> Result<BranchDescriptionDto> {
     let state = Arc::clone(&state);
-    blocking(move || {
-        state.with_session(|session| session.write.read_branch_description(&branch))
-    })
-    .await
+    blocking(move || state.with_session(|session| session.write.read_branch_description(&branch)))
+        .await
 }
 
 fn parse_oid(value: &str) -> Result<Oid> {

@@ -123,15 +123,17 @@ impl GitWriteModule {
                 );
             }
             WriteKind::SwitchBranch => {
-                let branch = request
-                    .branch
-                    .as_deref()
-                    .ok_or_else(|| UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名"))?;
+                let branch = request.branch.as_deref().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+                })?;
                 if head.unborn {
                     issues.push(issue("unborn_head", "当前分支尚无提交，无法切换"));
                 }
                 if head.detached {
-                    issues.push(issue("detached_head", "detached HEAD 状态不支持切换，请先用命令行处理"));
+                    issues.push(issue(
+                        "detached_head",
+                        "detached HEAD 状态不支持切换，请先用命令行处理",
+                    ));
                 }
                 if status.staged > 0 || status.tracked > 0 || status.untracked > 0 {
                     issues.push(dirty_issue(&status));
@@ -143,7 +145,10 @@ impl GitWriteModule {
                     ));
                 } else {
                     if head.branch.as_deref() == Some(branch) {
-                        issues.push(issue("already_on_branch", format!("已经在分支 {branch} 上")));
+                        issues.push(issue(
+                            "already_on_branch",
+                            format!("已经在分支 {branch} 上"),
+                        ));
                     }
                     if let Some(path) = self.worktree_owner(branch, head.branch.as_deref())? {
                         issues.push(issue(
@@ -155,12 +160,14 @@ impl GitWriteModule {
                 summary = format!("将切换到本地分支 {branch}");
             }
             WriteKind::SetBranchDescription => {
-                let branch = request
-                    .branch
-                    .as_deref()
-                    .ok_or_else(|| UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名"))?;
+                let branch = request.branch.as_deref().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+                })?;
                 if !self.local_branch_exists(branch)? {
-                    issues.push(issue("branch_not_found", format!("本地分支 {branch} 不存在")));
+                    issues.push(issue(
+                        "branch_not_found",
+                        format!("本地分支 {branch} 不存在"),
+                    ));
                 }
                 summary = format!("将更新分支 {branch} 的本地描述");
             }
@@ -354,7 +361,10 @@ impl GitWriteModule {
             self.status_summary()?
         };
         Ok(WorkspaceStatusDto {
-            dirty: status.staged > 0 || status.tracked > 0 || status.untracked > 0 || status.conflicted > 0,
+            dirty: status.staged > 0
+                || status.tracked > 0
+                || status.untracked > 0
+                || status.conflicted > 0,
             staged: status.staged,
             tracked: status.tracked,
             untracked: status.untracked,
@@ -374,7 +384,9 @@ impl GitWriteModule {
         let key = format!("branch.{branch}.description");
         let output = self.run(&["config", "--local", "--get", &key])?;
         let description = if output.status.success() {
-            text(&output.stdout).trim_end_matches(['\r', '\n']).to_owned()
+            text(&output.stdout)
+                .trim_end_matches(['\r', '\n'])
+                .to_owned()
         } else {
             String::new()
         };
@@ -411,10 +423,9 @@ impl GitWriteModule {
             WriteKind::SwitchBranch => vec![
                 "switch".into(),
                 "--no-guess".into(),
-                request
-                    .branch
-                    .clone()
-                    .ok_or_else(|| UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名"))?,
+                request.branch.clone().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+                })?,
             ],
             WriteKind::SetBranchDescription => {
                 let branch = request.branch.clone().ok_or_else(|| {
@@ -423,12 +434,7 @@ impl GitWriteModule {
                 let key = format!("branch.{branch}.description");
                 let value = request.description.clone().unwrap_or_default();
                 if value.trim().is_empty() {
-                    vec![
-                        "config".into(),
-                        "--local".into(),
-                        "--unset-all".into(),
-                        key,
-                    ]
+                    vec!["config".into(), "--local".into(), "--unset-all".into(), key]
                 } else {
                     vec!["config".into(), "--local".into(), key, value]
                 }
@@ -446,11 +452,10 @@ impl GitWriteModule {
             "--branch",
         ])?;
         if !output.status.success() {
-            return Err(UserVisibleError::new(
-                ErrorCode::GitCommandFailed,
-                "无法读取工作区状态",
-            )
-            .with_detail(text(&output.stderr)));
+            return Err(
+                UserVisibleError::new(ErrorCode::GitCommandFailed, "无法读取工作区状态")
+                    .with_detail(text(&output.stderr)),
+            );
         }
         Ok(parse_status(&output.stdout))
     }
@@ -485,7 +490,10 @@ impl GitWriteModule {
         } else {
             None
         };
-        let has_commit = self.run(&["rev-parse", "--verify", "--quiet", "HEAD"])?.status.success();
+        let has_commit = self
+            .run(&["rev-parse", "--verify", "--quiet", "HEAD"])?
+            .status
+            .success();
         Ok(HeadKind {
             unborn: branch.is_some() && !has_commit,
             detached: branch.is_none(),
@@ -556,11 +564,10 @@ impl GitWriteModule {
     fn commit_parents(&self, oid: &str) -> Result<Vec<String>> {
         let output = self.run(&["rev-list", "--no-walk", "--parents", oid, "--"])?;
         if !output.status.success() {
-            return Err(UserVisibleError::new(
-                ErrorCode::InvalidArgument,
-                "提交不存在或无法读取",
-            )
-            .with_detail(text(&output.stderr)));
+            return Err(
+                UserVisibleError::new(ErrorCode::InvalidArgument, "提交不存在或无法读取")
+                    .with_detail(text(&output.stderr)),
+            );
         }
         let line = text(&output.stdout);
         let mut parts = line.split_whitespace();
@@ -661,7 +668,8 @@ fn kind_names(kinds: &[InterruptionKind]) -> String {
 
 fn terminal_hint(kinds: &[InterruptionKind]) -> String {
     if kinds.contains(&InterruptionKind::IndexLock) {
-        return "请确认没有其他 Git 进程后，在终端手动删除 index.lock；本应用不会删除任何锁文件".into();
+        return "请确认没有其他 Git 进程后，在终端手动删除 index.lock；本应用不会删除任何锁文件"
+            .into();
     }
     if kinds.contains(&InterruptionKind::CherryPick) {
         return "请在终端解决冲突后执行 git cherry-pick --continue（或 --abort）".into();
@@ -691,10 +699,7 @@ fn dirty_issue(status: &StatusSummary) -> GateIssueDto {
     }
     issue(
         "worktree_dirty",
-        format!(
-            "工作区不干净（{}），请先提交或在终端处理",
-            parts.join("、")
-        ),
+        format!("工作区不干净（{}），请先提交或在终端处理", parts.join("、")),
     )
 }
 
@@ -711,7 +716,14 @@ fn short_oid(oid: &str) -> &str {
 
 fn description_message(request: &WriteRequest, removed: bool) -> String {
     let branch = request.branch.as_deref().unwrap_or_default();
-    if removed || request.description.as_deref().unwrap_or("").trim().is_empty() {
+    if removed
+        || request
+            .description
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .is_empty()
+    {
         format!("已删除分支 {branch} 的本地描述")
     } else {
         format!("已更新分支 {branch} 的本地描述")

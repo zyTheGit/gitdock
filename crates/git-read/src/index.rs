@@ -3,8 +3,8 @@
 //! gix 自带的遍历排序不提供严格的 topo-order；这里用 Kahn 算法在已加载 DAG 上排序，
 //! 保证父提交不会早于其子提交出现。索引以 generation + view_key 为键持久化到应用缓存目录。
 
-use std::collections::{BinaryHeap, HashMap};
 use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap};
 use std::path::{Path, PathBuf};
 
 use git_core::{ErrorCode, Oid, Result, UserVisibleError};
@@ -233,10 +233,7 @@ fn cache_file_path(dir: &Path, repo: &gix::Repository, view_key: &str, generatio
 fn load_cache(path: &Path, view_key: &str, generation: u64) -> Option<GraphIndex> {
     let bytes = std::fs::read(path).ok()?;
     let file: CacheFile = serde_json::from_slice(&bytes).ok()?;
-    if file.version != CACHE_VERSION
-        || file.view_key != view_key
-        || file.generation != generation
-    {
+    if file.version != CACHE_VERSION || file.view_key != view_key || file.generation != generation {
         return None;
     }
     // 缓存必须与当前 refs/HEAD 指纹一致；generation 已包含该指纹。

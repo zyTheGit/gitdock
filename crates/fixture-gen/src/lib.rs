@@ -118,7 +118,9 @@ pub fn generate_all(root: &Path) -> Result<FixtureSet> {
 
     build_sha256(&env, &root.join("sha256"))?;
 
-    Ok(FixtureSet { root: root.to_owned() })
+    Ok(FixtureSet {
+        root: root.to_owned(),
+    })
 }
 
 /// 生成用于性能测试的线性仓库（fast-import）。返回实际提交数。
@@ -126,7 +128,8 @@ pub fn generate_perf(root: &Path, commits: usize) -> Result<usize> {
     std::fs::create_dir_all(root).map_err(|e| FixtureError(format!("创建目录失败: {e}")))?;
     let repo = root.join("perf");
     if repo.exists() {
-        std::fs::remove_dir_all(&repo).map_err(|e| FixtureError(format!("清理旧性能仓库失败: {e}")))?;
+        std::fs::remove_dir_all(&repo)
+            .map_err(|e| FixtureError(format!("清理旧性能仓库失败: {e}")))?;
     }
     run_git(root, &["init", "-q", "-b", "main", repo.to_str().unwrap()])?;
 
@@ -135,7 +138,9 @@ pub fn generate_perf(root: &Path, commits: usize) -> Result<usize> {
         let timestamp = 1_700_000_000 + i as i64;
         let content = format!("commit {i}\n");
         stream.push_str("commit refs/heads/main\n");
-        stream.push_str(&format!("committer Perf <perf@example.com> {timestamp} +0000\n"));
+        stream.push_str(&format!(
+            "committer Perf <perf@example.com> {timestamp} +0000\n"
+        ));
         let msg = format!("perf commit {i}");
         stream.push_str(&format!("data {}\n{}\n", msg.len(), msg));
         stream.push_str("M 644 inline file.txt\n");
@@ -243,7 +248,13 @@ fn write_file(repo: &Path, relative: &str, content: &str) -> Result<()> {
     std::fs::write(&path, content).map_err(|e| FixtureError(format!("写入文件失败: {e}")))
 }
 
-fn commit(env: &Env, repo: &Path, files: &[(&str, &str)], message: &str, minute: i64) -> Result<String> {
+fn commit(
+    env: &Env,
+    repo: &Path,
+    files: &[(&str, &str)],
+    message: &str,
+    minute: i64,
+) -> Result<String> {
     for (path, content) in files {
         write_file(repo, path, content)?;
     }
@@ -291,16 +302,35 @@ fn build_linear(env: &Env, repo: &Path) -> Result<()> {
     let mut content = String::new();
     for i in 1..=6 {
         content.push_str(&format!("line {i}\n"));
-        commit(env, repo, &[("linear.txt", &content)], &format!("linear commit {i}"), i)?;
+        commit(
+            env,
+            repo,
+            &[("linear.txt", &content)],
+            &format!("linear commit {i}"),
+            i,
+        )?;
     }
     // 注释 tag 指向第 3 个提交，轻量 tag 指向第 5 个提交。
     let c3 = git_with_date(env, repo, &["rev-parse", "HEAD~3"], 3)?;
     let c5 = git_with_date(env, repo, &["rev-parse", "HEAD~1"], 5)?;
-    git_with_date(env, repo, &["tag", "-a", "v1.0", "-m", "release 1.0", &c3], 10)?;
+    git_with_date(
+        env,
+        repo,
+        &["tag", "-a", "v1.0", "-m", "release 1.0", &c3],
+        10,
+    )?;
     git_with_date(env, repo, &["tag", "v1.1", &c5], 11)?;
     // 手工构造远程跟踪 ref，避免网络依赖。
-    run_git_env(Some(env), repo, &["update-ref", "refs/remotes/origin/main", "HEAD"])?;
-    run_git_env(Some(env), repo, &["update-ref", "refs/remotes/origin/topic", "HEAD~2"])?;
+    run_git_env(
+        Some(env),
+        repo,
+        &["update-ref", "refs/remotes/origin/main", "HEAD"],
+    )?;
+    run_git_env(
+        Some(env),
+        repo,
+        &["update-ref", "refs/remotes/origin/topic", "HEAD~2"],
+    )?;
     // 分支描述夹具。
     run_git_env(
         Some(env),
@@ -315,21 +345,58 @@ fn build_forked(env: &Env, repo: &Path) -> Result<()> {
     commit(env, repo, &[("base.txt", "base\n")], "forked base", 1)?;
     commit(env, repo, &[("base.txt", "base\nshared\n")], "forked c2", 2)?;
     git_with_date(env, repo, &["switch", "-q", "-c", "feature"], 3)?;
-    commit(env, repo, &[("feature.txt", "feature-1\n")], "feature c1", 4)?;
-    commit(env, repo, &[("feature.txt", "feature-1\nfeature-2\n")], "feature c2", 5)?;
+    commit(
+        env,
+        repo,
+        &[("feature.txt", "feature-1\n")],
+        "feature c1",
+        4,
+    )?;
+    commit(
+        env,
+        repo,
+        &[("feature.txt", "feature-1\nfeature-2\n")],
+        "feature c2",
+        5,
+    )?;
     git_with_date(env, repo, &["switch", "-q", "main"], 6)?;
     commit(env, repo, &[("main.txt", "main-1\n")], "main c3", 7)?;
     git_with_date(
         env,
         repo,
-        &["merge", "--no-ff", "-m", "merge feature into main", "feature"],
+        &[
+            "merge",
+            "--no-ff",
+            "-m",
+            "merge feature into main",
+            "feature",
+        ],
         8,
     )?;
-    commit(env, repo, &[("main.txt", "main-1\nmain-2\n")], "main after merge", 9)?;
+    commit(
+        env,
+        repo,
+        &[("main.txt", "main-1\nmain-2\n")],
+        "main after merge",
+        9,
+    )?;
     let head = git_with_date(env, repo, &["rev-parse", "HEAD"], 9)?;
-    git_with_date(env, repo, &["tag", "-a", "v2.0", "-m", "release 2.0", &head], 12)?;
-    run_git_env(Some(env), repo, &["update-ref", "refs/remotes/origin/main", "main"])?;
-    run_git_env(Some(env), repo, &["update-ref", "refs/remotes/origin/feature", "feature"])?;
+    git_with_date(
+        env,
+        repo,
+        &["tag", "-a", "v2.0", "-m", "release 2.0", &head],
+        12,
+    )?;
+    run_git_env(
+        Some(env),
+        repo,
+        &["update-ref", "refs/remotes/origin/main", "main"],
+    )?;
+    run_git_env(
+        Some(env),
+        repo,
+        &["update-ref", "refs/remotes/origin/feature", "feature"],
+    )?;
     Ok(())
 }
 
@@ -337,9 +404,21 @@ fn build_conflict(env: &Env, repo: &Path) -> Result<()> {
     init_repo(env, repo, None)?;
     commit(env, repo, &[("conflict.txt", "base\n")], "conflict base", 1)?;
     git_with_date(env, repo, &["switch", "-q", "-c", "feature"], 2)?;
-    commit(env, repo, &[("conflict.txt", "feature\n")], "feature changes same line", 3)?;
+    commit(
+        env,
+        repo,
+        &[("conflict.txt", "feature\n")],
+        "feature changes same line",
+        3,
+    )?;
     git_with_date(env, repo, &["switch", "-q", "main"], 4)?;
-    commit(env, repo, &[("conflict.txt", "main\n")], "main changes same line", 5)?;
+    commit(
+        env,
+        repo,
+        &[("conflict.txt", "main\n")],
+        "main changes same line",
+        5,
+    )?;
     // 可成功 cherry-pick 的来源分支。
     git_with_date(env, repo, &["switch", "-q", "-c", "pick-source"], 6)?;
     commit(
@@ -374,8 +453,11 @@ fn build_hook_reject(env: &Env, repo: &Path) -> Result<()> {
     let hook = repo.join(".git").join("hooks").join("pre-commit");
     std::fs::create_dir_all(hook.parent().unwrap())
         .map_err(|e| FixtureError(format!("创建 hooks 目录失败: {e}")))?;
-    std::fs::write(&hook, "#!/bin/sh\necho 'fixture hook rejects commit' >&2\nexit 1\n")
-        .map_err(|e| FixtureError(format!("写入 hook 失败: {e}")))?;
+    std::fs::write(
+        &hook,
+        "#!/bin/sh\necho 'fixture hook rejects commit' >&2\nexit 1\n",
+    )
+    .map_err(|e| FixtureError(format!("写入 hook 失败: {e}")))?;
     Ok(())
 }
 
@@ -426,7 +508,13 @@ fn clone_bare(env: &Env, source: &Path, dest: &Path) -> Result<()> {
     run_git_env(
         Some(env),
         env.root.as_path(),
-        &["clone", "-q", "--bare", source.to_str().unwrap(), dest.to_str().unwrap()],
+        &[
+            "clone",
+            "-q",
+            "--bare",
+            source.to_str().unwrap(),
+            dest.to_str().unwrap(),
+        ],
     )?;
     Ok(())
 }
@@ -442,10 +530,27 @@ fn file_url(path: &Path) -> String {
 
 fn build_sha256(env: &Env, repo: &Path) -> Result<()> {
     init_repo(env, repo, Some("sha256"))?;
-    commit(env, repo, &[("sha.txt", "sha256-1\n")], "sha256 commit 1", 1)?;
-    commit(env, repo, &[("sha.txt", "sha256-1\nsha256-2\n")], "sha256 commit 2", 2)?;
+    commit(
+        env,
+        repo,
+        &[("sha.txt", "sha256-1\n")],
+        "sha256 commit 1",
+        1,
+    )?;
+    commit(
+        env,
+        repo,
+        &[("sha.txt", "sha256-1\nsha256-2\n")],
+        "sha256 commit 2",
+        2,
+    )?;
     let head = git_with_date(env, repo, &["rev-parse", "HEAD"], 2)?;
-    git_with_date(env, repo, &["tag", "-a", "sha-tag", "-m", "sha tag", &head], 3)?;
+    git_with_date(
+        env,
+        repo,
+        &["tag", "-a", "sha-tag", "-m", "sha tag", &head],
+        3,
+    )?;
     Ok(())
 }
 

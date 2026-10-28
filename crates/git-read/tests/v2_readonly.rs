@@ -178,7 +178,9 @@ fn six_fixture_kinds_open_with_format_aware_oids() {
     for case in cases {
         let read = module(&case.path);
         assert_eq!(read.object_format(), case.format, "{} 对象格式", case.name);
-        let state = read.state().unwrap_or_else(|e| panic!("{} 读取状态: {e:?}", case.name));
+        let state = read
+            .state()
+            .unwrap_or_else(|e| panic!("{} 读取状态: {e:?}", case.name));
         assert_eq!(state.object_format, case.format, "{}", case.name);
         assert_eq!(state.is_bare, case.bare, "{} is_bare", case.name);
         assert_eq!(state.is_shallow, case.shallow, "{} is_shallow", case.name);
@@ -220,14 +222,16 @@ fn six_fixture_kinds_open_with_format_aware_oids() {
             .read_graph_page(&GraphScope::Head, None, 200)
             .unwrap_or_else(|e| panic!("{} 读取图谱: {e:?}", case.name));
         assert!(!page.commits.is_empty(), "{} 图谱不应为空", case.name);
-        assert_eq!(page.layout.len(), page.commits.len(), "{} 行数对齐", case.name);
+        assert_eq!(
+            page.layout.len(),
+            page.commits.len(),
+            "{} 行数对齐",
+            case.name
+        );
         for commit in &page.commits {
             assert_oid_len(&commit.oid, case.format, "commit.oid");
             assert!(
-                commit
-                    .short_oid
-                    .chars()
-                    .all(|c| c.is_ascii_hexdigit()),
+                commit.short_oid.chars().all(|c| c.is_ascii_hexdigit()),
                 "{} short_oid 必须是十六进制: {}",
                 case.name,
                 commit.short_oid
@@ -381,7 +385,8 @@ fn forked_pagination_has_opaque_cursor_and_no_gaps() {
 
         // 同 cursor 重新渲染应产生完全相同的 next_cursor。
         assert_eq!(
-            again.next_cursor, cursor_records.get(index).cloned(),
+            again.next_cursor,
+            cursor_records.get(index).cloned(),
             "cursor 必须确定性"
         );
     }
@@ -438,13 +443,20 @@ fn old_cursor_is_stale_after_ref_changes() {
     let generation = first.generation;
 
     // 场景 A：移动已有分支 ref。
-    git_ok(&repo, &["update-ref", "refs/heads/main", "refs/heads/feature"]);
+    git_ok(
+        &repo,
+        &["update-ref", "refs/heads/main", "refs/heads/feature"],
+    );
     let after_move = read.current_generation().expect("新 generation");
     assert_ne!(after_move, generation, "移动 ref 必须改变 generation");
     let err = read
         .read_graph_page(&GraphScope::All, Some(&cursor), 2)
         .expect_err("移动 ref 后旧 cursor 必须失效");
-    assert_eq!(err.code, ErrorCode::CursorStale, "必须是 CursorStale 而非静默错页");
+    assert_eq!(
+        err.code,
+        ErrorCode::CursorStale,
+        "必须是 CursorStale 而非静默错页"
+    );
 
     // 场景 B：删除一个 ref（不新增标记 ref，避免状态回到 cursor 签发时的指纹）。
     let second = read
@@ -463,7 +475,10 @@ fn old_cursor_is_stale_after_ref_changes() {
     // 此时旧 cursor 恢复可用且内容正确（状态确实回到了签发时的样子）。
     let stable_gen = read.current_generation().expect("稳定状态 generation");
     git_ok(&repo, &["update-ref", "refs/heads/extra", "HEAD"]);
-    assert_ne!(read.current_generation().expect("新增后 generation"), stable_gen);
+    assert_ne!(
+        read.current_generation().expect("新增后 generation"),
+        stable_gen
+    );
     git_ok(&repo, &["update-ref", "-d", "refs/heads/extra"]);
     let reverted = read.current_generation().expect("删除后 generation");
     let stable = read
@@ -518,7 +533,9 @@ fn repository_is_not_mutated_by_reads() {
     let read = module(&repo);
     let state = read.state().expect("state");
     let head = state.head.oid.clone().expect("HEAD");
-    let _ = read.read_graph_page(&GraphScope::All, None, 50).expect("图谱");
+    let _ = read
+        .read_graph_page(&GraphScope::All, None, 50)
+        .expect("图谱");
     let _ = read.read_commit(&head).expect("commit 详情");
     let _ = read.read_file_diff(&head, "main.txt").expect("文件 diff");
     let base = oid_of(&read_oid(&repo, "HEAD~2"));
@@ -535,7 +552,12 @@ fn repository_is_not_mutated_by_reads() {
         "只读调用不得新增/删除仓库内文件"
     );
     for (path, meta) in &before_map {
-        assert_eq!(after_map.get(path), Some(meta), "只读调用修改了 {}", path.display());
+        assert_eq!(
+            after_map.get(path),
+            Some(meta),
+            "只读调用修改了 {}",
+            path.display()
+        );
     }
     println!("READONLY files_unchanged={}", before_map.len());
 }
@@ -587,10 +609,16 @@ fn git_read_source_has_no_write_or_mutation_calls() {
     let detect_start = read_source
         .find("fn detect_git_version")
         .expect("detect_git_version 存在");
-    let detect_end = detect_start + read_source[detect_start..].find("fn version_at_least").unwrap();
+    let detect_end = detect_start
+        + read_source[detect_start..]
+            .find("fn version_at_least")
+            .unwrap();
     let detect = &read_source[detect_start..detect_end];
     assert!(detect.contains("Command::new(\"git\")"), "子进程必须是 git");
-    assert!(detect.contains(".arg(\"--version\")"), "子进程参数只能是 --version");
+    assert!(
+        detect.contains(".arg(\"--version\")"),
+        "子进程参数只能是 --version"
+    );
     for write_word in [
         "commit",
         "update-ref",
@@ -620,7 +648,10 @@ fn git_read_source_has_no_write_or_mutation_calls() {
         "缓存写入口应唯一"
     );
     assert!(index_source.contains("fn write_cache"), "缓存写入口明确");
-    assert!(index_source.contains("cache_file_path"), "缓存路径来自 cache_dir");
+    assert!(
+        index_source.contains("cache_file_path"),
+        "缓存路径来自 cache_dir"
+    );
     assert!(index_source.contains("dir.join("), "缓存文件写入缓存目录");
     for (name, source) in [
         ("read.rs", include_str!("../src/read.rs")),
@@ -673,7 +704,11 @@ fn sha256_tag_detail_and_compare_are_usable() {
     let tag_page = read
         .read_graph_page(&GraphScope::Branch("sha-tag".to_owned()), None, 10)
         .expect("tag 视图");
-    assert_eq!(tag_page.commits.len(), 2, "annotated tag 必须可 peel 成 commit 视图");
+    assert_eq!(
+        tag_page.commits.len(),
+        2,
+        "annotated tag 必须可 peel 成 commit 视图"
+    );
 
     // commit 详情。
     let detail = read.read_commit(&head).expect("sha256 commit 详情");
@@ -711,18 +746,29 @@ fn sha256_tag_detail_and_compare_are_usable() {
     assert_eq!(parent.len(), 64);
     let result = read.compare(&parent, &head, None).expect("sha256 compare");
     assert_eq!(result.mode, CompareMode::ThreeDot);
-    assert_eq!(result.merge_base.as_ref().map(Oid::as_str), Some(parent.as_str()));
+    assert_eq!(
+        result.merge_base.as_ref().map(Oid::as_str),
+        Some(parent.as_str())
+    );
     assert_eq!(result.base_only, 0);
     assert_eq!(result.compare_only, 1);
     assert_eq!(result.commits.len(), 1);
-    assert_oid_len(&result.commits[0].oid, ObjectFormat::Sha256, "compare commit");
+    assert_oid_len(
+        &result.commits[0].oid,
+        ObjectFormat::Sha256,
+        "compare commit",
+    );
     assert!(result.files.iter().any(|f| f.path == "sha.txt"));
     assert!(result.warnings.iter().all(|w| w.code != "no_merge_base"));
 
     let file_diff = read
         .compare_file_diff(&parent, &head, "sha.txt")
         .expect("sha256 compare 文件");
-    assert!(file_diff.patch.as_deref().unwrap_or("").contains("+sha256-2"));
+    assert!(file_diff
+        .patch
+        .as_deref()
+        .unwrap_or("")
+        .contains("+sha256-2"));
 
     println!(
         "SHA256 head={} tag_object={} tag_commit={} commits={} compare_only={}",
@@ -745,7 +791,9 @@ fn build_linear_repo(dir: &Path, commits: usize) {
         let msg = format!("perf commit {i}");
         let content = format!("commit {i}\n");
         stream.push_str("commit refs/heads/main\n");
-        stream.push_str(&format!("committer Perf <perf@example.com> {timestamp} +0000\n"));
+        stream.push_str(&format!(
+            "committer Perf <perf@example.com> {timestamp} +0000\n"
+        ));
         stream.push_str(&format!("data {}\n{}\n", msg.len(), msg));
         stream.push_str("M 644 inline file.txt\n");
         stream.push_str(&format!("data {}\n{}", content.len(), content));

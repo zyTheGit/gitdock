@@ -85,14 +85,20 @@ fn linear_state_refs_and_head() {
         .expect("注释 tag");
     assert_eq!(tag.kind, RefKind::Tag);
     // annotated tag 的直接目标不是 commit，peel 后才是。
-    assert_ne!(tag.target_oid, tag.commit_oid.clone().expect("tag 指向提交"));
+    assert_ne!(
+        tag.target_oid,
+        tag.commit_oid.clone().expect("tag 指向提交")
+    );
     assert_eq!(
         tag.commit_oid.as_ref().map(Oid::as_str),
         Some(read_oid(&set.linear(), "v1.0^{commit}").as_str())
     );
 
     // generation 对同一仓库状态是稳定的。
-    assert_eq!(state.generation, read.current_generation().expect("generation"));
+    assert_eq!(
+        state.generation,
+        read.current_generation().expect("generation")
+    );
 
     let page = read
         .read_graph_page(&GraphScope::Head, None, 200)
@@ -117,14 +123,22 @@ fn local_branch_descriptions_come_from_local_config() {
     git_ok(&repo, &["branch", "topic"]);
     git_ok(
         &repo,
-        &["config", "--local", "branch.main.description", "主分支 / main"],
+        &[
+            "config",
+            "--local",
+            "branch.main.description",
+            "主分支 / main",
+        ],
     );
     git_ok(
         &repo,
         &["config", "--local", "branch.topic.description", "特性分支"],
     );
     // 空值按未设置处理，不应出现在描述中。
-    git_ok(&repo, &["config", "--local", "branch.empty.description", ""]);
+    git_ok(
+        &repo,
+        &["config", "--local", "branch.empty.description", ""],
+    );
     git_ok(&repo, &["update-ref", "refs/heads/empty", "HEAD"]);
 
     let read = module(&repo);
@@ -357,7 +371,9 @@ fn binary_encoding_and_gitlink_degrade_gracefully() {
     assert!(binary.binary);
     assert!(binary.patch.is_none(), "二进制不得输出 patch");
 
-    let utf16_diff = read.read_file_diff(&head, "utf16.txt").expect("UTF-16 diff");
+    let utf16_diff = read
+        .read_file_diff(&head, "utf16.txt")
+        .expect("UTF-16 diff");
     assert!(utf16_diff.encoding_fallback, "UTF-16 应标记编码降级");
     assert!(utf16_diff.patch.as_deref().unwrap_or("").contains("中文"));
 
@@ -384,7 +400,10 @@ fn compare_three_dot_uses_merge_base() {
         Some(feature.as_str())
     );
     assert_eq!(result.base_only, 0);
-    assert_eq!(result.compare_only, 3, "main 侧独有：合并前、merge 与合并后提交");
+    assert_eq!(
+        result.compare_only, 3,
+        "main 侧独有：合并前、merge 与合并后提交"
+    );
     assert!(result.files.iter().any(|f| f.path == "main.txt"));
     assert_eq!(result.commits.len(), 3);
     assert!(result.warnings.iter().all(|w| w.code != "no_merge_base"));
@@ -451,7 +470,10 @@ fn search_matches_message_author_and_path() {
         .search(&request("s2", "fixture@example.com"), None)
         .expect("按作者搜索");
     assert_eq!(author.results.len(), 7);
-    assert!(author.results.iter().all(|r| r.fields.contains(&SearchField::Author)));
+    assert!(author
+        .results
+        .iter()
+        .all(|r| r.fields.contains(&SearchField::Author)));
 
     let path = read
         .search(&request("s3", "feature.txt"), None)
@@ -516,8 +538,7 @@ fn shallow_bare_and_linked_worktree_are_detected() {
 fn index_cache_is_reused_between_reads() {
     let set = fixtures();
     let cache = temp_dir("cache");
-    let read =
-        GitReadModule::open(&set.linear(), Some(cache.clone())).expect("带缓存目录打开仓库");
+    let read = GitReadModule::open(&set.linear(), Some(cache.clone())).expect("带缓存目录打开仓库");
 
     let first = read
         .read_graph_page(&GraphScope::Head, None, 3)
@@ -578,7 +599,10 @@ fn branches_containing_reflects_merge_ancestry() {
         .branches_containing(&feature_tip)
         .expect("查询 feature tip 所在分支");
     containing_feature.sort();
-    assert_eq!(containing_feature, vec!["feature".to_string(), "main".to_string()]);
+    assert_eq!(
+        containing_feature,
+        vec!["feature".to_string(), "main".to_string()]
+    );
 
     // main tip 只被 main 包含。
     let containing_main = read

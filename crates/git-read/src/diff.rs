@@ -5,9 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use git_core::{
-    ChangedFileDto, ErrorCode, FileDiffDto, FileStatus, Oid, Result, UserVisibleError,
-};
+use git_core::{ChangedFileDto, ErrorCode, FileDiffDto, FileStatus, Oid, Result, UserVisibleError};
 use similar::{ChangeTag, TextDiff};
 
 use crate::util::{decode_text, find_tree, lossy, oid_from_gix, try_object_bytes};

@@ -87,9 +87,12 @@ pub fn save(dir: &Path, settings: &SettingsDto) -> Result<SettingsDto, UserVisib
     validate(&next)?;
     std::fs::create_dir_all(dir).map_err(io_error)?;
     let path = settings_path(dir);
-    write_atomic(&path, &serde_json::to_vec_pretty(&next).map_err(|e| {
-        UserVisibleError::new(ErrorCode::Internal, "设置序列化失败").with_detail(e.to_string())
-    })?)
+    write_atomic(
+        &path,
+        &serde_json::to_vec_pretty(&next).map_err(|e| {
+            UserVisibleError::new(ErrorCode::Internal, "设置序列化失败").with_detail(e.to_string())
+        })?,
+    )
     .map_err(io_error)?;
     Ok(next)
 }
@@ -118,7 +121,11 @@ fn validate(settings: &SettingsDto) -> Result<(), UserVisibleError> {
     Ok(())
 }
 
-pub fn remember(dir: &Path, current: &SettingsDto, path: &Path) -> Result<SettingsDto, UserVisibleError> {
+pub fn remember(
+    dir: &Path,
+    current: &SettingsDto,
+    path: &Path,
+) -> Result<SettingsDto, UserVisibleError> {
     let canonical = std::fs::canonicalize(path).map_err(|e| {
         UserVisibleError::new(ErrorCode::RepositoryNotFound, "仓库目录不可访问")
             .with_detail(e.to_string())
@@ -289,8 +296,14 @@ mod tests {
         ];
         let saved = remember(dir.path(), &settings, &repo).expect("记录最近仓库失败");
         assert_eq!(saved.recent_repositories.len(), 2);
-        let first = saved.recent_repositories[0].path.replace('\\', "/").to_lowercase();
-        assert_eq!(first, repo.to_string_lossy().replace('\\', "/").to_lowercase());
+        let first = saved.recent_repositories[0]
+            .path
+            .replace('\\', "/")
+            .to_lowercase();
+        assert_eq!(
+            first,
+            repo.to_string_lossy().replace('\\', "/").to_lowercase()
+        );
     }
 
     #[test]

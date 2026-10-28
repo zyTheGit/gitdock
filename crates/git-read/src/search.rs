@@ -69,7 +69,10 @@ impl GitReadModule {
                     UserVisibleError::new(ErrorCode::CursorInvalid, "搜索游标无效")
                         .with_detail(e.to_string())
                 })?;
-                index.position(&after).map(|p| p + 1).unwrap_or(index.order.len())
+                index
+                    .position(&after)
+                    .map(|p| p + 1)
+                    .unwrap_or(index.order.len())
             }
             None => 0,
         };

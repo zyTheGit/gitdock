@@ -46,7 +46,12 @@ fn init_repo() -> TempDir {
     temp
 }
 
-fn request(kind: WriteKind, oid: Option<&str>, branch: Option<&str>, description: Option<&str>) -> WriteRequest {
+fn request(
+    kind: WriteKind,
+    oid: Option<&str>,
+    branch: Option<&str>,
+    description: Option<&str>,
+) -> WriteRequest {
     WriteRequest {
         kind,
         oid: oid.map(|value| Oid::new(value).expect("oid")),
@@ -78,7 +83,10 @@ fn gate_rejects_untracked_and_allows_clean() {
         .validate(&request(WriteKind::CherryPick, Some(&target), None, None))
         .expect("Gate");
     assert!(!report.ok);
-    assert!(report.issues.iter().any(|issue| issue.code == "worktree_dirty"));
+    assert!(report
+        .issues
+        .iter()
+        .any(|issue| issue.code == "worktree_dirty"));
 
     std::fs::remove_file(dir.join("untracked.txt")).expect("删除未跟踪文件");
     let report = module
@@ -102,11 +110,19 @@ fn gate_rejects_merge_commit_for_cherry_pick() {
 
     let module = GitWriteModule::new(dir).expect("打开写模块");
     let report = module
-        .validate(&request(WriteKind::CherryPick, Some(&merge_oid), None, None))
+        .validate(&request(
+            WriteKind::CherryPick,
+            Some(&merge_oid),
+            None,
+            None,
+        ))
         .expect("Gate");
     assert!(!report.ok);
     assert!(report.is_merge_commit);
-    assert!(report.issues.iter().any(|issue| issue.code == "merge_commit"));
+    assert!(report
+        .issues
+        .iter()
+        .any(|issue| issue.code == "merge_commit"));
 }
 
 #[test]
@@ -122,7 +138,10 @@ fn gate_rejects_detached_head() {
         .validate(&request(WriteKind::Revert, Some(&target), None, None))
         .expect("Gate");
     assert!(!report.ok);
-    assert!(report.issues.iter().any(|issue| issue.code == "detached_head"));
+    assert!(report
+        .issues
+        .iter()
+        .any(|issue| issue.code == "detached_head"));
 }
 
 #[test]
@@ -156,7 +175,10 @@ fn cherry_pick_conflict_is_reported_without_abort() {
         .execute(&request(WriteKind::CherryPick, Some(&feature), None, None))
         .expect("执行");
     assert_eq!(outcome.status, WriteStatus::Conflicted, "{outcome:?}");
-    assert!(outcome.conflict_files.iter().any(|file| file == "conflict.txt"));
+    assert!(outcome
+        .conflict_files
+        .iter()
+        .any(|file| file == "conflict.txt"));
 
     // 本应用不得自动 abort：CHERRY_PICK_HEAD 必须仍然存在。
     let marker = dir.join(".git").join("CHERRY_PICK_HEAD");
@@ -166,7 +188,10 @@ fn cherry_pick_conflict_is_reported_without_abort() {
         .validate(&request(WriteKind::Revert, Some(&feature), None, None))
         .expect("Gate");
     assert!(!blocked.ok);
-    assert!(blocked.issues.iter().any(|issue| issue.code == "interrupted"));
+    assert!(blocked
+        .issues
+        .iter()
+        .any(|issue| issue.code == "interrupted"));
 
     let interruption = module.inspect_interruption().expect("探测中断");
     assert!(interruption.is_active());
@@ -203,21 +228,35 @@ fn switch_requires_existing_local_branch() {
     let module = GitWriteModule::new(dir).expect("打开写模块");
 
     let missing = module
-        .validate(&request(WriteKind::SwitchBranch, None, Some("remotenothere"), None))
+        .validate(&request(
+            WriteKind::SwitchBranch,
+            None,
+            Some("remotenothere"),
+            None,
+        ))
         .expect("Gate");
     assert!(!missing.ok);
-    assert!(missing.issues.iter().any(|issue| issue.code == "branch_not_found"));
+    assert!(missing
+        .issues
+        .iter()
+        .any(|issue| issue.code == "branch_not_found"));
 
     let current = module
         .validate(&request(WriteKind::SwitchBranch, None, Some("main"), None))
         .expect("Gate");
-    assert!(current.issues.iter().any(|issue| issue.code == "already_on_branch"));
+    assert!(current
+        .issues
+        .iter()
+        .any(|issue| issue.code == "already_on_branch"));
 
     let outcome = module
         .execute(&request(WriteKind::SwitchBranch, None, Some("topic"), None))
         .expect("执行");
     assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
-    assert_eq!(git(dir, &["symbolic-ref", "--short", "HEAD"]).trim(), "topic");
+    assert_eq!(
+        git(dir, &["symbolic-ref", "--short", "HEAD"]).trim(),
+        "topic"
+    );
 }
 
 #[test]
@@ -240,7 +279,11 @@ fn branch_description_roundtrip_uses_local_config() {
     let read = module.read_branch_description("main").expect("读取描述");
     assert_eq!(read.description, "主线说明");
     assert_eq!(
-        git(dir, &["config", "--local", "--get", "branch.main.description"]).trim(),
+        git(
+            dir,
+            &["config", "--local", "--get", "branch.main.description"]
+        )
+        .trim(),
         "主线说明"
     );
     assert!(!read.shared_across_worktrees);
@@ -255,7 +298,10 @@ fn branch_description_roundtrip_uses_local_config() {
         .expect("清空描述");
     assert_eq!(cleared.status, WriteStatus::Succeeded, "{cleared:?}");
     assert_eq!(
-        module.read_branch_description("main").expect("读取描述").description,
+        module
+            .read_branch_description("main")
+            .expect("读取描述")
+            .description,
         ""
     );
 }
@@ -279,8 +325,16 @@ fn switch_rejects_worktree_occupied_branch() {
 
     let module = GitWriteModule::new(dir).expect("打开写模块");
     let report = module
-        .validate(&request(WriteKind::SwitchBranch, None, Some("occupied"), None))
+        .validate(&request(
+            WriteKind::SwitchBranch,
+            None,
+            Some("occupied"),
+            None,
+        ))
         .expect("Gate");
     assert!(!report.ok);
-    assert!(report.issues.iter().any(|issue| issue.code == "branch_checked_out"));
+    assert!(report
+        .issues
+        .iter()
+        .any(|issue| issue.code == "branch_checked_out"));
 }
