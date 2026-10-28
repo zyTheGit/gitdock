@@ -407,10 +407,19 @@ export default function App() {
     repo.interruption.kinds.length > 0 ||
     !info?.git_version_supported;
 
+  const copyDescription = useCallback(async (oid: string) => {
+    try {
+      const detail = await ipc.readCommit(oid);
+      await copyText(detail.message.trimEnd());
+    } catch (err) {
+      setError(errorText(err));
+    }
+  }, []);
+
   const commitMenuItems = useCallback(
     (commit: CommitSummaryDto): MenuItem[] => [
       { label: "复制完整哈希", onSelect: () => void copyText(commit.oid) },
-      { label: "复制提交说明", onSelect: () => void copyText(commit.summary) },
+      { label: "复制提交说明", onSelect: () => void copyDescription(commit.oid) },
       {
         label: "Cherry Pick 此提交",
         disabled: writeDisabled,
@@ -422,7 +431,7 @@ export default function App() {
         onSelect: () => void startWrite("revert", { commit }),
       },
     ],
-    [startWrite, writeDisabled],
+    [copyDescription, startWrite, writeDisabled],
   );
 
   const rowMenuItems: MenuItem[] = rowMenu
