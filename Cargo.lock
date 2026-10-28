@@ -1351,6 +1351,7 @@ dependencies = [
 name = "git-read"
 version = "0.1.0"
 dependencies = [
+ "fixture-gen",
  "git-core",
  "gix",
  "graph-layout",
