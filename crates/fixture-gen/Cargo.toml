@@ -1,0 +1,11 @@
+[package]
+name = "fixture-gen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+
+[[bin]]
+name = "fixture-gen"
+path = "src/main.rs"

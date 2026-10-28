@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/git-core",
+  "crates/git-read",
+  "crates/graph-layout",
+  "crates/git-write",
+  "crates/refresh",
+  "crates/fixture-gen",
+  "crates/test-support",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.85"
+
+[workspace.dependencies]
+git-core = { path = "crates/git-core" }
+git-read = { path = "crates/git-read" }
+graph-layout = { path = "crates/graph-layout" }
+git-write = { path = "crates/git-write" }
+refresh = { path = "crates/refresh" }
+test-support = { path = "crates/test-support" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+sha2 = "0.10"
+base64 = "0.22"
+parking_lot = "0.12"

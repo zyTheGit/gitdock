@@ -1,0 +1,19 @@
+[package]
+name = "git-read"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+git-core.workspace = true
+graph-layout.workspace = true
+gix = { version = "0.90", default-features = false, features = ["sha1", "sha256", "revision", "blob-diff", "index", "worktree-mutation", "status"] }
+serde.workspace = true
+serde_json.workspace = true
+similar = "3"
+parking_lot.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+test-support.workspace = true
