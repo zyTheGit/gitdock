@@ -6,6 +6,7 @@ use std::sync::{Mutex, RwLock};
 
 use git_core::{ErrorCode, Result, UserVisibleError};
 use git_read::GitReadModule;
+use git_write::GitWriteModule;
 use tauri::Manager;
 
 use super::config::{self, SettingsDto};
@@ -13,6 +14,7 @@ use super::logging;
 
 pub struct Session {
     pub read: GitReadModule,
+    pub write: GitWriteModule,
 }
 
 pub struct AppPaths {

@@ -196,6 +196,60 @@ export interface SearchPageDto {
   canceled: boolean;
 }
 
+export type WriteKind =
+  | "cherry_pick"
+  | "revert"
+  | "switch_branch"
+  | "set_branch_description";
+
+export interface WriteRequest {
+  kind: WriteKind;
+  oid?: string;
+  branch?: string;
+  description?: string;
+}
+
+export interface GateIssueDto {
+  code: string;
+  message: string;
+}
+
+export interface GateReportDto {
+  ok: boolean;
+  issues: GateIssueDto[];
+  summary: string;
+  is_merge_commit: boolean;
+}
+
+export type WriteStatus = "succeeded" | "empty_pick" | "conflicted" | "failed" | "rejected";
+
+export interface WriteOutcomeDto {
+  status: WriteStatus;
+  message: string;
+  exit_code?: number;
+  stderr?: string;
+  conflict_files: string[];
+  interruption?: InterruptionDto;
+  generation?: number;
+  head_oid?: string;
+}
+
+export interface WorkspaceStatusDto {
+  dirty: boolean;
+  staged: number;
+  tracked: number;
+  untracked: number;
+  conflicted: number;
+  is_bare: boolean;
+  detached: boolean;
+}
+
+export interface BranchDescriptionDto {
+  branch: string;
+  description: string;
+  shared_across_worktrees: boolean;
+}
+
 export interface ExternalToolConfig {
   name: string;
   executable: string;

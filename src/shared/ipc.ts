@@ -1,16 +1,22 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AppInfoDto,
+  BranchDescriptionDto,
   CompareResultDto,
   CommitDetailDto,
   FileDiffDto,
+  GateReportDto,
   GraphPageDto,
   GraphScope,
+  InterruptionDto,
   RepoStateDto,
   SearchPageDto,
   SearchRequest,
   SettingsDto,
   UserVisibleError,
+  WorkspaceStatusDto,
+  WriteOutcomeDto,
+  WriteRequest,
 } from "./types";
 
 // 唯一的跨进程 seam：只暴露白名单 command，禁止任意命令执行与任意路径读取。
@@ -65,4 +71,10 @@ export const ipc = {
     threeDot: boolean,
   ) =>
     call<void>("launch_external_diff", { toolIndex, left, right, path, threeDot }),
+  validateWrite: (request: WriteRequest) => call<GateReportDto>("validate_write", { request }),
+  executeWrite: (request: WriteRequest) => call<WriteOutcomeDto>("execute_write", { request }),
+  inspectInterruption: () => call<InterruptionDto>("inspect_interruption"),
+  workspaceStatus: () => call<WorkspaceStatusDto>("workspace_status"),
+  readBranchDescription: (branch: string) =>
+    call<BranchDescriptionDto>("read_branch_description", { branch }),
 };

@@ -1,17 +1,19 @@
 //! 受限 Tauri command seam。
 //!
 //! 约束：前端只能调用这里注册的白名单 command；这里不接受命令字符串、不接受
-//! 任意 `.git` 路径，也不向前端暴露 Git 原始对象。所有 Git 访问都经由
-//! `GitReadModule`（只读）；写操作将在 W1 通过独立模块接入。
+//! 任意 `.git` 路径，也不向前端暴露 Git 原始对象。只读访问经由 `GitReadModule`，
+//! 写操作经由 `GitWriteModule`（内部只调用 Git CLI），二者都按结构化请求工作。
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use git_core::{
-    CompareResultDto, CommitDetailDto, ErrorCode, FileDiffDto, GraphPageDto, GraphScope, Oid,
-    RepoStateDto, Result, SearchPageDto, SearchRequest, UserVisibleError,
+    BranchDescriptionDto, CompareResultDto, CommitDetailDto, ErrorCode, FileDiffDto, GateReportDto,
+    GraphPageDto, GraphScope, InterruptionDto, Oid, RepoStateDto, Result, SearchPageDto,
+    SearchRequest, UserVisibleError, WorkspaceStatusDto, WriteOutcomeDto, WriteRequest,
 };
 use git_read::{detect_git_version, GitReadModule, DEFAULT_PAGE_LIMIT, MINIMUM_GIT_VERSION};
+use git_write::GitWriteModule;
 use serde::Serialize;
 use tauri::State;
 
@@ -91,6 +93,7 @@ pub async fn open_repository(state: State<'_, Shared>, path: String) -> Result<R
         }
         let open_path = PathBuf::from(super::config::strip_verbatim(&canonical));
         let read = GitReadModule::open(&open_path, Some(state.paths.index_cache_dir.clone()))?;
+        let write = GitWriteModule::new(&open_path)?;
         let state_dto = read.state()?;
         logging::info(&format!(
             "打开仓库 {}（{}，generation {}）",
@@ -98,7 +101,7 @@ pub async fn open_repository(state: State<'_, Shared>, path: String) -> Result<R
             state_dto.object_format.as_str(),
             state_dto.generation
         ));
-        state.replace_session(Some(Session { read }))?;
+        state.replace_session(Some(Session { read, write }))?;
         Ok(state_dto)
     })
     .await
@@ -293,6 +296,64 @@ pub async fn cancel_search(state: State<'_, Shared>, search_id: String) -> Resul
             session.read.cancel_search(&search_id);
             Ok(())
         })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn validate_write(
+    state: State<'_, Shared>,
+    request: WriteRequest,
+) -> Result<GateReportDto> {
+    let state = Arc::clone(&state);
+    blocking(move || state.with_session(|session| session.write.validate(&request))).await
+}
+
+/// 执行写操作。完成后重新探测 generation 与 HEAD，供前端判断是否刷新。
+#[tauri::command]
+pub async fn execute_write(
+    state: State<'_, Shared>,
+    request: WriteRequest,
+) -> Result<WriteOutcomeDto> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        state.with_session(|session| {
+            let mut outcome = session.write.execute(&request)?;
+            match session.read.state() {
+                Ok(repo) => {
+                    outcome.generation = Some(repo.generation);
+                    outcome.head_oid = repo.head.oid;
+                }
+                Err(err) => {
+                    logging::warn(&format!("写操作后重新探测仓库状态失败：{err}"));
+                }
+            }
+            Ok(outcome)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn inspect_interruption(state: State<'_, Shared>) -> Result<InterruptionDto> {
+    let state = Arc::clone(&state);
+    blocking(move || state.with_session(|session| session.write.inspect_interruption())).await
+}
+
+#[tauri::command]
+pub async fn workspace_status(state: State<'_, Shared>) -> Result<WorkspaceStatusDto> {
+    let state = Arc::clone(&state);
+    blocking(move || state.with_session(|session| session.write.workspace_status())).await
+}
+
+#[tauri::command]
+pub async fn read_branch_description(
+    state: State<'_, Shared>,
+    branch: String,
+) -> Result<BranchDescriptionDto> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        state.with_session(|session| session.write.read_branch_description(&branch))
     })
     .await
 }

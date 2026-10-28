@@ -1336,6 +1336,7 @@ version = "0.1.0"
 dependencies = [
  "git-core",
  "git-read",
+ "git-write",
  "serde",
  "serde_json",
  "tauri",
@@ -1368,6 +1369,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
+ "tempfile",
  "test-support",
  "thiserror 2.0.21",
 ]

@@ -49,6 +49,11 @@ pub fn run() {
             commands::search,
             commands::cancel_search,
             commands::launch_external_diff,
+            commands::validate_write,
+            commands::execute_write,
+            commands::inspect_interruption,
+            commands::workspace_status,
+            commands::read_branch_description,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Git Graph 失败");
