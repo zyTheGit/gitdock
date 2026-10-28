@@ -87,6 +87,15 @@ pub async fn remember_repository(
 }
 
 #[tauri::command]
+pub fn startup_repository() -> Option<String> {
+    // F1 启动传参：取第一个非选项参数，路径校验与打开交给 open_repository。
+    std::env::args_os()
+        .skip(1)
+        .find(|arg| !arg.to_string_lossy().starts_with('-'))
+        .map(|arg| arg.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
 pub async fn open_repository(
     app: tauri::AppHandle,
     state: State<'_, Shared>,

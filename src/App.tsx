@@ -129,7 +129,7 @@ export default function App() {
     }
   }, [slots.base?.oid, slots.compare?.oid]);
 
-  const openRepository = useCallback(async (path: string) => {
+  const openRepository = useCallback(async (path: string): Promise<boolean> => {
     setBusy(true);
     setError(null);
     setWorkspace(null);
@@ -145,9 +145,11 @@ export default function App() {
       setRepo(state);
       setWorkspace(await ipc.workspaceStatus().catch(() => null));
       setSettings(await ipc.rememberRepository(state.path));
+      return true;
     } catch (err) {
       setWorkspace(null);
       setError(errorText(err));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -156,11 +158,20 @@ export default function App() {
   useEffect(() => {
     void (async () => {
       try {
-        const [appInfo, loaded] = await Promise.all([ipc.appInfo(), ipc.loadSettings()]);
+        const [appInfo, loaded, startupPath] = await Promise.all([
+          ipc.appInfo(),
+          ipc.loadSettings(),
+          ipc.startupRepository().catch(() => null),
+        ]);
         setInfo(appInfo);
         setSettings(loaded);
-        if (!restored.current && loaded.restore_last_repository) {
-          restored.current = true;
+        if (restored.current) {
+          return;
+        }
+        restored.current = true;
+        // 启动传参优先；打开失败再回退到“恢复上次仓库”。
+        const opened = startupPath ? await openRepository(startupPath) : false;
+        if (!opened && loaded.restore_last_repository) {
           const last = loaded.recent_repositories[0];
           if (last) {
             await openRepository(last.path);

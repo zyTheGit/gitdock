@@ -37,6 +37,7 @@ pub fn run() {
             commands::load_settings,
             commands::save_settings,
             commands::remember_repository,
+            commands::startup_repository,
             commands::open_repository,
             commands::close_repository,
             commands::repository_state,
