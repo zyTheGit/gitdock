@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { CompareBar } from "./features/compare/CompareBar";
 import { CompareView } from "./features/compare/CompareView";
@@ -23,11 +24,31 @@ import type {
   RefDto,
   RepoStateDto,
   SettingsDto,
+  WorkspaceStatusDto,
   WriteKind,
   WriteOutcomeDto,
 } from "./shared/types";
 
 type ViewMode = "graph" | "compare" | "search";
+
+const EVENT_REPOSITORY_CHANGED = "repository-changed";
+
+function workspaceLabel(status: WorkspaceStatusDto): string {
+  if (status.is_bare) {
+    return "bare 仓库";
+  }
+  if (status.conflicted > 0) {
+    return `工作区冲突 · ${status.conflicted} 个文件`;
+  }
+  if (!status.dirty) {
+    return "工作区干净";
+  }
+  const parts: string[] = [];
+  if (status.staged > 0) parts.push(`已暂存 ${status.staged}`);
+  if (status.tracked > 0) parts.push(`已修改 ${status.tracked}`);
+  if (status.untracked > 0) parts.push(`未跟踪 ${status.untracked}`);
+  return `工作区脏 · ${parts.join(" / ")}`;
+}
 
 const WRITE_LABEL: Record<WriteKind, string> = {
   cherry_pick: "Cherry Pick",
@@ -83,9 +104,16 @@ export default function App() {
     gateError?: string;
   } | null>(null);
   const [writeBusy, setWriteBusy] = useState(false);
+  const [workspace, setWorkspace] = useState<WorkspaceStatusDto | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const restored = useRef(false);
+  const repoRef = useRef<RepoStateDto | null>(null);
+  const busyRef = useRef(false);
+  const writeBusyRef = useRef(false);
+  repoRef.current = repo;
+  busyRef.current = busy;
+  writeBusyRef.current = writeBusy;
 
   const generation = repo?.generation ?? 0;
   const graph = useGraph(repo?.path ?? null, scope);
@@ -104,6 +132,7 @@ export default function App() {
   const openRepository = useCallback(async (path: string) => {
     setBusy(true);
     setError(null);
+    setWorkspace(null);
     try {
       const state = await ipc.openRepository(path);
       setScope({ kind: "head" });
@@ -114,8 +143,10 @@ export default function App() {
       setBranchMenu(null);
       setDescriptionBranch(null);
       setRepo(state);
+      setWorkspace(await ipc.workspaceStatus().catch(() => null));
       setSettings(await ipc.rememberRepository(state.path));
     } catch (err) {
+      setWorkspace(null);
       setError(errorText(err));
     } finally {
       setBusy(false);
@@ -156,7 +187,12 @@ export default function App() {
     setBusy(true);
     setError(null);
     try {
-      setRepo(await ipc.repositoryState());
+      const [state, status] = await Promise.all([
+        ipc.repositoryState(),
+        ipc.workspaceStatus(),
+      ]);
+      setRepo(state);
+      setWorkspace(status);
       await graph.reload({ keepRows: true });
     } catch (err) {
       setError(errorText(err));
@@ -164,6 +200,59 @@ export default function App() {
       setBusy(false);
     }
   }, [graph]);
+
+  // 监听只负责标脏：事件到达后防抖刷新，写操作进行中交由写后刷新收尾。
+  const autoRefresh = useCallback(async () => {
+    const current = repoRef.current;
+    if (!current || busyRef.current || writeBusyRef.current) {
+      return;
+    }
+    try {
+      const [state, status] = await Promise.all([
+        ipc.repositoryState(),
+        ipc.workspaceStatus(),
+      ]);
+      if (!repoRef.current || state.path !== repoRef.current.path) {
+        return;
+      }
+      setRepo(state);
+      setWorkspace(status);
+      await graph.reload({ keepRows: true });
+    } catch (err) {
+      setError(errorText(err));
+    }
+  }, [graph]);
+
+  useEffect(() => {
+    let disposed = false;
+    let timer: number | undefined;
+    let unlisten: (() => void) | undefined;
+    void listen<{ path: string; generation: number }>(EVENT_REPOSITORY_CHANGED, (event) => {
+      const current = repoRef.current;
+      if (!current || event.payload.path !== current.path) {
+        return;
+      }
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (!disposed) {
+          void autoRefresh();
+        }
+      }, 150);
+    })
+      .then((stop) => {
+        if (disposed) {
+          stop();
+        } else {
+          unlisten = stop;
+        }
+      })
+      .catch((err) => setError(`监听仓库变更失败：${errorText(err)}`));
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      unlisten?.();
+    };
+  }, [autoRefresh]);
 
   const launchExternal = useCallback(
     async (
@@ -240,11 +329,15 @@ export default function App() {
         setDiagnostic(outcome.stderr ?? outcome.message);
       }
       if (outcome.status !== "rejected") {
-        const state = await ipc.repositoryState();
+        const [state, status] = await Promise.all([
+          ipc.repositoryState(),
+          ipc.workspaceStatus(),
+        ]);
         // generation 是 refs/HEAD 指纹（随机 64 位），不具备单调性，不能做大小比较；
         // 写后状态是重新探测的，只需确认仓库未被切换，避免旧仓库结果覆盖新界面。
         if (!repoPath || state.path === repoPath) {
           setRepo(state);
+          setWorkspace(status);
           await graph.reload({ keepRows: true });
         }
       }
@@ -263,9 +356,13 @@ export default function App() {
       setToast(message);
       setError(null);
       try {
-        const state = await ipc.repositoryState();
+        const [state, status] = await Promise.all([
+          ipc.repositoryState(),
+          ipc.workspaceStatus(),
+        ]);
         if (!repoPath || state.path === repoPath) {
           setRepo(state);
+          setWorkspace(status);
           await graph.reload({ keepRows: true });
         }
       } catch (err) {
@@ -389,6 +486,18 @@ export default function App() {
           <span className="brand-mark">⎇</span>
           <span>Git Graph</span>
         </div>
+        {repo && workspace && (
+          <div
+            className={`workspace-badge ${
+              workspace.conflicted > 0 ? "conflict" : workspace.dirty ? "dirty" : "clean"
+            }`}
+            title={`已暂存 ${workspace.staged} · 已修改 ${workspace.tracked} · 未跟踪 ${workspace.untracked} · 冲突 ${workspace.conflicted}${
+              workspace.detached ? " · detached HEAD" : ""
+            }`}
+          >
+            {workspaceLabel(workspace)}
+          </div>
+        )}
         <div className="topbar-actions">
           {repo && (
             <>
@@ -642,6 +751,7 @@ export default function App() {
         <span>{busy ? "处理中…" : repo ? "就绪" : "未打开仓库"}</span>
         <span className="mono">
           {info ? `git ${info.git_version ?? "未知"} · ${info.platform}` : ""}
+          {repo && settings ? ` · ${settings.watch_enabled ? "监听已开启" : "监听已关闭"}` : ""}
         </span>
       </footer>
 

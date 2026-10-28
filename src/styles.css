@@ -95,6 +95,35 @@ button.large {
   gap: 8px;
 }
 
+.workspace-badge {
+  margin-left: 18px;
+  margin-right: auto;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 42vw;
+}
+
+.workspace-badge.clean {
+  color: var(--ok);
+  border-color: rgba(111, 191, 115, 0.45);
+}
+
+.workspace-badge.dirty {
+  color: var(--warning);
+  border-color: rgba(217, 164, 65, 0.55);
+}
+
+.workspace-badge.conflict {
+  color: var(--danger);
+  border-color: rgba(224, 108, 117, 0.6);
+}
+
 .layout {
   flex: 1;
   display: flex;

@@ -18,6 +18,7 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
     settings.external_tools.map((tool) => ({ ...tool })),
   );
   const [restore, setRestore] = useState(settings.restore_last_repository);
+  const [watch, setWatch] = useState(settings.watch_enabled);
   const [saving, setSaving] = useState(false);
 
   const update = (index: number, patch: Partial<ExternalToolConfig>) => {
@@ -36,6 +37,7 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
         ...settings,
         external_tools: cleaned,
         restore_last_repository: restore,
+        watch_enabled: watch,
       });
       onSaved(saved);
       onClose();
@@ -65,6 +67,14 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
               onChange={(event) => setRestore(event.target.checked)}
             />
             启动时恢复上次打开的仓库
+          </label>
+          <label className="settings-check">
+            <input
+              type="checkbox"
+              checked={watch}
+              onChange={(event) => setWatch(event.target.checked)}
+            />
+            监视 Git 目录变化并自动刷新（外部 commit、切换分支等）
           </label>
         </section>
 

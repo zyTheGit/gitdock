@@ -267,6 +267,7 @@ export interface SettingsDto {
   recent_repositories: RecentRepository[];
   external_tools: ExternalToolConfig[];
   restore_last_repository: boolean;
+  watch_enabled: boolean;
   window_width?: number;
   window_height?: number;
 }

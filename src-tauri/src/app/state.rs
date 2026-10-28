@@ -2,14 +2,16 @@
 //! 模块边界：只有 command 层接触本状态，Git 细节留在 git-read。
 
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use git_core::{ErrorCode, Result, UserVisibleError};
 use git_read::GitReadModule;
 use git_write::GitWriteModule;
-use tauri::Manager;
+use refresh::{RefreshCoordinator, RefreshReason};
+use tauri::{AppHandle, Manager};
 
 use super::config::{self, SettingsDto};
+use super::watch::{self, RepositoryWatcher};
 use super::logging;
 
 pub struct Session {
@@ -27,6 +29,8 @@ pub struct AppPaths {
 pub struct AppState {
     session: RwLock<Option<Session>>,
     settings: Mutex<SettingsDto>,
+    refresh: Mutex<RefreshCoordinator>,
+    watcher: Mutex<Option<RepositoryWatcher>>,
     pub paths: AppPaths,
 }
 
@@ -56,6 +60,8 @@ impl AppState {
         Ok(Self {
             session: RwLock::new(None),
             settings: Mutex::new(settings),
+            refresh: Mutex::new(RefreshCoordinator::new()),
+            watcher: Mutex::new(None),
             paths: AppPaths {
                 config_dir,
                 log_path,
@@ -129,6 +135,55 @@ impl AppState {
 
     pub fn close(&self) -> Result<()> {
         self.replace_session(None)
+    }
+
+    pub fn request_refresh(&self, reason: RefreshReason) -> u64 {
+        self.refresh
+            .lock()
+            .map(|mut coordinator| coordinator.request(reason))
+            .unwrap_or(0)
+    }
+
+    pub fn observe_generation(&self, generation: u64) -> bool {
+        self.refresh
+            .lock()
+            .map(|mut coordinator| coordinator.observe(generation))
+            .unwrap_or(false)
+    }
+
+    /// 记录 UI 已接受的代际；过期结果返回 `false` 且不覆盖当前代际。
+    pub fn accept_generation(&self, generation: u64) -> bool {
+        self.refresh
+            .lock()
+            .map(|mut coordinator| coordinator.accept(generation))
+            .unwrap_or(false)
+    }
+
+    /// 按当前设置启动/停止监听；切换仓库时旧监听先被释放。
+    pub fn restart_watcher(self: &Arc<Self>, app: &AppHandle, repo: &Path) {
+        let enabled = self.settings().map(|s| s.watch_enabled).unwrap_or(false);
+        let Ok(mut guard) = self.watcher.lock() else {
+            logging::warn("文件监听锁不可用，跳过本次启动");
+            return;
+        };
+        *guard = None;
+        if !enabled {
+            logging::info("文件监听已在设置中关闭");
+            return;
+        }
+        match watch::start(Arc::downgrade(self), app.clone(), repo.to_path_buf()) {
+            Ok(watcher) => {
+                *guard = Some(watcher);
+                logging::info(&format!("已启动文件监听：{}", repo.display()));
+            }
+            Err(err) => logging::warn(&err),
+        }
+    }
+
+    pub fn stop_watcher(&self) {
+        if let Ok(mut guard) = self.watcher.lock() {
+            *guard = None;
+        }
     }
 }
 

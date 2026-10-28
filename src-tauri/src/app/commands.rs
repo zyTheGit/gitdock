@@ -14,6 +14,7 @@ use git_core::{
 };
 use git_read::{detect_git_version, GitReadModule, DEFAULT_PAGE_LIMIT, MINIMUM_GIT_VERSION};
 use git_write::GitWriteModule;
+use refresh::RefreshReason;
 use serde::Serialize;
 use tauri::State;
 
@@ -60,11 +61,20 @@ pub async fn load_settings(state: State<'_, Shared>) -> Result<SettingsDto> {
 
 #[tauri::command]
 pub async fn save_settings(
+    app: tauri::AppHandle,
     state: State<'_, Shared>,
     settings: SettingsDto,
 ) -> Result<SettingsDto> {
     let state = Arc::clone(&state);
-    blocking(move || state.save_settings(settings)).await
+    blocking(move || {
+        let saved = state.save_settings(settings)?;
+        // 监听开关随设置即时生效；仅当仓库已打开时重启。
+        if let Ok(repo) = state.with_session(|session| Ok(session.read.path().to_path_buf())) {
+            state.restart_watcher(&app, &repo);
+        }
+        Ok(saved)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -77,7 +87,11 @@ pub async fn remember_repository(
 }
 
 #[tauri::command]
-pub async fn open_repository(state: State<'_, Shared>, path: String) -> Result<RepoStateDto> {
+pub async fn open_repository(
+    app: tauri::AppHandle,
+    state: State<'_, Shared>,
+    path: String,
+) -> Result<RepoStateDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let dir = PathBuf::from(path);
@@ -104,6 +118,9 @@ pub async fn open_repository(state: State<'_, Shared>, path: String) -> Result<R
             state_dto.generation
         ));
         state.replace_session(Some(Session { read, write }))?;
+        state.request_refresh(RefreshReason::Manual);
+        state.accept_generation(state_dto.generation);
+        state.restart_watcher(&app, &open_path);
         Ok(state_dto)
     })
     .await
@@ -113,6 +130,7 @@ pub async fn open_repository(state: State<'_, Shared>, path: String) -> Result<R
 pub async fn close_repository(state: State<'_, Shared>) -> Result<()> {
     let state = Arc::clone(&state);
     blocking(move || {
+        state.stop_watcher();
         state.close()?;
         logging::info("关闭仓库");
         Ok(())
@@ -327,7 +345,7 @@ pub async fn execute_write(
 ) -> Result<WriteOutcomeDto> {
     let state = Arc::clone(&state);
     blocking(move || {
-        state.with_session(|session| {
+        let outcome = state.with_session(|session| {
             let mut outcome = session.write.execute(&request)?;
             match session.read.state() {
                 Ok(repo) => {
@@ -339,7 +357,14 @@ pub async fn execute_write(
                 }
             }
             Ok(outcome)
-        })
+        })?;
+        // 写操作强制失效：先登记新代际，避免监听线程对同一变化重复通知。
+        if let Some(generation) = outcome.generation {
+            state.request_refresh(RefreshReason::Write);
+            state.observe_generation(generation);
+            state.accept_generation(generation);
+        }
+        Ok(outcome)
     })
     .await
 }

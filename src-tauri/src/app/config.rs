@@ -30,6 +30,9 @@ pub struct SettingsDto {
     pub recent_repositories: Vec<RecentRepository>,
     pub external_tools: Vec<ExternalToolConfig>,
     pub restore_last_repository: bool,
+    /// 文件系统监听开关；旧配置缺省时按开启处理。
+    #[serde(default = "default_watch_enabled")]
+    pub watch_enabled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window_width: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -43,10 +46,15 @@ impl Default for SettingsDto {
             recent_repositories: Vec::new(),
             external_tools: Vec::new(),
             restore_last_repository: true,
+            watch_enabled: true,
             window_width: None,
             window_height: None,
         }
     }
+}
+
+fn default_watch_enabled() -> bool {
+    true
 }
 
 pub fn load(dir: &Path) -> SettingsDto {
@@ -203,6 +211,27 @@ mod tests {
         assert!(!loaded.restore_last_repository);
         assert_eq!(loaded.window_width, Some(1200));
         assert!(settings_path(dir.path()).exists());
+    }
+
+    #[test]
+    fn missing_watch_flag_defaults_to_enabled() {
+        let dir = temp_dir();
+        std::fs::write(
+            settings_path(dir.path()),
+            br#"{"schema_version":1,"recent_repositories":[],"external_tools":[],"restore_last_repository":true}"#,
+        )
+        .expect("写入旧版设置失败");
+        assert!(load(dir.path()).watch_enabled);
+    }
+
+    #[test]
+    fn watch_flag_roundtrips_when_disabled() {
+        let dir = temp_dir();
+        let mut settings = SettingsDto::default();
+        settings.watch_enabled = false;
+        let saved = save(dir.path(), &settings).expect("保存设置失败");
+        assert!(!saved.watch_enabled);
+        assert!(!load(dir.path()).watch_enabled);
     }
 
     #[test]
