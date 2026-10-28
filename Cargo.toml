@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "src-tauri",
   "crates/git-core",
   "crates/git-read",
   "crates/graph-layout",
@@ -29,3 +30,4 @@ thiserror = "2"
 sha2 = "0.10"
 base64 = "0.22"
 parking_lot = "0.12"
+tempfile = "3"

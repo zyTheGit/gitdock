@@ -12,5 +12,5 @@ pub mod util;
 pub use git_core;
 pub use graph_layout;
 pub use read::{
-    GitReadModule, DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT, MINIMUM_GIT_VERSION,
+    detect_git_version, GitReadModule, DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT, MINIMUM_GIT_VERSION,
 };

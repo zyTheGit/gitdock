@@ -801,7 +801,8 @@ fn detect_interruption(git_dir: &Path) -> InterruptionDto {
     }
 }
 
-fn detect_git_version() -> (Option<String>, bool) {
+/// 探测系统 Git 版本与最低版本支持情况；供应用外壳展示能力。
+pub fn detect_git_version() -> (Option<String>, bool) {
     let output = std::process::Command::new("git")
         .arg("--version")
         .output();

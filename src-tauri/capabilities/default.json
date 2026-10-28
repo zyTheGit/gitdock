@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "默认权限：仅窗口基础能力与目录选择；Git 访问全部经应用自有 command seam。",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:allow-open"]
+}
