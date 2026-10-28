@@ -88,10 +88,8 @@ pub fn build(
     }
 
     let mut nodes: HashMap<Oid, IndexNode> = HashMap::new();
-    let gix_tips: Vec<gix::hash::ObjectId> = tips
-        .iter()
-        .map(|oid| to_gix_oid(oid))
-        .collect::<Result<Vec<_>>>()?;
+    let gix_tips: Vec<gix::hash::ObjectId> =
+        tips.iter().map(to_gix_oid).collect::<Result<Vec<_>>>()?;
     if gix_tips.is_empty() {
         return Ok(finish(vec![], nodes, view_key, generation, None));
     }

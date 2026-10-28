@@ -176,7 +176,7 @@ fn collect_node(
                     push_blob_or_gitlink(
                         repo,
                         Some(old_entry),
-                        Some(&new_entry),
+                        Some(new_entry),
                         Some(&path),
                         Some(&path),
                         out,
@@ -422,13 +422,16 @@ pub(crate) fn diff_file(
     Ok(dto)
 }
 
+/// 文件在某侧的原始字节；缺失侧为 None。
+pub(crate) type FileBytes = Option<Vec<u8>>;
+
 /// 读取两侧文件原始字节，供外部 diff 工具物化临时文件；缺失侧返回 None。
 pub(crate) fn file_bytes(
     repo: &gix::Repository,
     old_tree: Option<&Oid>,
     new_tree: Option<&Oid>,
     path: &str,
-) -> Result<(Option<Vec<u8>>, Option<Vec<u8>>)> {
+) -> Result<(FileBytes, FileBytes)> {
     let read = |tree: Option<&Oid>| -> Result<Option<Vec<u8>>> {
         let Some(tree) = tree else {
             return Ok(None);

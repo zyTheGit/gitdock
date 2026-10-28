@@ -96,6 +96,8 @@ pub(crate) fn decode_text(data: &[u8]) -> DecodedText {
     }
 }
 
+// workspace MSRV 为 1.85，as_chunks 需要更新的工具链，这里保留 chunks_exact。
+#[allow(clippy::chunks_exact_to_as_chunks)]
 fn decode_utf16(bytes: &[u8], little_endian: bool) -> String {
     let units: Vec<u16> = bytes
         .chunks_exact(2)

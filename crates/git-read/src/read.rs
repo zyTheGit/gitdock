@@ -38,7 +38,8 @@ const INTERRUPTION_MARKERS: &[(&str, InterruptionKind)] = &[
 ];
 
 pub struct GitReadModule {
-    pub(crate) path: PathBuf,
+    /// 打开时传入的原始路径，供 gix 重新打开仓库使用。
+    pub(crate) requested_path: PathBuf,
     pub(crate) repo_root: PathBuf,
     pub(crate) git_dir: PathBuf,
     pub(crate) common_dir: PathBuf,
@@ -90,7 +91,7 @@ impl GitReadModule {
             .unwrap_or_else(|| git_dir.clone());
         let (git_version, git_version_supported) = detect_git_version();
         Ok(Self {
-            path: path.to_path_buf(),
+            requested_path: path.to_path_buf(),
             repo_root,
             git_dir,
             common_dir,
@@ -103,6 +104,7 @@ impl GitReadModule {
         })
     }
 
+    /// 工作区根目录；bare 仓库没有工作区时回退到 git 目录。
     pub fn path(&self) -> &Path {
         &self.repo_root
     }
@@ -112,7 +114,7 @@ impl GitReadModule {
     }
 
     pub(crate) fn repo(&self) -> Result<gix::Repository> {
-        gix::open(&self.path).map_err(|e| {
+        gix::open(&self.requested_path).map_err(|e| {
             UserVisibleError::new(ErrorCode::RepositoryNotFound, "仓库已不可用")
                 .with_detail(e.to_string())
         })

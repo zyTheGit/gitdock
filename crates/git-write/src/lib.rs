@@ -88,8 +88,7 @@ impl GitWriteModule {
         let head = self.head_kind()?;
         let status = self.status_summary()?;
 
-        let summary;
-        match request.kind {
+        let summary = match request.kind {
             WriteKind::CherryPick | WriteKind::Revert => {
                 let oid = request.oid.as_ref().ok_or_else(|| {
                     UserVisibleError::new(ErrorCode::InvalidArgument, "缺少提交 OID")
@@ -111,7 +110,7 @@ impl GitWriteModule {
                 if status.staged > 0 || status.tracked > 0 || status.untracked > 0 {
                     issues.push(dirty_issue(&status));
                 }
-                summary = format!(
+                format!(
                     "将 {} {} 到当前分支 {}",
                     if request.kind == WriteKind::CherryPick {
                         "cherry-pick"
@@ -120,7 +119,7 @@ impl GitWriteModule {
                     },
                     short_oid(oid.as_str()),
                     head.branch.as_deref().unwrap_or("（未知分支）")
-                );
+                )
             }
             WriteKind::SwitchBranch => {
                 let branch = request.branch.as_deref().ok_or_else(|| {
@@ -157,7 +156,7 @@ impl GitWriteModule {
                         ));
                     }
                 }
-                summary = format!("将切换到本地分支 {branch}");
+                format!("将切换到本地分支 {branch}")
             }
             WriteKind::SetBranchDescription => {
                 let branch = request.branch.as_deref().ok_or_else(|| {
@@ -169,9 +168,9 @@ impl GitWriteModule {
                         format!("本地分支 {branch} 不存在"),
                     ));
                 }
-                summary = format!("将更新分支 {branch} 的本地描述");
+                format!("将更新分支 {branch} 的本地描述")
             }
-        }
+        };
 
         Ok(GateReportDto {
             ok: issues.is_empty(),

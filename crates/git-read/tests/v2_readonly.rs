@@ -248,10 +248,8 @@ fn six_fixture_kinds_open_with_format_aware_oids() {
         }
         for row in &page.layout {
             assert_oid_len(&row.oid, case.format, "row.oid");
-            for lane in row.before_lanes.iter().chain(&row.after_lanes) {
-                if let Some(oid) = lane {
-                    assert_oid_len(oid, case.format, "lane 期待 OID");
-                }
+            for lane in row.before_lanes.iter().chain(&row.after_lanes).flatten() {
+                assert_oid_len(lane, case.format, "lane 期待 OID");
             }
             for edge in &row.parents {
                 assert_oid_len(&edge.parent, case.format, "parent edge OID");

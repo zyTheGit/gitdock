@@ -209,9 +209,11 @@ mod tests {
     #[test]
     fn save_then_load_roundtrip_with_schema_version() {
         let dir = temp_dir();
-        let mut settings = SettingsDto::default();
-        settings.restore_last_repository = false;
-        settings.window_width = Some(1200);
+        let settings = SettingsDto {
+            restore_last_repository: false,
+            window_width: Some(1200),
+            ..Default::default()
+        };
         let saved = save(dir.path(), &settings).expect("保存设置失败");
         assert_eq!(saved.schema_version, SCHEMA_VERSION);
         let loaded = load(dir.path());
@@ -234,8 +236,10 @@ mod tests {
     #[test]
     fn watch_flag_roundtrips_when_disabled() {
         let dir = temp_dir();
-        let mut settings = SettingsDto::default();
-        settings.watch_enabled = false;
+        let settings = SettingsDto {
+            watch_enabled: false,
+            ..Default::default()
+        };
         let saved = save(dir.path(), &settings).expect("保存设置失败");
         assert!(!saved.watch_enabled);
         assert!(!load(dir.path()).watch_enabled);
@@ -244,13 +248,15 @@ mod tests {
     #[test]
     fn save_truncates_recent_repositories_to_limit() {
         let dir = temp_dir();
-        let mut settings = SettingsDto::default();
-        settings.recent_repositories = (0..MAX_RECENT + 5)
-            .map(|i| RecentRepository {
-                path: format!("C:/repo/{i}"),
-                last_opened_at: i as i64,
-            })
-            .collect();
+        let settings = SettingsDto {
+            recent_repositories: (0..MAX_RECENT + 5)
+                .map(|i| RecentRepository {
+                    path: format!("C:/repo/{i}"),
+                    last_opened_at: i as i64,
+                })
+                .collect(),
+            ..Default::default()
+        };
         let saved = save(dir.path(), &settings).expect("保存设置失败");
         assert_eq!(saved.recent_repositories.len(), MAX_RECENT);
         assert_eq!(saved.recent_repositories[0].path, "C:/repo/0");
@@ -283,17 +289,19 @@ mod tests {
         let dir = temp_dir();
         let repo = dir.path().join("Repo");
         std::fs::create_dir_all(&repo).expect("创建仓库目录失败");
-        let mut settings = SettingsDto::default();
-        settings.recent_repositories = vec![
-            RecentRepository {
-                path: repo.to_string_lossy().to_uppercase(),
-                last_opened_at: 1,
-            },
-            RecentRepository {
-                path: "C:/other".to_string(),
-                last_opened_at: 2,
-            },
-        ];
+        let settings = SettingsDto {
+            recent_repositories: vec![
+                RecentRepository {
+                    path: repo.to_string_lossy().to_uppercase(),
+                    last_opened_at: 1,
+                },
+                RecentRepository {
+                    path: "C:/other".to_string(),
+                    last_opened_at: 2,
+                },
+            ],
+            ..Default::default()
+        };
         let saved = remember(dir.path(), &settings, &repo).expect("记录最近仓库失败");
         assert_eq!(saved.recent_repositories.len(), 2);
         let first = saved.recent_repositories[0]
@@ -309,12 +317,14 @@ mod tests {
     #[test]
     fn invalid_external_tool_is_rejected() {
         let dir = temp_dir();
-        let mut settings = SettingsDto::default();
-        settings.external_tools.push(ExternalToolConfig {
-            name: "  ".to_string(),
-            executable: "bc.exe".to_string(),
-            args_template: "$LOCAL $REMOTE".to_string(),
-        });
+        let settings = SettingsDto {
+            external_tools: vec![ExternalToolConfig {
+                name: "  ".to_string(),
+                executable: "bc.exe".to_string(),
+                args_template: "$LOCAL $REMOTE".to_string(),
+            }],
+            ..Default::default()
+        };
         let err = save(dir.path(), &settings).expect_err("应拒绝空名称");
         assert_eq!(err.code, ErrorCode::InvalidArgument);
     }
