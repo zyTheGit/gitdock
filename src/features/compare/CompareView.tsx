@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FileDiffView } from "../detail/FileDiffView";
-import type { ExternalToolConfig, FileStatus } from "../../shared/types";
+import type { CommitSummaryDto, ExternalToolConfig, FileStatus } from "../../shared/types";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import type { CompareLoader, CompareSlot } from "./useCompare";
 import { useCompareFileDiff } from "./useCompare";
@@ -28,6 +28,7 @@ interface CompareViewProps {
   pathFilter: string;
   onPathFilterChange: (value: string) => void;
   tools: ExternalToolConfig[];
+  commitMenu: (commit: CommitSummaryDto) => MenuItem[];
   onOpenCommit: (oid: string) => void;
   onExternalDiff: (toolIndex: number, path: string) => void;
   onBack: () => void;
@@ -41,6 +42,7 @@ export function CompareView({
   pathFilter,
   onPathFilterChange,
   tools,
+  commitMenu,
   onOpenCommit,
   onExternalDiff,
   onBack,
@@ -49,6 +51,11 @@ export function CompareView({
   const files = result?.files ?? [];
   const [filePath, setFilePath] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
+  const [commitMenuPos, setCommitMenuPos] = useState<{
+    x: number;
+    y: number;
+    commit: CommitSummaryDto;
+  } | null>(null);
   const diff = useCompareFileDiff(base, compare, filePath, repoGeneration);
 
   useEffect(() => {
@@ -188,7 +195,18 @@ export function CompareView({
                   <ul className="compare-commit-list">
                     {result.commits.map((commit) => (
                       <li key={commit.oid}>
-                        <button onClick={() => onOpenCommit(commit.oid)} title={commit.oid}>
+                        <button
+                          onClick={() => onOpenCommit(commit.oid)}
+                          onContextMenu={(event) => {
+                            event.preventDefault();
+                            setCommitMenuPos({
+                              x: event.clientX,
+                              y: event.clientY,
+                              commit,
+                            });
+                          }}
+                          title={commit.oid}
+                        >
                           <span className="compare-commit-summary">{commit.summary}</span>
                           <span className="mono muted">{commit.short_oid}</span>
                           <span className="muted">
@@ -225,6 +243,15 @@ export function CompareView({
           y={menu.y}
           items={menuItems}
           onClose={() => setMenu(null)}
+        />
+      )}
+
+      {commitMenuPos && (
+        <ContextMenu
+          x={commitMenuPos.x}
+          y={commitMenuPos.y}
+          items={commitMenu(commitMenuPos.commit)}
+          onClose={() => setCommitMenuPos(null)}
         />
       )}
     </section>

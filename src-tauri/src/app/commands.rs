@@ -94,7 +94,9 @@ pub async fn open_repository(state: State<'_, Shared>, path: String) -> Result<R
         let open_path = PathBuf::from(super::config::strip_verbatim(&canonical));
         let read = GitReadModule::open(&open_path, Some(state.paths.index_cache_dir.clone()))?;
         let write = GitWriteModule::new(&open_path)?;
-        let state_dto = read.state()?;
+        let mut state_dto = read.state()?;
+        // 写前 Gate 与启动恢复共用同一检测来源，避免只读模块与写模块给出不同中断态。
+        state_dto.interruption = write.inspect_interruption()?;
         logging::info(&format!(
             "打开仓库 {}（{}，generation {}）",
             state_dto.path,
@@ -121,7 +123,15 @@ pub async fn close_repository(state: State<'_, Shared>) -> Result<()> {
 #[tauri::command]
 pub async fn repository_state(state: State<'_, Shared>) -> Result<RepoStateDto> {
     let state = Arc::clone(&state);
-    blocking(move || state.with_session(|session| session.read.state())).await
+    blocking(move || {
+        state.with_session(|session| {
+            let mut dto = session.read.state()?;
+            // 刷新与写前 Gate 必须是同一中断检测来源，否则写后横幅滞后一整个操作。
+            dto.interruption = session.write.inspect_interruption()?;
+            Ok(dto)
+        })
+    })
+    .await
 }
 
 #[tauri::command]

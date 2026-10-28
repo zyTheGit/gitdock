@@ -9,6 +9,7 @@ import { useGraph } from "./features/graph/useGraph";
 import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
+import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
 import { ContextMenu, type MenuItem } from "./shared/ContextMenu";
 import { copyText } from "./shared/clipboard";
 import { errorText } from "./shared/error";
@@ -16,12 +17,36 @@ import { ipc } from "./shared/ipc";
 import type {
   AppInfoDto,
   CommitSummaryDto,
+  GateReportDto,
   GraphScope,
   RepoStateDto,
   SettingsDto,
+  WriteKind,
+  WriteOutcomeDto,
 } from "./shared/types";
 
 type ViewMode = "graph" | "compare" | "search";
+type PickKind = Extract<WriteKind, "cherry_pick" | "revert">;
+
+const WRITE_LABEL: Record<PickKind, string> = {
+  cherry_pick: "Cherry Pick",
+  revert: "Revert",
+};
+
+function outcomeMessage(kind: PickKind, outcome: WriteOutcomeDto): string {
+  switch (outcome.status) {
+    case "succeeded":
+      return `${WRITE_LABEL[kind]} 成功，已刷新图谱`;
+    case "empty_pick":
+      return "无变更（空 pick），已清理本次操作状态";
+    case "conflicted":
+      return "发生冲突，请在终端处理；本应用不会自动 abort";
+    case "rejected":
+      return "写前检查未通过，未执行";
+    default:
+      return `${WRITE_LABEL[kind]} 失败：${outcome.message}`;
+  }
+}
 
 export default function App() {
   const [info, setInfo] = useState<AppInfoDto | null>(null);
@@ -39,6 +64,15 @@ export default function App() {
     y: number;
     commit: CommitSummaryDto;
   } | null>(null);
+  const [writePrompt, setWritePrompt] = useState<{
+    kind: PickKind;
+    commit: CommitSummaryDto;
+    gate: GateReportDto | null;
+    gateError?: string;
+  } | null>(null);
+  const [writeBusy, setWriteBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const restored = useRef(false);
 
   const generation = repo?.generation ?? 0;
@@ -135,6 +169,70 @@ export default function App() {
     [],
   );
 
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+    const timer = window.setTimeout(() => setToast(null), 4500);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  // 写操作分两步：先取 Gate 结论展示在确认框中，Gate 通过后才允许执行。
+  const startWrite = useCallback(async (kind: PickKind, commit: CommitSummaryDto) => {
+    setRowMenu(null);
+    setError(null);
+    setDiagnostic(null);
+    setWritePrompt({ kind, commit, gate: null });
+    try {
+      const gate = await ipc.validateWrite({ kind, oid: commit.oid });
+      setWritePrompt((current) =>
+        current && current.kind === kind && current.commit.oid === commit.oid
+          ? { ...current, gate }
+          : current,
+      );
+    } catch (err) {
+      setWritePrompt((current) =>
+        current && current.kind === kind && current.commit.oid === commit.oid
+          ? { ...current, gateError: errorText(err) }
+          : current,
+      );
+    }
+  }, []);
+
+  const runWrite = useCallback(async () => {
+    if (!writePrompt?.gate?.ok) {
+      return;
+    }
+    const { kind, commit } = writePrompt;
+    const repoPath = repo?.path;
+    const knownGeneration = repo?.generation ?? 0;
+    setWriteBusy(true);
+    setError(null);
+    setDiagnostic(null);
+    try {
+      const outcome = await ipc.executeWrite({ kind, oid: commit.oid });
+      setWritePrompt(null);
+      setToast(outcomeMessage(kind, outcome));
+      if (outcome.status === "failed") {
+        setError(outcome.message);
+        setDiagnostic(outcome.stderr ?? outcome.message);
+      }
+      if (outcome.status !== "rejected") {
+        const state = await ipc.repositoryState();
+        // 旧 generation / 已切换仓库的结果不覆盖当前界面。
+        if (repoPath && state.path === repoPath && state.generation >= knownGeneration) {
+          setRepo(state);
+          await graph.reload({ keepRows: true });
+        }
+      }
+    } catch (err) {
+      setWritePrompt(null);
+      setError(errorText(err));
+    } finally {
+      setWriteBusy(false);
+    }
+  }, [graph, repo?.generation, repo?.path, writePrompt]);
+
   // Esc：优先取消待替换选择，其次退出搜索/对比，最后清空双槽。
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -162,16 +260,35 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mode, search, slots]);
 
+  const writeDisabled =
+    busy ||
+    writeBusy ||
+    !repo ||
+    repo.is_bare ||
+    repo.interruption.kinds.length > 0 ||
+    !info?.git_version_supported;
+
+  const commitMenuItems = useCallback(
+    (commit: CommitSummaryDto): MenuItem[] => [
+      { label: "复制完整哈希", onSelect: () => void copyText(commit.oid) },
+      { label: "复制提交说明", onSelect: () => void copyText(commit.summary) },
+      {
+        label: "Cherry Pick 此提交",
+        disabled: writeDisabled,
+        onSelect: () => void startWrite("cherry_pick", commit),
+      },
+      {
+        label: "Revert 此提交",
+        disabled: writeDisabled,
+        onSelect: () => void startWrite("revert", commit),
+      },
+    ],
+    [startWrite, writeDisabled],
+  );
+
   const rowMenuItems: MenuItem[] = rowMenu
     ? [
-        {
-          label: "复制完整哈希",
-          onSelect: () => void copyText(rowMenu.commit.oid),
-        },
-        {
-          label: "复制提交说明",
-          onSelect: () => void copyText(rowMenu.commit.summary),
-        },
+        ...commitMenuItems(rowMenu.commit),
         {
           label: "设为 Base",
           onSelect: () => slots.setSide("base", commitSlot(rowMenu.commit)),
@@ -287,6 +404,9 @@ export default function App() {
                 <span>未完成文件：{repo.interruption.files.join("、")}</span>
               )}
               {repo.interruption.terminal_hint && <code>{repo.interruption.terminal_hint}</code>}
+              <span className="muted">
+                本应用不会自动执行 --abort / --quit，也不会跳过冲突；写操作在中断态解除前保持禁用。
+              </span>
             </div>
           ) : null}
 
@@ -302,7 +422,16 @@ export default function App() {
             </div>
           )}
 
-          {error && <div className="banner danger">{error}</div>}
+          {error && (
+            <div className="banner danger">
+              <span className="banner-text">{error}</span>
+              {diagnostic && (
+                <button className="link" onClick={() => void copyText(diagnostic)}>
+                  复制诊断
+                </button>
+              )}
+            </div>
+          )}
 
           {repo ? (
             mode === "search" ? (
@@ -328,6 +457,7 @@ export default function App() {
                 pathFilter={pathFilter}
                 onPathFilterChange={setPathFilter}
                 tools={tools}
+                commitMenu={commitMenuItems}
                 onOpenCommit={(oid) => {
                   setSelectedOid(oid);
                   setMode("graph");
@@ -413,6 +543,28 @@ export default function App() {
           items={rowMenuItems}
           onClose={() => setRowMenu(null)}
         />
+      )}
+
+      {writePrompt && (
+        <ConfirmWriteDialog
+          kind={writePrompt.kind}
+          commit={writePrompt.commit}
+          gate={writePrompt.gate}
+          gateError={writePrompt.gateError}
+          busy={writeBusy}
+          onCancel={() => {
+            if (!writeBusy) {
+              setWritePrompt(null);
+            }
+          }}
+          onConfirm={() => void runWrite()}
+        />
+      )}
+
+      {toast && (
+        <div className="toast" role="status">
+          {toast}
+        </div>
       )}
 
       {settingsOpen && settings && (
