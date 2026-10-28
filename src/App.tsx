@@ -1,28 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { CommandError, ipc } from "./shared/ipc";
-import type { AppInfoDto, RepoStateDto, SettingsDto } from "./shared/types";
-
-function errorText(err: unknown): string {
-  if (err instanceof CommandError) {
-    return err.detail ? `${err.message}（${err.detail}）` : err.message;
-  }
-  return String(err);
-}
+import { GraphPane } from "./features/graph/GraphPane";
+import { useGraph } from "./features/graph/useGraph";
+import { errorText } from "./shared/error";
+import { ipc } from "./shared/ipc";
+import type { AppInfoDto, GraphScope, RepoStateDto, SettingsDto } from "./shared/types";
 
 export default function App() {
   const [info, setInfo] = useState<AppInfoDto | null>(null);
   const [settings, setSettings] = useState<SettingsDto | null>(null);
   const [repo, setRepo] = useState<RepoStateDto | null>(null);
+  const [scope, setScope] = useState<GraphScope>({ kind: "head" });
+  const [selectedOid, setSelectedOid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const restored = useRef(false);
+  const graph = useGraph(repo?.path ?? null, scope);
 
   const openRepository = useCallback(async (path: string) => {
     setBusy(true);
     setError(null);
     try {
       const state = await ipc.openRepository(path);
+      setScope({ kind: "head" });
+      setSelectedOid(null);
       setRepo(state);
       setSettings(await ipc.rememberRepository(state.path));
     } catch (err) {
@@ -67,12 +68,13 @@ export default function App() {
     setError(null);
     try {
       setRepo(await ipc.repositoryState());
+      await graph.reload({ keepRows: true });
     } catch (err) {
       setError(errorText(err));
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [graph]);
 
   const headLabel = repo
     ? repo.head.kind === "branch"
@@ -94,7 +96,7 @@ export default function App() {
             打开仓库
           </button>
           <button onClick={refresh} disabled={busy || !repo}>
-            刷新
+            {busy ? "刷新中…" : "刷新"}
           </button>
         </div>
       </header>
@@ -169,12 +171,17 @@ export default function App() {
           {error && <div className="banner danger">{error}</div>}
 
           {repo ? (
-            <section className="placeholder">
-              <h1>{repo.path}</h1>
-              <p className="muted">
-                仓库已打开。图谱虚拟列表、ref 标签与提交详情将在后续里程碑接入同一 command seam。
-              </p>
-            </section>
+            <GraphPane
+              repo={repo}
+              scope={scope}
+              onScopeChange={(next) => {
+                setScope(next);
+                setSelectedOid(null);
+              }}
+              graph={graph}
+              selectedOid={selectedOid}
+              onSelect={setSelectedOid}
+            />
           ) : (
             <section className="welcome">
               <h1>打开一个本地 Git 仓库</h1>

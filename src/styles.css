@@ -170,15 +170,27 @@ button.large {
 .main {
   flex: 1;
   min-width: 0;
-  padding: 16px 20px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  overflow: hidden;
+}
+
+.main > .banner {
+  flex: none;
 }
 
 .welcome,
 .placeholder {
-  max-width: 720px;
-  margin: 8vh auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
   text-align: center;
+  overflow-y: auto;
 }
 
 .welcome h1,
@@ -238,4 +250,196 @@ button.large {
   background: var(--bg-panel);
   color: var(--muted);
   font-size: 12px;
+}
+
+.graph-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.scope-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.scope-tabs button {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.scope-tabs button.active {
+  background: var(--accent-soft);
+  color: #fff;
+}
+
+.branch-filter {
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  max-width: 200px;
+}
+
+.graph-view-label {
+  color: var(--muted);
+}
+
+.graph-count {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.graph-scroll {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.graph-list {
+  height: 100%;
+  overflow: auto;
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+}
+
+.graph-list-inner {
+  position: relative;
+  min-width: 100%;
+}
+
+.graph-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 12px;
+  border-bottom: 1px solid rgba(46, 51, 64, 0.55);
+  cursor: default;
+  white-space: nowrap;
+}
+
+.graph-row:hover {
+  background: rgba(76, 141, 255, 0.06);
+}
+
+.graph-row.selected {
+  background: var(--accent-soft);
+}
+
+.graph-cell {
+  display: block;
+  flex: none;
+}
+
+.graph-row-summary {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.commit-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ref-badge {
+  flex: none;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--muted);
+}
+
+.ref-local_branch {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: #d7e5ff;
+}
+
+.ref-remote_branch {
+  border-color: #4a5568;
+  color: #b6c0d0;
+}
+
+.ref-tag {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.ref-head {
+  font-weight: 600;
+}
+
+.graph-row-author {
+  flex: none;
+  width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+
+.graph-row-date {
+  flex: none;
+  width: 132px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.graph-row-oid {
+  flex: none;
+  width: 70px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.graph-loading {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 4px 12px;
+  background: var(--bg-panel);
+  font-size: 12px;
+}
+
+.graph-empty {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
 }
