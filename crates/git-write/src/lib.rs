@@ -206,7 +206,7 @@ impl GitWriteModule {
         }
 
         let (args, description_write) = self.command_for(request)?;
-        let mut command = Command::new("git");
+        let mut command = git_command();
         command
             .current_dir(&self.root)
             .args(&args)
@@ -575,7 +575,7 @@ impl GitWriteModule {
     }
 
     fn run(&self, args: &[&str]) -> Result<Output> {
-        Command::new("git")
+        git_command()
             .current_dir(&self.root)
             .args(args)
             .env("GIT_TERMINAL_PROMPT", "0")
@@ -731,4 +731,17 @@ fn description_message(request: &WriteRequest, removed: bool) -> String {
 
 fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
+}
+
+/// 构造 git 子进程。Windows GUI 程序直接启动控制台程序会触发默认终端接管，
+/// 单次可阻塞数秒；CREATE_NO_WINDOW 让子进程使用无窗口控制台。
+fn git_command() -> Command {
+    #[allow(unused_mut)]
+    let mut command = Command::new("git");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    command
 }

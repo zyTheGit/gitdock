@@ -157,8 +157,21 @@ fn git_dirs(repo: &Path) -> Vec<PathBuf> {
     dirs
 }
 
+/// 构造 git 子进程。Windows GUI 程序直接启动控制台程序会触发默认终端接管，
+/// 单次可阻塞数秒；CREATE_NO_WINDOW 让子进程使用无窗口控制台。
+fn git_command() -> Command {
+    #[allow(unused_mut)]
+    let mut command = Command::new("git");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    command
+}
+
 fn rev_parse_dir(repo: &Path, arg: &str) -> Option<PathBuf> {
-    let output = Command::new("git")
+    let output = git_command()
         .arg("-C")
         .arg(repo)
         .args(["rev-parse", arg])
