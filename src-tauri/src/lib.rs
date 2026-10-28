@@ -43,6 +43,7 @@ pub fn run() {
             commands::read_graph_page,
             commands::read_graph_page_around,
             commands::read_commit,
+            commands::branches_containing,
             commands::read_file_diff,
             commands::compare_commits,
             commands::compare_file_diff,

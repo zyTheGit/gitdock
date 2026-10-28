@@ -7,7 +7,7 @@ import type {
   RepoStateDto,
 } from "../../shared/types";
 import { FileDiffView } from "./FileDiffView";
-import { useCommitDetail, useFileDiff } from "./useCommitDetail";
+import { useBranchesContaining, useCommitDetail, useFileDiff } from "./useCommitDetail";
 
 const dateFormat = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
@@ -63,6 +63,7 @@ interface CommitDetailPaneProps {
   oid: string;
   tools: ExternalToolConfig[];
   onClose: () => void;
+  onBranchJump: (branch: string) => void;
   onExternalDiff: (toolIndex: number, path: string, left: string | null) => void;
 }
 
@@ -71,9 +72,11 @@ export function CommitDetailPane({
   oid,
   tools,
   onClose,
+  onBranchJump,
   onExternalDiff,
 }: CommitDetailPaneProps) {
   const detail = useCommitDetail(oid, repo.generation);
+  const branches = useBranchesContaining(oid, repo.generation);
   const [filePath, setFilePath] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
   const fileDiff = useFileDiff(oid, filePath, repo.generation);
@@ -150,6 +153,26 @@ export function CommitDetailPane({
                     <code key={parent} title={parent}>
                       {shortOid(parent)}
                     </code>
+                  ))}
+                </span>
+              )}
+            </div>
+
+            <div className="detail-facts">
+              <span className="muted">所在分支</span>
+              {branches.length === 0 ? (
+                <span className="muted">（无本地分支包含此提交）</span>
+              ) : (
+                <span className="branch-list">
+                  {branches.map((branch) => (
+                    <button
+                      key={branch}
+                      className="branch-chip"
+                      onClick={() => onBranchJump(branch)}
+                      title={`切换到 ${branch} 的图谱视图`}
+                    >
+                      {branch}
+                    </button>
                   ))}
                 </span>
               )}

@@ -565,3 +565,27 @@ fn empty_scope_reports_warning() {
     assert!(!page.has_more);
     assert!(page.warnings.iter().any(|w| w.code == "empty_repository"));
 }
+
+#[test]
+fn branches_containing_reflects_merge_ancestry() {
+    let set = fixtures();
+    let read = module(&set.forked());
+    let main_tip = oid_of(&read_oid(&set.forked(), "main"));
+    let feature_tip = oid_of(&read_oid(&set.forked(), "feature"));
+
+    // main 已合并 feature：两个分支都包含 feature tip。
+    let mut containing_feature = read
+        .branches_containing(&feature_tip)
+        .expect("查询 feature tip 所在分支");
+    containing_feature.sort();
+    assert_eq!(containing_feature, vec!["feature".to_string(), "main".to_string()]);
+
+    // main tip 只被 main 包含。
+    let containing_main = read
+        .branches_containing(&main_tip)
+        .expect("查询 main tip 所在分支");
+    assert_eq!(containing_main, vec!["main".to_string()]);
+
+    // 非本地分支（remote tracking）不计入结果。
+    assert!(!containing_main.iter().any(|name| name.contains("origin")));
+}

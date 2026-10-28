@@ -727,6 +727,10 @@ export default function App() {
                       oid={selectedOid}
                       tools={tools}
                       onClose={() => setSelectedOid(null)}
+                      onBranchJump={(branch) => {
+                        setScope({ kind: "branch", value: branch });
+                        setSelectedOid(null);
+                      }}
                       onExternalDiff={(toolIndex, path, left) =>
                         void launchExternal(toolIndex, left, selectedOid, path, false)
                       }

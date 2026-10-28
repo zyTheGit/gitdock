@@ -678,6 +678,30 @@ button.large {
   color: var(--muted);
 }
 
+.branch-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.branch-chip {
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 6px;
+  border-radius: 3px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: #d7e5ff;
+  cursor: pointer;
+}
+
+.branch-chip:hover,
+.branch-chip:focus-visible {
+  border-color: var(--accent-strong, var(--accent));
+  background: var(--accent);
+  color: #fff;
+}
+
 .baseline-note {
   font-size: 12px;
   margin-bottom: 8px;

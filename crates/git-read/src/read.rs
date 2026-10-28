@@ -462,6 +462,42 @@ impl GitReadModule {
         })
     }
 
+    /// 列出包含指定 commit 的本地分支（等价 `git branch --contains`，只查 refs/heads）。
+    pub fn branches_containing(&self, oid: &Oid) -> Result<Vec<String>> {
+        let repo = self.repo()?;
+        let target = gix_oid(oid)?;
+        let _ = find_commit(&repo, oid)?;
+        let mut names = Vec::new();
+        for reference in repo.references().map_err(gix_error)?.all().map_err(gix_error)? {
+            let mut reference = reference.map_err(gix_error)?;
+            let full_name = lossy(reference.name().as_bstr());
+            let Some(name) = full_name.strip_prefix("refs/heads/") else {
+                continue;
+            };
+            let Ok(tip) = reference.peel_to_id() else {
+                continue;
+            };
+            let mut walk = repo
+                .rev_walk([tip.detach()])
+                .sorting(gix::revision::walk::Sorting::BreadthFirst)
+                .all()
+                .map_err(gix_error)?;
+            let mut contains = false;
+            for entry in walk.by_ref() {
+                let info = entry.map_err(gix_error)?;
+                if info.id == target {
+                    contains = true;
+                    break;
+                }
+            }
+            if contains {
+                names.push(name.to_owned());
+            }
+        }
+        names.sort();
+        Ok(names)
+    }
+
     /// 单文件 diff：二进制、超大文件、gitlink 与编码问题均结构化降级。
     pub fn read_file_diff(&self, oid: &Oid, path: &str) -> Result<FileDiffDto> {
         let repo = self.repo()?;

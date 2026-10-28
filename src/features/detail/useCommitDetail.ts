@@ -52,6 +52,33 @@ export function useCommitDetail(
   return { data, loading, error };
 }
 
+export function useBranchesContaining(oid: string | null, generation: number): string[] {
+  const [branches, setBranches] = useState<string[]>([]);
+
+  useEffect(() => {
+    setBranches([]);
+    if (!oid) {
+      return;
+    }
+    let cancelled = false;
+    ipc
+      .branchesContaining(oid)
+      .then((names) => {
+        if (!cancelled) {
+          setBranches(names);
+        }
+      })
+      .catch(() => {
+        // 分支归属只是辅助信息，查询失败不影响详情主体。
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [oid, generation]);
+
+  return branches;
+}
+
 export function useFileDiff(
   oid: string | null,
   path: string | null,

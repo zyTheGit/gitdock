@@ -202,6 +202,16 @@ pub async fn read_commit(state: State<'_, Shared>, oid: String) -> Result<Commit
 }
 
 #[tauri::command]
+pub async fn branches_containing(state: State<'_, Shared>, oid: String) -> Result<Vec<String>> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        let oid = parse_oid(&oid)?;
+        state.with_session(|session| session.read.branches_containing(&oid))
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn read_file_diff(
     state: State<'_, Shared>,
     oid: String,

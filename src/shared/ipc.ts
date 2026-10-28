@@ -55,6 +55,7 @@ export const ipc = {
   readGraphPageAround: (scope: GraphScope, oid: string, limit?: number) =>
     call<GraphPageDto>("read_graph_page_around", { scope, oid, limit }),
   readCommit: (oid: string) => call<CommitDetailDto>("read_commit", { oid }),
+  branchesContaining: (oid: string) => call<string[]>("branches_containing", { oid }),
   readFileDiff: (oid: string, path: string) => call<FileDiffDto>("read_file_diff", { oid, path }),
   compare: (base: string, compareOid: string, pathFilter?: string) =>
     call<CompareResultDto>("compare_commits", { base, compareOid, pathFilter }),
