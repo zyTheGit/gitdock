@@ -704,6 +704,7 @@ pub(crate) fn read_refs(
         .branch
         .as_ref()
         .map(|branch| format!("refs/heads/{branch}"));
+    let descriptions = local_branch_descriptions(repo);
     let mut refs = Vec::new();
     for reference in repo.references().map_err(gix_error)?.all().map_err(gix_error)? {
         let mut reference = reference.map_err(gix_error)?;
@@ -718,6 +719,11 @@ pub(crate) fn read_refs(
             .peel_to_id()
             .ok()
             .map(|id| oid_from_id(&id));
+        let description = if kind == RefKind::LocalBranch {
+            descriptions.get(&short_name).cloned()
+        } else {
+            None
+        };
         refs.push(RefDto {
             is_head: head_ref.as_deref() == Some(full_name.as_str()),
             full_name,
@@ -725,7 +731,7 @@ pub(crate) fn read_refs(
             kind,
             target_oid,
             commit_oid,
-            description: None,
+            description,
         });
     }
     refs.sort_by(|a, b| {
@@ -740,10 +746,30 @@ pub(crate) fn read_refs(
                 name: reference.short_name.clone(),
                 kind: reference.kind,
                 is_head: reference.is_head,
+                description: reference.description.clone(),
             });
         }
     }
     Ok((refs, badges))
+}
+
+/// 读取 local config 中的 branch.<name>.description；空值按“未设置”处理。
+fn local_branch_descriptions(repo: &gix::Repository) -> HashMap<String, String> {
+    let snapshot = repo.config_snapshot();
+    let Some(sections) = snapshot.plumbing().sections_by_name("branch") else {
+        return HashMap::new();
+    };
+    sections
+        .filter_map(|section| {
+            let name = section.header().subsection_name()?;
+            let value = section.value("description")?;
+            let text = lossy(value.as_ref());
+            if text.trim().is_empty() {
+                return None;
+            }
+            Some((lossy(AsRef::<[u8]>::as_ref(name)), text))
+        })
+        .collect()
 }
 
 fn classify_ref(full_name: &str) -> (Option<RefKind>, String) {

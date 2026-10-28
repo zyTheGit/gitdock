@@ -9,6 +9,7 @@ import { useGraph } from "./features/graph/useGraph";
 import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
+import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
 import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
 import { ContextMenu, type MenuItem } from "./shared/ContextMenu";
 import { copyText } from "./shared/clipboard";
@@ -19,6 +20,7 @@ import type {
   CommitSummaryDto,
   GateReportDto,
   GraphScope,
+  RefDto,
   RepoStateDto,
   SettingsDto,
   WriteKind,
@@ -67,6 +69,12 @@ export default function App() {
     y: number;
     commit: CommitSummaryDto;
   } | null>(null);
+  const [branchMenu, setBranchMenu] = useState<{
+    x: number;
+    y: number;
+    branch: RefDto;
+  } | null>(null);
+  const [descriptionBranch, setDescriptionBranch] = useState<string | null>(null);
   const [writePrompt, setWritePrompt] = useState<{
     kind: Extract<WriteKind, "cherry_pick" | "revert" | "switch_branch">;
     commit?: CommitSummaryDto;
@@ -103,6 +111,8 @@ export default function App() {
       setPathFilter("");
       setMode("graph");
       setRowMenu(null);
+      setBranchMenu(null);
+      setDescriptionBranch(null);
       setRepo(state);
       setSettings(await ipc.rememberRepository(state.path));
     } catch (err) {
@@ -246,6 +256,25 @@ export default function App() {
     }
   }, [graph, repo?.path, writePrompt]);
 
+  const descriptionSaved = useCallback(
+    async (message: string) => {
+      const repoPath = repo?.path;
+      setDescriptionBranch(null);
+      setToast(message);
+      setError(null);
+      try {
+        const state = await ipc.repositoryState();
+        if (!repoPath || state.path === repoPath) {
+          setRepo(state);
+          await graph.reload({ keepRows: true });
+        }
+      } catch (err) {
+        setError(errorText(err));
+      }
+    },
+    [graph, repo?.path],
+  );
+
   // Esc：优先取消待替换选择，其次退出搜索/对比，最后清空双槽。
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -322,6 +351,25 @@ export default function App() {
 
   const localBranches = repo
     ? repo.refs.filter((ref) => ref.kind === "local_branch")
+    : [];
+
+  // 描述编辑只依赖 Git CLI；不受中断态、bare 工作区写限制影响。
+  const descriptionDisabled = busy || writeBusy || !repo || !info?.git_version_supported;
+
+  const branchMenuItems: MenuItem[] = branchMenu
+    ? [
+        {
+          label: "编辑描述",
+          disabled: descriptionDisabled,
+          onSelect: () => {
+            const branch = branchMenu.branch.short_name;
+            setBranchMenu(null);
+            setError(null);
+            setDiagnostic(null);
+            setDescriptionBranch(branch);
+          },
+        },
+      ]
     : [];
 
   const headLabel = repo
@@ -422,13 +470,31 @@ export default function App() {
                     <li key={branch.full_name}>
                       <button
                         className={branch.is_head ? "branch-item active" : "branch-item"}
-                        title={branch.description || branch.short_name}
-                        disabled={writeDisabled || branch.is_head}
-                        onClick={() =>
-                          void startWrite("switch_branch", { branch: branch.short_name })
+                        title={
+                          branch.description
+                            ? `${branch.short_name} — ${branch.description}`
+                            : branch.short_name
                         }
+                        onClick={() => {
+                          if (!branch.is_head && !writeDisabled) {
+                            void startWrite("switch_branch", { branch: branch.short_name });
+                          }
+                        }}
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          setBranchMenu({
+                            x: event.clientX,
+                            y: event.clientY,
+                            branch,
+                          });
+                        }}
                       >
-                        <span className="branch-name">{branch.short_name}</span>
+                        <span className="branch-text">
+                          <span className="branch-name">{branch.short_name}</span>
+                          {branch.description && (
+                            <span className="branch-desc">{branch.description}</span>
+                          )}
+                        </span>
                         {branch.is_head && <span className="tag">当前</span>}
                       </button>
                     </li>
@@ -585,6 +651,23 @@ export default function App() {
           y={rowMenu.y}
           items={rowMenuItems}
           onClose={() => setRowMenu(null)}
+        />
+      )}
+
+      {branchMenu && (
+        <ContextMenu
+          x={branchMenu.x}
+          y={branchMenu.y}
+          items={branchMenuItems}
+          onClose={() => setBranchMenu(null)}
+        />
+      )}
+
+      {descriptionBranch && (
+        <BranchDescriptionDialog
+          branch={descriptionBranch}
+          onCancel={() => setDescriptionBranch(null)}
+          onSaved={(message) => void descriptionSaved(message)}
         />
       )}
 

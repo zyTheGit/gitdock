@@ -205,6 +205,21 @@ button.large {
   white-space: nowrap;
 }
 
+.branch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.branch-desc {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .main {
   flex: 1;
   min-width: 0;
@@ -418,6 +433,22 @@ button.large {
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   color: var(--muted);
+}
+
+.ref-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ref-desc {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ref-local_branch {
@@ -1340,6 +1371,24 @@ button.active {
 .confirm-hint {
   font-size: 12px;
   margin: 0;
+}
+
+.description-input {
+  width: 100%;
+  min-height: 96px;
+  margin: 10px 0;
+  padding: 8px;
+  resize: vertical;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.description-input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .gate-report {

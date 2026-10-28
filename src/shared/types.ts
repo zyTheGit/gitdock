@@ -68,6 +68,7 @@ export interface RefBadgeDto {
   name: string;
   kind: RefKind;
   is_head: boolean;
+  description?: string;
 }
 
 export interface CommitSummaryDto {

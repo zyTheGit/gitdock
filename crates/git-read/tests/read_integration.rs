@@ -106,6 +106,53 @@ fn linear_state_refs_and_head() {
 }
 
 #[test]
+fn local_branch_descriptions_come_from_local_config() {
+    let dir = temp_dir("branch-description");
+    let repo = dir.join("repo");
+    std::fs::create_dir_all(&repo).expect("创建仓库目录");
+    init_repo(&repo);
+    write(&repo.join("readme.txt"), "root\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "root"]);
+    git_ok(&repo, &["branch", "topic"]);
+    git_ok(
+        &repo,
+        &["config", "--local", "branch.main.description", "主分支 / main"],
+    );
+    git_ok(
+        &repo,
+        &["config", "--local", "branch.topic.description", "特性分支"],
+    );
+    // 空值按未设置处理，不应出现在描述中。
+    git_ok(&repo, &["config", "--local", "branch.empty.description", ""]);
+    git_ok(&repo, &["update-ref", "refs/heads/empty", "HEAD"]);
+
+    let read = module(&repo);
+    let state = read.state().expect("读取状态");
+    let branch = |name: &str| {
+        state
+            .refs
+            .iter()
+            .find(|r| r.short_name == name)
+            .unwrap_or_else(|| panic!("缺少本地分支 {name}"))
+    };
+    assert_eq!(branch("main").description.as_deref(), Some("主分支 / main"));
+    assert_eq!(branch("topic").description.as_deref(), Some("特性分支"));
+    assert_eq!(branch("empty").description, None);
+
+    let page = read
+        .read_graph_page(&GraphScope::All, None, 200)
+        .expect("读取全量图谱");
+    let badge = page
+        .commits
+        .iter()
+        .flat_map(|commit| &commit.refs)
+        .find(|badge| badge.name == "topic")
+        .expect("topic 标签");
+    assert_eq!(badge.description.as_deref(), Some("特性分支"));
+}
+
+#[test]
 fn cursor_is_opaque_and_lanes_stable_across_pages() {
     let set = fixtures();
     let read = module(&set.linear());

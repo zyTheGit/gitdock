@@ -146,6 +146,9 @@ pub struct RefBadgeDto {
     pub name: String,
     pub kind: RefKind,
     pub is_head: bool,
+    /// 仅本地分支可能携带；来自 local config 的 branch.<name>.description。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

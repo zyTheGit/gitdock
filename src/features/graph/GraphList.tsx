@@ -149,13 +149,23 @@ export function GraphList({
                   {commit?.summary || "（无提交说明）"}
                 </span>
                 {commit?.refs.map((badge) => (
-                  <span
-                    key={`${badge.kind}:${badge.name}`}
-                    className={badgeClass(badge)}
-                    title={`${badge.kind} · ${badge.name}`}
-                  >
-                    {badge.is_head ? "HEAD → " : ""}
-                    {badge.name}
+                  <span className="ref-group" key={`${badge.kind}:${badge.name}`}>
+                    <span
+                      className={badgeClass(badge)}
+                      title={
+                        badge.description
+                          ? `${badge.kind} · ${badge.name} — ${badge.description}`
+                          : `${badge.kind} · ${badge.name}`
+                      }
+                    >
+                      {badge.is_head ? "HEAD → " : ""}
+                      {badge.name}
+                    </span>
+                    {badge.description && (
+                      <span className="ref-desc" title={badge.description}>
+                        {badge.description}
+                      </span>
+                    )}
                   </span>
                 ))}
               </div>
