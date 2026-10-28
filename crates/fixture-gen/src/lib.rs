@@ -81,6 +81,10 @@ impl FixtureSet {
 
 /// 生成全部夹具。`root` 下的旧内容会被整体替换（仅限该目录）。
 pub fn generate_all(root: &Path) -> Result<FixtureSet> {
+    // 相对路径会在 file:// 克隆与子目录 cwd 下被错误解析，入口统一绝对化。
+    let root = std::path::absolute(root)
+        .map_err(|e| FixtureError(format!("解析夹具根目录失败 {}: {e}", root.display())))?;
+    let root = root.as_path();
     std::fs::create_dir_all(root)
         .map_err(|e| FixtureError(format!("创建夹具目录失败 {}: {e}", root.display())))?;
     let empty_config = root.join("gitconfig-empty");
