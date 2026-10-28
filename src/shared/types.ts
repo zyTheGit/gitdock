@@ -130,6 +130,7 @@ export interface ChangedFileDto {
 }
 
 export interface CommitDetailDto {
+  generation: number;
   commit: CommitSummaryDto;
   message: string;
   parents: string[];
@@ -140,6 +141,7 @@ export interface CommitDetailDto {
 }
 
 export interface FileDiffDto {
+  generation: number;
   path: string;
   old_path?: string;
   status: FileStatus;

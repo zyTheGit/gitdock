@@ -336,6 +336,7 @@ pub(crate) fn diff_file(
     };
 
     let mut dto = FileDiffDto {
+        generation: 0,
         path: path.to_owned(),
         old_path: old_oid.as_ref().map(|_| path.to_owned()),
         status,

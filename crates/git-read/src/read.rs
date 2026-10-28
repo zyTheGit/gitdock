@@ -445,6 +445,7 @@ impl GitReadModule {
         let message = lossy(commit.message_raw().map_err(gix_error)?.as_ref());
         let summary = commit_summary(&repo, oid, &badges)?;
         Ok(CommitDetailDto {
+            generation: self.current_generation()?,
             commit: summary,
             message,
             parents,
@@ -465,7 +466,9 @@ impl GitReadModule {
             None => None,
         };
         let new_tree = Some(tree_oid_of_object(&commit)?);
-        diff_file(&repo, old_tree.as_ref(), new_tree.as_ref(), path)
+        let mut dto = diff_file(&repo, old_tree.as_ref(), new_tree.as_ref(), path)?;
+        dto.generation = self.current_generation()?;
+        Ok(dto)
     }
 
     /// 三点对比；无 merge-base 时降级为两端快照 diff。
@@ -567,7 +570,9 @@ impl GitReadModule {
             None => Some(tree_oid_of_commit(&repo, base)?),
         };
         let new_tree = Some(tree_oid_of_commit(&repo, compare)?);
-        diff_file(&repo, old_tree.as_ref(), new_tree.as_ref(), path)
+        let mut dto = diff_file(&repo, old_tree.as_ref(), new_tree.as_ref(), path)?;
+        dto.generation = self.current_generation()?;
+        Ok(dto)
     }
 
     fn warnings(&self, repo: &gix::Repository) -> Vec<WarningDto> {

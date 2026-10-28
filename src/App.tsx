@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { CommitDetailPane } from "./features/detail/CommitDetailPane";
 import { GraphPane } from "./features/graph/GraphPane";
 import { useGraph } from "./features/graph/useGraph";
 import { errorText } from "./shared/error";
@@ -171,17 +172,26 @@ export default function App() {
           {error && <div className="banner danger">{error}</div>}
 
           {repo ? (
-            <GraphPane
-              repo={repo}
-              scope={scope}
-              onScopeChange={(next) => {
-                setScope(next);
-                setSelectedOid(null);
-              }}
-              graph={graph}
-              selectedOid={selectedOid}
-              onSelect={setSelectedOid}
-            />
+            <div className={selectedOid ? "workspace detail-open" : "workspace"}>
+              <GraphPane
+                repo={repo}
+                scope={scope}
+                onScopeChange={(next) => {
+                  setScope(next);
+                  setSelectedOid(null);
+                }}
+                graph={graph}
+                selectedOid={selectedOid}
+                onSelect={setSelectedOid}
+              />
+              {selectedOid && (
+                <CommitDetailPane
+                  repo={repo}
+                  oid={selectedOid}
+                  onClose={() => setSelectedOid(null)}
+                />
+              )}
+            </div>
           ) : (
             <section className="welcome">
               <h1>打开一个本地 Git 仓库</h1>

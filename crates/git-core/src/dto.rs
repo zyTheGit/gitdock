@@ -247,6 +247,8 @@ pub enum DiffBaselineDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommitDetailDto {
+    /// 读取结果对应的仓库 generation；前端据此丢弃过期响应。
+    pub generation: u64,
     pub commit: CommitSummaryDto,
     pub message: String,
     pub parents: Vec<Oid>,
@@ -259,6 +261,8 @@ pub struct CommitDetailDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileDiffDto {
+    /// 读取结果对应的仓库 generation；前端据此丢弃过期响应。
+    pub generation: u64,
     pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub old_path: Option<String>,
