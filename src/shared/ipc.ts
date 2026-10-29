@@ -47,6 +47,8 @@ export const ipc = {
   loadSettings: () => call<SettingsDto>("load_settings"),
   saveSettings: (settings: SettingsDto) => call<SettingsDto>("save_settings", { settings }),
   rememberRepository: (path: string) => call<SettingsDto>("remember_repository", { path }),
+  forgetRecentRepository: (path: string) =>
+    call<SettingsDto>("forget_recent_repository", { path }),
   startupRepository: () => call<string | null>("startup_repository"),
   openRepository: (path: string) => call<RepoStateDto>("open_repository", { path }),
   repositoryState: () => call<RepoStateDto>("repository_state"),

@@ -99,6 +99,17 @@ impl AppState {
         Ok(saved)
     }
 
+    pub fn forget_repository(&self, path: &str) -> Result<SettingsDto> {
+        let current = self.settings()?;
+        let saved = config::forget(&self.paths.config_dir, &current, path)?;
+        let mut guard = self
+            .settings
+            .lock()
+            .map_err(|_| internal("写入设置锁失败", "settings mutex poisoned"))?;
+        *guard = saved.clone();
+        Ok(saved)
+    }
+
     pub fn save_window_size(&self, width: u32, height: u32) {
         let Ok(current) = self.settings() else {
             return;

@@ -3,6 +3,7 @@ import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import type {
   CommitSummaryDto,
   ExternalToolConfig,
+  FileDiffDto,
   FileStatus,
   RepoStateDto,
 } from "../../shared/types";
@@ -81,7 +82,26 @@ export function CommitDetailPane({
   const branches = useBranchesContaining(oid, repo.generation);
   const [filePath, setFilePath] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
+  const [expandedDiff, setExpandedDiff] = useState(false);
+  // 放大视图内切换文件时保留上一份内容，等新 diff 到达再替换，避免遮罩闪退。
+  const [lastDiff, setLastDiff] = useState<FileDiffDto | null>(null);
   const fileDiff = useFileDiff(oid, filePath, repo.generation);
+
+  useEffect(() => {
+    if (fileDiff.data) {
+      setLastDiff(fileDiff.data);
+    }
+  }, [fileDiff.data]);
+
+  useEffect(() => {
+    setExpandedDiff(false);
+  }, [oid]);
+
+  useEffect(() => {
+    if (fileDiff.error) {
+      setExpandedDiff(false);
+    }
+  }, [fileDiff.error]);
 
   useEffect(() => {
     const files = detail.data?.files ?? [];
@@ -95,6 +115,7 @@ export function CommitDetailPane({
 
   const commit = detail.data?.commit;
   const files = detail.data?.files ?? [];
+  const shownDiff = fileDiff.data ?? (expandedDiff ? lastDiff : null);
   const baseOid = detail.data?.parents[0] ?? null;
   const menuItems: MenuItem[] =
     tools.length === 0
@@ -241,12 +262,23 @@ export function CommitDetailPane({
               </div>
 
               <div className="detail-diff">
-                {fileDiff.loading && <p className="muted">正在读取文件 diff…</p>}
-                {fileDiff.error && <div className="banner danger">{fileDiff.error}</div>}
-                {fileDiff.data && (
-                  <FileDiffView key={`${oid}:${fileDiff.data.path}`} diff={fileDiff.data} />
+                {fileDiff.loading && !expandedDiff && (
+                  <p className="muted">正在读取文件 diff…</p>
                 )}
-                {!fileDiff.loading && !fileDiff.data && !fileDiff.error && files.length > 0 && (
+                {fileDiff.error && <div className="banner danger">{fileDiff.error}</div>}
+                {shownDiff && (
+                  <FileDiffView
+                    key={oid}
+                    diff={shownDiff}
+                    files={files}
+                    activePath={filePath ?? undefined}
+                    onSelectFile={setFilePath}
+                    expanded={expandedDiff}
+                    onExpandedChange={setExpandedDiff}
+                    loading={fileDiff.loading}
+                  />
+                )}
+                {!fileDiff.loading && !shownDiff && !fileDiff.error && files.length > 0 && (
                   <p className="muted">选择左侧文件查看 diff。</p>
                 )}
               </div>

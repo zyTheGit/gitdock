@@ -188,12 +188,33 @@ button.large {
   margin-bottom: 6px;
 }
 
+.recent-entry {
+  position: relative;
+}
+
 .recent-item {
   width: 100%;
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
-  padding: 6px 8px;
+  padding: 6px 26px 6px 8px;
+}
+
+.recent-remove {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  padding: 0 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.recent-remove:hover {
+  color: var(--danger);
+  background: var(--bg-elevated);
 }
 
 .recent-item.active {
@@ -1029,6 +1050,27 @@ button.large {
   flex: none;
 }
 
+.diff-file-nav {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diff-file-nav select {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.diff-file-nav button {
+  flex: none;
+  padding: 2px 8px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
 .diff-view {
   overflow: auto;
   border: 1px solid var(--border);
@@ -1646,6 +1688,19 @@ button.active {
   gap: 4px;
   font-size: 12px;
   color: var(--muted);
+}
+
+.tool-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.tool-actions .settings-check {
+  flex-direction: row;
+  gap: 6px;
 }
 
 /* ------------------------------ 写操作确认与结果 ------------------------------ */

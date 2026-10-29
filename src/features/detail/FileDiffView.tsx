@@ -17,14 +17,31 @@ function storedWrap(): boolean {
   return localStorage.getItem(DIFF_WRAP_KEY) === "1";
 }
 
-interface FileDiffViewProps {
-  diff: FileDiffDto;
+export interface DiffFileEntry {
+  path: string;
 }
 
-export function FileDiffView({ diff }: FileDiffViewProps) {
+interface FileDiffViewProps {
+  diff: FileDiffDto;
+  files?: DiffFileEntry[];
+  activePath?: string;
+  onSelectFile?: (path: string) => void;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  loading?: boolean;
+}
+
+export function FileDiffView({
+  diff,
+  files,
+  activePath,
+  onSelectFile,
+  expanded,
+  onExpandedChange,
+  loading,
+}: FileDiffViewProps) {
   const [viewType, setViewType] = useState<"split" | "unified">("split");
   const [wrap, setWrap] = useState(storedWrap);
-  const [expanded, setExpanded] = useState(false);
   const [tokens, setTokens] = useState<Awaited<ReturnType<typeof buildDiffTokens>> | null>(null);
 
   useEffect(() => {
@@ -37,12 +54,12 @@ export function FileDiffView({ diff }: FileDiffViewProps) {
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setExpanded(false);
+        onExpandedChange(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [expanded]);
+  }, [expanded, onExpandedChange]);
 
   const parsed = useMemo(() => {
     if (!diff.patch) {
@@ -72,9 +89,13 @@ export function FileDiffView({ diff }: FileDiffViewProps) {
     ? `${diff.old_path} → ${diff.path}`
     : diff.path;
 
+  const fileEntries = files ?? [];
+  const currentIndex = fileEntries.findIndex((file) => file.path === (activePath ?? diff.path));
+  const switchable = expanded && fileEntries.length > 1 && Boolean(onSelectFile);
+
   return (
     <>
-      {expanded && <div className="file-diff-backdrop" onClick={() => setExpanded(false)} />}
+      {expanded && <div className="file-diff-backdrop" onClick={() => onExpandedChange(false)} />}
       <section
         className={expanded ? "file-diff expanded" : "file-diff"}
         aria-label={expanded ? "文件 diff 放大视图" : undefined}
@@ -86,6 +107,7 @@ export function FileDiffView({ diff }: FileDiffViewProps) {
               {pathLabel}
             </span>
             <span className="file-diff-stats">
+              {loading && <span className="muted">读取中…</span>}
               <span className="diff-add">+{diff.additions}</span>
               <span className="diff-del">-{diff.deletions}</span>
               {diff.language && <span className="muted">{diff.language}</span>}
@@ -118,7 +140,7 @@ export function FileDiffView({ diff }: FileDiffViewProps) {
             </button>
             <button
               className={expanded ? "diff-option active" : "diff-option"}
-              onClick={() => setExpanded((current) => !current)}
+              onClick={() => onExpandedChange(!expanded)}
               aria-pressed={expanded}
               title={expanded ? "还原（Esc）" : "放大到整个窗口查看 diff"}
             >
@@ -126,6 +148,39 @@ export function FileDiffView({ diff }: FileDiffViewProps) {
             </button>
           </div>
         </header>
+
+        {switchable && (
+          <div className="diff-file-nav">
+            <button
+              disabled={currentIndex <= 0}
+              onClick={() => onSelectFile?.(fileEntries[currentIndex - 1].path)}
+              title="上一个文件"
+              aria-label="上一个文件"
+            >
+              ‹
+            </button>
+            <select
+              value={activePath ?? diff.path}
+              onChange={(event) => onSelectFile?.(event.target.value)}
+              aria-label="切换对比文件"
+              title="切换对比文件"
+            >
+              {fileEntries.map((file, index) => (
+                <option key={file.path} value={file.path}>
+                  {index + 1}/{fileEntries.length} · {file.path}
+                </option>
+              ))}
+            </select>
+            <button
+              disabled={currentIndex < 0 || currentIndex >= fileEntries.length - 1}
+              onClick={() => onSelectFile?.(fileEntries[currentIndex + 1].path)}
+              title="下一个文件"
+              aria-label="下一个文件"
+            >
+              ›
+            </button>
+          </div>
+        )}
 
         {diff.note &&
           !(

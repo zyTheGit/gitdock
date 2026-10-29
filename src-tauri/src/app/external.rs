@@ -132,6 +132,9 @@ pub fn launch(
         &remote.display().to_string(),
     )?;
     let mut command = std::process::Command::new(&tool.executable);
+    // 从 VS Code / Electron 环境继承 ELECTRON_RUN_AS_NODE 时，VS Code、Zed 等
+    // Electron 工具会按纯 Node 进程启动并立即退出，表现为“打开无反应”。
+    command.env_remove("ELECTRON_RUN_AS_NODE");
     command.args(&args);
     // 控制台工具（如 where.exe）从 GUI 进程启动会弹出终端窗口；
     // CREATE_NO_WINDOW 保持外部工具窗口不被额外终端遮挡。

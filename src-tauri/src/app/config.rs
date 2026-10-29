@@ -33,6 +33,9 @@ pub struct SettingsDto {
     /// 文件系统监听开关；旧配置缺省时按开启处理。
     #[serde(default = "default_watch_enabled")]
     pub watch_enabled: bool,
+    /// 对比视图默认选中的外部工具名称；工具被删除或改名后自动失效。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_tool: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window_width: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -47,6 +50,7 @@ impl Default for SettingsDto {
             external_tools: Vec::new(),
             restore_last_repository: true,
             watch_enabled: true,
+            default_tool: None,
             window_width: None,
             window_height: None,
         }
@@ -84,6 +88,7 @@ pub fn save(dir: &Path, settings: &SettingsDto) -> Result<SettingsDto, UserVisib
     let mut next = settings.clone();
     next.schema_version = SCHEMA_VERSION;
     next.recent_repositories.truncate(MAX_RECENT);
+    normalize_default_tool(&mut next);
     validate(&next)?;
     std::fs::create_dir_all(dir).map_err(io_error)?;
     let path = settings_path(dir);
@@ -95,6 +100,23 @@ pub fn save(dir: &Path, settings: &SettingsDto) -> Result<SettingsDto, UserVisib
     )
     .map_err(io_error)?;
     Ok(next)
+}
+
+fn normalize_default_tool(settings: &mut SettingsDto) {
+    let Some(name) = settings.default_tool.as_deref() else {
+        return;
+    };
+    let trimmed = name.trim();
+    if trimmed.is_empty()
+        || !settings
+            .external_tools
+            .iter()
+            .any(|tool| tool.name == trimmed)
+    {
+        settings.default_tool = None;
+    } else if trimmed != name {
+        settings.default_tool = Some(trimmed.to_owned());
+    }
 }
 
 fn validate(settings: &SettingsDto) -> Result<(), UserVisibleError> {
@@ -153,6 +175,19 @@ pub fn remember(
         },
     );
     settings.recent_repositories.truncate(MAX_RECENT);
+    save(dir, &settings)
+}
+
+/// 仅从最近仓库列表移除，不触碰磁盘上的仓库目录。
+pub fn forget(
+    dir: &Path,
+    current: &SettingsDto,
+    path: &str,
+) -> Result<SettingsDto, UserVisibleError> {
+    let mut settings = current.clone();
+    settings
+        .recent_repositories
+        .retain(|entry| !same_path(&entry.path, path));
     save(dir, &settings)
 }
 
@@ -312,6 +347,60 @@ mod tests {
             first,
             repo.to_string_lossy().replace('\\', "/").to_lowercase()
         );
+    }
+
+    #[test]
+    fn default_tool_is_cleared_when_tool_missing() {
+        let dir = temp_dir();
+        let settings = SettingsDto {
+            external_tools: vec![ExternalToolConfig {
+                name: "code".to_string(),
+                executable: "Code.exe".to_string(),
+                args_template: "--diff $LOCAL $REMOTE".to_string(),
+            }],
+            default_tool: Some("removed".to_string()),
+            ..Default::default()
+        };
+        let saved = save(dir.path(), &settings).expect("保存设置失败");
+        assert_eq!(saved.default_tool, None);
+    }
+
+    #[test]
+    fn default_tool_survives_when_tool_exists() {
+        let dir = temp_dir();
+        let settings = SettingsDto {
+            external_tools: vec![ExternalToolConfig {
+                name: "code".to_string(),
+                executable: "Code.exe".to_string(),
+                args_template: "--diff $LOCAL $REMOTE".to_string(),
+            }],
+            default_tool: Some(" code ".to_string()),
+            ..Default::default()
+        };
+        let saved = save(dir.path(), &settings).expect("保存设置失败");
+        assert_eq!(saved.default_tool.as_deref(), Some("code"));
+    }
+
+    #[test]
+    fn forget_removes_recent_entry_without_touching_others() {
+        let dir = temp_dir();
+        let settings = SettingsDto {
+            recent_repositories: vec![
+                RecentRepository {
+                    path: "C:/repo/a".to_string(),
+                    last_opened_at: 2,
+                },
+                RecentRepository {
+                    path: "C:/repo/b".to_string(),
+                    last_opened_at: 1,
+                },
+            ],
+            ..Default::default()
+        };
+        let saved = forget(dir.path(), &settings, "c:\\repo\\A").expect("移除最近仓库失败");
+        assert_eq!(saved.recent_repositories.len(), 1);
+        assert_eq!(saved.recent_repositories[0].path, "C:/repo/b");
+        assert_eq!(load(dir.path()).recent_repositories.len(), 1);
     }
 
     #[test]

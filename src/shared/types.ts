@@ -268,6 +268,7 @@ export interface SettingsDto {
   external_tools: ExternalToolConfig[];
   restore_last_repository: boolean;
   watch_enabled: boolean;
+  default_tool?: string | null;
   window_width?: number;
   window_height?: number;
 }

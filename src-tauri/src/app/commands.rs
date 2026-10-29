@@ -83,6 +83,16 @@ pub async fn remember_repository(state: State<'_, Shared>, path: String) -> Resu
     blocking(move || state.remember_repository(&PathBuf::from(path))).await
 }
 
+/// 仅从最近仓库列表移除展示项，不删除磁盘上的仓库。
+#[tauri::command]
+pub async fn forget_recent_repository(
+    state: State<'_, Shared>,
+    path: String,
+) -> Result<SettingsDto> {
+    let state = Arc::clone(&state);
+    blocking(move || state.forget_repository(&path)).await
+}
+
 #[tauri::command]
 pub fn startup_repository() -> Option<String> {
     // F1 启动传参：取第一个非选项参数，路径校验与打开交给 open_repository。

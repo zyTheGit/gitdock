@@ -228,6 +228,16 @@ export default function App() {
     })();
   }, [openRepository]);
 
+  // 只从最近列表移除展示项，不删除磁盘上的仓库；再次打开即可重新加入。
+  const forgetRecent = useCallback(async (path: string) => {
+    try {
+      setSettings(await ipc.forgetRecentRepository(path));
+      setToast("已从最近仓库移除");
+    } catch (err) {
+      setError(errorText(err));
+    }
+  }, []);
+
   const pickRepository = useCallback(async () => {
     try {
       const selected = await openDialog({ directory: true, multiple: false, title: "选择 Git 仓库" });
@@ -650,7 +660,7 @@ export default function App() {
           {settings && settings.recent_repositories.length > 0 ? (
             <ul className="recent">
               {settings.recent_repositories.map((entry) => (
-                <li key={entry.path}>
+                <li key={entry.path} className="recent-entry">
                   <button
                     className={repo?.path === entry.path ? "recent-item active" : "recent-item"}
                     title={entry.path}
@@ -658,6 +668,15 @@ export default function App() {
                     disabled={busy}
                   >
                     {entry.path.split(/[\\/]/).filter(Boolean).pop() ?? entry.path}
+                  </button>
+                  <button
+                    className="recent-remove"
+                    title="从列表移除（不删除本地仓库）"
+                    aria-label={`从最近仓库移除 ${entry.path}`}
+                    onClick={() => void forgetRecent(entry.path)}
+                    disabled={busy}
+                  >
+                    ×
                   </button>
                   <span className="recent-path">{entry.path}</span>
                 </li>
@@ -813,6 +832,7 @@ export default function App() {
                 twoDot={twoDot}
                 onTwoDotChange={setTwoDot}
                 tools={tools}
+                defaultTool={settings?.default_tool ?? null}
                 commitMenu={commitMenuItems}
                 onOpenCommit={(oid) => {
                   setSelectedOid(oid);

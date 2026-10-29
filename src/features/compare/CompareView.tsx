@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { FileDiffView } from "../detail/FileDiffView";
-import type { CommitSummaryDto, ExternalToolConfig, FileStatus } from "../../shared/types";
+import type {
+  CommitSummaryDto,
+  ExternalToolConfig,
+  FileDiffDto,
+  FileStatus,
+} from "../../shared/types";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import type { CompareLoader, CompareSlot } from "./useCompare";
 import { useCompareFileDiff } from "./useCompare";
@@ -30,6 +35,7 @@ interface CompareViewProps {
   twoDot: boolean;
   onTwoDotChange: (value: boolean) => void;
   tools: ExternalToolConfig[];
+  defaultTool?: string | null;
   commitMenu: (commit: CommitSummaryDto) => MenuItem[];
   onOpenCommit: (oid: string) => void;
   onExternalDiff: (toolIndex: number, path: string) => void;
@@ -46,6 +52,7 @@ export function CompareView({
   twoDot,
   onTwoDotChange,
   tools,
+  defaultTool,
   commitMenu,
   onOpenCommit,
   onExternalDiff,
@@ -54,15 +61,27 @@ export function CompareView({
   const result = loader.result;
   const files = result?.files ?? [];
   const [filePath, setFilePath] = useState<string | null>(null);
+  const [expandedDiff, setExpandedDiff] = useState(false);
+  // 放大视图内切换文件时保留上一份内容，等新 diff 到达再替换。
+  const [lastDiff, setLastDiff] = useState<FileDiffDto | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
   const [commitMenuPos, setCommitMenuPos] = useState<{
     x: number;
     y: number;
     commit: CommitSummaryDto;
   } | null>(null);
-  const [toolIndex, setToolIndex] = useState(0);
+  const defaultToolIndex = Math.max(
+    0,
+    tools.findIndex((tool) => tool.name === defaultTool),
+  );
+  const [toolIndex, setToolIndex] = useState(defaultToolIndex);
   const diff = useCompareFileDiff(base, compare, filePath, repoGeneration, twoDot);
   const safeToolIndex = Math.min(toolIndex, Math.max(0, tools.length - 1));
+
+  // 设置里更换默认工具或增删工具后，重新落到默认项。
+  useEffect(() => {
+    setToolIndex(defaultToolIndex);
+  }, [defaultToolIndex, tools.length]);
   const activeTool = tools[safeToolIndex];
   // Base 与 Compare 指向同一提交时优先给出明确提示，避免被误认为功能失效。
   const sameTip = Boolean(result && result.files.length === 0 && base.oid === compare.oid);
@@ -77,6 +96,24 @@ export function CompareView({
       return files[0]?.path ?? null;
     });
   }, [result]);
+
+  useEffect(() => {
+    if (diff.data) {
+      setLastDiff(diff.data);
+    }
+  }, [diff.data]);
+
+  useEffect(() => {
+    setExpandedDiff(false);
+  }, [base.oid, compare.oid]);
+
+  useEffect(() => {
+    if (diff.error) {
+      setExpandedDiff(false);
+    }
+  }, [diff.error]);
+
+  const shownDiff = diff.data ?? (expandedDiff ? lastDiff : null);
 
   const totalAdd = files.reduce((sum, file) => sum + file.additions, 0);
   const totalDel = files.reduce((sum, file) => sum + file.deletions, 0);
@@ -292,15 +329,21 @@ export function CompareView({
             </div>
 
             <div className="detail-diff">
-              {diff.loading && <p className="muted">正在读取文件 diff…</p>}
+              {diff.loading && !expandedDiff && <p className="muted">正在读取文件 diff…</p>}
               {diff.error && <div className="banner danger">{diff.error}</div>}
-              {diff.data && (
+              {shownDiff && (
                 <FileDiffView
-                  key={`compare:${diff.data.path}:${base.oid}:${compare.oid}`}
-                  diff={diff.data}
+                  key={`compare:${base.oid}:${compare.oid}`}
+                  diff={shownDiff}
+                  files={files}
+                  activePath={filePath ?? undefined}
+                  onSelectFile={setFilePath}
+                  expanded={expandedDiff}
+                  onExpandedChange={setExpandedDiff}
+                  loading={diff.loading}
                 />
               )}
-              {!diff.loading && !diff.data && !diff.error && files.length > 0 && (
+              {!diff.loading && !shownDiff && !diff.error && files.length > 0 && (
                 <p className="muted">选择左侧文件查看 diff。</p>
               )}
             </div>

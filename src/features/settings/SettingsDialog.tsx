@@ -20,12 +20,28 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
   );
   const [restore, setRestore] = useState(settings.restore_last_repository);
   const [watch, setWatch] = useState(settings.watch_enabled);
+  const [defaultTool, setDefaultTool] = useState<string | null>(
+    settings.default_tool ?? null,
+  );
   const [saving, setSaving] = useState(false);
 
   const update = (index: number, patch: Partial<ExternalToolConfig>) => {
+    const previousName = tools[index]?.name;
     setTools((current) =>
       current.map((tool, position) => (position === index ? { ...tool, ...patch } : tool)),
     );
+    // 重命名默认工具时同步默认项，避免保存后默认失效。
+    if (patch.name !== undefined && defaultTool !== null && defaultTool === previousName) {
+      setDefaultTool(patch.name);
+    }
+  };
+
+  const removeTool = (index: number) => {
+    const removed = tools[index];
+    setTools((current) => current.filter((_, position) => position !== index));
+    if (removed && defaultTool === removed.name) {
+      setDefaultTool(null);
+    }
   };
 
   // 原生文件选择器：用户不必手输安装路径。
@@ -50,9 +66,14 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
       .filter((tool) => tool.name && tool.executable);
     setSaving(true);
     try {
+      // 工具被删除或改名为空时，默认项随之失效。
+      const nextDefault = cleaned.some((tool) => tool.name === defaultTool)
+        ? defaultTool
+        : null;
       const saved = await ipc.saveSettings({
         ...settings,
         external_tools: cleaned,
+        default_tool: nextDefault,
         restore_last_repository: restore,
         watch_enabled: watch,
       });
@@ -99,6 +120,11 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
           <h3>外部文件对比工具</h3>
           <p className="muted settings-hint">
             参数模板中 <code>$LOCAL</code> / <code>$REMOTE</code> 必须各自独立成段；程序按参数数组启动，不经过 shell。
+            所有工具（包括 where、by）都可以修改或删除；新增工具无需改动程序代码。
+          </p>
+          <p className="muted settings-hint">
+            示例：VS Code 用 <code>--diff $LOCAL $REMOTE</code>，Beyond Compare 用{" "}
+            <code>$LOCAL $REMOTE</code>；未指定默认工具时使用列表第一项。
           </p>
           {tools.length === 0 && <p className="muted">尚未配置外部工具。</p>}
           <ul className="tool-list">
@@ -133,12 +159,21 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
                     onChange={(event) => update(index, { args_template: event.target.value })}
                   />
                 </label>
-                <button
-                  className="link danger-text"
-                  onClick={() => setTools((current) => current.filter((_, p) => p !== index))}
-                >
-                  删除
-                </button>
+                <div className="tool-actions">
+                  <label className="settings-check">
+                    <input
+                      type="radio"
+                      name="default-tool"
+                      checked={defaultTool === tool.name && tool.name !== ""}
+                      disabled={!tool.name.trim()}
+                      onChange={() => setDefaultTool(tool.name)}
+                    />
+                    设为默认对比工具
+                  </label>
+                  <button className="link danger-text" onClick={() => removeTool(index)}>
+                    删除
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
