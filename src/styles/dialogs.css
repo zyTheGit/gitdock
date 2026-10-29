@@ -16,6 +16,35 @@
   margin: 16px 0 8px;
 }
 
+/* 弹窗本身不滚动：头部、启动项与底部按钮固定，只有工具列表在框内滚动。 */
+.settings-dialog > header,
+.settings-dialog > section:first-of-type,
+.settings-dialog > footer {
+  flex: none;
+}
+
+.settings-tools {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.settings-tools > h3,
+.settings-tools > .settings-hint,
+.settings-tools > p,
+.settings-tools > button {
+  flex: none;
+}
+
+.tool-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* 滚动条浮在内容上，右侧留出空隙，避免压住“删除”等按钮。 */
+  padding-right: 10px;
+}
+
 .settings-dialog footer {
   display: flex;
   justify-content: flex-end;

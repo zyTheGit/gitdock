@@ -116,7 +116,7 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
           </label>
         </section>
 
-        <section>
+        <section className="settings-tools">
           <h3>外部文件对比工具</h3>
           <p className="muted settings-hint">
             参数模板中 <code>$LOCAL</code> / <code>$REMOTE</code> 必须各自独立成段；程序按参数数组启动，不经过 shell。
@@ -128,56 +128,59 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
             <code>$LOCAL $REMOTE</code>；只传两个路径会打开两个独立文件而不是差异视图；未指定默认工具时使用列表第一项。
           </p>
           {tools.length === 0 && <p className="muted">尚未配置外部工具。</p>}
-          <ul className="tool-list">
-            {tools.map((tool, index) => (
-              <li key={index}>
-                <label>
-                  名称
-                  <input
-                    value={tool.name}
-                    placeholder="例如 Beyond Compare"
-                    onChange={(event) => update(index, { name: event.target.value })}
-                  />
-                </label>
-                <label>
-                  可执行文件
-                  <span className="tool-path">
+          {/* 工具多时只滚列表，弹窗本身与底部按钮不动。 */}
+          <div className="tool-list-scroll">
+            <ul className="tool-list">
+              {tools.map((tool, index) => (
+                <li key={index}>
+                  <label>
+                    名称
                     <input
-                      value={tool.executable}
-                      placeholder="完整路径，例如 C:\Program Files\...\BCompare.exe"
-                      onChange={(event) => update(index, { executable: event.target.value })}
+                      value={tool.name}
+                      placeholder="例如 Beyond Compare"
+                      onChange={(event) => update(index, { name: event.target.value })}
                     />
-                    <button type="button" onClick={() => void browse(index)}>
-                      浏览…
-                    </button>
-                  </span>
-                </label>
-                <label>
-                  参数模板
-                  <input
-                    className="mono"
-                    value={tool.args_template}
-                    onChange={(event) => update(index, { args_template: event.target.value })}
-                  />
-                </label>
-                <div className="tool-actions">
-                  <label className="settings-check">
-                    <input
-                      type="radio"
-                      name="default-tool"
-                      checked={defaultTool === tool.name && tool.name !== ""}
-                      disabled={!tool.name.trim()}
-                      onChange={() => setDefaultTool(tool.name)}
-                    />
-                    设为默认对比工具
                   </label>
-                  <button className="link danger-text" onClick={() => removeTool(index)}>
-                    删除
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <label>
+                    可执行文件
+                    <span className="tool-path">
+                      <input
+                        value={tool.executable}
+                        placeholder="完整路径，例如 C:\Program Files\...\BCompare.exe"
+                        onChange={(event) => update(index, { executable: event.target.value })}
+                      />
+                      <button type="button" onClick={() => void browse(index)}>
+                        浏览…
+                      </button>
+                    </span>
+                  </label>
+                  <label>
+                    参数模板
+                    <input
+                      className="mono"
+                      value={tool.args_template}
+                      onChange={(event) => update(index, { args_template: event.target.value })}
+                    />
+                  </label>
+                  <div className="tool-actions">
+                    <label className="settings-check">
+                      <input
+                        type="radio"
+                        name="default-tool"
+                        checked={defaultTool === tool.name && tool.name !== ""}
+                        disabled={!tool.name.trim()}
+                        onChange={() => setDefaultTool(tool.name)}
+                      />
+                      设为默认对比工具
+                    </label>
+                    <button className="link danger-text" onClick={() => removeTool(index)}>
+                      删除
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
           <button onClick={() => setTools((current) => current.concat({ ...EMPTY_TOOL }))}>
             添加工具
           </button>

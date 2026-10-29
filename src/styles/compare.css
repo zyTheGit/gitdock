@@ -103,7 +103,9 @@
   padding: 16px;
   width: min(520px, 92vw);
   max-height: 86vh;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 搜索弹框与对比弹窗同一套外观，结果多时在框内滚动。 */
