@@ -36,6 +36,9 @@ pub struct SettingsDto {
     /// 对比视图默认选中的外部工具名称；工具被删除或改名后自动失效。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_tool: Option<String>,
+    /// 是否已执行过内置工具探测；用户清空工具后不再重复注入。
+    #[serde(default)]
+    pub tools_seeded: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window_width: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -51,6 +54,7 @@ impl Default for SettingsDto {
             restore_last_repository: true,
             watch_enabled: true,
             default_tool: None,
+            tools_seeded: false,
             window_width: None,
             window_height: None,
         }
@@ -64,18 +68,101 @@ fn default_watch_enabled() -> bool {
 pub fn load(dir: &Path) -> SettingsDto {
     let path = settings_path(dir);
     let Ok(bytes) = std::fs::read(&path) else {
-        return SettingsDto::default();
+        return seeded_default();
     };
     match serde_json::from_slice::<SettingsDto>(&bytes) {
-        Ok(settings) if settings.schema_version == SCHEMA_VERSION => settings,
+        Ok(mut settings) if settings.schema_version == SCHEMA_VERSION => {
+            // 旧配置没有工具时补一次内置探测；用户清空后 tools_seeded 已为 true，不再注入。
+            if !settings.tools_seeded {
+                seed_tools(&mut settings, detected_tools());
+            }
+            settings
+        }
         Ok(stale) => {
             backup(dir, &path, stale.schema_version);
-            SettingsDto::default()
+            seeded_default()
         }
         Err(_) => {
             backup(dir, &path, 0);
-            SettingsDto::default()
+            seeded_default()
         }
+    }
+}
+
+fn seeded_default() -> SettingsDto {
+    let mut settings = SettingsDto::default();
+    seed_tools(&mut settings, detected_tools());
+    settings
+}
+
+fn seed_tools(settings: &mut SettingsDto, tools: Vec<ExternalToolConfig>) {
+    settings.tools_seeded = true;
+    if !settings.external_tools.is_empty() || tools.is_empty() {
+        return;
+    }
+    if settings.default_tool.is_none() {
+        settings.default_tool = Some(tools[0].name.clone());
+    }
+    settings.external_tools = tools;
+}
+
+/// 按当前系统探测常见对比工具；只检查已知安装路径，不启动任何进程。
+fn detected_tools() -> Vec<ExternalToolConfig> {
+    #[cfg(not(windows))]
+    {
+        Vec::new()
+    }
+    #[cfg(windows)]
+    {
+        use std::env;
+        let mut tools: Vec<ExternalToolConfig> = Vec::new();
+        let mut add = |name: &str, exe: PathBuf, args: &str| {
+            // 同一工具可能同时存在于用户目录与 Program Files，按名称去重。
+            if tools.iter().any(|tool| tool.name == name) {
+                return;
+            }
+            if exe.is_file() {
+                tools.push(ExternalToolConfig {
+                    name: name.to_owned(),
+                    executable: exe.display().to_string(),
+                    args_template: args.to_owned(),
+                });
+            }
+        };
+        if let Some(local) = env::var_os("LOCALAPPDATA") {
+            let base = PathBuf::from(local);
+            add(
+                "VS Code",
+                base.join("Programs")
+                    .join("Microsoft VS Code")
+                    .join("Code.exe"),
+                "--diff $LOCAL $REMOTE",
+            );
+            add(
+                "Zed",
+                base.join("Programs")
+                    .join("Zed")
+                    .join("bin")
+                    .join("zed.exe"),
+                "--diff $LOCAL $REMOTE",
+            );
+        }
+        for key in ["ProgramFiles", "ProgramFiles(x86)"] {
+            if let Some(dir) = env::var_os(key) {
+                let base = PathBuf::from(dir);
+                add(
+                    "VS Code",
+                    base.join("Microsoft VS Code").join("Code.exe"),
+                    "--diff $LOCAL $REMOTE",
+                );
+                add(
+                    "Beyond Compare",
+                    base.join("Beyond Compare 4").join("BCompare.exe"),
+                    "$LOCAL $REMOTE",
+                );
+            }
+        }
+        tools
     }
 }
 
@@ -88,6 +175,8 @@ pub fn save(dir: &Path, settings: &SettingsDto) -> Result<SettingsDto, UserVisib
     let mut next = settings.clone();
     next.schema_version = SCHEMA_VERSION;
     next.recent_repositories.truncate(MAX_RECENT);
+    // 一旦落盘，工具列表归用户所有，后续启动不再自动补探测结果。
+    next.tools_seeded = true;
     normalize_default_tool(&mut next);
     validate(&next)?;
     std::fs::create_dir_all(dir).map_err(io_error)?;
@@ -379,6 +468,61 @@ mod tests {
         };
         let saved = save(dir.path(), &settings).expect("保存设置失败");
         assert_eq!(saved.default_tool.as_deref(), Some("code"));
+    }
+
+    fn fake_tool(name: &str) -> ExternalToolConfig {
+        ExternalToolConfig {
+            name: name.to_string(),
+            executable: format!("C:/tools/{name}.exe"),
+            args_template: "--diff $LOCAL $REMOTE".to_string(),
+        }
+    }
+
+    #[test]
+    fn seed_tools_uses_first_detected_tool_as_default() {
+        let mut settings = SettingsDto::default();
+        seed_tools(&mut settings, vec![fake_tool("VS Code"), fake_tool("Zed")]);
+        assert!(settings.tools_seeded);
+        assert_eq!(settings.external_tools.len(), 2);
+        assert_eq!(settings.default_tool.as_deref(), Some("VS Code"));
+    }
+
+    #[test]
+    fn seed_tools_keeps_existing_tools_and_default() {
+        let mut settings = SettingsDto {
+            external_tools: vec![fake_tool("by")],
+            default_tool: Some("by".to_string()),
+            ..Default::default()
+        };
+        seed_tools(&mut settings, vec![fake_tool("VS Code")]);
+        assert!(settings.tools_seeded);
+        assert_eq!(settings.external_tools.len(), 1);
+        assert_eq!(settings.external_tools[0].name, "by");
+        assert_eq!(settings.default_tool.as_deref(), Some("by"));
+    }
+
+    #[test]
+    fn cleared_tools_are_not_reseeded_after_save() {
+        let dir = temp_dir();
+        let settings = SettingsDto {
+            external_tools: Vec::new(),
+            default_tool: None,
+            ..Default::default()
+        };
+        let saved = save(dir.path(), &settings).expect("保存设置失败");
+        assert!(saved.tools_seeded);
+        // 用户主动清空后，后续启动不再注入探测到的内置工具。
+        assert!(load(dir.path()).external_tools.is_empty());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn detected_tools_point_to_existing_files() {
+        for tool in detected_tools() {
+            assert!(!tool.name.is_empty());
+            assert!(!tool.args_template.is_empty());
+            assert!(Path::new(&tool.executable).is_file(), "{}", tool.executable);
+        }
     }
 
     #[test]

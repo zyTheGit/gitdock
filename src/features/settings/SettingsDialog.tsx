@@ -120,7 +120,8 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
           <h3>外部文件对比工具</h3>
           <p className="muted settings-hint">
             参数模板中 <code>$LOCAL</code> / <code>$REMOTE</code> 必须各自独立成段；程序按参数数组启动，不经过 shell。
-            所有工具（包括 where、by）都可以修改或删除；新增工具无需改动程序代码。
+            首次启动会按当前系统探测已安装的 VS Code / Beyond Compare / Zed，作为内置默认并选中第一项；
+            所有工具都可以修改或删除，新增工具无需改动程序代码。
           </p>
           <p className="muted settings-hint">
             示例：VS Code 用 <code>--diff $LOCAL $REMOTE</code>，Beyond Compare 用{" "}
