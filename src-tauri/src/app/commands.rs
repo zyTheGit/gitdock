@@ -237,6 +237,7 @@ pub async fn compare_commits(
     base: String,
     compare_oid: String,
     path_filter: Option<String>,
+    two_dot: bool,
 ) -> Result<CompareResultDto> {
     let state = Arc::clone(&state);
     blocking(move || {
@@ -245,7 +246,7 @@ pub async fn compare_commits(
         state.with_session(|session| {
             session
                 .read
-                .compare(&base, &compare, path_filter.as_deref())
+                .compare(&base, &compare, path_filter.as_deref(), two_dot)
         })
     })
     .await
@@ -257,12 +258,17 @@ pub async fn compare_file_diff(
     base: String,
     compare_oid: String,
     path: String,
+    two_dot: bool,
 ) -> Result<FileDiffDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let base = parse_oid(&base)?;
         let compare = parse_oid(&compare_oid)?;
-        state.with_session(|session| session.read.compare_file_diff(&base, &compare, &path))
+        state.with_session(|session| {
+            session
+                .read
+                .compare_file_diff(&base, &compare, &path, two_dot)
+        })
     })
     .await
 }

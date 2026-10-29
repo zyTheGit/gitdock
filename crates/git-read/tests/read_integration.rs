@@ -393,7 +393,9 @@ fn compare_three_dot_uses_merge_base() {
 
     // feature 已合入 main，因此 merge-base 就是 feature 顶端：
     // 反向对比 `feature...main` 才包含 main 侧新增内容。
-    let result = read.compare(&feature, &main, None).expect("三点对比");
+    let result = read
+        .compare(&feature, &main, None, false)
+        .expect("三点对比");
     assert_eq!(result.mode, CompareMode::ThreeDot);
     assert_eq!(
         result.merge_base.as_ref().map(Oid::as_str),
@@ -409,14 +411,37 @@ fn compare_three_dot_uses_merge_base() {
     assert!(result.warnings.iter().all(|w| w.code != "no_merge_base"));
 
     let filtered = read
-        .compare(&feature, &main, Some("main.txt"))
+        .compare(&feature, &main, Some("main.txt"), false)
         .expect("路径过滤");
     assert!(filtered.files.iter().all(|f| f.path == "main.txt"));
 
     let file_diff = read
-        .compare_file_diff(&feature, &main, "main.txt")
+        .compare_file_diff(&feature, &main, "main.txt", false)
         .expect("对比单文件");
     assert!(file_diff.patch.is_some());
+
+    // 反向选择（Base=main、Compare=已合入的 feature）时三点 diff 为空；
+    // 两点快照必须能显示两端完整差异。
+    let empty = read
+        .compare(&main, &feature, None, false)
+        .expect("三点反向对比");
+    assert!(empty.files.is_empty(), "三点 diff 应为空");
+    let snapshot = read
+        .compare(&main, &feature, None, true)
+        .expect("两点快照对比");
+    assert_eq!(snapshot.mode, CompareMode::TwoDot);
+    assert_eq!(
+        snapshot.merge_base.as_ref().map(Oid::as_str),
+        Some(feature.as_str())
+    );
+    assert!(snapshot
+        .files
+        .iter()
+        .any(|f| f.path == "main.txt" && f.status == FileStatus::Deleted));
+    let snapshot_file = read
+        .compare_file_diff(&main, &feature, "main.txt", true)
+        .expect("两点单文件");
+    assert!(snapshot_file.patch.is_some(), "两点 diff 应包含完整补丁");
 }
 
 #[test]
@@ -438,7 +463,7 @@ fn compare_without_merge_base_falls_back() {
     let other = oid_of(&current_head(&repo));
 
     let read = module(&repo);
-    let result = read.compare(&main, &other, None).expect("降级对比");
+    let result = read.compare(&main, &other, None, false).expect("降级对比");
     assert_eq!(result.mode, CompareMode::TwoDotFallback);
     assert!(result.merge_base.is_none());
     assert_eq!(result.base_only, 1);

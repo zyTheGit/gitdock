@@ -296,7 +296,9 @@ pub struct FileDiffDto {
 pub enum CompareMode {
     /// `git diff base...compare`：相对共同祖先的三点 diff。
     ThreeDot,
-    /// 无 merge-base 时降级为两端快照 diff。
+    /// 用户显式选择的两端快照 diff（`git diff base compare`）。
+    TwoDot,
+    /// 无 merge-base 时自动降级的两端快照 diff。
     TwoDotFallback,
 }
 

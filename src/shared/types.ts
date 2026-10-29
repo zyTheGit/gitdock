@@ -12,7 +12,7 @@ export type InterruptionKind =
   | "index_lock";
 export type FileStatus = "added" | "deleted" | "modified" | "type_changed";
 export type DiffBaseline = "root" | "first_parent" | "merge_first_parent";
-export type CompareMode = "three_dot" | "two_dot_fallback";
+export type CompareMode = "three_dot" | "two_dot" | "two_dot_fallback";
 export type SearchField = "message" | "hash" | "author" | "path";
 
 export interface WarningDto {

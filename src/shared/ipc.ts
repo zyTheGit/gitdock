@@ -58,10 +58,10 @@ export const ipc = {
   readCommit: (oid: string) => call<CommitDetailDto>("read_commit", { oid }),
   branchesContaining: (oid: string) => call<string[]>("branches_containing", { oid }),
   readFileDiff: (oid: string, path: string) => call<FileDiffDto>("read_file_diff", { oid, path }),
-  compare: (base: string, compareOid: string, pathFilter?: string) =>
-    call<CompareResultDto>("compare_commits", { base, compareOid, pathFilter }),
-  compareFileDiff: (base: string, compareOid: string, path: string) =>
-    call<FileDiffDto>("compare_file_diff", { base, compareOid, path }),
+  compare: (base: string, compareOid: string, pathFilter: string | undefined, twoDot: boolean) =>
+    call<CompareResultDto>("compare_commits", { base, compareOid, pathFilter, twoDot }),
+  compareFileDiff: (base: string, compareOid: string, path: string, twoDot: boolean) =>
+    call<FileDiffDto>("compare_file_diff", { base, compareOid, path, twoDot }),
   search: (request: SearchRequest, cursor: string | null) =>
     call<SearchPageDto>("search", { request, cursor }),
   cancelSearch: (searchId: string) => call<void>("cancel_search", { searchId }),

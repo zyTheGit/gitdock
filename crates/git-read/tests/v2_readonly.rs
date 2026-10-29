@@ -537,7 +537,7 @@ fn repository_is_not_mutated_by_reads() {
     let _ = read.read_commit(&head).expect("commit 详情");
     let _ = read.read_file_diff(&head, "main.txt").expect("文件 diff");
     let base = oid_of(&read_oid(&repo, "HEAD~2"));
-    let _ = read.compare(&base, &head, None).expect("compare");
+    let _ = read.compare(&base, &head, None, false).expect("compare");
     let after = snapshot(&repo);
 
     let before_map: std::collections::BTreeMap<PathBuf, (u64, Option<std::time::SystemTime>)> =
@@ -742,7 +742,9 @@ fn sha256_tag_detail_and_compare_are_usable() {
     // compare：HEAD~1...HEAD。
     let parent = oid_of(&read_oid(&repo, "HEAD~1"));
     assert_eq!(parent.len(), 64);
-    let result = read.compare(&parent, &head, None).expect("sha256 compare");
+    let result = read
+        .compare(&parent, &head, None, false)
+        .expect("sha256 compare");
     assert_eq!(result.mode, CompareMode::ThreeDot);
     assert_eq!(
         result.merge_base.as_ref().map(Oid::as_str),
@@ -760,7 +762,7 @@ fn sha256_tag_detail_and_compare_are_usable() {
     assert!(result.warnings.iter().all(|w| w.code != "no_merge_base"));
 
     let file_diff = read
-        .compare_file_diff(&parent, &head, "sha.txt")
+        .compare_file_diff(&parent, &head, "sha.txt", false)
         .expect("sha256 compare 文件");
     assert!(file_diff
         .patch

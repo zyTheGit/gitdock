@@ -27,6 +27,8 @@ interface CompareViewProps {
   loader: CompareLoader;
   pathFilter: string;
   onPathFilterChange: (value: string) => void;
+  twoDot: boolean;
+  onTwoDotChange: (value: boolean) => void;
   tools: ExternalToolConfig[];
   commitMenu: (commit: CommitSummaryDto) => MenuItem[];
   onOpenCommit: (oid: string) => void;
@@ -41,6 +43,8 @@ export function CompareView({
   loader,
   pathFilter,
   onPathFilterChange,
+  twoDot,
+  onTwoDotChange,
   tools,
   commitMenu,
   onOpenCommit,
@@ -56,7 +60,14 @@ export function CompareView({
     y: number;
     commit: CommitSummaryDto;
   } | null>(null);
-  const diff = useCompareFileDiff(base, compare, filePath, repoGeneration);
+  const [toolIndex, setToolIndex] = useState(0);
+  const diff = useCompareFileDiff(base, compare, filePath, repoGeneration, twoDot);
+  const safeToolIndex = Math.min(toolIndex, Math.max(0, tools.length - 1));
+  const activeTool = tools[safeToolIndex];
+  // 三点 diff 为空且 Compare 是 Base 的祖先时，提示可切换到两点快照。
+  const ancestorHint = Boolean(
+    result && !twoDot && result.files.length === 0 && result.merge_base === compare.oid,
+  );
 
   useEffect(() => {
     setFilePath((current) => {
@@ -86,14 +97,34 @@ export function CompareView({
     <section className="compare-view">
       <header className="compare-header">
         <div>
-          <h2>Compare 相对 Base 共同祖先的改动</h2>
+          <h2>{twoDot ? "Compare 与 Base 的完整快照差异" : "Compare 相对 Base 共同祖先的改动"}</h2>
           <div className="compare-sub mono" title={`${base.oid} → ${compare.oid}`}>
             {base.label} ({base.oid.slice(0, 8)}) → {compare.label} ({compare.oid.slice(0, 8)})
           </div>
         </div>
         <div className="compare-meta">
+          <div className="diff-mode" role="group" aria-label="对比模式">
+            <button
+              className={twoDot ? "" : "active"}
+              onClick={() => onTwoDotChange(false)}
+              title="git diff base...compare：只显示 Compare 相对共同祖先的改动"
+            >
+              三点 diff
+            </button>
+            <button
+              className={twoDot ? "active" : ""}
+              onClick={() => onTwoDotChange(true)}
+              title="git diff base compare：显示两个提交的完整快照差异"
+            >
+              两点快照
+            </button>
+          </div>
           <span className={result?.mode === "two_dot_fallback" ? "tag warn" : "tag"}>
-            {result?.mode === "two_dot_fallback" ? "两点快照降级" : "三点 diff"}
+            {result?.mode === "two_dot_fallback"
+              ? "两点快照降级"
+              : result?.mode === "two_dot"
+                ? "两点快照"
+                : "三点 diff"}
           </span>
           {result && (
             <>
@@ -114,6 +145,14 @@ export function CompareView({
       {result?.mode === "two_dot_fallback" && (
         <div className="banner warning">
           两个引用没有共同祖先（shallow / orphan 仓库），已降级为两端快照对比。
+        </div>
+      )}
+      {ancestorHint && (
+        <div className="banner info compact">
+          Compare 是 Base 的祖先，三点 diff 只显示 Compare 侧新增的改动，因此为空。
+          <button className="link" onClick={() => onTwoDotChange(true)}>
+            切换到两点快照查看两端完整差异
+          </button>
         </div>
       )}
       {result?.warnings.map((warning) => (
@@ -139,6 +178,31 @@ export function CompareView({
               </button>
             )}
             <span className="muted">变更文件 {files.length} 个</span>
+            {tools.length > 0 && (
+              <span className="compare-tools">
+                <select
+                  value={safeToolIndex}
+                  onChange={(event) => setToolIndex(Number(event.target.value))}
+                  aria-label="选择外部对比工具"
+                >
+                  {tools.map((tool, index) => (
+                    <option key={`${tool.name}:${index}`} value={index}>
+                      {tool.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  disabled={!filePath}
+                  onClick={() => {
+                    if (filePath) {
+                      onExternalDiff(safeToolIndex, filePath);
+                    }
+                  }}
+                >
+                  用 {activeTool?.name ?? "外部工具"} 打开当前文件
+                </button>
+              </span>
+            )}
           </div>
 
           <div className="detail-columns compare-columns">

@@ -508,21 +508,23 @@ impl GitReadModule {
         Ok(dto)
     }
 
-    /// 三点对比；无 merge-base 时降级为两端快照 diff。
+    /// 三点对比；`two_dot` 为 true 时改为两端快照 diff，无 merge-base 时自动降级。
     pub fn compare(
         &self,
         base: &Oid,
         compare: &Oid,
         path_filter: Option<&str>,
+        two_dot: bool,
     ) -> Result<CompareResultDto> {
         let repo = self.repo()?;
         let base_id = gix_oid(base)?;
         let compare_id = gix_oid(compare)?;
         let merge_base_id = repo.merge_base(base_id, compare_id).map_err(gix_error)?;
         let merge_base = merge_base_id.as_ref().map(oid_from_id);
-        let (old_tree, mode) = match &merge_base {
-            Some(mb) => (Some(tree_oid_of_commit(&repo, mb)?), CompareMode::ThreeDot),
-            None => (
+        let (old_tree, mode) = match (&merge_base, two_dot) {
+            (Some(_), true) => (Some(tree_oid_of_commit(&repo, base)?), CompareMode::TwoDot),
+            (Some(mb), false) => (Some(tree_oid_of_commit(&repo, mb)?), CompareMode::ThreeDot),
+            (None, _) => (
                 Some(tree_oid_of_commit(&repo, base)?),
                 CompareMode::TwoDotFallback,
             ),
@@ -592,9 +594,22 @@ impl GitReadModule {
         })
     }
 
-    /// 对比中的单文件 diff，基线与 compare 一致。
-    pub fn compare_file_diff(&self, base: &Oid, compare: &Oid, path: &str) -> Result<FileDiffDto> {
+    /// 对比中的单文件 diff；`two_dot` 与列表页保持同一基线。
+    pub fn compare_file_diff(
+        &self,
+        base: &Oid,
+        compare: &Oid,
+        path: &str,
+        two_dot: bool,
+    ) -> Result<FileDiffDto> {
         let repo = self.repo()?;
+        if two_dot {
+            let old_tree = Some(tree_oid_of_commit(&repo, base)?);
+            let new_tree = Some(tree_oid_of_commit(&repo, compare)?);
+            let mut dto = diff_file(&repo, old_tree.as_ref(), new_tree.as_ref(), path)?;
+            dto.generation = self.current_generation()?;
+            return Ok(dto);
+        }
         let merge_base = repo
             .merge_base(gix_oid(base)?, gix_oid(compare)?)
             .map_err(gix_error)?;

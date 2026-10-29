@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type { ExternalToolConfig, SettingsDto } from "../../shared/types";
@@ -25,6 +26,22 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
     setTools((current) =>
       current.map((tool, position) => (position === index ? { ...tool, ...patch } : tool)),
     );
+  };
+
+  // 原生文件选择器：用户不必手输安装路径。
+  const browse = async (index: number) => {
+    try {
+      const selected = await openDialog({
+        multiple: false,
+        directory: false,
+        title: "选择对比工具可执行文件",
+      });
+      if (typeof selected === "string") {
+        update(index, { executable: selected });
+      }
+    } catch (err) {
+      onError(errorText(err));
+    }
   };
 
   const save = async () => {
@@ -97,11 +114,16 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
                 </label>
                 <label>
                   可执行文件
-                  <input
-                    value={tool.executable}
-                    placeholder="完整路径，例如 C:\\Program Files\\...\\BCompare.exe"
-                    onChange={(event) => update(index, { executable: event.target.value })}
-                  />
+                  <span className="tool-path">
+                    <input
+                      value={tool.executable}
+                      placeholder="完整路径，例如 C:\\Program Files\\...\\BCompare.exe"
+                      onChange={(event) => update(index, { executable: event.target.value })}
+                    />
+                    <button type="button" onClick={() => void browse(index)}>
+                      浏览…
+                    </button>
+                  </span>
                 </label>
                 <label>
                   参数模板

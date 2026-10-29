@@ -138,6 +138,7 @@ export function useCompareResult(
   compare: CompareSlot | null,
   generation: number,
   pathFilter: string,
+  twoDot: boolean,
 ): CompareLoader {
   const [result, setResult] = useState<CompareResultDto | null>(null);
   const [loading, setLoading] = useState(false);
@@ -157,7 +158,7 @@ export function useCompareResult(
     const timer = setTimeout(() => {
       setLoading(true);
       ipc
-        .compare(base.oid, compare.oid, pathFilter.trim() || undefined)
+        .compare(base.oid, compare.oid, pathFilter.trim() || undefined, twoDot)
         .then((next) => {
           if (current !== seq.current) {
             return;
@@ -189,7 +190,7 @@ export function useCompareResult(
     return () => {
       clearTimeout(timer);
     };
-  }, [base?.oid, compare?.oid, generation, pathFilter]);
+  }, [base?.oid, compare?.oid, generation, pathFilter, twoDot]);
 
   return { result, loading, error, invalidRef };
 }
@@ -199,6 +200,7 @@ export function useCompareFileDiff(
   compare: CompareSlot | null,
   path: string | null,
   generation: number,
+  twoDot: boolean,
 ): { data: FileDiffDto | null; loading: boolean; error: string | null } {
   const [data, setData] = useState<FileDiffDto | null>(null);
   const [loading, setLoading] = useState(false);
@@ -214,7 +216,7 @@ export function useCompareFileDiff(
     let cancelled = false;
     setLoading(true);
     ipc
-      .compareFileDiff(base.oid, compare.oid, path)
+      .compareFileDiff(base.oid, compare.oid, path, twoDot)
       .then((diff) => {
         if (!cancelled && diff.generation === generation) {
           setData(diff);
@@ -233,7 +235,7 @@ export function useCompareFileDiff(
     return () => {
       cancelled = true;
     };
-  }, [base?.oid, compare?.oid, path, generation]);
+  }, [base?.oid, compare?.oid, path, generation, twoDot]);
 
   return { data, loading, error };
 }

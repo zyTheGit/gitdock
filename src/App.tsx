@@ -13,6 +13,7 @@ import { SettingsDialog } from "./features/settings/SettingsDialog";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
 import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
 import { ContextMenu, type MenuItem } from "./shared/ContextMenu";
+import { PaneSplitter } from "./shared/PaneSplitter";
 import { copyText } from "./shared/clipboard";
 import { errorText } from "./shared/error";
 import { ipc } from "./shared/ipc";
@@ -32,6 +33,16 @@ import type {
 type ViewMode = "graph" | "compare" | "search";
 
 const EVENT_REPOSITORY_CHANGED = "repository-changed";
+
+const SIDEBAR_WIDTH = { min: 200, max: 520, reset: 280 } as const;
+const DETAIL_WIDTH = { min: 340, max: 960, reset: 620 } as const;
+const SIDEBAR_WIDTH_KEY = "git-graph.sidebar-width";
+const DETAIL_WIDTH_KEY = "git-graph.detail-width";
+
+function storedPaneWidth(key: string, min: number, max: number, fallback: number): number {
+  const stored = Number(localStorage.getItem(key));
+  return Number.isFinite(stored) && stored > 0 ? Math.min(max, Math.max(min, stored)) : fallback;
+}
 
 function workspaceLabel(status: WorkspaceStatusDto): string {
   if (status.is_bare) {
@@ -82,6 +93,7 @@ export default function App() {
   const [selectedOid, setSelectedOid] = useState<string | null>(null);
   const [mode, setMode] = useState<ViewMode>("graph");
   const [pathFilter, setPathFilter] = useState("");
+  const [twoDot, setTwoDot] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +119,13 @@ export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceStatusDto | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(() =>
+    storedPaneWidth(SIDEBAR_WIDTH_KEY, SIDEBAR_WIDTH.min, SIDEBAR_WIDTH.max, SIDEBAR_WIDTH.reset),
+  );
+  const [detailWidth, setDetailWidth] = useState(() =>
+    storedPaneWidth(DETAIL_WIDTH_KEY, DETAIL_WIDTH.min, DETAIL_WIDTH.max, DETAIL_WIDTH.reset),
+  );
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
   const restored = useRef(false);
   const repoRef = useRef<RepoStateDto | null>(null);
   const busyRef = useRef(false);
@@ -118,7 +137,7 @@ export default function App() {
   const generation = repo?.generation ?? 0;
   const graph = useGraph(repo?.path ?? null, scope);
   const slots = useCompareSlots(repo);
-  const compare = useCompareResult(slots.base, slots.compare, generation, pathFilter);
+  const compare = useCompareResult(slots.base, slots.compare, generation, pathFilter, twoDot);
   const search = useSearch(generation, scope);
   const tools = settings?.external_tools ?? [];
 
@@ -129,6 +148,29 @@ export default function App() {
     }
   }, [slots.base?.oid, slots.compare?.oid]);
 
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    localStorage.setItem(DETAIL_WIDTH_KEY, String(detailWidth));
+  }, [detailWidth]);
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // 详情面板不能挤占图谱；窗口或侧栏变化时重新收紧上限。
+  const detailMax = Math.max(
+    DETAIL_WIDTH.min,
+    Math.min(DETAIL_WIDTH.max, viewportWidth - sidebarWidth - 400),
+  );
+  useEffect(() => {
+    setDetailWidth((current) => Math.min(current, detailMax));
+  }, [detailMax]);
+
   const openRepository = useCallback(async (path: string): Promise<boolean> => {
     setBusy(true);
     setError(null);
@@ -138,6 +180,7 @@ export default function App() {
       setScope({ kind: "head" });
       setSelectedOid(null);
       setPathFilter("");
+      setTwoDot(false);
       setMode("graph");
       setRowMenu(null);
       setBranchMenu(null);
@@ -473,6 +516,21 @@ export default function App() {
   // 描述编辑只依赖 Git CLI；不受中断态、bare 工作区写限制影响。
   const descriptionDisabled = busy || writeBusy || !repo || !info?.git_version_supported;
 
+  const branchSlot = (branch: RefDto) => ({
+    oid: branch.commit_oid ?? branch.target_oid,
+    label: branch.short_name,
+  });
+
+  const compareWithHead = (branch: RefDto) => {
+    if (repo?.head.oid && !slots.base) {
+      slots.setSide("base", {
+        oid: repo.head.oid,
+        label: repo.head.kind === "branch" ? repo.head.branch ?? "HEAD" : "detached HEAD",
+      });
+    }
+    slots.setSide("compare", branchSlot(branch));
+  };
+
   const branchMenuItems: MenuItem[] = branchMenu
     ? [
         {
@@ -484,6 +542,31 @@ export default function App() {
             setError(null);
             setDiagnostic(null);
             setDescriptionBranch(branch);
+          },
+        },
+        {
+          label: "与 HEAD 对比",
+          disabled: !repo?.head.oid,
+          onSelect: () => {
+            if (branchMenu) {
+              compareWithHead(branchMenu.branch);
+            }
+          },
+        },
+        {
+          label: "设为对比 Base",
+          onSelect: () => {
+            if (branchMenu) {
+              slots.setSide("base", branchSlot(branchMenu.branch));
+            }
+          },
+        },
+        {
+          label: "设为对比 Compare",
+          onSelect: () => {
+            if (branchMenu) {
+              slots.setSide("compare", branchSlot(branchMenu.branch));
+            }
           },
         },
       ]
@@ -547,7 +630,7 @@ export default function App() {
       </header>
 
       <div className="layout">
-        <aside className="sidebar">
+        <aside className="sidebar" style={{ width: sidebarWidth }}>
           <h2>最近仓库</h2>
           {settings && settings.recent_repositories.length > 0 ? (
             <ul className="recent">
@@ -633,6 +716,14 @@ export default function App() {
             </div>
           )}
         </aside>
+        <PaneSplitter
+          label="调整左侧栏宽度"
+          width={sidebarWidth}
+          min={SIDEBAR_WIDTH.min}
+          max={SIDEBAR_WIDTH.max}
+          defaultValue={SIDEBAR_WIDTH.reset}
+          onChange={setSidebarWidth}
+        />
 
         <main className="main">
           {repo?.interruption.kinds.length ? (
@@ -694,6 +785,8 @@ export default function App() {
                 loader={compare}
                 pathFilter={pathFilter}
                 onPathFilterChange={setPathFilter}
+                twoDot={twoDot}
+                onTwoDotChange={setTwoDot}
                 tools={tools}
                 commitMenu={commitMenuItems}
                 onOpenCommit={(oid) => {
@@ -707,7 +800,7 @@ export default function App() {
                       slots.base.oid,
                       slots.compare.oid,
                       path,
-                      true,
+                      !twoDot,
                     );
                   }
                 }}
@@ -742,19 +835,31 @@ export default function App() {
                     }}
                   />
                   {selectedOid && (
-                    <CommitDetailPane
-                      repo={repo}
-                      oid={selectedOid}
-                      tools={tools}
-                      onClose={() => setSelectedOid(null)}
-                      onBranchJump={(branch) => {
-                        setScope({ kind: "branch", value: branch });
-                        setSelectedOid(null);
-                      }}
-                      onExternalDiff={(toolIndex, path, left) =>
-                        void launchExternal(toolIndex, left, selectedOid, path, false)
-                      }
-                    />
+                    <>
+                      <PaneSplitter
+                        label="调整详情面板宽度"
+                        width={detailWidth}
+                        min={DETAIL_WIDTH.min}
+                        max={detailMax}
+                        defaultValue={DETAIL_WIDTH.reset}
+                        invert
+                        onChange={setDetailWidth}
+                      />
+                      <CommitDetailPane
+                        repo={repo}
+                        oid={selectedOid}
+                        tools={tools}
+                        width={detailWidth}
+                        onClose={() => setSelectedOid(null)}
+                        onBranchJump={(branch) => {
+                          setScope({ kind: "branch", value: branch });
+                          setSelectedOid(null);
+                        }}
+                        onExternalDiff={(toolIndex, path, left) =>
+                          void launchExternal(toolIndex, left, selectedOid, path, false)
+                        }
+                      />
+                    </>
                   )}
                 </div>
               </>

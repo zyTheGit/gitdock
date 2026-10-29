@@ -62,6 +62,7 @@ interface CommitDetailPaneProps {
   repo: RepoStateDto;
   oid: string;
   tools: ExternalToolConfig[];
+  width: number;
   onClose: () => void;
   onBranchJump: (branch: string) => void;
   onExternalDiff: (toolIndex: number, path: string, left: string | null) => void;
@@ -71,6 +72,7 @@ export function CommitDetailPane({
   repo,
   oid,
   tools,
+  width,
   onClose,
   onBranchJump,
   onExternalDiff,
@@ -107,7 +109,7 @@ export function CommitDetailPane({
         }));
 
   return (
-    <aside className="detail-pane" aria-label="提交详情">
+    <aside className="detail-pane" aria-label="提交详情" style={{ width }}>
       <header className="detail-header">
         <div className="detail-title-row">
           <div>
