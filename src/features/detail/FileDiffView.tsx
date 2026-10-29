@@ -12,23 +12,9 @@ const STATUS_LABEL: Record<FileStatus, string> = {
 };
 
 const DIFF_WRAP_KEY = "git-graph.diff-wrap";
-const DIFF_FONT_KEY = "git-graph.diff-font-size";
-
-type DiffFontSize = "small" | "normal" | "large";
-
-const FONT_SIZE_LABEL: Record<DiffFontSize, string> = {
-  small: "小",
-  normal: "标准",
-  large: "大",
-};
 
 function storedWrap(): boolean {
   return localStorage.getItem(DIFF_WRAP_KEY) === "1";
-}
-
-function storedFontSize(): DiffFontSize {
-  const value = localStorage.getItem(DIFF_FONT_KEY);
-  return value === "small" || value === "large" ? value : "normal";
 }
 
 export interface DiffFileEntry {
@@ -56,16 +42,11 @@ export function FileDiffView({
 }: FileDiffViewProps) {
   const [viewType, setViewType] = useState<"split" | "unified">("split");
   const [wrap, setWrap] = useState(storedWrap);
-  const [fontSize, setFontSize] = useState<DiffFontSize>(storedFontSize);
   const [tokens, setTokens] = useState<Awaited<ReturnType<typeof buildDiffTokens>> | null>(null);
 
   useEffect(() => {
     localStorage.setItem(DIFF_WRAP_KEY, wrap ? "1" : "0");
   }, [wrap]);
-
-  useEffect(() => {
-    localStorage.setItem(DIFF_FONT_KEY, fontSize);
-  }, [fontSize]);
 
   useEffect(() => {
     if (!expanded) {
@@ -149,19 +130,6 @@ export function FileDiffView({
                 </button>
               </div>
             )}
-            <div className="view-toggle" role="group" aria-label="代码字号">
-              {(Object.keys(FONT_SIZE_LABEL) as DiffFontSize[]).map((size) => (
-                <button
-                  key={size}
-                  className={fontSize === size ? "active" : ""}
-                  onClick={() => setFontSize(size)}
-                  aria-pressed={fontSize === size}
-                  title={`代码字号：${FONT_SIZE_LABEL[size]}`}
-                >
-                  {FONT_SIZE_LABEL[size]}
-                </button>
-              ))}
-            </div>
             <button
               className={wrap ? "diff-option active" : "diff-option"}
               onClick={() => setWrap((current) => !current)}
@@ -245,7 +213,7 @@ export function FileDiffView({
 
         {parsed ? (
           <>
-            <div className={`diff-view diff-font-${fontSize}${wrap ? " wrap" : ""}`}>
+            <div className={wrap ? "diff-view wrap" : "diff-view"}>
               <Diff
                 viewType={viewType}
                 diffType={parsed.type}

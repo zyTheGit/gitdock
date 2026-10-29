@@ -1075,8 +1075,6 @@ button.large {
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
-  /* 字号三档；diff 默认与界面正文一致（14px），此前固定 12px 偏小。 */
-  --diff-code-font-size: 14px;
   --diff-background-color: #1b1e24;
   --diff-text-color: #d7dae0;
   --diff-font-family: "Cascadia Mono", Consolas, monospace;
@@ -1090,16 +1088,8 @@ button.large {
   --diff-code-delete-edit-background-color: rgba(224, 108, 117, 0.32);
 }
 
-.diff-view.diff-font-small {
-  --diff-code-font-size: 12px;
-}
-
-.diff-view.diff-font-large {
-  --diff-code-font-size: 16px;
-}
-
 .diff-view .diff {
-  font-size: var(--diff-code-font-size);
+  font-size: 14px;
   /* 覆盖库默认的 table-layout: fixed，长行改为撑开表格由容器横向滚动。 */
   table-layout: auto;
   width: max-content;
@@ -1125,7 +1115,7 @@ button.large {
 .diff-view .diff-gutter {
   color: var(--muted);
   padding: 0 8px;
-  font-size: calc(var(--diff-code-font-size) - 1px);
+  font-size: 13px;
 }
 
 .diff-view .diff-decoration-content {
