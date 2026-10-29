@@ -37,6 +37,11 @@ function badgeClass(badge: RefBadgeDto): string {
   return parts.join(" ");
 }
 
+function refLabel(ref: RefBadgeDto): string {
+  const name = ref.is_head ? `${ref.name}（HEAD）` : ref.name;
+  return ref.description ? `${name} — ${ref.description}` : name;
+}
+
 /** 悬浮卡：参考 Git Graph，在不点击的情况下给出提交的完整元信息。 */
 function CommitHoverCard({ commit, x, y }: { commit: CommitSummaryDto; x: number; y: number }) {
   const width = 380;
@@ -57,15 +62,13 @@ function CommitHoverCard({ commit, x, y }: { commit: CommitSummaryDto; x: number
         {branches.length > 0 && (
           <>
             <dt>分支</dt>
-            <dd>
-              {branches.map((ref) => (ref.is_head ? `${ref.name}（HEAD）` : ref.name)).join("、")}
-            </dd>
+            <dd>{branches.map(refLabel).join("、")}</dd>
           </>
         )}
         {tags.length > 0 && (
           <>
             <dt>标签</dt>
-            <dd>{tags.map((ref) => ref.name).join("、")}</dd>
+            <dd>{tags.map(refLabel).join("、")}</dd>
           </>
         )}
         <dt>父提交</dt>
@@ -244,33 +247,20 @@ export function GraphList({
             >
               <GraphCell layout={row.layout} laneCount={laneCount} height={ROW_HEIGHT} />
               <div className="graph-row-summary">
-                <span className="commit-summary" title={commit?.summary}>
-                  {commit?.summary || "（无提交说明）"}
-                </span>
+                <span className="commit-summary">{commit?.summary || "（无提交说明）"}</span>
                 {commit?.refs.map((badge) => (
                   <span className="ref-group" key={`${badge.kind}:${badge.name}`}>
-                    <span
-                      className={badgeClass(badge)}
-                      title={
-                        badge.description
-                          ? `${badge.kind} · ${badge.name} — ${badge.description}`
-                          : `${badge.kind} · ${badge.name}`
-                      }
-                    >
+                    <span className={badgeClass(badge)}>
                       {badge.is_head ? "HEAD → " : ""}
                       {badge.name}
                     </span>
                     {badge.description && (
-                      <span className="ref-desc" title={badge.description}>
-                        {badge.description}
-                      </span>
+                      <span className="ref-desc">{badge.description}</span>
                     )}
                   </span>
                 ))}
               </div>
-              <span className="graph-row-author" title={commit?.author_email}>
-                {commit?.author_name ?? "—"}
-              </span>
+              <span className="graph-row-author">{commit?.author_name ?? "—"}</span>
               <span className="graph-row-date">{formatDate(commit?.authored_at ?? 0)}</span>
               <span className="graph-row-oid mono">{commit?.short_oid ?? oid.slice(0, 7)}</span>
             </div>
