@@ -139,61 +139,64 @@ export function CommitDetailPane({
 
         {detail.data && (
           <>
-            <details className="commit-message-block" open>
-              <summary>提交说明</summary>
-              <pre className="commit-message">{detail.data.message.trimEnd()}</pre>
-            </details>
+            {/* 说明与元信息合成一块：过长时只有这一块滚动，diff 区始终占满剩余高度。 */}
+            <div className="detail-info">
+              <details className="commit-message-block" open>
+                <summary>提交说明</summary>
+                <pre className="commit-message">{detail.data.message.trimEnd()}</pre>
+              </details>
 
-            <div className="detail-facts">
-              <span className="muted">父提交</span>
-              {detail.data.parents.length === 0 ? (
-                <span>（根提交）</span>
-              ) : (
-                <span className="parent-list">
-                  {detail.data.parents.map((parent) => (
-                    <code key={parent} title={parent}>
-                      {shortOid(parent)}
-                    </code>
-                  ))}
-                </span>
-              )}
-            </div>
-
-            <div className="detail-facts">
-              <span className="muted">所在分支</span>
-              {branches.length === 0 ? (
-                <span className="muted">（无本地分支包含此提交）</span>
-              ) : (
-                <span className="branch-list">
-                  {branches.map((branch) => (
-                    <button
-                      key={branch}
-                      className="branch-chip"
-                      onClick={() => onBranchJump(branch)}
-                      title={`切换到 ${branch} 的图谱视图`}
-                    >
-                      {branch}
-                    </button>
-                  ))}
-                </span>
-              )}
-            </div>
-
-            <div
-              className={
-                detail.data.baseline === "merge_first_parent"
-                  ? "baseline-note merge"
-                  : "baseline-note muted"
-              }
-            >
-              {detail.data.baseline_note}
-            </div>
-
-            {detail.data.warnings.map((warning) => (
-              <div className="banner warning compact" key={warning.code}>
-                {warning.message}
+              <div className="detail-facts">
+                <span className="muted">父提交</span>
+                {detail.data.parents.length === 0 ? (
+                  <span>（根提交）</span>
+                ) : (
+                  <span className="parent-list">
+                    {detail.data.parents.map((parent) => (
+                      <code key={parent} title={parent}>
+                        {shortOid(parent)}
+                      </code>
+                    ))}
+                  </span>
+                )}
               </div>
-            ))}
+
+              <div className="detail-facts">
+                <span className="muted">所在分支</span>
+                {branches.length === 0 ? (
+                  <span className="muted">（无本地分支包含此提交）</span>
+                ) : (
+                  <span className="branch-list">
+                    {branches.map((branch) => (
+                      <button
+                        key={branch}
+                        className="branch-chip"
+                        onClick={() => onBranchJump(branch)}
+                        title={`切换到 ${branch} 的图谱视图`}
+                      >
+                        {branch}
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </div>
+
+              <div
+                className={
+                  detail.data.baseline === "merge_first_parent"
+                    ? "baseline-note merge"
+                    : "baseline-note muted"
+                }
+              >
+                {detail.data.baseline_note}
+              </div>
+
+              {detail.data.warnings.map((warning) => (
+                <div className="banner warning compact" key={warning.code}>
+                  {warning.message}
+                </div>
+              ))}
+            </div>
 
             <div className="detail-columns">
               <div className="detail-files">

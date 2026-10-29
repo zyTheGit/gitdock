@@ -83,8 +83,18 @@
 .detail-scroll {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  /* 面板本身不滚动：滚动只发生在说明块与 diff 内部，避免出现套娃滚动条。 */
+  overflow: hidden;
   padding: 10px 12px 14px;
+}
+
+.detail-info {
+  flex: none;
+  max-height: 45%;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .commit-message-block {
@@ -107,8 +117,6 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: inherit;
-  max-height: 160px;
-  overflow: auto;
 }
 
 .detail-facts {
@@ -191,13 +199,18 @@
 .detail-columns {
   display: flex;
   gap: 10px;
-  align-items: flex-start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
   margin-top: 4px;
 }
 
 .detail-files {
   flex: none;
   width: 220px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .detail-files h3 {
@@ -205,13 +218,15 @@
   color: var(--muted);
   margin: 0 0 6px;
   font-weight: 500;
+  flex: none;
 }
 
 .file-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 320px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -278,4 +293,39 @@
 
 .file-status-type_changed {
   color: var(--warning);
+}
+
+/* 详情面板内的 diff：文件头与提示固定，diff 本体填满剩余高度后自己滚动，
+   这样横向滚动条始终贴在可见区域底部，面板也不再套一层纵向滚动。 */
+.detail-pane .detail-diff {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.detail-pane .detail-diff > .file-diff:not(.expanded) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-pane .file-diff:not(.expanded) .file-diff-body,
+.detail-pane .file-diff:not(.expanded) .file-diff-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-pane .file-diff:not(.expanded) .file-diff-header,
+.detail-pane .file-diff:not(.expanded) .file-diff-main > :not(.diff-view):not(.split-panes) {
+  flex: none;
+}
+
+.detail-pane .diff-view,
+.detail-pane .split-panes {
+  flex: 1;
+  min-height: 0;
 }
