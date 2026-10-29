@@ -1606,6 +1606,42 @@ button.large {
   overflow: auto;
 }
 
+/* 搜索弹框与对比弹窗同一套外观，结果多时在框内滚动。 */
+.search-dialog {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  width: min(880px, 92vw);
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.search-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* 定位结果时用固定高度让虚拟列表拿到可视区高度。 */
+.search-dialog-located {
+  height: 84vh;
+}
+
+.search-located-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .compare-modal h3 {
   margin: 0 0 8px;
   font-size: 15px;
@@ -1617,8 +1653,7 @@ button.large {
   margin-top: 12px;
 }
 
-.compare-view,
-.search-view {
+.compare-view {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -1840,19 +1875,71 @@ button.large {
   background: var(--bg-panel);
 }
 
-.search-toolbar,
-.search-located-bar {
+.search-toolbar {
   flex: none;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.search-toolbar input {
+.search-input-wrap {
+  position: relative;
   flex: 1;
   min-width: 200px;
+}
+
+.search-toolbar input {
+  width: 100%;
   font-size: 13px;
   padding: 7px 10px;
+}
+
+.search-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  max-height: 280px;
+  overflow: auto;
+}
+
+.search-suggestions button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.search-suggestions button:hover,
+.search-suggestions button[aria-selected="true"] {
+  background: var(--accent-soft);
+}
+
+.suggestion-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-text mark {
+  background: transparent;
+  color: var(--accent);
 }
 
 .search-scope {

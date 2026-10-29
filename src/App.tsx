@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { BranchCompareDialog } from "./features/compare/BranchCompareDialog";
@@ -142,6 +142,11 @@ export default function App() {
   const slots = useCompareSlots(repo);
   const compare = useCompareResult(slots.base, slots.compare, generation, pathFilter, twoDot);
   const search = useSearch(generation, scope);
+  // 搜索候选只从已加载的图谱页提取，避免为候选额外查询历史。
+  const searchCommits = useMemo(
+    () => graph.view.rows.flatMap((row) => (row.commit ? [row.commit] : [])),
+    [graph.view],
+  );
   const tools = settings?.external_tools ?? [];
 
   // 两个槽位齐全时自动进入对比视图；用户点“查看图谱”后保持图谱，直到再次选择。
@@ -781,21 +786,7 @@ export default function App() {
           )}
 
           {repo ? (
-            mode === "search" ? (
-              <SearchView
-                repo={repo}
-                scope={scope}
-                search={search}
-                onOpenCommit={(oid) => {
-                  setSelectedOid(oid);
-                  setMode("graph");
-                }}
-                onClose={() => {
-                  setMode("graph");
-                  search.reset();
-                }}
-              />
-            ) : mode === "compare" && slots.base && slots.compare ? (
+            mode === "compare" && slots.base && slots.compare ? (
               <CompareView
                 repoGeneration={repo.generation}
                 base={slots.base}
@@ -902,6 +893,24 @@ export default function App() {
           {repo && settings ? ` · ${settings.watch_enabled ? "监听已开启" : "监听已关闭"}` : ""}
         </span>
       </footer>
+
+      {mode === "search" && repo && (
+        <SearchView
+          repo={repo}
+          scope={scope}
+          search={search}
+          commits={searchCommits}
+          onOpenCommit={(oid) => {
+            setSelectedOid(oid);
+            setMode("graph");
+            search.reset();
+          }}
+          onClose={() => {
+            setMode("graph");
+            search.reset();
+          }}
+        />
+      )}
 
       {rowMenu && (
         <ContextMenu
