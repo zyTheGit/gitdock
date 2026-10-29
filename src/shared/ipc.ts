@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AppInfoDto,
   BranchDescriptionDto,
+  CommitBranchContextDto,
   CompareResultDto,
   CommitDetailDto,
   FileDiffDto,
@@ -59,6 +60,8 @@ export const ipc = {
     call<GraphPageDto>("read_graph_page_around", { scope, oid, limit }),
   readCommit: (oid: string) => call<CommitDetailDto>("read_commit", { oid }),
   branchesContaining: (oid: string) => call<string[]>("branches_containing", { oid }),
+  commitBranchContext: (oid: string, limit = 3) =>
+    call<CommitBranchContextDto>("commit_branch_context", { oid, limit }),
   readFileDiff: (oid: string, path: string) => call<FileDiffDto>("read_file_diff", { oid, path }),
   compare: (base: string, compareOid: string, pathFilter: string | undefined, twoDot: boolean) =>
     call<CompareResultDto>("compare_commits", { base, compareOid, pathFilter, twoDot }),

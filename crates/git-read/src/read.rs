@@ -9,10 +9,11 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use git_core::{
-    decode_cursor, encode_cursor, ChangedFileDto, CommitDetailDto, CommitSummaryDto, CompareMode,
-    CompareResultDto, DiffBaselineDto, ErrorCode, FileDiffDto, GraphPageDto, GraphScope, HeadDto,
-    HeadKind, InterruptionDto, InterruptionKind, ObjectFormat, Oid, RefBadgeDto, RefDto, RefKind,
-    RepoStateDto, ResolvedEdgeDto, Result, RowLayoutDto, UserVisibleError, WarningDto,
+    decode_cursor, encode_cursor, BranchGapDto, ChangedFileDto, CommitBranchContextDto,
+    CommitDetailDto, CommitSummaryDto, CompareMode, CompareResultDto, DiffBaselineDto, ErrorCode,
+    FileDiffDto, GraphPageDto, GraphScope, HeadDto, HeadKind, InterruptionDto, InterruptionKind,
+    ObjectFormat, Oid, RefBadgeDto, RefDto, RefKind, RepoStateDto, ResolvedEdgeDto, Result,
+    RowLayoutDto, UserVisibleError, WarningDto,
 };
 use graph_layout::{GraphLayoutModule, LayoutCommit};
 use parking_lot::Mutex;
@@ -25,6 +26,9 @@ use crate::util::{find_commit, gix_oid, lossy, oid_from_gix, oid_from_id, raw_ti
 pub const DEFAULT_PAGE_LIMIT: usize = 200;
 pub const MAX_PAGE_LIMIT: usize = 500;
 pub const MINIMUM_GIT_VERSION: &str = "2.30.0";
+
+/// 悬浮卡一次最多比较的本地分支数，避免大仓库里悬停时遍历过多分支历史。
+const MAX_GAP_BRANCHES: usize = 6;
 
 const INTERRUPTION_MARKERS: &[(&str, InterruptionKind)] = &[
     ("MERGE_HEAD", InterruptionKind::Merge),
@@ -493,6 +497,86 @@ impl GitReadModule {
         Ok(names)
     }
 
+    /// 提交所属本地分支及相对当前 HEAD 的独有提交摘要，供图谱悬浮卡展示。
+    ///
+    /// 只计算本地分支；为控制耗时最多计算 [`MAX_GAP_BRANCHES`] 个分支的差异，
+    /// 优先展示 tip 正好是该提交的分支，其次按 tip 提交时间倒序。
+    pub fn commit_branch_context(&self, oid: &Oid, limit: usize) -> Result<CommitBranchContextDto> {
+        let repo = self.repo()?;
+        let _ = find_commit(&repo, oid)?;
+        let head = read_head(&repo)?;
+        let (refs, _) = read_refs(&repo, &head)?;
+        let head_set = match &head.oid {
+            Some(head_oid) => Some(reachable_set(&repo, head_oid)?),
+            None => None,
+        };
+
+        let containing = self.branches_containing(oid)?;
+        let mut ordered: Vec<(&RefDto, i64)> = Vec::new();
+        for name in &containing {
+            let reference = refs
+                .iter()
+                .find(|reference| {
+                    reference.kind == RefKind::LocalBranch && &reference.short_name == name
+                })
+                .ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::Internal, "读取本地分支失败")
+                        .with_detail(format!("找不到本地分支 {name}"))
+                })?;
+            let Some(tip) = reference.commit_oid.as_ref() else {
+                continue;
+            };
+            let time = find_commit(&repo, tip)?
+                .time()
+                .map(|time| time.seconds)
+                .unwrap_or(0);
+            ordered.push((reference, time));
+        }
+        // tip 就是当前提交的分支优先，其次按最近提交时间。
+        ordered.sort_by(|(left, left_time), (right, right_time)| {
+            let left_is_tip = left.commit_oid.as_ref() == Some(oid);
+            let right_is_tip = right.commit_oid.as_ref() == Some(oid);
+            right_is_tip
+                .cmp(&left_is_tip)
+                .then_with(|| right_time.cmp(left_time))
+                .then_with(|| left.short_name.cmp(&right.short_name))
+        });
+
+        let current = head.branch.clone();
+        let mut gaps = Vec::new();
+        let mut gaps_omitted = 0u32;
+        for (reference, _) in &ordered {
+            if current.as_deref() == Some(reference.short_name.as_str()) {
+                continue;
+            }
+            if gaps.len() >= MAX_GAP_BRANCHES {
+                gaps_omitted += 1;
+                continue;
+            }
+            let Some(tip) = reference.commit_oid.as_ref() else {
+                continue;
+            };
+            gaps.push(branch_gap(
+                &repo,
+                &reference.short_name,
+                tip,
+                head.oid.as_ref(),
+                head_set.as_ref(),
+                limit,
+            )?);
+        }
+
+        Ok(CommitBranchContextDto {
+            generation: self.current_generation()?,
+            oid: oid.clone(),
+            head: head.oid.clone(),
+            current_branch: current,
+            branches: containing,
+            gaps,
+            gaps_omitted,
+        })
+    }
+
     /// 单文件 diff：二进制、超大文件、gitlink 与编码问题均结构化降级。
     pub fn read_file_diff(&self, oid: &Oid, path: &str) -> Result<FileDiffDto> {
         let repo = self.repo()?;
@@ -895,6 +979,73 @@ fn reachable_set(repo: &gix::Repository, oid: &Oid) -> Result<HashSet<Oid>> {
         set.insert(oid_from_gix(&info.id));
     }
     Ok(set)
+}
+
+/// 单个分支相对 HEAD 的差异摘要；`head_set` 为 None 表示 HEAD 尚未出生。
+fn branch_gap(
+    repo: &gix::Repository,
+    name: &str,
+    tip: &Oid,
+    head_oid: Option<&Oid>,
+    head_set: Option<&HashSet<Oid>>,
+    limit: usize,
+) -> Result<BranchGapDto> {
+    let branch_set = reachable_set(repo, tip)?;
+    let (branch_only, head_only) = match head_set {
+        Some(set) => (
+            branch_set.iter().filter(|oid| !set.contains(*oid)).count() as u32,
+            set.iter().filter(|oid| !branch_set.contains(*oid)).count() as u32,
+        ),
+        None => (branch_set.len() as u32, 0),
+    };
+    let (branch_only_commits, branch_only_truncated) =
+        newest_excluding(repo, tip, head_set, limit)?;
+    let (head_only_commits, head_only_truncated) = match head_oid {
+        Some(head) => newest_excluding(repo, head, Some(&branch_set), limit)?,
+        None => (Vec::new(), false),
+    };
+    Ok(BranchGapDto {
+        name: name.to_owned(),
+        tip: tip.clone(),
+        branch_only,
+        head_only,
+        branch_only_commits,
+        branch_only_truncated,
+        head_only_commits,
+        head_only_truncated,
+    })
+}
+
+/// 从 `from` 出发按提交时间倒序列出不在 `exclude` 中的提交，最多 `limit` 条。
+fn newest_excluding(
+    repo: &gix::Repository,
+    from: &Oid,
+    exclude: Option<&HashSet<Oid>>,
+    limit: usize,
+) -> Result<(Vec<CommitSummaryDto>, bool)> {
+    let mut commits = Vec::new();
+    let mut truncated = false;
+    let walk = repo
+        .rev_walk([gix_oid(from)?])
+        .sorting(gix::revision::walk::Sorting::ByCommitTime(
+            gix::traverse::commit::simple::CommitTimeOrder::NewestFirst,
+        ))
+        .all()
+        .map_err(gix_error)?;
+    let badges = RefBadges::new();
+    for info in walk {
+        let info = info.map_err(gix_error)?;
+        let oid = oid_from_gix(&info.id);
+        if exclude.is_some_and(|set| set.contains(&oid)) {
+            continue;
+        }
+        if commits.len() >= limit {
+            truncated = true;
+            break;
+        }
+        commits.push(commit_summary(repo, &oid, &badges)?);
+    }
+    Ok((commits, truncated))
 }
 
 fn detect_interruption(git_dir: &Path) -> InterruptionDto {

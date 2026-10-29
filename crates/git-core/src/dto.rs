@@ -329,6 +329,42 @@ pub struct CompareFileDiffRequest {
     pub path: String,
 }
 
+/// 某个分支相对当前 HEAD 的差异摘要，用于提交悬浮卡。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BranchGapDto {
+    pub name: String,
+    /// 分支 tip 的提交 OID。
+    pub tip: Oid,
+    /// 仅该分支可达（当前分支缺少）的提交数。
+    pub branch_only: u32,
+    /// 仅 HEAD 可达（该分支缺少）的提交数。
+    pub head_only: u32,
+    /// 仅该分支可达的最近提交，最多 limit 条。
+    pub branch_only_commits: Vec<CommitSummaryDto>,
+    pub branch_only_truncated: bool,
+    /// 仅 HEAD 可达的最近提交，最多 limit 条。
+    pub head_only_commits: Vec<CommitSummaryDto>,
+    pub head_only_truncated: bool,
+}
+
+/// 提交所属分支与相对当前分支的差异；全部基于本地分支（`refs/heads/*`）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommitBranchContextDto {
+    pub generation: u64,
+    pub oid: Oid,
+    /// 当前 HEAD（detached 时为 HEAD 本身；unborn 时为 None）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub head: Option<Oid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_branch: Option<String>,
+    /// 包含该提交的全部本地分支名（含当前分支）。
+    pub branches: Vec<String>,
+    /// 相对当前 HEAD 的差异；当前分支自身不列入。
+    pub gaps: Vec<BranchGapDto>,
+    /// 超过展示上限而未计算的本地分支数。
+    pub gaps_omitted: u32,
+}
+
 /* ------------------------------ 搜索 ------------------------------ */
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

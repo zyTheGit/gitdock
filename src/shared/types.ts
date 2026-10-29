@@ -175,6 +175,27 @@ export interface CompareResultDto {
   warnings: WarningDto[];
 }
 
+export interface BranchGapDto {
+  name: string;
+  tip: string;
+  branch_only: number;
+  head_only: number;
+  branch_only_commits: CommitSummaryDto[];
+  branch_only_truncated: boolean;
+  head_only_commits: CommitSummaryDto[];
+  head_only_truncated: boolean;
+}
+
+export interface CommitBranchContextDto {
+  generation: number;
+  oid: string;
+  head?: string;
+  current_branch?: string;
+  branches: string[];
+  gaps: BranchGapDto[];
+  gaps_omitted: number;
+}
+
 export interface SearchRequest {
   search_id: string;
   scope: GraphScope;

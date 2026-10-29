@@ -638,3 +638,43 @@ fn branches_containing_reflects_merge_ancestry() {
     // 非本地分支（remote tracking）不计入结果。
     assert!(!containing_main.iter().any(|name| name.contains("origin")));
 }
+
+#[test]
+fn commit_branch_context_reports_branch_gaps() {
+    let set = fixtures();
+    let read = module(&set.forked());
+    let feature_tip = oid_of(&read_oid(&set.forked(), "feature"));
+
+    let context = read
+        .commit_branch_context(&feature_tip, 3)
+        .expect("读取提交所属分支");
+    assert_eq!(context.current_branch.as_deref(), Some("main"));
+    assert!(context.oid == feature_tip);
+    assert!(context.branches.contains(&"feature".to_string()));
+    assert!(context.branches.contains(&"main".to_string()));
+
+    let gap = context
+        .gaps
+        .iter()
+        .find(|gap| gap.name == "feature")
+        .expect("feature 分支差异");
+    assert_eq!(gap.tip, feature_tip);
+    // main 已合并 feature：feature 没有 HEAD 缺少的提交。
+    assert_eq!(gap.branch_only, 0);
+    assert!(gap.branch_only_commits.is_empty());
+    // HEAD 独有 main c3、merge、main after merge 三条。
+    assert_eq!(gap.head_only, 3);
+    assert_eq!(gap.head_only_commits.len(), 3);
+    assert!(!gap.head_only_truncated);
+
+    let limited = read
+        .commit_branch_context(&feature_tip, 1)
+        .expect("限制条数读取提交所属分支");
+    let limited_gap = limited
+        .gaps
+        .iter()
+        .find(|gap| gap.name == "feature")
+        .expect("feature 分支差异");
+    assert_eq!(limited_gap.head_only_commits.len(), 1);
+    assert!(limited_gap.head_only_truncated);
+}

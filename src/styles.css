@@ -498,6 +498,69 @@ button.large {
   color: var(--text);
   pointer-events: none;
   white-space: normal;
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+}
+
+.hover-status {
+  margin: 6px 0 0;
+  font-size: 11px;
+}
+
+.hover-branches {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.hover-branch-line {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.hover-label {
+  display: inline-block;
+  min-width: 56px;
+  color: var(--muted);
+}
+
+.hover-off-branch {
+  margin: 4px 0;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(224, 108, 117, 0.12);
+  color: #e0a0a5;
+  font-size: 11px;
+}
+
+.hover-gap {
+  margin-top: 6px;
+}
+
+.hover-gap-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hover-gap-name {
+  font-weight: 600;
+}
+
+.hover-gap-count {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.hover-gap-commits {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .hover-head {

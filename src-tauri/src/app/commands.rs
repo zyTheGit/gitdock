@@ -8,9 +8,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use git_core::{
-    BranchDescriptionDto, CommitDetailDto, CompareResultDto, ErrorCode, FileDiffDto, GateReportDto,
-    GraphPageDto, GraphScope, InterruptionDto, Oid, RepoStateDto, Result, SearchPageDto,
-    SearchRequest, UserVisibleError, WorkspaceStatusDto, WriteOutcomeDto, WriteRequest,
+    BranchDescriptionDto, CommitBranchContextDto, CommitDetailDto, CompareResultDto, ErrorCode,
+    FileDiffDto, GateReportDto, GraphPageDto, GraphScope, InterruptionDto, Oid, RepoStateDto,
+    Result, SearchPageDto, SearchRequest, UserVisibleError, WorkspaceStatusDto, WriteOutcomeDto,
+    WriteRequest,
 };
 use git_read::{detect_git_version, GitReadModule, DEFAULT_PAGE_LIMIT, MINIMUM_GIT_VERSION};
 use git_write::GitWriteModule;
@@ -223,6 +224,21 @@ pub async fn branches_containing(state: State<'_, Shared>, oid: String) -> Resul
     blocking(move || {
         let oid = parse_oid(&oid)?;
         state.with_session(|session| session.read.branches_containing(&oid))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn commit_branch_context(
+    state: State<'_, Shared>,
+    oid: String,
+    limit: Option<u32>,
+) -> Result<CommitBranchContextDto> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        let oid = parse_oid(&oid)?;
+        let limit = limit.unwrap_or(3).clamp(1, 20) as usize;
+        state.with_session(|session| session.read.commit_branch_context(&oid, limit))
     })
     .await
 }

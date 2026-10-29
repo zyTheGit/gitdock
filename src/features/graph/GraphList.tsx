@@ -1,13 +1,15 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type MouseEvent,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { CommitSummaryDto, RefBadgeDto } from "../../shared/types";
+import { ipc } from "../../shared/ipc";
+import type { CommitBranchContextDto, CommitSummaryDto, RefBadgeDto } from "../../shared/types";
 import { GraphCell } from "./GraphCell";
 import type { GraphView } from "./model";
 
@@ -42,17 +44,46 @@ function refLabel(ref: RefBadgeDto): string {
   return ref.description ? `${name} — ${ref.description}` : name;
 }
 
-/** 悬浮卡：参考 Git Graph，在不点击的情况下给出提交的完整元信息。 */
-function CommitHoverCard({ commit, x, y }: { commit: CommitSummaryDto; x: number; y: number }) {
+/** 悬浮卡：参考 Git Graph，在不点击的情况下给出提交的完整元信息与分支差异。 */
+function CommitHoverCard({
+  commit,
+  x,
+  y,
+  context,
+  contextLoading,
+}: {
+  commit: CommitSummaryDto;
+  x: number;
+  y: number;
+  context: CommitBranchContextDto | null;
+  contextLoading: boolean;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const width = 380;
   const left = Math.max(8, Math.min(x + 18, window.innerWidth - width - 12));
-  const top = Math.max(8, Math.min(y + 14, window.innerHeight - 260));
+  const [top, setTop] = useState(() => Math.max(8, Math.min(y + 14, window.innerHeight - 260)));
+  // 分支差异返回后卡片会变高，按实际高度重新夹取，避免超出窗口底部。
+  useLayoutEffect(() => {
+    const height = cardRef.current?.offsetHeight ?? 0;
+    setTop(Math.max(8, Math.min(y + 14, window.innerHeight - height - 12)));
+  }, [y, context, contextLoading]);
   const branches = commit.refs.filter(
     (ref) => ref.kind === "local_branch" || ref.kind === "remote_branch",
   );
   const tags = commit.refs.filter((ref) => ref.kind === "tag");
+  const currentLabel = context?.current_branch ?? "HEAD";
+  const branchNames = context
+    ? context.branches.map((name) => (name === context.current_branch ? `${name}（当前）` : name))
+    : [];
+  const shownNames = branchNames.slice(0, 8);
+  const hiddenNames = branchNames.length - shownNames.length;
   return (
-    <div className="commit-hover-card" style={{ left, top, width }} role="tooltip">
+    <div
+      ref={cardRef}
+      className="commit-hover-card"
+      style={{ left, top, width }}
+      role="tooltip"
+    >
       <div className="hover-head">
         <span className="mono">提交 {commit.short_oid}</span>
         {commit.refs.some((ref) => ref.is_head) && <span className="tag">HEAD</span>}
@@ -90,6 +121,63 @@ function CommitHoverCard({ commit, x, y }: { commit: CommitSummaryDto; x: number
           </>
         )}
       </dl>
+      {contextLoading && <p className="hover-status muted">正在统计所属分支与差异…</p>}
+      {context && (
+        <div className="hover-branches">
+          <p className="hover-branch-line">
+            <span className="hover-label">所属分支</span>
+            {branchNames.length === 0
+              ? "无本地分支"
+              : `${shownNames.join("、")}${hiddenNames > 0 ? ` 等 ${branchNames.length} 个` : ""}`}
+          </p>
+          {context.current_branch &&
+            !context.branches.includes(context.current_branch) && (
+              <p className="hover-off-branch">
+                该提交不在当前分支 {context.current_branch}
+              </p>
+            )}
+          {context.gaps.length > 0 && (
+            <>
+              <p className="hover-branch-line">
+                <span className="hover-label">相对 {currentLabel}</span> <span className="muted">本地分支</span>
+              </p>
+              {context.gaps.map((gap) => (
+                <div className="hover-gap" key={gap.name}>
+                  <div className="hover-gap-head">
+                    <span className="hover-gap-name">{gap.name}</span>
+                    <span className="hover-gap-count muted">
+                      当前分支缺少 {gap.branch_only} · 该分支缺少 {gap.head_only}
+                    </span>
+                  </div>
+                  {gap.branch_only_commits.length > 0 && (
+                    <p className="hover-gap-commits">
+                      缺少：
+                      {gap.branch_only_commits
+                        .map((item) => `${item.short_oid} ${item.summary || "（无说明）"}`)
+                        .join("、")}
+                      {gap.branch_only_truncated ? " …" : ""}
+                    </p>
+                  )}
+                  {gap.head_only_commits.length > 0 && (
+                    <p className="hover-gap-commits muted">
+                      该分支缺少：
+                      {gap.head_only_commits
+                        .map((item) => `${item.short_oid} ${item.summary || "（无说明）"}`)
+                        .join("、")}
+                      {gap.head_only_truncated ? " …" : ""}
+                    </p>
+                  )}
+                </div>
+              ))}
+              {context.gaps_omitted > 0 && (
+                <p className="hover-status muted">
+                  另有 {context.gaps_omitted} 个分支未参与统计
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
       <p className="hover-hint muted">点击行查看详情与文件改动</p>
     </div>
   );
@@ -123,14 +211,25 @@ export function GraphList({
     commit: CommitSummaryDto;
     x: number;
     y: number;
+    context: CommitBranchContextDto | null;
+    contextLoading: boolean;
   } | null>(null);
   const hoverTimer = useRef<number | null>(null);
+  const branchContextCache = useRef(new Map<string, CommitBranchContextDto>());
+  const branchContextSeq = useRef(0);
+
+  // 分支差异按提交缓存；仓库刷新（viewKey 变化）后丢弃。
+  useEffect(() => {
+    branchContextCache.current.clear();
+    branchContextSeq.current += 1;
+  }, [view.viewKey]);
 
   const cancelHover = useCallback(() => {
     if (hoverTimer.current !== null) {
       window.clearTimeout(hoverTimer.current);
       hoverTimer.current = null;
     }
+    branchContextSeq.current += 1;
     setHover(null);
   }, []);
 
@@ -142,7 +241,35 @@ export function GraphList({
     }
     hoverTimer.current = window.setTimeout(() => {
       hoverTimer.current = null;
-      setHover({ commit, x, y });
+      const cached = branchContextCache.current.get(commit.oid) ?? null;
+      setHover({ commit, x, y, context: cached, contextLoading: cached === null });
+      if (cached) {
+        return;
+      }
+      const seq = ++branchContextSeq.current;
+      void ipc
+        .commitBranchContext(commit.oid, 2)
+        .then((context) => {
+          branchContextCache.current.set(commit.oid, context);
+          if (seq !== branchContextSeq.current) {
+            return;
+          }
+          setHover((current) =>
+            current && current.commit.oid === commit.oid
+              ? { ...current, context, contextLoading: false }
+              : current,
+          );
+        })
+        .catch(() => {
+          if (seq !== branchContextSeq.current) {
+            return;
+          }
+          setHover((current) =>
+            current && current.commit.oid === commit.oid
+              ? { ...current, contextLoading: false }
+              : current,
+          );
+        });
     }, 260);
   }, []);
 
@@ -268,7 +395,15 @@ export function GraphList({
         })}
       </div>
       {loadingMore && <div className="graph-loading muted">加载更多…</div>}
-      {hover && <CommitHoverCard commit={hover.commit} x={hover.x} y={hover.y} />}
+      {hover && (
+        <CommitHoverCard
+          commit={hover.commit}
+          x={hover.x}
+          y={hover.y}
+          context={hover.context}
+          contextLoading={hover.contextLoading}
+        />
+      )}
     </div>
   );
 }
