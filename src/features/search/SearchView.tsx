@@ -25,88 +25,45 @@ const dateFormat = new Intl.DateTimeFormat("zh-CN", {
   day: "2-digit",
 });
 
-const HISTORY_KEY = "git-graph.search-history";
-const HISTORY_LIMIT = 8;
+const SUGGESTION_LIMIT = 8;
 
-type SuggestionKind = "history" | "author" | "summary";
-
-interface Suggestion {
-  kind: SuggestionKind;
-  text: string;
-}
-
-const SUGGESTION_LABEL: Record<SuggestionKind, string> = {
-  history: "历史",
-  author: "作者",
-  summary: "说明",
-};
-
-function readHistory(): string[] {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
-  } catch {
+/** 候选词只来自已加载的图谱页；输入为空时不给候选。 */
+function buildSuggestions(input: string, commits: CommitSummaryDto[]): string[] {
+  const needle = input.trim().toLowerCase();
+  if (!needle) {
     return [];
   }
-}
-
-/** 候选词只来自搜索历史与已加载的图谱页，不额外请求 Git 数据。 */
-function buildSuggestions(
-  input: string,
-  history: string[],
-  commits: CommitSummaryDto[],
-): Suggestion[] {
-  const needle = input.trim().toLowerCase();
-  const out: Suggestion[] = [];
-  const seen = new Set<string>();
-  const push = (kind: SuggestionKind, text: string) => {
-    const key = `${kind}:${text.toLowerCase()}`;
-    if (!text || seen.has(key)) {
-      return;
-    }
-    seen.add(key);
-    out.push({ kind, text });
-  };
-
-  let historyHits = 0;
-  for (const item of history) {
-    if (needle && !item.toLowerCase().includes(needle)) {
-      continue;
-    }
-    push("history", item);
-    historyHits += 1;
-    if (historyHits >= (needle ? 4 : 6)) {
-      break;
-    }
-  }
-
   const authors = new Map<string, number>();
   for (const commit of commits) {
     authors.set(commit.author_name, (authors.get(commit.author_name) ?? 0) + 1);
   }
-  const ranked = [...authors.entries()]
+  const authorHits = [...authors.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([name]) => name)
-    .filter((name) => !needle || name.toLowerCase().includes(needle));
-  for (const name of ranked.slice(0, needle ? 3 : 2)) {
-    push("author", name);
-  }
+    .filter((name) => name.toLowerCase().includes(needle));
 
-  // 单个字符会命中几乎所有提交说明，至少两个字符才给说明候选。
-  if (needle.length >= 2) {
-    let summaryHits = 0;
-    for (const commit of commits) {
-      if (!commit.summary.toLowerCase().includes(needle)) {
-        continue;
-      }
-      push("summary", commit.summary);
-      summaryHits += 1;
-      if (summaryHits >= 5) {
-        break;
-      }
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (text: string) => {
+    const key = text.toLowerCase();
+    if (!text || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    out.push(text);
+  };
+
+  for (const name of authorHits.slice(0, 2)) {
+    push(name);
+  }
+  for (const commit of commits) {
+    if (out.length >= SUGGESTION_LIMIT) {
+      break;
+    }
+    if (commit.summary.toLowerCase().includes(needle)) {
+      push(commit.summary);
     }
   }
-
   return out;
 }
 
@@ -141,17 +98,13 @@ interface Located {
 
 export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose }: SearchViewProps) {
   const [input, setInput] = useState(search.text);
-  const [history, setHistory] = useState<string[]>(readHistory);
   const [active, setActive] = useState(-1);
   const [suggestOpen, setSuggestOpen] = useState(true);
   const [located, setLocated] = useState<Located | null>(null);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
 
-  const suggestions = useMemo(
-    () => buildSuggestions(input, history, commits),
-    [input, history, commits],
-  );
+  const suggestions = useMemo(() => buildSuggestions(input, commits), [input, commits]);
 
   useEffect(() => {
     setActive(-1);
@@ -183,15 +136,6 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
     setInput(trimmed);
     setSuggestOpen(false);
     setActive(-1);
-    setHistory((current) => {
-      const next = [trimmed, ...current.filter((item) => item !== trimmed)].slice(0, HISTORY_LIMIT);
-      try {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-      } catch {
-        // 存储不可用时仅丢失候选历史，不影响搜索本身。
-      }
-      return next;
-    });
     search.start(trimmed);
   };
 
@@ -213,8 +157,7 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
     }
     if (event.key === "Enter" && !search.loading) {
       event.preventDefault();
-      const picked = suggestOpen ? suggestions[active] : undefined;
-      runSearch(picked ? picked.text : input);
+      runSearch(suggestOpen && active >= 0 ? suggestions[active] : input);
     }
   };
 
@@ -283,7 +226,7 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
             {suggestOpen && suggestions.length > 0 && (
               <ul className="search-suggestions" role="listbox">
                 {suggestions.map((suggestion, index) => (
-                  <li key={`${suggestion.kind}:${suggestion.text}`}>
+                  <li key={suggestion}>
                     <button
                       type="button"
                       role="option"
@@ -291,10 +234,9 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
                       // 按下鼠标时保持输入框焦点，否则 blur 会先收起候选、点击落空。
                       onMouseDown={(event) => event.preventDefault()}
                       onMouseEnter={() => setActive(index)}
-                      onClick={() => runSearch(suggestion.text)}
+                      onClick={() => runSearch(suggestion)}
                     >
-                      <span className="suggestion-text">{highlight(suggestion.text, input)}</span>
-                      <span className="tag">{SUGGESTION_LABEL[suggestion.kind]}</span>
+                      <span className="suggestion-text">{highlight(suggestion, input)}</span>
                     </button>
                   </li>
                 ))}
@@ -328,9 +270,7 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
         {locating && <p className="muted">正在加载目标页…</p>}
 
         {!search.text && !search.loading && (
-          <p className="muted">
-            输入关键词后回车搜索；候选来自搜索历史与当前已加载提交的作者、说明。
-          </p>
+          <p className="muted">输入关键词后回车搜索；候选来自当前已加载提交的作者与说明。</p>
         )}
         {search.results.length === 0 && !search.loading && search.text && !search.canceled && (
           <p className="muted">没有匹配的提交。hash 前缀至少 7 位。</p>
