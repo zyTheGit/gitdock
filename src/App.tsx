@@ -150,11 +150,16 @@ export default function App() {
     () => graph.view.rows.flatMap((row) => (row.commit ? [row.commit] : [])),
     [graph.view],
   );
+  // 关闭搜索框即丢弃本次搜索与输入，下次打开从空白开始。
+  const closeSearch = useCallback(() => {
+    setMode("graph");
+    search.reset();
+  }, [search.reset]);
   // 搜索结果直接在主图谱定位：关闭弹框、载入目标页，成功后再选中并居中。
   // 等目标页落地才发出滚动请求，避免对旧页的行先滚一次。
   const locateFromSearch = useCallback(
     (oid: string) => {
-      setMode("graph");
+      closeSearch();
       void graph.jumpTo(oid).then((ok) => {
         if (!ok) {
           return;
@@ -164,7 +169,7 @@ export default function App() {
         setFocusTarget({ oid, seq: focusSeq.current });
       });
     },
-    [graph.jumpTo],
+    [closeSearch, graph.jumpTo],
   );
   const tools = settings?.external_tools ?? [];
 
@@ -477,8 +482,7 @@ export default function App() {
         return;
       }
       if (mode === "search") {
-        setMode("graph");
-        search.reset();
+        closeSearch();
         return;
       }
       if (mode === "compare") {
@@ -491,7 +495,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mode, search, slots]);
+  }, [closeSearch, mode, slots]);
 
   const writeDisabled =
     busy ||
@@ -650,7 +654,7 @@ export default function App() {
             <>
               <button
                 className={mode === "search" ? "active" : ""}
-                onClick={() => setMode(mode === "search" ? "graph" : "search")}
+                onClick={() => (mode === "search" ? closeSearch() : setMode("search"))}
               >
                 搜索
               </button>
@@ -927,10 +931,7 @@ export default function App() {
           search={search}
           commits={searchCommits}
           onLocateCommit={locateFromSearch}
-          onClose={() => {
-            setMode("graph");
-            search.reset();
-          }}
+          onClose={closeSearch}
         />
       )}
 
