@@ -300,8 +300,6 @@ export interface SettingsDto {
   tools_seeded?: boolean;
   window_width?: number;
   window_height?: number;
-  /** 关闭时是否处于最大化；为真时启动直接最大化恢复。 */
-  window_maximized?: boolean;
 }
 
 export interface AppInfoDto {

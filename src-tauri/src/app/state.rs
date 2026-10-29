@@ -110,7 +110,7 @@ impl AppState {
         Ok(saved)
     }
 
-    /// 记录窗口几何：最大化时只记状态、保留上一次的普通尺寸，
+    /// 记录窗口尺寸：最大化时保留上一次的普通尺寸，
     /// 否则下次启动会把“全屏尺寸的普通窗口”当成正常大小恢复。
     pub fn save_window_geometry(&self, width: u32, height: u32, maximized: bool) {
         let Ok(current) = self.settings() else {
@@ -121,7 +121,6 @@ impl AppState {
             next.window_width = Some(width);
             next.window_height = Some(height);
         }
-        next.window_maximized = Some(maximized);
         if let Err(err) = config::save(&self.paths.config_dir, &next) {
             logging::warn(&format!("保存窗口尺寸失败：{err}"));
             return;

@@ -7,26 +7,31 @@ use app::AppState;
 use tauri::{Manager, WebviewWindow, WindowEvent};
 
 /// 旧配置只存过尺寸：最大化关窗会把全屏尺寸当成普通尺寸存下来，
-/// 下次启动就成了“看起来全屏、其实没最大化”的窗口。按工作区尺寸判定一次。
-fn legacy_maximized(window: &WebviewWindow, width: Option<u32>, height: Option<u32>) -> bool {
+/// 下次启动就成了“看起来全屏、其实没最大化”的窗口。这类尺寸不再作为普通尺寸恢复。
+fn legacy_fullscreen_size(
+    window: &WebviewWindow,
+    width: Option<u32>,
+    height: Option<u32>,
+) -> Option<(u32, u32)> {
     let (Some(width), Some(height)) = (width, height) else {
-        return false;
+        return None;
     };
     let Ok(Some(monitor)) = window.current_monitor() else {
-        return false;
+        return Some((width, height));
     };
     let Ok(scale) = window.scale_factor() else {
-        return false;
+        return Some((width, height));
     };
     let area = monitor.work_area().size;
     let area_width = (area.width as f64 / scale).round() as i64;
     let area_height = (area.height as f64 / scale).round() as i64;
-    // 最大化时客户区宽度就是工作区宽度，高度还要减去标题栏与边框，
-    // 所以只有“等宽 + 略矮”才判定为最大化窗口。
-    width as i64 - area_width <= 2
+    // 最大化窗口的客户区宽度等于工作区宽度，高度还要减去标题栏与边框，
+    // 所以“等宽 + 略矮”即判定为当年最大化留下的尺寸。
+    let looks_maximized = width as i64 - area_width <= 2
         && area_width - width as i64 <= 2
         && area_height - height as i64 >= 0
-        && area_height - height as i64 <= 80
+        && area_height - height as i64 <= 80;
+    (!looks_maximized).then_some((width, height))
 }
 
 pub fn run() {
@@ -38,17 +43,14 @@ pub fn run() {
             app.manage(Arc::clone(&state));
 
             if let Some(window) = app.get_webview_window("main") {
-                // 显示前先定好几何：窗口在配置里是隐藏的，用户看不到默认尺寸到目标尺寸的过渡。
-                let maximized = settings.window_maximized.unwrap_or_else(|| {
-                    legacy_maximized(&window, settings.window_width, settings.window_height)
-                });
-                // 先套用普通尺寸再最大化：取消最大化时才会回到全屏前的大小。
-                if let (Some(width), Some(height)) = (settings.window_width, settings.window_height)
+                // 显示前先定好尺寸：窗口在配置里是隐藏的，用户看不到默认尺寸到目标尺寸的过渡。
+                // Windows 会按窗口类“上一次的摆放”把新窗口直接恢复成最大化，
+                // 所以启动时先取消最大化，再套用保存的普通尺寸。
+                let _ = window.unmaximize();
+                if let Some((width, height)) =
+                    legacy_fullscreen_size(&window, settings.window_width, settings.window_height)
                 {
                     let _ = window.set_size(tauri::LogicalSize::new(width, height));
-                }
-                if maximized {
-                    let _ = window.maximize();
                 }
                 // 前端脚本异常时兜底显示，避免窗口永远隐藏。
                 let fallback = window.clone();

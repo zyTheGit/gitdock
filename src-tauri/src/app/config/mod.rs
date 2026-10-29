@@ -35,9 +35,6 @@ pub struct SettingsDto {
     pub window_width: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window_height: Option<u32>,
-    /// 关闭时是否处于最大化；为真时启动直接最大化恢复，不套用普通尺寸。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub window_maximized: Option<bool>,
 }
 
 impl Default for SettingsDto {
@@ -52,7 +49,6 @@ impl Default for SettingsDto {
             tools_seeded: false,
             window_width: None,
             window_height: None,
-            window_maximized: None,
         }
     }
 }
@@ -156,7 +152,6 @@ mod tests {
         let settings = SettingsDto {
             restore_last_repository: false,
             window_width: Some(1200),
-            window_maximized: Some(true),
             ..Default::default()
         };
         let saved = save(dir.path(), &settings).expect("保存设置失败");
@@ -164,7 +159,6 @@ mod tests {
         let loaded = load(dir.path());
         assert!(!loaded.restore_last_repository);
         assert_eq!(loaded.window_width, Some(1200));
-        assert_eq!(loaded.window_maximized, Some(true));
         assert!(settings_path(dir.path()).exists());
     }
 
