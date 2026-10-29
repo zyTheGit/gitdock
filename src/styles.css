@@ -1318,7 +1318,8 @@ button.large {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* 两栏等宽，中间 1px 是独立分隔列，两侧内容宽度一致。 */
+  grid-template-columns: 1fr 1px 1fr;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1327,15 +1328,14 @@ button.large {
   font-family: "Cascadia Mono", Consolas, monospace;
 }
 
-/* 两栏等宽；分隔线用内阴影绘制，不占布局宽度，两侧内容宽度保持一致。 */
 .split-pane {
   min-width: 0;
   overflow: auto;
   overscroll-behavior: contain;
 }
 
-.split-pane + .split-pane {
-  box-shadow: inset 1px 0 0 var(--border);
+.split-divider {
+  background: var(--border);
 }
 
 .split-line {

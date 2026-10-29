@@ -167,7 +167,9 @@ export function SplitDiffPanes({ hunks, tokens }: SplitDiffPanesProps) {
       <div className="split-pane" ref={leftRef} onScroll={() => onScroll("left")}>
         {paneRows(rows.left)}
       </div>
-      <div className="split-pane right" ref={rightRef} onScroll={() => onScroll("right")}>
+      {/* 分隔线独立成列：行号槽位是不透明的 sticky 元素，画在内阴影上会被逐行盖掉。 */}
+      <div className="split-divider" aria-hidden="true" />
+      <div className="split-pane" ref={rightRef} onScroll={() => onScroll("right")}>
         {paneRows(rows.right)}
       </div>
     </div>
