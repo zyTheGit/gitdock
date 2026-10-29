@@ -124,8 +124,8 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
             所有工具都可以修改或删除，新增工具无需改动程序代码。
           </p>
           <p className="muted settings-hint">
-            示例：VS Code 用 <code>--diff $LOCAL $REMOTE</code>，Beyond Compare 用{" "}
-            <code>$LOCAL $REMOTE</code>；未指定默认工具时使用列表第一项。
+            示例：VS Code / Zed 用 <code>--diff $LOCAL $REMOTE</code>，Beyond Compare 用{" "}
+            <code>$LOCAL $REMOTE</code>；只传两个路径会打开两个独立文件而不是差异视图；未指定默认工具时使用列表第一项。
           </p>
           {tools.length === 0 && <p className="muted">尚未配置外部工具。</p>}
           <ul className="tool-list">
