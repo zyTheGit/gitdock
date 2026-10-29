@@ -221,6 +221,137 @@ fn collect_node(
     Ok(())
 }
 
+/// 在两棵树之间寻找第一个改动路径包含 `needle` 的文件。
+///
+/// 只做树级遍历并剪枝相同子树，命中即返回；不读取 blob 内容，也不统计增删行，
+/// 因此比 `collect_changes` 快一个量级——搜索路径时每个提交都要调用一次。
+pub(crate) fn changed_path_matching(
+    repo: &gix::Repository,
+    old_tree: Option<&Oid>,
+    new_tree: Option<&Oid>,
+    needle: &str,
+) -> Result<Option<String>> {
+    let old = match old_tree {
+        Some(oid) => Some(find_tree(repo, oid)?),
+        None => None,
+    };
+    let new = match new_tree {
+        Some(oid) => Some(find_tree(repo, oid)?),
+        None => None,
+    };
+    match_changed_node(repo, old.as_ref(), new.as_ref(), "", needle)
+}
+
+fn match_changed_node(
+    repo: &gix::Repository,
+    old: Option<&gix::Tree<'_>>,
+    new: Option<&gix::Tree<'_>>,
+    prefix: &str,
+    needle: &str,
+) -> Result<Option<String>> {
+    let old_entries = entries_of(old)?;
+    let new_entries = entries_of(new)?;
+    let mut names: Vec<&String> = old_entries.keys().chain(new_entries.keys()).collect();
+    names.sort();
+    names.dedup();
+
+    for name in names {
+        let path = format!("{prefix}{name}");
+        let old_entry = old_entries.get(name);
+        let new_entry = new_entries.get(name);
+        match (old_entry, new_entry) {
+            (None, None) => {}
+            (Some(old_entry), Some(new_entry))
+                if old_entry.oid == new_entry.oid
+                    && old_entry.mode.is_tree() == new_entry.mode.is_tree() => {}
+            (Some(old_entry), Some(new_entry)) => {
+                if old_entry.mode.is_tree() && new_entry.mode.is_tree() {
+                    let old_child = find_tree(repo, &old_entry.oid)?;
+                    let new_child = find_tree(repo, &new_entry.oid)?;
+                    if let Some(hit) = match_changed_node(
+                        repo,
+                        Some(&old_child),
+                        Some(&new_child),
+                        &format!("{path}/"),
+                        needle,
+                    )? {
+                        return Ok(Some(hit));
+                    }
+                } else if old_entry.mode.is_tree() {
+                    let old_child = find_tree(repo, &old_entry.oid)?;
+                    if let Some(hit) = match_changed_node(
+                        repo,
+                        Some(&old_child),
+                        None,
+                        &format!("{path}/"),
+                        needle,
+                    )? {
+                        return Ok(Some(hit));
+                    }
+                    if let Some(hit) = leaf_matching(&path, needle) {
+                        return Ok(Some(hit));
+                    }
+                } else if new_entry.mode.is_tree() {
+                    if let Some(hit) = leaf_matching(&path, needle) {
+                        return Ok(Some(hit));
+                    }
+                    let new_child = find_tree(repo, &new_entry.oid)?;
+                    if let Some(hit) = match_changed_node(
+                        repo,
+                        None,
+                        Some(&new_child),
+                        &format!("{path}/"),
+                        needle,
+                    )? {
+                        return Ok(Some(hit));
+                    }
+                } else if let Some(hit) = leaf_matching(&path, needle) {
+                    return Ok(Some(hit));
+                }
+            }
+            (Some(old_entry), None) => {
+                if old_entry.mode.is_tree() {
+                    let old_child = find_tree(repo, &old_entry.oid)?;
+                    if let Some(hit) = match_changed_node(
+                        repo,
+                        Some(&old_child),
+                        None,
+                        &format!("{path}/"),
+                        needle,
+                    )? {
+                        return Ok(Some(hit));
+                    }
+                } else if let Some(hit) = leaf_matching(&path, needle) {
+                    return Ok(Some(hit));
+                }
+            }
+            (None, Some(new_entry)) => {
+                if new_entry.mode.is_tree() {
+                    let new_child = find_tree(repo, &new_entry.oid)?;
+                    if let Some(hit) = match_changed_node(
+                        repo,
+                        None,
+                        Some(&new_child),
+                        &format!("{path}/"),
+                        needle,
+                    )? {
+                        return Ok(Some(hit));
+                    }
+                } else if let Some(hit) = leaf_matching(&path, needle) {
+                    return Ok(Some(hit));
+                }
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn leaf_matching(path: &str, needle: &str) -> Option<String> {
+    path.to_lowercase()
+        .contains(needle)
+        .then(|| path.to_owned())
+}
+
 fn entries_of(tree: Option<&gix::Tree<'_>>) -> Result<BTreeMap<String, EntryInfo>> {
     let mut map = BTreeMap::new();
     if let Some(tree) = tree {
@@ -512,4 +643,44 @@ pub(crate) fn language_for(path: &str) -> Option<String> {
         _ => return None,
     };
     Some(language.to_owned())
+}
+
+#[cfg(test)]
+mod path_matching_tests {
+    use super::*;
+
+    /// 精简匹配只做树级剪枝，语义必须与 `collect_changes` 的文件清单一致：
+    /// 同样取“第一个路径包含关键字”的文件，大小写不敏感。
+    #[test]
+    fn changed_path_matching_agrees_with_collect_changes() {
+        let path = test_support::fixtures().forked();
+        let repo = gix::open(path).expect("打开夹具仓库");
+        let head = crate::util::oid_from_id(&repo.head_id().expect("HEAD"));
+        let index = crate::index::build(&repo, &[head], "test", 0, None).expect("索引");
+        let needles = ["feature.txt", "txt", "src", "src ", ".", "zzz", "README"];
+        let mut compared = 0usize;
+        for oid in &index.order {
+            let commit = crate::util::find_commit(&repo, oid).expect("提交");
+            let old_tree = commit.parent_ids().next().map(|parent| {
+                crate::read::tree_oid_of_commit(&repo, &crate::util::oid_from_id(&parent))
+                    .expect("父树")
+            });
+            let new_tree = Some(crate::util::oid_from_id(&commit.tree_id().expect("提交树")));
+            for needle in needles {
+                let expected = collect_changes(&repo, old_tree.as_ref(), new_tree.as_ref(), None)
+                    .expect("完整 diff")
+                    .files
+                    .iter()
+                    .map(RawChange::path)
+                    .map(str::to_owned)
+                    .find(|file| file.to_lowercase().contains(needle));
+                let actual =
+                    changed_path_matching(&repo, old_tree.as_ref(), new_tree.as_ref(), needle)
+                        .expect("精简匹配");
+                assert_eq!(actual, expected, "oid={} needle={needle}", oid.short(8));
+                compared += 1;
+            }
+        }
+        assert!(compared > 0);
+    }
 }

@@ -92,7 +92,9 @@ export function SearchView({ repo, scope, search, onOpenCommit, onClose }: Searc
           placeholder="搜索信息 / 至少 7 位 hash / 作者 / 路径"
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
+            // 输入法组合中的回车用于上屏，不触发搜索。
+            if (event.key === "Enter" && !event.nativeEvent.isComposing && !search.loading) {
+              event.preventDefault();
               search.start(input);
             }
           }}

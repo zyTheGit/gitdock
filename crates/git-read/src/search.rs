@@ -8,7 +8,7 @@ use git_core::{
     SearchPageDto, SearchRequest, UserVisibleError,
 };
 
-use crate::diff::collect_changes;
+use crate::diff::changed_path_matching;
 use crate::read::{commit_summary, read_head, read_refs, GitReadModule, DEFAULT_PAGE_LIMIT};
 
 const MAX_SCAN: usize = 20_000;
@@ -52,9 +52,12 @@ impl GitReadModule {
         text: &str,
         cancel: &AtomicBool,
     ) -> Result<SearchPageDto> {
-        let repo = self.repo()?;
+        let mut repo = self.repo()?;
+        // 路径匹配要反复读取历史树；打开对象缓存，避免相邻提交重复解压同一批树。
+        repo.object_cache_size_if_unset(32 * 1024 * 1024);
         let generation = self.fingerprint(&repo)?;
-        let view_key = format!("search|{}", request.scope.view_key());
+        // 复用图谱页的索引缓存键：搜索不再重复遍历一遍全部提交。
+        let view_key = request.scope.view_key();
         let index = self.build_index(&repo, &request.scope, &view_key, generation)?;
         let start = match cursor {
             Some(token) => {
@@ -119,7 +122,7 @@ impl GitReadModule {
             }
             let mut matched_path = None;
             if scanned <= MAX_PATH_SCAN {
-                if let Some(path) = self.match_path(&repo, oid, text)? {
+                if let Some(path) = self.match_path(&repo, &commit, text)? {
                     fields.push(SearchField::Path);
                     matched_path = Some(path);
                 }
@@ -150,14 +153,17 @@ impl GitReadModule {
         })
     }
 
-    fn match_path(&self, repo: &gix::Repository, oid: &Oid, text: &str) -> Result<Option<String>> {
-        let commit = crate::util::find_commit(repo, oid)?;
-        let parent = commit
-            .parent_ids()
-            .next()
-            .map(|id| crate::util::oid_from_id(&id));
-        let old_tree = match &parent {
-            Some(parent) => Some(crate::read::tree_oid_of_commit(repo, parent)?),
+    fn match_path(
+        &self,
+        repo: &gix::Repository,
+        commit: &gix::Commit<'_>,
+        text: &str,
+    ) -> Result<Option<String>> {
+        let old_tree = match commit.parent_ids().next() {
+            Some(parent) => {
+                let parent = crate::util::oid_from_id(&parent);
+                Some(crate::read::tree_oid_of_commit(repo, &parent)?)
+            }
             None => None,
         };
         let new_tree = {
@@ -167,11 +173,6 @@ impl GitReadModule {
             })?;
             Some(crate::util::oid_from_id(&id))
         };
-        let changes = collect_changes(repo, old_tree.as_ref(), new_tree.as_ref(), None)?;
-        Ok(changes
-            .files
-            .iter()
-            .map(|change| change.path().to_owned())
-            .find(|path| path.to_lowercase().contains(text)))
+        changed_path_matching(repo, old_tree.as_ref(), new_tree.as_ref(), text)
     }
 }
