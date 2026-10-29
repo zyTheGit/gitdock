@@ -5,16 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/icon.png" />
     <title>Git Graph</title>
-    <style>
-      /* 内联首屏底色：styles.css 是外部资源，未加载前文档默认白底会闪一下。 */
-      html,
-      body,
-      #root {
-        margin: 0;
-        min-height: 100%;
-        background: #16181d;
-      }
-    </style>
+    <!-- 只声明配色方案，不写内联 <style>：内联样式会让 Tauri 给 style-src 加 nonce，
+         从而屏蔽 React 写在元素上的 style 属性。 -->
+    <meta name="color-scheme" content="dark" />
   </head>
   <body>
     <div id="root"></div>
