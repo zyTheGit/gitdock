@@ -10,6 +10,7 @@ interface GraphPaneProps {
   graph: GraphLoader;
   selectedOid: string | null;
   focusedOid?: string | null;
+  focusSeq?: number | null;
   onSelect: (oid: string) => void;
   onCtrlSelect?: (commit: CommitSummaryDto) => void;
   onContextMenu?: (event: MouseEvent, commit: CommitSummaryDto) => void;
@@ -22,6 +23,7 @@ export function GraphPane({
   graph,
   selectedOid,
   focusedOid,
+  focusSeq,
   onSelect,
   onCtrlSelect,
   onContextMenu,
@@ -80,6 +82,7 @@ export function GraphPane({
           loadingMore={loadingMore}
           selectedOid={selectedOid}
           focusedOid={focusedOid}
+          focusSeq={focusSeq}
           onSelect={onSelect}
           onCtrlSelect={onCtrlSelect}
           onContextMenu={onContextMenu}

@@ -189,6 +189,8 @@ interface GraphListProps {
   loadingMore: boolean;
   selectedOid: string | null;
   focusedOid?: string | null;
+  /** 定位请求序号：每次定位递增，用于只滚动一次。 */
+  focusSeq?: number | null;
   onSelect: (oid: string) => void;
   onCtrlSelect?: (commit: CommitSummaryDto) => void;
   onContextMenu?: (event: MouseEvent, commit: CommitSummaryDto) => void;
@@ -201,6 +203,7 @@ export function GraphList({
   loadingMore,
   selectedOid,
   focusedOid,
+  focusSeq,
   onSelect,
   onCtrlSelect,
   onContextMenu,
@@ -296,17 +299,22 @@ export function GraphList({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [view.viewKey]);
 
-  // 搜索结果定位：把目标行滚动到可视区域并保持高亮。
+  // 搜索结果定位：每个请求只滚动一次，避免后续追加页面时把用户拽回定位行。
+  const scrolledFocus = useRef<number | null>(null);
   useEffect(() => {
-    if (!focusedOid) {
+    if (!focusedOid || focusSeq === null || focusSeq === undefined) {
+      return;
+    }
+    if (scrolledFocus.current === focusSeq) {
       return;
     }
     const index = view.rows.findIndex((row) => row.layout.oid === focusedOid);
     if (index < 0) {
       return;
     }
+    scrolledFocus.current = focusSeq;
     virtualizer.scrollToIndex(index, { align: "center" });
-  }, [focusedOid, view.rows, virtualizer]);
+  }, [focusedOid, focusSeq, view.rows, virtualizer]);
 
   const items = virtualizer.getVirtualItems();
   useEffect(() => {

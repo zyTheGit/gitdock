@@ -1,14 +1,5 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
-import { errorText } from "../../shared/error";
-import { ipc } from "../../shared/ipc";
-import type {
-  CommitSummaryDto,
-  GraphScope,
-  RepoStateDto,
-  SearchField,
-} from "../../shared/types";
-import { GraphList } from "../graph/GraphList";
-import { startView, type GraphView } from "../graph/model";
+import type { CommitSummaryDto, RepoStateDto, SearchField } from "../../shared/types";
 import type { SearchLoader } from "./useSearch";
 
 const FIELD_LABEL: Record<SearchField, string> = {
@@ -89,50 +80,23 @@ function highlight(text: string, needle: string) {
 
 interface SearchViewProps {
   repo: RepoStateDto;
-  scope: GraphScope;
   search: SearchLoader;
   commits: CommitSummaryDto[];
-  onOpenCommit: (oid: string) => void;
+  /** F4-1：命中项可能不在当前页，交由主视图载入目标页并居中高亮。 */
+  onLocateCommit: (oid: string) => void;
   onClose: () => void;
 }
 
-interface Located {
-  view: GraphView;
-  oid: string;
-}
-
-export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose }: SearchViewProps) {
+export function SearchView({ repo, search, commits, onLocateCommit, onClose }: SearchViewProps) {
   const [input, setInput] = useState(search.text);
   const [active, setActive] = useState(-1);
   const [suggestOpen, setSuggestOpen] = useState(true);
-  const [located, setLocated] = useState<Located | null>(null);
-  const [locating, setLocating] = useState(false);
-  const [locateError, setLocateError] = useState<string | null>(null);
 
   const suggestions = useMemo(() => buildSuggestions(input, commits), [input, commits]);
 
   useEffect(() => {
     setActive(-1);
   }, [input]);
-
-  // F4-1：结果可能落在当前页之外，按需加载目标页并居中高亮，且可返回结果列表。
-  const locate = async (oid: string) => {
-    setLocating(true);
-    setLocateError(null);
-    try {
-      const page = await ipc.readGraphPageAround(scope, oid, 200);
-      if (page.generation !== repo.generation) {
-        setLocateError("仓库状态已变化，请重新搜索后再定位");
-        return;
-      }
-      setSuggestOpen(false);
-      setLocated({ view: startView(page), oid });
-    } catch (err) {
-      setLocateError(errorText(err));
-    } finally {
-      setLocating(false);
-    }
-  };
 
   const runSearch = (value: string) => {
     const trimmed = value.trim();
@@ -145,11 +109,11 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
     search.start(trimmed);
   };
 
-  // 说明候选已经指向具体提交，选中即定位，不再退回结果列表二次确认。
+  // 说明候选已经指向具体提交，选中即回主视图定位，不再退回结果列表二次确认。
   const pick = (suggestion: Suggestion) => {
     if (suggestion.oid) {
       setSuggestOpen(false);
-      void locate(suggestion.oid);
+      onLocateCommit(suggestion.oid);
       return;
     }
     runSearch(suggestion.text);
@@ -183,41 +147,6 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
   };
 
   const repoName = repo.path.split(/[\\/]/).filter(Boolean).pop();
-
-  if (located) {
-    return (
-      <div className="modal-backdrop search-backdrop" role="dialog" aria-modal="true">
-        <div className="search-dialog search-dialog-located">
-          <header>
-            <h2>搜索提交</h2>
-            <button className="detail-close" onClick={onClose} aria-label="关闭搜索">
-              ×
-            </button>
-          </header>
-          <div className="search-located-bar">
-            <button onClick={() => setLocated(null)}>
-              {search.text ? "← 返回结果列表" : "← 返回搜索"}
-            </button>
-            <span className="muted">
-              已定位 <span className="mono">{located.oid.slice(0, 8)}</span> · 共{" "}
-              {located.view.rows.length} 条
-            </span>
-          </div>
-          <div className="graph-scroll search-located-list">
-            <GraphList
-              view={located.view}
-              loading={false}
-              loadingMore={false}
-              selectedOid={located.oid}
-              focusedOid={located.oid}
-              onSelect={onOpenCommit}
-              onLoadMore={() => undefined}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="modal-backdrop search-backdrop" role="dialog" aria-modal="true">
@@ -291,8 +220,6 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
         {search.canceled && (
           <div className="banner info">搜索已取消；已有结果保留，不再继续追加。</div>
         )}
-        {locateError && <div className="banner danger">{locateError}</div>}
-        {locating && <p className="muted">正在加载目标页…</p>}
 
         {!search.text && !search.loading && (
           <p className="muted">输入关键词后回车搜索；候选来自当前已加载提交的作者与说明。</p>
@@ -306,8 +233,8 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
             {search.results.map((match) => (
               <li key={match.commit.oid}>
                 <button
-                  onClick={() => void locate(match.commit.oid)}
-                  title={`${match.commit.oid} · 加载目标页并定位`}
+                  onClick={() => onLocateCommit(match.commit.oid)}
+                  title={`${match.commit.oid} · 在主图谱中定位`}
                 >
                   <span className="search-summary">{match.commit.summary || "（无提交说明）"}</span>
                   <span className="search-fields">

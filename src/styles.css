@@ -1635,18 +1635,6 @@ button.large {
   font-size: 16px;
 }
 
-/* 定位结果时用固定高度让虚拟列表拿到可视区高度。 */
-.search-dialog-located {
-  height: 84vh;
-}
-
-.search-located-bar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .compare-modal h3 {
   margin: 0 0 8px;
   font-size: 15px;
@@ -2015,11 +2003,6 @@ button.large {
 .search-more {
   flex: none;
   text-align: center;
-}
-
-.search-located-list {
-  flex: 1;
-  min-height: 0;
 }
 
 button.link {

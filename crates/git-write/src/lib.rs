@@ -443,7 +443,7 @@ impl GitWriteModule {
     }
 
     fn status_summary(&self) -> Result<StatusSummary> {
-        let output = self.run(&[
+        let output = self.run_readonly(&[
             "status",
             "--porcelain=v2",
             "-z",
@@ -578,6 +578,22 @@ impl GitWriteModule {
         git_command()
             .current_dir(&self.root)
             .args(args)
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .output()
+            .map_err(|e| {
+                UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
+                    .with_detail(e.to_string())
+            })
+    }
+
+    /// `status` 默认会拿可选索引锁并创建/删除 index.lock，本应用监听到 .git 变化后
+    /// 又触发刷新，形成「刷新 → status → 监听 → 刷新」的自激循环并冲掉当前页；
+    /// 关掉可选锁后 status 不再写锁文件，工作区状态结果不变。
+    fn run_readonly(&self, args: &[&str]) -> Result<Output> {
+        git_command()
+            .current_dir(&self.root)
+            .args(args)
+            .env("GIT_OPTIONAL_LOCKS", "0")
             .env("GIT_TERMINAL_PROMPT", "0")
             .output()
             .map_err(|e| {

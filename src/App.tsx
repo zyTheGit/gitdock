@@ -93,6 +93,9 @@ export default function App() {
   const [repo, setRepo] = useState<RepoStateDto | null>(null);
   const [scope, setScope] = useState<GraphScope>({ kind: "head" });
   const [selectedOid, setSelectedOid] = useState<string | null>(null);
+  // 搜索定位请求：seq 递增，保证同一提交再次定位时也会重新滚动一次。
+  const focusSeq = useRef(0);
+  const [focusTarget, setFocusTarget] = useState<{ oid: string; seq: number } | null>(null);
   const [mode, setMode] = useState<ViewMode>("graph");
   const [pathFilter, setPathFilter] = useState("");
   const [twoDot, setTwoDot] = useState(false);
@@ -147,6 +150,22 @@ export default function App() {
     () => graph.view.rows.flatMap((row) => (row.commit ? [row.commit] : [])),
     [graph.view],
   );
+  // 搜索结果直接在主图谱定位：关闭弹框、载入目标页，成功后再选中并居中。
+  // 等目标页落地才发出滚动请求，避免对旧页的行先滚一次。
+  const locateFromSearch = useCallback(
+    (oid: string) => {
+      setMode("graph");
+      void graph.jumpTo(oid).then((ok) => {
+        if (!ok) {
+          return;
+        }
+        setSelectedOid(oid);
+        focusSeq.current += 1;
+        setFocusTarget({ oid, seq: focusSeq.current });
+      });
+    },
+    [graph.jumpTo],
+  );
   const tools = settings?.external_tools ?? [];
 
   // 两个槽位齐全时自动进入对比视图；用户点“查看图谱”后保持图谱，直到再次选择。
@@ -187,6 +206,7 @@ export default function App() {
       const state = await ipc.openRepository(path);
       setScope({ kind: "head" });
       setSelectedOid(null);
+      setFocusTarget(null);
       setPathFilter("");
       setTwoDot(false);
       setMode("graph");
@@ -835,10 +855,16 @@ export default function App() {
                     onScopeChange={(next) => {
                       setScope(next);
                       setSelectedOid(null);
+                      setFocusTarget(null);
                     }}
                     graph={graph}
                     selectedOid={selectedOid}
-                    onSelect={setSelectedOid}
+                    focusedOid={focusTarget?.oid ?? null}
+                    focusSeq={focusTarget?.seq ?? null}
+                    onSelect={(oid) => {
+                      setSelectedOid(oid);
+                      setFocusTarget(null);
+                    }}
                     onCtrlSelect={slots.ctrlSelect}
                     onContextMenu={(event: MouseEvent, commit: CommitSummaryDto) => {
                       setRowMenu({ x: event.clientX, y: event.clientY, commit });
@@ -864,6 +890,7 @@ export default function App() {
                         onBranchJump={(branch) => {
                           setScope({ kind: "branch", value: branch });
                           setSelectedOid(null);
+                          setFocusTarget(null);
                         }}
                         onExternalDiff={(toolIndex, path, left) =>
                           void launchExternal(toolIndex, left, selectedOid, path, false)
@@ -897,14 +924,9 @@ export default function App() {
       {mode === "search" && repo && (
         <SearchView
           repo={repo}
-          scope={scope}
           search={search}
           commits={searchCommits}
-          onOpenCommit={(oid) => {
-            setSelectedOid(oid);
-            setMode("graph");
-            search.reset();
-          }}
+          onLocateCommit={locateFromSearch}
           onClose={() => {
             setMode("graph");
             search.reset();

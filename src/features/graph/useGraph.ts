@@ -17,6 +17,8 @@ export interface GraphLoader {
   error: string | null;
   reload: (options?: { keepRows?: boolean }) => Promise<void>;
   loadMore: () => Promise<void>;
+  /** 载入包含指定提交的一页图谱；返回是否已切换到该页。 */
+  jumpTo: (oid: string) => Promise<boolean>;
 }
 
 export function useGraph(repoPath: string | null, scope: GraphScope): GraphLoader {
@@ -108,6 +110,38 @@ export function useGraph(repoPath: string | null, scope: GraphScope): GraphLoade
     }
   }, [commitView]);
 
+  const jumpTo = useCallback(
+    async (oid: string) => {
+      if (!repoPath) {
+        return false;
+      }
+      const current = ++token.current;
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+      setLoading(true);
+      setError(null);
+      try {
+        const page = await ipc.readGraphPageAround(scopeRef.current, oid, PAGE_LIMIT);
+        if (current !== token.current) {
+          return false;
+        }
+        commitView(startView(page));
+        return true;
+      } catch (err) {
+        if (current !== token.current) {
+          return false;
+        }
+        setError(errorText(err));
+        return false;
+      } finally {
+        if (current === token.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [commitView, repoPath],
+  );
+
   useEffect(() => {
     void reload();
     return () => {
@@ -116,5 +150,5 @@ export function useGraph(repoPath: string | null, scope: GraphScope): GraphLoade
     };
   }, [reload, scopeKey(scope)]);
 
-  return { view, loading, loadingMore, error, reload, loadMore };
+  return { view, loading, loadingMore, error, reload, loadMore, jumpTo };
 }
