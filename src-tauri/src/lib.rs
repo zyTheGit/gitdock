@@ -15,10 +15,19 @@ pub fn run() {
             app.manage(Arc::clone(&state));
 
             if let Some(window) = app.get_webview_window("main") {
+                // 先套用保存的尺寸，再由前端首帧回调显示，窗口不会先大后小地跳一次。
                 if let (Some(width), Some(height)) = (settings.window_width, settings.window_height)
                 {
                     let _ = window.set_size(tauri::LogicalSize::new(width, height));
                 }
+                // 前端脚本异常时兜底显示，避免窗口永远隐藏。
+                let fallback = window.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                    if matches!(fallback.is_visible(), Ok(false)) {
+                        let _ = fallback.show();
+                    }
+                });
             }
             Ok(())
         })
@@ -42,6 +51,7 @@ pub fn run() {
             commands::startup_repository,
             commands::open_repository,
             commands::close_repository,
+            commands::ui_ready,
             commands::repository_state,
             commands::read_graph_page,
             commands::read_graph_page_around,

@@ -44,6 +44,7 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 }
 
 export const ipc = {
+  uiReady: () => call<void>("ui_ready"),
   appInfo: () => call<AppInfoDto>("app_info"),
   loadSettings: () => call<SettingsDto>("load_settings"),
   saveSettings: (settings: SettingsDto) => call<SettingsDto>("save_settings", { settings }),

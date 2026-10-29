@@ -54,6 +54,17 @@ pub async fn app_info(state: State<'_, Shared>) -> Result<AppInfoDto> {
     .await
 }
 
+/// 前端完成首帧后再显示主窗口：窗口在配置里保持隐藏，避免启动时先按默认尺寸
+/// 出现、再跳成保存的尺寸，以及 WebView2 未绘制前的白底闪帧。
+#[tauri::command]
+pub fn ui_ready(window: tauri::WebviewWindow) -> Result<()> {
+    window.show().map_err(|err| {
+        UserVisibleError::new(ErrorCode::Internal, "显示主窗口失败").with_detail(err.to_string())
+    })?;
+    let _ = window.set_focus();
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn load_settings(state: State<'_, Shared>) -> Result<SettingsDto> {
     let state = Arc::clone(&state);
