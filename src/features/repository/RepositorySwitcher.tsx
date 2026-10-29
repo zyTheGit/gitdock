@@ -152,7 +152,11 @@ export function RepositorySwitcher({
           <div className="repo-menu-list" ref={listRef}>
             {groups.length === 0 ? (
               <p className="repo-menu-empty">
-                {query.trim() ? "没有匹配的仓库" : "尚未打开过仓库"}
+                {query.trim()
+                  ? "没有匹配的仓库"
+                  : currentPath
+                    ? "最近仓库已清空，可从下方“打开本地仓库…”重新添加"
+                    : "尚未打开过仓库，可从下方“打开本地仓库…”开始"}
               </p>
             ) : (
               groups.map((group) => (
@@ -186,7 +190,11 @@ export function RepositorySwitcher({
                             title="从最近仓库移除（不删除本地仓库）"
                             aria-label={`从最近仓库移除 ${entry.name}`}
                             disabled={busy}
-                            onClick={() => onForget(entry.path)}
+                            onClick={() => {
+                              // 删除后高亮停在同一位置，由下一条仓库接替，避免跳到列表末尾。
+                              setActiveIndex((current) => (index < current ? current - 1 : current));
+                              onForget(entry.path);
+                            }}
                           >
                             ×
                           </button>
@@ -208,7 +216,9 @@ export function RepositorySwitcher({
             >
               打开本地仓库…
             </button>
-            <p className="repo-menu-hint">↑↓ 选择 · Enter 打开 · Esc 关闭</p>
+            {entries.length > 0 && (
+              <p className="repo-menu-hint">↑↓ 选择 · Enter 打开 · Esc 关闭</p>
+            )}
           </div>
         </div>
       )}
