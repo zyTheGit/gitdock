@@ -916,10 +916,9 @@ button.large {
 
 .file-diff-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   margin-bottom: 6px;
 }
 
@@ -931,15 +930,27 @@ button.large {
 }
 
 .file-diff-path {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.file-diff-meta {
+.file-diff-stats {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 12px;
+}
+
+.file-diff-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px 8px;
   font-size: 12px;
 }
 
@@ -962,6 +973,60 @@ button.large {
 
 .view-toggle button.active {
   background: var(--accent-soft);
+}
+
+.diff-option {
+  flex: none;
+  font-size: 11px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.diff-option.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.file-diff-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: rgba(6, 8, 12, 0.55);
+}
+
+.file-diff.expanded {
+  position: fixed;
+  inset: 20px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.file-diff.expanded .file-diff-header {
+  position: static;
+  flex: none;
+  margin: 0;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.file-diff.expanded .diff-view {
+  flex: 1;
+  min-height: 0;
+}
+
+.file-diff.expanded .diff-note {
+  flex: none;
 }
 
 .diff-view {
@@ -989,13 +1054,47 @@ button.large {
   min-width: 100%;
 }
 
+.diff-view .diff-line {
+  line-height: 1.6;
+}
+
 .diff-view .diff-code {
   white-space: pre;
   word-break: normal;
+  padding: 0 10px;
+}
+
+/* 并排模式下两栏之间的分隔线；统一模式的代码列是行内最后一格，不受影响。 */
+.diff-view .diff-code:not(:last-child) {
+  border-right: 1px solid var(--border);
 }
 
 .diff-view .diff-gutter {
   color: var(--muted);
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.diff-view .diff-decoration-content {
+  padding: 3px 10px;
+  background: var(--bg-elevated);
+  color: var(--muted);
+  font-size: 11px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+/* 自动换行：固定表格宽度，长行折叠在列内，避免横向滚动。 */
+.diff-view.wrap .diff {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 0;
+}
+
+.diff-view.wrap .diff-code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .diff-note {
@@ -1330,6 +1429,15 @@ button.large {
 .compare-columns .detail-diff {
   overflow: auto;
   min-height: 0;
+}
+
+/* 对比视图的 diff 区域独立滚动，文件头保持可见。 */
+.compare-columns .detail-diff .file-diff-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 6px 0;
+  background: var(--bg-panel);
 }
 
 .search-toolbar,
