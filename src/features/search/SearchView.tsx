@@ -6,7 +6,6 @@ import type {
   GraphScope,
   RepoStateDto,
   SearchField,
-  SearchMatchDto,
 } from "../../shared/types";
 import { GraphList } from "../graph/GraphList";
 import { startView, type GraphView } from "../graph/model";
@@ -27,8 +26,14 @@ const dateFormat = new Intl.DateTimeFormat("zh-CN", {
 
 const SUGGESTION_LIMIT = 8;
 
+interface Suggestion {
+  text: string;
+  /** 提交说明候选直接带 OID，选中即定位；作者候选没有 OID，选中后执行搜索。 */
+  oid?: string;
+}
+
 /** 候选词只来自已加载的图谱页；输入为空时不给候选。 */
-function buildSuggestions(input: string, commits: CommitSummaryDto[]): string[] {
+function buildSuggestions(input: string, commits: CommitSummaryDto[]): Suggestion[] {
   const needle = input.trim().toLowerCase();
   if (!needle) {
     return [];
@@ -42,26 +47,26 @@ function buildSuggestions(input: string, commits: CommitSummaryDto[]): string[] 
     .map(([name]) => name)
     .filter((name) => name.toLowerCase().includes(needle));
 
-  const out: string[] = [];
+  const out: Suggestion[] = [];
   const seen = new Set<string>();
-  const push = (text: string) => {
-    const key = text.toLowerCase();
-    if (!text || seen.has(key)) {
+  const push = (suggestion: Suggestion) => {
+    const key = suggestion.text.toLowerCase();
+    if (!suggestion.text || seen.has(key)) {
       return;
     }
     seen.add(key);
-    out.push(text);
+    out.push(suggestion);
   };
 
   for (const name of authorHits.slice(0, 2)) {
-    push(name);
+    push({ text: name });
   }
   for (const commit of commits) {
     if (out.length >= SUGGESTION_LIMIT) {
       break;
     }
     if (commit.summary.toLowerCase().includes(needle)) {
-      push(commit.summary);
+      push({ text: commit.summary, oid: commit.oid });
     }
   }
   return out;
@@ -111,16 +116,17 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
   }, [input]);
 
   // F4-1：结果可能落在当前页之外，按需加载目标页并居中高亮，且可返回结果列表。
-  const locate = async (match: SearchMatchDto) => {
+  const locate = async (oid: string) => {
     setLocating(true);
     setLocateError(null);
     try {
-      const page = await ipc.readGraphPageAround(scope, match.commit.oid, 200);
+      const page = await ipc.readGraphPageAround(scope, oid, 200);
       if (page.generation !== repo.generation) {
         setLocateError("仓库状态已变化，请重新搜索后再定位");
         return;
       }
-      setLocated({ view: startView(page), oid: match.commit.oid });
+      setSuggestOpen(false);
+      setLocated({ view: startView(page), oid });
     } catch (err) {
       setLocateError(errorText(err));
     } finally {
@@ -137,6 +143,16 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
     setSuggestOpen(false);
     setActive(-1);
     search.start(trimmed);
+  };
+
+  // 说明候选已经指向具体提交，选中即定位，不再退回结果列表二次确认。
+  const pick = (suggestion: Suggestion) => {
+    if (suggestion.oid) {
+      setSuggestOpen(false);
+      void locate(suggestion.oid);
+      return;
+    }
+    runSearch(suggestion.text);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -157,7 +173,12 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
     }
     if (event.key === "Enter" && !search.loading) {
       event.preventDefault();
-      runSearch(suggestOpen && active >= 0 ? suggestions[active] : input);
+      const picked = suggestOpen && active >= 0 ? suggestions[active] : undefined;
+      if (picked) {
+        pick(picked);
+      } else {
+        runSearch(input);
+      }
     }
   };
 
@@ -174,7 +195,9 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
             </button>
           </header>
           <div className="search-located-bar">
-            <button onClick={() => setLocated(null)}>← 返回结果列表</button>
+            <button onClick={() => setLocated(null)}>
+              {search.text ? "← 返回结果列表" : "← 返回搜索"}
+            </button>
             <span className="muted">
               已定位 <span className="mono">{located.oid.slice(0, 8)}</span> · 共{" "}
               {located.view.rows.length} 条
@@ -226,7 +249,7 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
             {suggestOpen && suggestions.length > 0 && (
               <ul className="search-suggestions" role="listbox">
                 {suggestions.map((suggestion, index) => (
-                  <li key={suggestion}>
+                  <li key={suggestion.oid ?? suggestion.text}>
                     <button
                       type="button"
                       role="option"
@@ -234,9 +257,11 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
                       // 按下鼠标时保持输入框焦点，否则 blur 会先收起候选、点击落空。
                       onMouseDown={(event) => event.preventDefault()}
                       onMouseEnter={() => setActive(index)}
-                      onClick={() => runSearch(suggestion)}
+                      onClick={() => pick(suggestion)}
                     >
-                      <span className="suggestion-text">{highlight(suggestion, input)}</span>
+                      <span className="suggestion-text">
+                        {highlight(suggestion.text, input)}
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -281,7 +306,7 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
             {search.results.map((match) => (
               <li key={match.commit.oid}>
                 <button
-                  onClick={() => void locate(match)}
+                  onClick={() => void locate(match.commit.oid)}
                   title={`${match.commit.oid} · 加载目标页并定位`}
                 >
                   <span className="search-summary">{match.commit.summary || "（无提交说明）"}</span>
