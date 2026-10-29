@@ -1,0 +1,320 @@
+/* 图谱：工具栏、虚拟列表、行、悬浮提交卡、ref 标签 */
+
+.graph-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.scope-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.scope-tabs button {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.scope-tabs button.active {
+  background: var(--accent-soft);
+  color: #fff;
+}
+
+.branch-filter {
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  max-width: 200px;
+}
+
+.graph-view-label {
+  color: var(--muted);
+}
+
+.graph-count {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.graph-scroll {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.graph-list {
+  height: 100%;
+  overflow: auto;
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+}
+
+.graph-list-inner {
+  position: relative;
+  min-width: 100%;
+}
+
+.graph-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 12px;
+  border-bottom: 1px solid rgba(46, 51, 64, 0.55);
+  cursor: default;
+  white-space: nowrap;
+}
+
+.graph-row:hover {
+  background: rgba(76, 141, 255, 0.06);
+}
+
+.graph-row.selected {
+  background: var(--accent-soft);
+}
+
+.commit-hover-card {
+  position: fixed;
+  z-index: 30;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  color: var(--text);
+  pointer-events: none;
+  white-space: normal;
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+}
+
+.hover-status {
+  margin: 6px 0 0;
+  font-size: 11px;
+}
+
+.hover-branches {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.hover-branch-line {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.hover-label {
+  display: inline-block;
+  min-width: 56px;
+  color: var(--muted);
+}
+
+.hover-off-branch {
+  margin: 4px 0;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(224, 108, 117, 0.12);
+  color: #e0a0a5;
+  font-size: 11px;
+}
+
+.hover-gap {
+  margin-top: 6px;
+}
+
+.hover-gap-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hover-gap-name {
+  font-weight: 600;
+}
+
+.hover-gap-count {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.hover-gap-commits {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.hover-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.hover-summary {
+  margin: 0 0 8px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.commit-hover-card dl {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 3px 8px;
+  margin: 0;
+}
+
+.commit-hover-card dt {
+  color: var(--muted);
+}
+
+.commit-hover-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.hover-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+}
+
+.graph-cell {
+  display: block;
+  flex: none;
+}
+
+.graph-row-summary {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.commit-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ref-badge {
+  flex: none;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--muted);
+}
+
+.ref-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ref-desc {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ref-local_branch {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: #d7e5ff;
+}
+
+.ref-remote_branch {
+  border-color: #4a5568;
+  color: #b6c0d0;
+}
+
+.ref-tag {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.ref-head {
+  font-weight: 600;
+}
+
+.graph-row-author {
+  flex: none;
+  width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+
+.graph-row-date {
+  flex: none;
+  width: 132px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.graph-row-oid {
+  flex: none;
+  width: 70px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.graph-loading {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 4px 12px;
+  background: var(--bg-panel);
+  font-size: 12px;
+}
+
+.graph-empty {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+}

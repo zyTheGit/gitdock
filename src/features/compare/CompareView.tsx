@@ -1,29 +1,12 @@
 import { useEffect, useState } from "react";
-import { FileDiffView } from "../detail/FileDiffView";
-import type {
-  CommitSummaryDto,
-  ExternalToolConfig,
-  FileDiffDto,
-  FileStatus,
-} from "../../shared/types";
+import type { CommitSummaryDto, ExternalToolConfig, FileDiffDto } from "../../shared/types";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
+import { CompareCommitList } from "./CompareCommitList";
+import { CompareDiffPane } from "./CompareDiffPane";
+import { CompareFileList } from "./CompareFileList";
+import { CompareHeader } from "./CompareHeader";
 import type { CompareLoader, CompareSlot } from "./useCompare";
 import { useCompareFileDiff } from "./useCompare";
-
-const STATUS_LETTER: Record<FileStatus, string> = {
-  added: "A",
-  deleted: "D",
-  modified: "M",
-  type_changed: "T",
-};
-
-const dateFormat = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 interface CompareViewProps {
   repoGeneration: number;
@@ -132,50 +115,16 @@ export function CompareView({
 
   return (
     <section className="compare-view">
-      <header className="compare-header">
-        <div>
-          <h2>{twoDot ? "Compare 与 Base 的完整快照差异" : "Compare 相对 Base 共同祖先的改动"}</h2>
-          <div className="compare-sub mono" title={`${base.oid} → ${compare.oid}`}>
-            {base.label} ({base.oid.slice(0, 8)}) → {compare.label} ({compare.oid.slice(0, 8)})
-          </div>
-        </div>
-        <div className="compare-meta">
-          <div className="diff-mode" role="group" aria-label="对比模式">
-            <button
-              className={twoDot ? "" : "active"}
-              onClick={() => onTwoDotChange(false)}
-              title="git diff base...compare：只显示 Compare 相对共同祖先的改动"
-            >
-              三点 diff
-            </button>
-            <button
-              className={twoDot ? "active" : ""}
-              onClick={() => onTwoDotChange(true)}
-              title="git diff base compare：显示两个提交的完整快照差异"
-            >
-              两点快照
-            </button>
-          </div>
-          <span className={result?.mode === "two_dot_fallback" ? "tag warn" : "tag"}>
-            {result?.mode === "two_dot_fallback"
-              ? "两点快照降级"
-              : result?.mode === "two_dot"
-                ? "两点快照"
-                : "三点 diff"}
-          </span>
-          {result && (
-            <>
-              <span className="muted">
-                左侧 Base 独有 <strong>{result.base_only}</strong> · 右侧 Compare 独有{" "}
-                <strong>{result.compare_only}</strong>
-              </span>
-              <span className="diff-add">+{totalAdd}</span>
-              <span className="diff-del">-{totalDel}</span>
-            </>
-          )}
-          <button onClick={onBack}>查看图谱</button>
-        </div>
-      </header>
+      <CompareHeader
+        base={base}
+        compare={compare}
+        twoDot={twoDot}
+        onTwoDotChange={onTwoDotChange}
+        result={result}
+        totalAdd={totalAdd}
+        totalDel={totalDel}
+        onBack={onBack}
+      />
 
       {loader.loading && <p className="muted">正在计算三点对比…</p>}
       {loader.error && <div className="banner danger">{loader.error}</div>}
@@ -251,113 +200,41 @@ export function CompareView({
 
           <div className="detail-columns compare-columns">
             <div className="compare-side">
-              <div className="detail-files">
-                <h3>变更文件（{files.length}）</h3>
-                {files.length === 0 ? (
-                  <p className="muted">此范围没有文件变更。</p>
-                ) : (
-                  <ul className="file-list compare-file-list">
-                    {files.map((file) => (
-                      <li key={file.path}>
-                        <button
-                          className={filePath === file.path ? "file-row active" : "file-row"}
-                          onClick={() => setFilePath(file.path)}
-                          onContextMenu={(event) => {
-                            event.preventDefault();
-                            setFilePath(file.path);
-                            setMenu({ x: event.clientX, y: event.clientY, path: file.path });
-                          }}
-                          title={file.path}
-                        >
-                          <span className={`file-status file-status-${file.status}`}>
-                            {STATUS_LETTER[file.status]}
-                          </span>
-                          <span className="file-path">{file.path}</span>
-                          <span className="file-stats">
-                            {file.gitlink ? (
-                              <span className="muted">gitlink</span>
-                            ) : file.binary ? (
-                              <span className="muted">bin</span>
-                            ) : (
-                              <>
-                                <span className="diff-add">+{file.additions}</span>
-                                <span className="diff-del">-{file.deletions}</span>
-                              </>
-                            )}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="compare-commits">
-                <h3>
-                  Compare 引入的提交（{result.commits.length}
-                  {result.commits_truncated ? "+" : ""}）
-                </h3>
-                {result.commits.length === 0 ? (
-                  <p className="muted">Compare 没有相对共同祖先的新提交。</p>
-                ) : (
-                  <ul className="compare-commit-list">
-                    {result.commits.map((commit) => (
-                      <li key={commit.oid}>
-                        <button
-                          onClick={() => onOpenCommit(commit.oid)}
-                          onContextMenu={(event) => {
-                            event.preventDefault();
-                            setCommitMenuPos({
-                              x: event.clientX,
-                              y: event.clientY,
-                              commit,
-                            });
-                          }}
-                          title={commit.oid}
-                        >
-                          <span className="compare-commit-summary">{commit.summary}</span>
-                          <span className="mono muted">{commit.short_oid}</span>
-                          <span className="muted">
-                            {dateFormat.format(new Date(commit.authored_at * 1000))}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              <CompareFileList
+                files={files}
+                activePath={filePath}
+                onSelect={setFilePath}
+                onContextMenu={(event, path) =>
+                  setMenu({ x: event.clientX, y: event.clientY, path })
+                }
+              />
+              <CompareCommitList
+                commits={result.commits}
+                truncated={result.commits_truncated}
+                onOpen={onOpenCommit}
+                onContextMenu={(event, commit) =>
+                  setCommitMenuPos({ x: event.clientX, y: event.clientY, commit })
+                }
+              />
             </div>
 
-            <div className="detail-diff">
-              {diff.loading && !expandedDiff && <p className="muted">正在读取文件 diff…</p>}
-              {diff.error && <div className="banner danger">{diff.error}</div>}
-              {shownDiff && (
-                <FileDiffView
-                  key={`compare:${base.oid}:${compare.oid}`}
-                  diff={shownDiff}
-                  files={files}
-                  activePath={filePath ?? undefined}
-                  onSelectFile={setFilePath}
-                  expanded={expandedDiff}
-                  onExpandedChange={setExpandedDiff}
-                  loading={diff.loading}
-                />
-              )}
-              {!diff.loading && !shownDiff && !diff.error && files.length > 0 && (
-                <p className="muted">选择左侧文件查看 diff。</p>
-              )}
-            </div>
+            <CompareDiffPane
+              diffKey={`compare:${base.oid}:${compare.oid}`}
+              diff={shownDiff}
+              loading={diff.loading}
+              error={diff.error}
+              files={files}
+              activePath={filePath}
+              onSelectFile={setFilePath}
+              expanded={expandedDiff}
+              onExpandedChange={setExpandedDiff}
+            />
           </div>
         </>
       )}
 
       {menu && (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          items={menuItems}
-          onClose={() => setMenu(null)}
-        />
+        <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />
       )}
 
       {commitMenuPos && (

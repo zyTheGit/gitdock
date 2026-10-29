@@ -565,7 +565,12 @@ fn git_read_source_has_no_write_or_mutation_calls() {
     // 静态审计：只读模块源码不得包含写操作或写型 gix API。
     let sources = [
         ("lib.rs", include_str!("../src/lib.rs")),
-        ("read.rs", include_str!("../src/read.rs")),
+        ("read/mod.rs", include_str!("../src/read/mod.rs")),
+        ("read/graph.rs", include_str!("../src/read/graph.rs")),
+        ("read/detail.rs", include_str!("../src/read/detail.rs")),
+        ("read/compare.rs", include_str!("../src/read/compare.rs")),
+        ("read/refs.rs", include_str!("../src/read/refs.rs")),
+        ("read/probe.rs", include_str!("../src/read/probe.rs")),
         ("diff.rs", include_str!("../src/diff.rs")),
         ("search.rs", include_str!("../src/search.rs")),
         ("util.rs", include_str!("../src/util.rs")),
@@ -603,7 +608,7 @@ fn git_read_source_has_no_write_or_mutation_calls() {
 
     // 唯一允许的子进程探测：`git --version`（只读版本查询）。
     assert_eq!(process_calls, 1, "只允许一次子进程调用（git --version）");
-    let read_source = include_str!("../src/read.rs");
+    let read_source = include_str!("../src/read/probe.rs");
     let detect_start = read_source
         .find("fn detect_git_version")
         .expect("detect_git_version 存在");
@@ -652,7 +657,12 @@ fn git_read_source_has_no_write_or_mutation_calls() {
     );
     assert!(index_source.contains("dir.join("), "缓存文件写入缓存目录");
     for (name, source) in [
-        ("read.rs", include_str!("../src/read.rs")),
+        ("read/mod.rs", include_str!("../src/read/mod.rs")),
+        ("read/graph.rs", include_str!("../src/read/graph.rs")),
+        ("read/detail.rs", include_str!("../src/read/detail.rs")),
+        ("read/compare.rs", include_str!("../src/read/compare.rs")),
+        ("read/refs.rs", include_str!("../src/read/refs.rs")),
+        ("read/probe.rs", include_str!("../src/read/probe.rs")),
         ("diff.rs", include_str!("../src/diff.rs")),
         ("search.rs", include_str!("../src/search.rs")),
         ("util.rs", include_str!("../src/util.rs")),

@@ -1,0 +1,48 @@
+/* 通用控件：文字链接、激活态、右键菜单 */
+
+button.link {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  padding: 2px 4px;
+}
+
+button.link:hover:not(:disabled) {
+  text-decoration: underline;
+  border-color: transparent;
+}
+
+button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.danger-text {
+  color: var(--danger);
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+}
+
+.context-menu button {
+  text-align: left;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.context-menu button:hover:not(:disabled) {
+  background: var(--accent-soft);
+}

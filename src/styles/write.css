@@ -1,0 +1,115 @@
+/* 写操作确认、Gate 报告与 toast */
+
+.confirm-dialog {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  width: min(520px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+}
+
+.confirm-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.confirm-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.confirm-dialog h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.confirm-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.confirm-target {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 4px;
+  min-width: 0;
+}
+
+.confirm-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confirm-hint {
+  font-size: 12px;
+  margin: 0;
+}
+
+.description-input {
+  width: 100%;
+  min-height: 96px;
+  margin: 10px 0;
+  padding: 8px;
+  resize: vertical;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.description-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.gate-report {
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding-top: 4px;
+}
+
+.gate-ok {
+  color: var(--accent);
+  font-size: 13px;
+  margin: 0;
+}
+
+.gate-issues {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.banner-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.banner .link {
+  align-self: flex-start;
+}
+
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 40px;
+  z-index: 80;
+  max-width: 480px;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent-soft);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}

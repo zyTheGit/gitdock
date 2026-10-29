@@ -1,0 +1,281 @@
+/* 提交详情：头部、元信息、文件列表 */
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+}
+
+.workspace > .graph-pane {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-pane {
+  flex: none;
+  min-width: 320px;
+  max-width: 76vw;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+}
+
+.detail-header {
+  flex: none;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.detail-title-row > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-summary {
+  font-size: 14px;
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.detail-sub {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-close {
+  flex: none;
+  padding: 0 8px;
+  font-size: 16px;
+  line-height: 24px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.detail-refs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.detail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 12px 14px;
+}
+
+.commit-message-block {
+  margin-bottom: 10px;
+}
+
+.commit-message-block summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.commit-message {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.detail-facts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.parent-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.parent-list code,
+.baseline-note code {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  color: var(--muted);
+}
+
+.branch-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.branch-panel {
+  display: block;
+}
+
+.branch-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.branch-panel-head h2 {
+  margin: 8px 0;
+}
+
+.branch-panel-head button {
+  font-size: 12px;
+}
+
+.branch-chip {
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 6px;
+  border-radius: 3px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: #d7e5ff;
+  cursor: pointer;
+}
+
+.branch-chip:hover,
+.branch-chip:focus-visible {
+  border-color: var(--accent-strong, var(--accent));
+  background: var(--accent);
+  color: #fff;
+}
+
+.baseline-note {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.baseline-note.merge {
+  color: var(--warning);
+  border-left: 2px solid var(--warning);
+  padding-left: 8px;
+}
+
+.detail-columns {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 4px;
+}
+
+.detail-files {
+  flex: none;
+  width: 220px;
+}
+
+.detail-files h3 {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+
+.file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.file-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 3px 4px;
+  font-size: 12px;
+}
+
+.file-row.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.file-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.file-stats {
+  flex: none;
+  display: flex;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.diff-add {
+  color: var(--ok);
+}
+
+.diff-del {
+  color: var(--danger);
+}
+
+.file-status {
+  flex: none;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.file-status-added {
+  color: var(--ok);
+}
+
+.file-status-deleted {
+  color: var(--danger);
+}
+
+.file-status-modified {
+  color: var(--accent);
+}
+
+.file-status-type_changed {
+  color: var(--warning);
+}

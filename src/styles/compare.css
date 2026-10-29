@@ -1,0 +1,355 @@
+/* 对比：双槽栏、对比弹窗、对比视图与工具选择 */
+
+.graph-row.located {
+  outline: 2px solid var(--warning);
+  outline-offset: -2px;
+}
+
+.compare-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  font-size: 12px;
+}
+
+.compare-slot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-elevated);
+  min-width: 150px;
+}
+
+.compare-slot.empty {
+  border-style: dashed;
+  background: transparent;
+}
+
+.compare-slot.invalid {
+  border-color: var(--danger);
+}
+
+.compare-slot-title {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.compare-slot-label {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compare-slot-oid {
+  color: var(--muted);
+}
+
+.compare-slot-clear {
+  padding: 0 6px;
+  line-height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+}
+
+.compare-slot-clear:hover {
+  color: var(--danger);
+}
+
+.compare-swap {
+  padding: 4px 8px;
+}
+
+.compare-hint {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compare-modal-backdrop,
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+/* 搜索弹框略高于视口中心，接近常见搜索框的位置。 */
+.search-backdrop {
+  padding-bottom: 10vh;
+}
+
+.compare-modal,
+.settings-dialog {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  width: min(520px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+}
+
+/* 搜索弹框与对比弹窗同一套外观，结果多时在框内滚动。 */
+.search-dialog {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  width: min(880px, 92vw);
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.search-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.compare-modal h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.compare-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.compare-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.compare-header {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.compare-header h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.compare-sub {
+  color: var(--muted);
+}
+
+.compare-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.tag.warn {
+  color: var(--warning);
+}
+
+.diff-mode {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.diff-mode button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 3px 9px;
+}
+
+.diff-mode button + button {
+  border-left: 1px solid var(--border);
+}
+
+.diff-mode button.active {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.compare-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.compare-tools select,
+.branch-compare-field select {
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+.branch-compare-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.branch-compare-field select {
+  width: 100%;
+}
+
+.compare-tools button {
+  font-size: 12px;
+}
+
+.compare-filter {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.compare-filter label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compare-filter input,
+.search-toolbar input,
+.tool-list input {
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+.compare-filter input {
+  width: 240px;
+}
+
+.compare-columns {
+  flex: 1;
+  min-height: 0;
+  margin-top: 0;
+  align-items: stretch;
+}
+
+.compare-side {
+  flex: none;
+  width: 300px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.compare-side .detail-files {
+  width: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.compare-file-list {
+  max-height: none;
+  flex: 1;
+  min-height: 0;
+}
+
+.compare-commits {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.compare-commits h3 {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+  margin: 0 0 6px;
+}
+
+.compare-commit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.compare-commit-list button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.compare-commit-list button:hover {
+  background: var(--bg-elevated);
+}
+
+.compare-commit-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compare-columns .detail-diff {
+  overflow: auto;
+  min-height: 0;
+}

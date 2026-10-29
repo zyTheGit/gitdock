@@ -2,15 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Diff, Hunk, parseDiff } from "react-diff-view";
 import "react-diff-view/style/index.css";
 import type { FileDiffDto, FileStatus } from "../../shared/types";
+import { STATUS_LABEL } from "../../shared/fileStatus";
 import { buildDiffTokens } from "./highlight";
 import { SplitDiffPanes } from "./SplitDiffPanes";
-
-const STATUS_LABEL: Record<FileStatus, string> = {
-  added: "新增",
-  deleted: "删除",
-  modified: "修改",
-  type_changed: "类型变更",
-};
 
 const DIFF_WRAP_KEY = "git-graph.diff-wrap";
 const DIFF_FILES_OPEN_KEY = "git-graph.diff-files-open";

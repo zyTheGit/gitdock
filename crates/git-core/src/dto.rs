@@ -322,13 +322,6 @@ pub struct CompareResultDto {
     pub warnings: Vec<WarningDto>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompareFileDiffRequest {
-    pub base: Oid,
-    pub compare: Oid,
-    pub path: String,
-}
-
 /// 某个分支相对当前 HEAD 的差异摘要，用于提交悬浮卡。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BranchGapDto {
@@ -479,7 +472,7 @@ pub struct WorkspaceStatusDto {
     pub detached: bool,
 }
 
-/* ------------------------------ 分支与外部工具 ------------------------------ */
+/* ------------------------------ 分支 ------------------------------ */
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BranchDescriptionDto {
@@ -487,60 +480,4 @@ pub struct BranchDescriptionDto {
     pub description: String,
     /// linked worktree 中写入共享 local config，其他 worktree 可见。
     pub shared_across_worktrees: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExternalToolDto {
-    pub id: String,
-    pub name: String,
-    pub executable: String,
-    /// 参数模板，仅支持 `$LOCAL` / `$REMOTE`；解析为参数数组而非 shell 字符串。
-    pub args_template: String,
-    pub enabled: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExternalToolRequest {
-    pub tool_id: String,
-    pub path: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub oid: Option<Oid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub base: Option<Oid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compare: Option<Oid>,
-}
-
-/* ------------------------------ 应用设置 ------------------------------ */
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WindowGeometry {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppSettings {
-    pub schema_version: u32,
-    pub recent_repositories: Vec<String>,
-    pub external_tools: Vec<ExternalToolDto>,
-    pub watch_enabled: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub window: Option<WindowGeometry>,
-    pub recent_limit: usize,
-}
-
-impl Default for AppSettings {
-    fn default() -> Self {
-        Self {
-            schema_version: 1,
-            recent_repositories: Vec::new(),
-            external_tools: Vec::new(),
-            watch_enabled: true,
-            window: None,
-            recent_limit: 10,
-        }
-    }
 }

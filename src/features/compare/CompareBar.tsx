@@ -1,3 +1,4 @@
+import { shortOid } from "../../shared/format";
 import type { RepoStateDto } from "../../shared/types";
 import type { CompareSide, CompareSlot } from "./useCompare";
 
@@ -10,10 +11,6 @@ interface CompareBarProps {
   onClear: (side: CompareSide) => void;
   onSwap: () => void;
   onResolvePending: (side: CompareSide | null) => void;
-}
-
-function shortOid(oid: string): string {
-  return oid.slice(0, 8);
 }
 
 function Slot({

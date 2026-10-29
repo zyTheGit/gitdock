@@ -1,27 +1,20 @@
 //! 应用配置：平台配置目录下的 settings.json（含 schema version）。
 //! 仅本模块与 Tauri command 层接触该文件；前端只拿到结构化 DTO。
 
+mod recent;
+mod tools;
+
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use git_core::{ErrorCode, UserVisibleError};
 use serde::{Deserialize, Serialize};
 
+pub(crate) use recent::strip_verbatim;
+pub use recent::{forget, remember, RecentRepository};
+pub use tools::ExternalToolConfig;
+use tools::{detected_tools, normalize_default_tool, seed_tools, validate};
+
 pub const SCHEMA_VERSION: u32 = 1;
-const MAX_TEMPLATE_LEN: usize = 4000;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RecentRepository {
-    pub path: String,
-    pub last_opened_at: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExternalToolConfig {
-    pub name: String,
-    pub executable: String,
-    pub args_template: String,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SettingsDto {
@@ -94,77 +87,6 @@ fn seeded_default() -> SettingsDto {
     settings
 }
 
-fn seed_tools(settings: &mut SettingsDto, tools: Vec<ExternalToolConfig>) {
-    settings.tools_seeded = true;
-    if !settings.external_tools.is_empty() || tools.is_empty() {
-        return;
-    }
-    if settings.default_tool.is_none() {
-        settings.default_tool = Some(tools[0].name.clone());
-    }
-    settings.external_tools = tools;
-}
-
-/// 按当前系统探测常见对比工具；只检查已知安装路径，不启动任何进程。
-fn detected_tools() -> Vec<ExternalToolConfig> {
-    #[cfg(not(windows))]
-    {
-        Vec::new()
-    }
-    #[cfg(windows)]
-    {
-        use std::env;
-        let mut tools: Vec<ExternalToolConfig> = Vec::new();
-        let mut add = |name: &str, exe: PathBuf, args: &str| {
-            // 同一工具可能同时存在于用户目录与 Program Files，按名称去重。
-            if tools.iter().any(|tool| tool.name == name) {
-                return;
-            }
-            if exe.is_file() {
-                tools.push(ExternalToolConfig {
-                    name: name.to_owned(),
-                    executable: exe.display().to_string(),
-                    args_template: args.to_owned(),
-                });
-            }
-        };
-        if let Some(local) = env::var_os("LOCALAPPDATA") {
-            let base = PathBuf::from(local);
-            add(
-                "VS Code",
-                base.join("Programs")
-                    .join("Microsoft VS Code")
-                    .join("Code.exe"),
-                "--diff $LOCAL $REMOTE",
-            );
-            add(
-                "Zed",
-                base.join("Programs")
-                    .join("Zed")
-                    .join("bin")
-                    .join("zed.exe"),
-                "--diff $LOCAL $REMOTE",
-            );
-        }
-        for key in ["ProgramFiles", "ProgramFiles(x86)"] {
-            if let Some(dir) = env::var_os(key) {
-                let base = PathBuf::from(dir);
-                add(
-                    "VS Code",
-                    base.join("Microsoft VS Code").join("Code.exe"),
-                    "--diff $LOCAL $REMOTE",
-                );
-                add(
-                    "Beyond Compare",
-                    base.join("Beyond Compare 4").join("BCompare.exe"),
-                    "$LOCAL $REMOTE",
-                );
-            }
-        }
-        tools
-    }
-}
-
 fn backup(dir: &Path, path: &Path, version: u32) {
     let target = dir.join(format!("settings.v{version}.bak"));
     let _ = std::fs::rename(path, target);
@@ -188,111 +110,6 @@ pub fn save(dir: &Path, settings: &SettingsDto) -> Result<SettingsDto, UserVisib
     )
     .map_err(io_error)?;
     Ok(next)
-}
-
-fn normalize_default_tool(settings: &mut SettingsDto) {
-    let Some(name) = settings.default_tool.as_deref() else {
-        return;
-    };
-    let trimmed = name.trim();
-    if trimmed.is_empty()
-        || !settings
-            .external_tools
-            .iter()
-            .any(|tool| tool.name == trimmed)
-    {
-        settings.default_tool = None;
-    } else if trimmed != name {
-        settings.default_tool = Some(trimmed.to_owned());
-    }
-}
-
-fn validate(settings: &SettingsDto) -> Result<(), UserVisibleError> {
-    for tool in &settings.external_tools {
-        if tool.name.trim().is_empty() || tool.executable.trim().is_empty() {
-            return Err(UserVisibleError::new(
-                ErrorCode::InvalidArgument,
-                "外部工具的名称与可执行文件不能为空",
-            ));
-        }
-        if tool.args_template.len() > MAX_TEMPLATE_LEN {
-            return Err(UserVisibleError::new(
-                ErrorCode::InvalidArgument,
-                "外部工具参数模板过长",
-            ));
-        }
-        if tool.args_template.contains('\0') || tool.executable.contains('\0') {
-            return Err(UserVisibleError::new(
-                ErrorCode::InvalidArgument,
-                "外部工具配置包含非法字符",
-            ));
-        }
-    }
-    Ok(())
-}
-
-pub fn remember(
-    dir: &Path,
-    current: &SettingsDto,
-    path: &Path,
-) -> Result<SettingsDto, UserVisibleError> {
-    let canonical = std::fs::canonicalize(path).map_err(|e| {
-        UserVisibleError::new(ErrorCode::RepositoryNotFound, "仓库目录不可访问")
-            .with_detail(e.to_string())
-    })?;
-    if !canonical.is_dir() {
-        return Err(UserVisibleError::new(
-            ErrorCode::InvalidArgument,
-            "仓库路径必须是目录",
-        ));
-    }
-    let text = strip_verbatim(&canonical);
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
-    let mut settings = current.clone();
-    settings
-        .recent_repositories
-        .retain(|entry| !same_path(&entry.path, &text));
-    settings.recent_repositories.insert(
-        0,
-        RecentRepository {
-            path: text,
-            last_opened_at: now,
-        },
-    );
-    save(dir, &settings)
-}
-
-/// 仅从最近仓库列表移除，不触碰磁盘上的仓库目录。
-pub fn forget(
-    dir: &Path,
-    current: &SettingsDto,
-    path: &str,
-) -> Result<SettingsDto, UserVisibleError> {
-    let mut settings = current.clone();
-    settings
-        .recent_repositories
-        .retain(|entry| !same_path(&entry.path, path));
-    save(dir, &settings)
-}
-
-fn same_path(a: &str, b: &str) -> bool {
-    let normalize = |value: &str| value.replace('\\', "/").to_lowercase();
-    normalize(a) == normalize(b)
-}
-
-/// Windows 的 canonicalize 会返回 `\\?\` 扩展前缀；最近仓库列表需要展示用户熟悉的路径。
-pub(crate) fn strip_verbatim(path: &Path) -> String {
-    let text = path.to_string_lossy();
-    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
-        format!(r"\\{rest}")
-    } else if let Some(rest) = text.strip_prefix(r"\\?\") {
-        rest.to_string()
-    } else {
-        text.into_owned()
-    }
 }
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -322,6 +139,7 @@ pub fn settings_path(dir: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+    use super::tools::{detected_tools, seed_tools};
     use super::*;
 
     fn temp_dir() -> tempfile::TempDir {

@@ -1,0 +1,65 @@
+/* 设计令牌：颜色、字体、间距等全局变量 */
+
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 14px;
+  --bg: #16181d;
+  --bg-panel: #1d2027;
+  --bg-elevated: #242832;
+  --border: #2e3340;
+  --text: #e6e9ef;
+  --muted: #8b93a3;
+  --accent: #4c8dff;
+  --accent-soft: #24406b;
+  --warning: #d9a441;
+  --danger: #e06c75;
+  --ok: #6fbf73;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button.large {
+  padding: 10px 20px;
+  font-size: 15px;
+}

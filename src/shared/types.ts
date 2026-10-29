@@ -272,6 +272,12 @@ export interface BranchDescriptionDto {
   shared_across_worktrees: boolean;
 }
 
+/** `repository-changed` 事件载荷。 */
+export interface RepositoryChangedDto {
+  path: string;
+  generation: number;
+}
+
 export interface ExternalToolConfig {
   name: string;
   executable: string;
@@ -290,6 +296,8 @@ export interface SettingsDto {
   restore_last_repository: boolean;
   watch_enabled: boolean;
   default_tool?: string | null;
+  /** 只读：保存时后端强制置 true，前端无需回写。 */
+  tools_seeded?: boolean;
   window_width?: number;
   window_height?: number;
 }

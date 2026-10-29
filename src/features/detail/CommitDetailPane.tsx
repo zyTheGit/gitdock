@@ -1,37 +1,15 @@
 import { useEffect, useState } from "react";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
+import { STATUS_LETTER } from "../../shared/fileStatus";
+import { formatDate, shortOid } from "../../shared/format";
 import type {
   CommitSummaryDto,
   ExternalToolConfig,
   FileDiffDto,
-  FileStatus,
   RepoStateDto,
 } from "../../shared/types";
 import { FileDiffView } from "./FileDiffView";
 import { useBranchesContaining, useCommitDetail, useFileDiff } from "./useCommitDetail";
-
-const dateFormat = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-const STATUS_LETTER: Record<FileStatus, string> = {
-  added: "A",
-  deleted: "D",
-  modified: "M",
-  type_changed: "T",
-};
-
-function formatDate(seconds: number): string {
-  return seconds ? dateFormat.format(new Date(seconds * 1000)) : "—";
-}
-
-function shortOid(oid: string): string {
-  return oid.slice(0, 8);
-}
 
 function RefBadges({ commit }: { commit: CommitSummaryDto }) {
   if (commit.refs.length === 0) {
