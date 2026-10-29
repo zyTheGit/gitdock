@@ -8,7 +8,6 @@ use git_core::{ErrorCode, UserVisibleError};
 use serde::{Deserialize, Serialize};
 
 pub const SCHEMA_VERSION: u32 = 1;
-const MAX_RECENT: usize = 10;
 const MAX_TEMPLATE_LEN: usize = 4000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -174,7 +173,7 @@ fn backup(dir: &Path, path: &Path, version: u32) {
 pub fn save(dir: &Path, settings: &SettingsDto) -> Result<SettingsDto, UserVisibleError> {
     let mut next = settings.clone();
     next.schema_version = SCHEMA_VERSION;
-    next.recent_repositories.truncate(MAX_RECENT);
+    // 最近仓库只是路径列表，不扫描磁盘，因此不做条数截断。
     // 一旦落盘，工具列表归用户所有，后续启动不再自动补探测结果。
     next.tools_seeded = true;
     normalize_default_tool(&mut next);
@@ -263,7 +262,6 @@ pub fn remember(
             last_opened_at: now,
         },
     );
-    settings.recent_repositories.truncate(MAX_RECENT);
     save(dir, &settings)
 }
 
@@ -370,10 +368,10 @@ mod tests {
     }
 
     #[test]
-    fn save_truncates_recent_repositories_to_limit() {
+    fn save_keeps_all_recent_repositories() {
         let dir = temp_dir();
         let settings = SettingsDto {
-            recent_repositories: (0..MAX_RECENT + 5)
+            recent_repositories: (0..120)
                 .map(|i| RecentRepository {
                     path: format!("C:/repo/{i}"),
                     last_opened_at: i as i64,
@@ -382,8 +380,16 @@ mod tests {
             ..Default::default()
         };
         let saved = save(dir.path(), &settings).expect("保存设置失败");
-        assert_eq!(saved.recent_repositories.len(), MAX_RECENT);
+        assert_eq!(saved.recent_repositories.len(), 120);
         assert_eq!(saved.recent_repositories[0].path, "C:/repo/0");
+        assert_eq!(
+            save(dir.path(), &saved)
+                .expect("二次保存失败")
+                .recent_repositories
+                .len(),
+            120
+        );
+        assert_eq!(load(dir.path()).recent_repositories.len(), 120);
     }
 
     #[test]

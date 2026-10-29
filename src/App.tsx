@@ -8,6 +8,7 @@ import { commitSlot, useCompareResult, useCompareSlots } from "./features/compar
 import { CommitDetailPane } from "./features/detail/CommitDetailPane";
 import { GraphPane } from "./features/graph/GraphPane";
 import { useGraph } from "./features/graph/useGraph";
+import { RepositorySwitcher } from "./features/repository/RepositorySwitcher";
 import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
@@ -599,10 +600,14 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark">⎇</span>
-          <span>Git Graph</span>
-        </div>
+        <RepositorySwitcher
+          currentPath={repo?.path ?? null}
+          recent={settings?.recent_repositories ?? []}
+          busy={busy}
+          onOpen={(path) => void openRepository(path)}
+          onForget={(path) => void forgetRecent(path)}
+          onPick={() => void pickRepository()}
+        />
         {repo && workspace && (
           <div
             className={`workspace-badge ${
@@ -645,9 +650,6 @@ export default function App() {
             </>
           )}
           <button onClick={() => setSettingsOpen(true)}>设置</button>
-          <button className="primary" onClick={pickRepository} disabled={busy}>
-            打开仓库
-          </button>
           <button onClick={refresh} disabled={busy || !repo}>
             {busy ? "刷新中…" : "刷新"}
           </button>
@@ -656,35 +658,7 @@ export default function App() {
 
       <div className="layout">
         <aside className="sidebar" style={{ width: sidebarWidth }}>
-          <h2>最近仓库</h2>
-          {settings && settings.recent_repositories.length > 0 ? (
-            <ul className="recent">
-              {settings.recent_repositories.map((entry) => (
-                <li key={entry.path} className="recent-entry">
-                  <button
-                    className={repo?.path === entry.path ? "recent-item active" : "recent-item"}
-                    title={entry.path}
-                    onClick={() => openRepository(entry.path)}
-                    disabled={busy}
-                  >
-                    {entry.path.split(/[\\/]/).filter(Boolean).pop() ?? entry.path}
-                  </button>
-                  <button
-                    className="recent-remove"
-                    title="从列表移除（不删除本地仓库）"
-                    aria-label={`从最近仓库移除 ${entry.path}`}
-                    onClick={() => void forgetRecent(entry.path)}
-                    disabled={busy}
-                  >
-                    ×
-                  </button>
-                  <span className="recent-path">{entry.path}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted">尚未打开过仓库</p>
-          )}
+          {!repo && <p className="muted">尚未打开仓库，可从左上角仓库菜单打开。</p>}
           {repo && (
             <div className="repo-facts">
               <h2>仓库信息</h2>

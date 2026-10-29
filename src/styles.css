@@ -77,17 +77,182 @@ button.large {
   background: var(--bg-panel);
 }
 
-.brand {
+.repo-switcher {
+  position: relative;
+  min-width: 0;
+}
+
+.repo-switch-button {
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: 8px;
+  max-width: 340px;
+  padding: 5px 8px 5px 6px;
+  border: 1px solid transparent;
+  background: transparent;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+.repo-switch-button:hover:not(:disabled),
+.repo-switch-button[aria-expanded="true"] {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+}
+
+.repo-switch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-switch-caret {
+  color: var(--muted);
+  font-size: 10px;
 }
 
 .brand-mark {
   color: var(--accent);
   font-size: 18px;
+}
+
+.repo-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.repo-search {
+  flex: none;
+  margin: 8px;
+  padding: 6px 9px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+}
+
+.repo-search:focus {
+  border-color: var(--accent);
+}
+
+.repo-menu-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 6px 6px;
+}
+
+.repo-menu-section {
+  margin: 8px 8px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.repo-menu-item {
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+}
+
+.repo-menu-item.active {
+  background: var(--accent-soft);
+}
+
+.repo-menu-main {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.repo-menu-main:hover:not(:disabled) {
+  border-color: transparent;
+}
+
+.repo-menu-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.repo-menu-check {
+  color: var(--accent);
+}
+
+.repo-menu-path {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-menu-remove {
+  flex: none;
+  visibility: hidden;
+  padding: 0 7px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.repo-menu-item:hover .repo-menu-remove,
+.repo-menu-remove:focus-visible {
+  visibility: visible;
+}
+
+.repo-menu-remove:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.repo-menu-empty {
+  margin: 0;
+  padding: 12px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.repo-menu-footer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.repo-menu-footer .link {
+  align-self: flex-start;
+}
+
+.repo-menu-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .topbar-actions {
@@ -176,60 +341,6 @@ button.large {
   letter-spacing: 0.08em;
   color: var(--muted);
   margin: 8px 0;
-}
-
-.recent {
-  list-style: none;
-  margin: 0 0 16px;
-  padding: 0;
-}
-
-.recent li {
-  margin-bottom: 6px;
-}
-
-.recent-entry {
-  position: relative;
-}
-
-.recent-item {
-  width: 100%;
-  text-align: left;
-  border: 1px solid transparent;
-  background: transparent;
-  padding: 6px 26px 6px 8px;
-}
-
-.recent-remove {
-  position: absolute;
-  top: 4px;
-  right: 2px;
-  padding: 0 6px;
-  border-color: transparent;
-  background: transparent;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.recent-remove:hover {
-  color: var(--danger);
-  background: var(--bg-elevated);
-}
-
-.recent-item.active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
-
-.recent-path {
-  display: block;
-  font-size: 11px;
-  color: var(--muted);
-  padding: 0 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .repo-facts dl {
