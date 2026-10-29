@@ -34,6 +34,9 @@ export function GraphCell({ layout, laneCount, height }: GraphCellProps) {
   const nodeX = x(layout.lane);
   const nodeY = height / 2;
   const converging = new Set(layout.converging_lanes);
+  // 上一行只把父边画到行底；节点所在 lane 的入线需要本行从行顶接到节点，
+  // 否则每个提交圆点上方都会留出一个半行高的断口。
+  const hasIncoming = layout.before_lanes[layout.lane] === layout.oid;
   const passing = layout.before_lanes
     .map((oid, lane) => ({ oid, lane }))
     .filter(({ oid, lane }) => oid !== null && lane !== layout.lane && !converging.has(lane));
@@ -46,6 +49,17 @@ export function GraphCell({ layout, laneCount, height }: GraphCellProps) {
       viewBox={`0 0 ${width} ${height}`}
       aria-hidden="true"
     >
+      {hasIncoming && (
+        <line
+          x1={nodeX}
+          y1={0}
+          x2={nodeX}
+          y2={nodeY}
+          stroke={laneColor(layout.lane)}
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
+      )}
       {passing.map(({ lane }) => (
         <line
           key={`pass-${lane}`}
@@ -73,8 +87,9 @@ export function GraphCell({ layout, laneCount, height }: GraphCellProps) {
             height - height * 0.3
           }, ${x(edge.lane)} ${height}`}
           fill="none"
-          stroke={laneColor(layout.lane)}
+          stroke={laneColor(edge.lane)}
           strokeWidth={2}
+          strokeLinecap="round"
           strokeDasharray={edge.pending ? "3 3" : undefined}
           opacity={edge.pending ? 0.7 : 1}
         />
