@@ -102,7 +102,8 @@ export function FileDiffView({
   const switchable = !expanded && fileEntries.length > 1 && Boolean(onSelectFile);
   const listFiles = expanded && fileEntries.length > 0 && Boolean(onSelectFile);
   const showSidebar = listFiles && filesOpen;
-  const paneMode = expanded && viewType === "split" && !wrap;
+  // 并排且不换行时一律自绘两栏：左右各自横向滚动，不再让整个 diff 一起横滚。
+  const paneMode = viewType === "split" && !wrap;
 
   return (
     <>

@@ -349,7 +349,46 @@
   white-space: nowrap;
 }
 
+/* 对比视图：文件头固定，diff 本体自己滚动；并排时两栏各滚各的，与放大视图一致。 */
 .compare-columns .detail-diff {
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   min-height: 0;
+}
+
+.compare-columns .detail-diff > .file-diff {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.compare-columns .file-diff-body,
+.compare-columns .file-diff-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.compare-columns .diff-view,
+.compare-columns .split-panes {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 文件头、文件导航与提示条不参与拉伸，滚动只发生在 diff 本体。 */
+.compare-columns .file-diff-header,
+.compare-columns .file-diff-main > :not(.diff-view):not(.split-panes) {
+  flex: none;
+}
+
+/* 对比视图的 diff 区域独立滚动，文件头保持可见。 */
+.compare-columns .detail-diff .file-diff-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 6px 0;
+  background: var(--bg-panel);
 }

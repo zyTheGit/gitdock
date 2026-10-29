@@ -1,7 +1,7 @@
 import { useMemo, useRef, type ReactNode } from "react";
 import type { HunkData, HunkTokens, TokenNode } from "react-diff-view";
 
-// 放大视图的并排 diff：左右两栏等宽，纵向与横向滚动均互相同步。
+// 并排 diff：左右两栏等宽，纵向与横向滚动均互相同步。
 // react-diff-view 的表格只能整体横向滚动，长行会把另一侧一起推出视野。
 
 interface SplitDiffPanesProps {
