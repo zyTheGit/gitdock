@@ -222,7 +222,7 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
 
   if (located) {
     return (
-      <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-backdrop search-backdrop" role="dialog" aria-modal="true">
         <div className="search-dialog search-dialog-located">
           <header>
             <h2>搜索提交</h2>
@@ -254,7 +254,7 @@ export function SearchView({ repo, scope, search, commits, onOpenCommit, onClose
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
+    <div className="modal-backdrop search-backdrop" role="dialog" aria-modal="true">
       <div className="search-dialog">
         <header>
           <h2>搜索提交</h2>

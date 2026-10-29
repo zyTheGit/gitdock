@@ -1595,6 +1595,11 @@ button.large {
   z-index: 60;
 }
 
+/* 搜索弹框略高于视口中心，接近常见搜索框的位置。 */
+.search-backdrop {
+  padding-bottom: 10vh;
+}
+
 .compare-modal,
 .settings-dialog {
   background: var(--bg-panel);
