@@ -465,6 +465,54 @@ button.large {
   background: var(--accent-soft);
 }
 
+.commit-hover-card {
+  position: fixed;
+  z-index: 30;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  color: var(--text);
+  pointer-events: none;
+  white-space: normal;
+}
+
+.hover-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.hover-summary {
+  margin: 0 0 8px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.commit-hover-card dl {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 3px 8px;
+  margin: 0;
+}
+
+.commit-hover-card dt {
+  color: var(--muted);
+}
+
+.commit-hover-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.hover-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+}
+
 .graph-cell {
   display: block;
   flex: none;

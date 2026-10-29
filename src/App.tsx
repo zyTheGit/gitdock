@@ -321,11 +321,13 @@ export default function App() {
       setError(null);
       try {
         await ipc.launchExternalDiff(toolIndex, left, right, path, threeDot);
+        const name = settings?.external_tools[toolIndex]?.name ?? "外部工具";
+        setToast(`已调用 ${name} 打开对比文件`);
       } catch (err) {
         setError(errorText(err));
       }
     },
-    [],
+    [settings],
   );
 
   useEffect(() => {

@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CommitSummaryDto, RefBadgeDto } from "../../shared/types";
 import { GraphCell } from "./GraphCell";
@@ -30,6 +37,61 @@ function badgeClass(badge: RefBadgeDto): string {
   return parts.join(" ");
 }
 
+/** 悬浮卡：参考 Git Graph，在不点击的情况下给出提交的完整元信息。 */
+function CommitHoverCard({ commit, x, y }: { commit: CommitSummaryDto; x: number; y: number }) {
+  const width = 380;
+  const left = Math.max(8, Math.min(x + 18, window.innerWidth - width - 12));
+  const top = Math.max(8, Math.min(y + 14, window.innerHeight - 260));
+  const branches = commit.refs.filter(
+    (ref) => ref.kind === "local_branch" || ref.kind === "remote_branch",
+  );
+  const tags = commit.refs.filter((ref) => ref.kind === "tag");
+  return (
+    <div className="commit-hover-card" style={{ left, top, width }} role="tooltip">
+      <div className="hover-head">
+        <span className="mono">提交 {commit.short_oid}</span>
+        {commit.refs.some((ref) => ref.is_head) && <span className="tag">HEAD</span>}
+      </div>
+      <p className="hover-summary">{commit.summary || "（无提交说明）"}</p>
+      <dl>
+        {branches.length > 0 && (
+          <>
+            <dt>分支</dt>
+            <dd>
+              {branches.map((ref) => (ref.is_head ? `${ref.name}（HEAD）` : ref.name)).join("、")}
+            </dd>
+          </>
+        )}
+        {tags.length > 0 && (
+          <>
+            <dt>标签</dt>
+            <dd>{tags.map((ref) => ref.name).join("、")}</dd>
+          </>
+        )}
+        <dt>父提交</dt>
+        <dd className="mono">
+          {commit.parents.length > 0
+            ? commit.parents.map((oid) => oid.slice(0, 7)).join(" · ")
+            : "无（根提交）"}
+        </dd>
+        <dt>作者</dt>
+        <dd>
+          {commit.author_name} &lt;{commit.author_email}&gt;
+        </dd>
+        <dt>提交时间</dt>
+        <dd>{formatDate(commit.committed_at)}</dd>
+        {commit.authored_at !== commit.committed_at && (
+          <>
+            <dt>作者时间</dt>
+            <dd>{formatDate(commit.authored_at)}</dd>
+          </>
+        )}
+      </dl>
+      <p className="hover-hint muted">点击行查看详情与文件改动</p>
+    </div>
+  );
+}
+
 interface GraphListProps {
   view: GraphView;
   loading: boolean;
@@ -54,6 +116,35 @@ export function GraphList({
   onLoadMore,
 }: GraphListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<{
+    commit: CommitSummaryDto;
+    x: number;
+    y: number;
+  } | null>(null);
+  const hoverTimer = useRef<number | null>(null);
+
+  const cancelHover = useCallback(() => {
+    if (hoverTimer.current !== null) {
+      window.clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    setHover(null);
+  }, []);
+
+  // 短暂停留后再显示，避免快速划过时频繁弹卡。
+  const queueHover = useCallback((event: MouseEvent, commit: CommitSummaryDto) => {
+    const { clientX: x, clientY: y } = event;
+    if (hoverTimer.current !== null) {
+      window.clearTimeout(hoverTimer.current);
+    }
+    hoverTimer.current = window.setTimeout(() => {
+      hoverTimer.current = null;
+      setHover({ commit, x, y });
+    }, 260);
+  }, []);
+
+  useEffect(() => cancelHover, [cancelHover]);
+
   const laneCount = useMemo(() => {
     let max = 1;
     for (const row of view.rows) {
@@ -106,7 +197,7 @@ export function GraphList({
   }
 
   return (
-    <div className="graph-list" ref={scrollRef}>
+    <div className="graph-list" ref={scrollRef} onScroll={cancelHover}>
       <div className="graph-list-inner" style={{ height: virtualizer.getTotalSize() }}>
         {items.map((item) => {
           const row = view.rows[item.index];
@@ -128,6 +219,7 @@ export function GraphList({
               className={classes.join(" ")}
               style={{ transform: `translateY(${item.start}px)`, height: ROW_HEIGHT }}
               onClick={(event) => {
+                cancelHover();
                 // Ctrl / Cmd + 点击填对比槽；普通点击打开详情。
                 if ((event.ctrlKey || event.metaKey) && commit && onCtrlSelect) {
                   event.preventDefault();
@@ -137,11 +229,18 @@ export function GraphList({
                 onSelect(oid);
               }}
               onContextMenu={(event) => {
+                cancelHover();
                 if (commit && onContextMenu) {
                   event.preventDefault();
                   onContextMenu(event, commit);
                 }
               }}
+              onMouseEnter={(event) => {
+                if (commit) {
+                  queueHover(event, commit);
+                }
+              }}
+              onMouseLeave={cancelHover}
             >
               <GraphCell layout={row.layout} laneCount={laneCount} height={ROW_HEIGHT} />
               <div className="graph-row-summary">
@@ -179,6 +278,7 @@ export function GraphList({
         })}
       </div>
       {loadingMore && <div className="graph-loading muted">加载更多…</div>}
+      {hover && <CommitHoverCard commit={hover.commit} x={hover.x} y={hover.y} />}
     </div>
   );
 }
