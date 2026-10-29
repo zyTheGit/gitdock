@@ -1,34 +1,32 @@
-import {
-  createHighlighter,
-  type BundledLanguage,
-  type Highlighter,
-  type ThemedToken,
-} from "shiki";
+import type { HighlighterCore, ThemedToken } from "shiki/core";
 
-// 只加载 MVP 常见语言；未知语言直接降级为纯文本，不阻塞 diff 展示。
-const LANGS = [
-  "ts",
-  "tsx",
-  "js",
-  "jsx",
-  "json",
-  "html",
-  "xml",
-  "css",
-  "scss",
-  "md",
-  "rust",
-  "python",
-  "java",
-  "go",
-  "c",
-  "cpp",
-  "sh",
-  "yaml",
-  "toml",
-  "sql",
-  "diff",
-] as const;
+// `createHighlighter` 会把 shiki 内置的全部语法（约 250 个语言模块）一起打进产物；
+// 这里只按需加载 MVP 常见语言，未知语言直接降级为纯文本，不阻塞 diff 展示。
+const LANGS = {
+  ts: () => import("shiki/langs/typescript.mjs"),
+  tsx: () => import("shiki/langs/tsx.mjs"),
+  js: () => import("shiki/langs/javascript.mjs"),
+  jsx: () => import("shiki/langs/jsx.mjs"),
+  json: () => import("shiki/langs/json.mjs"),
+  html: () => import("shiki/langs/html.mjs"),
+  xml: () => import("shiki/langs/xml.mjs"),
+  css: () => import("shiki/langs/css.mjs"),
+  scss: () => import("shiki/langs/scss.mjs"),
+  md: () => import("shiki/langs/markdown.mjs"),
+  rust: () => import("shiki/langs/rust.mjs"),
+  python: () => import("shiki/langs/python.mjs"),
+  java: () => import("shiki/langs/java.mjs"),
+  go: () => import("shiki/langs/go.mjs"),
+  c: () => import("shiki/langs/c.mjs"),
+  cpp: () => import("shiki/langs/cpp.mjs"),
+  sh: () => import("shiki/langs/shellscript.mjs"),
+  yaml: () => import("shiki/langs/yaml.mjs"),
+  toml: () => import("shiki/langs/toml.mjs"),
+  sql: () => import("shiki/langs/sql.mjs"),
+  diff: () => import("shiki/langs/diff.mjs"),
+};
+
+const LANG_KEYS = new Set(Object.keys(LANGS));
 
 const ALIASES: Record<string, string> = {
   typescript: "ts",
@@ -68,23 +66,35 @@ const ALIASES: Record<string, string> = {
   patch: "diff",
 };
 
-export const THEME = "github-dark";
+const THEME = "github-dark";
 export const MAX_HIGHLIGHT_LINES = 2000;
 
-let highlighterPromise: Promise<Highlighter> | null = null;
+async function createHighlighter(): Promise<HighlighterCore> {
+  const [core, engine, theme, langs] = await Promise.all([
+    import("shiki/core"),
+    import("shiki/engine/oniguruma"),
+    import("shiki/themes/github-dark.mjs"),
+    Promise.all(Object.values(LANGS).map(async (load) => (await load()).default)),
+  ]);
+  return core.createHighlighterCore({
+    themes: [theme.default],
+    langs,
+    engine: engine.createOnigurumaEngine(import("shiki/wasm")),
+  });
+}
+
+let highlighterPromise: Promise<HighlighterCore> | null = null;
 let highlighterFailed = false;
 
-function getHighlighter(): Promise<Highlighter> {
+function getHighlighter(): Promise<HighlighterCore> {
   if (highlighterFailed) {
     return Promise.reject(new Error("highlighter unavailable"));
   }
   if (!highlighterPromise) {
-    highlighterPromise = createHighlighter({ themes: [THEME], langs: [...LANGS] }).catch(
-      (err) => {
-        highlighterFailed = true;
-        throw err;
-      },
-    );
+    highlighterPromise = createHighlighter().catch((err) => {
+      highlighterFailed = true;
+      throw err;
+    });
   }
   return highlighterPromise;
 }
@@ -94,7 +104,7 @@ export function resolveLanguage(language: string | undefined): string | null {
     return null;
   }
   const key = language.trim().toLowerCase();
-  return ALIASES[key] ?? (LANGS.includes(key as (typeof LANGS)[number]) ? key : null);
+  return ALIASES[key] ?? (LANG_KEYS.has(key) ? key : null);
 }
 
 /** 按行切分后高亮：shiki 逐行返回 token，行序与输入一致。失败时抛出，由调用方降级。 */
@@ -103,10 +113,7 @@ export async function highlightLines(
   lang: string,
 ): Promise<ThemedToken[][]> {
   const highlighter = await getHighlighter();
-  return highlighter.codeToTokens(text, {
-    lang: lang as BundledLanguage,
-    theme: THEME,
-  }).tokens;
+  return highlighter.codeToTokens(text, { lang, theme: THEME }).tokens;
 }
 
 /* ------------------------------ 样式类 ------------------------------ */

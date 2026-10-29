@@ -1,3 +1,4 @@
+import { Modal } from "../../shared/Modal";
 import type { CommitSummaryDto, GateReportDto, WriteKind } from "../../shared/types";
 
 type DialogKind = Extract<WriteKind, "cherry_pick" | "revert" | "switch_branch">;
@@ -40,63 +41,61 @@ export function ConfirmWriteDialog({
   const blocked = Boolean(gateError) || !gate?.ok;
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="confirm-dialog">
-        <header>
-          <h2>{label} 确认</h2>
-          <button className="detail-close" onClick={onCancel} aria-label="关闭确认框">
-            ×
-          </button>
-        </header>
+    <Modal className="confirm-dialog">
+      <header>
+        <h2>{label} 确认</h2>
+        <button className="detail-close" onClick={onCancel} aria-label="关闭确认框">
+          ×
+        </button>
+      </header>
 
-        <section>
-          {commit ? (
-            <p className="confirm-target">
-              <span className="mono">{commit.short_oid}</span>
-              <span className="confirm-summary" title={commit.summary}>
-                {commit.summary}
-              </span>
-            </p>
-          ) : (
-            <p className="confirm-target">
-              <span className="mono">{branch ?? ""}</span>
-            </p>
-          )}
-          <p className="muted confirm-hint">{ACTION_HINT[kind]}</p>
-        </section>
+      <section>
+        {commit ? (
+          <p className="confirm-target">
+            <span className="mono">{commit.short_oid}</span>
+            <span className="confirm-summary" title={commit.summary}>
+              {commit.summary}
+            </span>
+          </p>
+        ) : (
+          <p className="confirm-target">
+            <span className="mono">{branch ?? ""}</span>
+          </p>
+        )}
+        <p className="muted confirm-hint">{ACTION_HINT[kind]}</p>
+      </section>
 
-        <section className="gate-report">
-          <h3>写前检查</h3>
-          {gateError ? (
-            <p className="danger-text">{gateError}</p>
-          ) : !gate ? (
-            <p className="muted">正在检查工作区与仓库状态…</p>
-          ) : gate.ok ? (
-            <p className="gate-ok">{gate.summary}</p>
-          ) : (
-            <>
-              <p className="danger-text">写前检查未通过：</p>
-              <ul className="gate-issues">
-                {gate.issues.map((issue) => (
-                  <li key={`${issue.code}:${issue.message}`}>{issue.message}</li>
-                ))}
-              </ul>
-            </>
-          )}
-          {gate?.is_merge_commit && (
-            <p className="muted">该提交是 merge commit，命令行的 -m 父选择在 P1 提供。</p>
-          )}
-        </section>
+      <section className="gate-report">
+        <h3>写前检查</h3>
+        {gateError ? (
+          <p className="danger-text">{gateError}</p>
+        ) : !gate ? (
+          <p className="muted">正在检查工作区与仓库状态…</p>
+        ) : gate.ok ? (
+          <p className="gate-ok">{gate.summary}</p>
+        ) : (
+          <>
+            <p className="danger-text">写前检查未通过：</p>
+            <ul className="gate-issues">
+              {gate.issues.map((issue) => (
+                <li key={`${issue.code}:${issue.message}`}>{issue.message}</li>
+              ))}
+            </ul>
+          </>
+        )}
+        {gate?.is_merge_commit && (
+          <p className="muted">该提交是 merge commit，命令行的 -m 父选择在 P1 提供。</p>
+        )}
+      </section>
 
-        <footer>
-          <button onClick={onCancel} disabled={busy}>
-            取消
-          </button>
-          <button className="primary" onClick={onConfirm} disabled={blocked || busy}>
-            {busy ? "执行中…" : `执行 ${label}`}
-          </button>
-        </footer>
-      </div>
-    </div>
+      <footer>
+        <button onClick={onCancel} disabled={busy}>
+          取消
+        </button>
+        <button className="primary" onClick={onConfirm} disabled={blocked || busy}>
+          {busy ? "执行中…" : `执行 ${label}`}
+        </button>
+      </footer>
+    </Modal>
   );
 }

@@ -4,13 +4,13 @@
 //! 约束：监听线程只读仓库并发出事件，绝不写仓库；关闭监听或切换仓库时立即停止。
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use git_core::git_command;
 use notify::{RecursiveMode, Watcher};
 use refresh::RefreshReason;
 use serde::Serialize;
@@ -155,19 +155,6 @@ fn git_dirs(repo: &Path) -> Vec<PathBuf> {
         }
     }
     dirs
-}
-
-/// 构造 git 子进程。Windows GUI 程序直接启动控制台程序会触发默认终端接管，
-/// 单次可阻塞数秒；CREATE_NO_WINDOW 让子进程使用无窗口控制台。
-fn git_command() -> Command {
-    #[allow(unused_mut)]
-    let mut command = Command::new("git");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
-    command
 }
 
 fn rev_parse_dir(repo: &Path, arg: &str) -> Option<PathBuf> {

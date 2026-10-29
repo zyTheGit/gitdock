@@ -5,10 +5,10 @@
 //! 结果以退出码与执行后重新探测到的操作态判定，不解析输出文本猜测冲突。
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::Output;
 
 use git_core::{
-    BranchDescriptionDto, ErrorCode, GateIssueDto, GateReportDto, InterruptionDto,
+    git_command, BranchDescriptionDto, ErrorCode, GateIssueDto, GateReportDto, InterruptionDto,
     InterruptionKind, Result, UserVisibleError, WorkspaceStatusDto, WriteKind, WriteOutcomeDto,
     WriteRequest, WriteStatus,
 };
@@ -747,17 +747,4 @@ fn description_message(request: &WriteRequest, removed: bool) -> String {
 
 fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
-}
-
-/// 构造 git 子进程。Windows GUI 程序直接启动控制台程序会触发默认终端接管，
-/// 单次可阻塞数秒；CREATE_NO_WINDOW 让子进程使用无窗口控制台。
-fn git_command() -> Command {
-    #[allow(unused_mut)]
-    let mut command = Command::new("git");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
-    command
 }

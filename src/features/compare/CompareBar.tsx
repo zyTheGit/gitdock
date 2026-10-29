@@ -1,4 +1,5 @@
 import { shortOid } from "../../shared/format";
+import { Modal } from "../../shared/Modal";
 import type { RepoStateDto } from "../../shared/types";
 import type { CompareSide, CompareSlot } from "./useCompare";
 
@@ -82,21 +83,19 @@ export function CompareBar({
       </div>
 
       {pending && (
-        <div className="compare-modal-backdrop" role="dialog" aria-modal="true">
-          <div className="compare-modal">
-            <h3>替换哪一侧？</h3>
-            <p className="muted">
-              新选择 <strong>{pending.label}</strong>（<span className="mono">{shortOid(pending.oid)}</span>）
-            </p>
-            <div className="compare-modal-actions">
-              <button className="primary" onClick={() => onResolvePending("base")}>
-                替换 Base
-              </button>
-              <button onClick={() => onResolvePending("compare")}>替换 Compare</button>
-              <button onClick={() => onResolvePending(null)}>取消</button>
-            </div>
+        <Modal className="compare-modal">
+          <h3>替换哪一侧？</h3>
+          <p className="muted">
+            新选择 <strong>{pending.label}</strong>（<span className="mono">{shortOid(pending.oid)}</span>）
+          </p>
+          <div className="compare-modal-actions">
+            <button className="primary" onClick={() => onResolvePending("base")}>
+              替换 Base
+            </button>
+            <button onClick={() => onResolvePending("compare")}>替换 Compare</button>
+            <button onClick={() => onResolvePending(null)}>取消</button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

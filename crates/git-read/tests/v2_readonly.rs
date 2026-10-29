@@ -607,7 +607,13 @@ fn git_read_source_has_no_write_or_mutation_calls() {
     }
 
     // 唯一允许的子进程探测：`git --version`（只读版本查询）。
-    assert_eq!(process_calls, 1, "只允许一次子进程调用（git --version）");
+    // 子进程构造统一收在 git-core 的 process 模块，只读模块不再直接 `Command::new`。
+    assert_eq!(process_calls, 0, "只读模块不得直接构造子进程");
+    let process_module = include_str!("../../git-core/src/process.rs");
+    assert!(
+        process_module.contains("Command::new(\"git\")"),
+        "共用子进程构造必须是 git"
+    );
     let read_source = include_str!("../src/read/probe.rs");
     let detect_start = read_source
         .find("fn detect_git_version")
@@ -617,7 +623,7 @@ fn git_read_source_has_no_write_or_mutation_calls() {
             .find("fn version_at_least")
             .unwrap();
     let detect = &read_source[detect_start..detect_end];
-    assert!(detect.contains("Command::new(\"git\")"), "子进程必须是 git");
+    assert!(detect.contains("git_command()"), "子进程必须走共用构造");
     assert!(
         detect.contains(".arg(\"--version\")"),
         "子进程参数只能是 --version"

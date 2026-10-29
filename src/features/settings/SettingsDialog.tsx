@@ -2,6 +2,7 @@ import { useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
+import { Modal } from "../../shared/Modal";
 import type { ExternalToolConfig, SettingsDto } from "../../shared/types";
 
 interface SettingsDialogProps {
@@ -87,112 +88,110 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="settings-dialog">
-        <header>
-          <h2>设置</h2>
-          <button className="detail-close" onClick={onClose} aria-label="关闭设置">
-            ×
-          </button>
-        </header>
+    <Modal className="settings-dialog">
+      <header>
+        <h2>设置</h2>
+        <button className="detail-close" onClick={onClose} aria-label="关闭设置">
+          ×
+        </button>
+      </header>
 
-        <section>
-          <h3>启动</h3>
-          <label className="settings-check">
-            <input
-              type="checkbox"
-              checked={restore}
-              onChange={(event) => setRestore(event.target.checked)}
-            />
-            启动时恢复上次打开的仓库
-          </label>
-          <label className="settings-check">
-            <input
-              type="checkbox"
-              checked={watch}
-              onChange={(event) => setWatch(event.target.checked)}
-            />
-            监视 Git 目录变化并自动刷新（外部 commit、切换分支等）
-          </label>
-        </section>
+      <section>
+        <h3>启动</h3>
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={restore}
+            onChange={(event) => setRestore(event.target.checked)}
+          />
+          启动时恢复上次打开的仓库
+        </label>
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={watch}
+            onChange={(event) => setWatch(event.target.checked)}
+          />
+          监视 Git 目录变化并自动刷新（外部 commit、切换分支等）
+        </label>
+      </section>
 
-        <section className="settings-tools">
-          <h3>外部文件对比工具</h3>
-          <p className="muted settings-hint">
-            参数模板中 <code>$LOCAL</code> / <code>$REMOTE</code> 必须各自独立成段；程序按参数数组启动，不经过 shell。
-            首次启动会按当前系统探测已安装的 VS Code / Beyond Compare / Zed，作为内置默认并选中第一项；
-            所有工具都可以修改或删除，新增工具无需改动程序代码。
-          </p>
-          <p className="muted settings-hint">
-            示例：VS Code / Zed 用 <code>--diff $LOCAL $REMOTE</code>，Beyond Compare 用{" "}
-            <code>$LOCAL $REMOTE</code>；只传两个路径会打开两个独立文件而不是差异视图；未指定默认工具时使用列表第一项。
-          </p>
-          {tools.length === 0 && <p className="muted">尚未配置外部工具。</p>}
-          {/* 工具多时只滚列表，弹窗本身与底部按钮不动。 */}
-          <div className="tool-list-scroll">
-            <ul className="tool-list">
-              {tools.map((tool, index) => (
-                <li key={index}>
-                  <label>
-                    名称
+      <section className="settings-tools">
+        <h3>外部文件对比工具</h3>
+        <p className="muted settings-hint">
+          参数模板中 <code>$LOCAL</code> / <code>$REMOTE</code> 必须各自独立成段；程序按参数数组启动，不经过 shell。
+          首次启动会按当前系统探测已安装的 VS Code / Beyond Compare / Zed，作为内置默认并选中第一项；
+          所有工具都可以修改或删除，新增工具无需改动程序代码。
+        </p>
+        <p className="muted settings-hint">
+          示例：VS Code / Zed 用 <code>--diff $LOCAL $REMOTE</code>，Beyond Compare 用{" "}
+          <code>$LOCAL $REMOTE</code>；只传两个路径会打开两个独立文件而不是差异视图；未指定默认工具时使用列表第一项。
+        </p>
+        {tools.length === 0 && <p className="muted">尚未配置外部工具。</p>}
+        {/* 工具多时只滚列表，弹窗本身与底部按钮不动。 */}
+        <div className="tool-list-scroll">
+          <ul className="tool-list">
+            {tools.map((tool, index) => (
+              <li key={index}>
+                <label>
+                  名称
+                  <input
+                    value={tool.name}
+                    placeholder="例如 Beyond Compare"
+                    onChange={(event) => update(index, { name: event.target.value })}
+                  />
+                </label>
+                <label>
+                  可执行文件
+                  <span className="tool-path">
                     <input
-                      value={tool.name}
-                      placeholder="例如 Beyond Compare"
-                      onChange={(event) => update(index, { name: event.target.value })}
+                      value={tool.executable}
+                      placeholder="完整路径，例如 C:\Program Files\...\BCompare.exe"
+                      onChange={(event) => update(index, { executable: event.target.value })}
                     />
-                  </label>
-                  <label>
-                    可执行文件
-                    <span className="tool-path">
-                      <input
-                        value={tool.executable}
-                        placeholder="完整路径，例如 C:\Program Files\...\BCompare.exe"
-                        onChange={(event) => update(index, { executable: event.target.value })}
-                      />
-                      <button type="button" onClick={() => void browse(index)}>
-                        浏览…
-                      </button>
-                    </span>
-                  </label>
-                  <label>
-                    参数模板
-                    <input
-                      className="mono"
-                      value={tool.args_template}
-                      onChange={(event) => update(index, { args_template: event.target.value })}
-                    />
-                  </label>
-                  <div className="tool-actions">
-                    <label className="settings-check">
-                      <input
-                        type="radio"
-                        name="default-tool"
-                        checked={defaultTool === tool.name && tool.name !== ""}
-                        disabled={!tool.name.trim()}
-                        onChange={() => setDefaultTool(tool.name)}
-                      />
-                      设为默认对比工具
-                    </label>
-                    <button className="link danger-text" onClick={() => removeTool(index)}>
-                      删除
+                    <button type="button" onClick={() => void browse(index)}>
+                      浏览…
                     </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <button onClick={() => setTools((current) => current.concat({ ...EMPTY_TOOL }))}>
-            添加工具
-          </button>
-        </section>
+                  </span>
+                </label>
+                <label>
+                  参数模板
+                  <input
+                    className="mono"
+                    value={tool.args_template}
+                    onChange={(event) => update(index, { args_template: event.target.value })}
+                  />
+                </label>
+                <div className="tool-actions">
+                  <label className="settings-check">
+                    <input
+                      type="radio"
+                      name="default-tool"
+                      checked={defaultTool === tool.name && tool.name !== ""}
+                      disabled={!tool.name.trim()}
+                      onChange={() => setDefaultTool(tool.name)}
+                    />
+                    设为默认对比工具
+                  </label>
+                  <button className="link danger-text" onClick={() => removeTool(index)}>
+                    删除
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <button onClick={() => setTools((current) => current.concat({ ...EMPTY_TOOL }))}>
+          添加工具
+        </button>
+      </section>
 
-        <footer>
-          <button onClick={onClose}>取消</button>
-          <button className="primary" onClick={() => void save()} disabled={saving}>
-            {saving ? "保存中…" : "保存"}
-          </button>
-        </footer>
-      </div>
-    </div>
+      <footer>
+        <button onClick={onClose}>取消</button>
+        <button className="primary" onClick={() => void save()} disabled={saving}>
+          {saving ? "保存中…" : "保存"}
+        </button>
+      </footer>
+    </Modal>
   );
 }

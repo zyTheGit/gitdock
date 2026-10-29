@@ -6,7 +6,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use git_core::{ErrorCode, UserVisibleError};
+use git_core::{hide_console, ErrorCode, UserVisibleError};
 
 use super::config::ExternalToolConfig;
 
@@ -136,13 +136,8 @@ pub fn launch(
     // Electron 工具会按纯 Node 进程启动并立即退出，表现为“打开无反应”。
     command.env_remove("ELECTRON_RUN_AS_NODE");
     command.args(&args);
-    // 控制台工具（如 where.exe）从 GUI 进程启动会弹出终端窗口；
-    // CREATE_NO_WINDOW 保持外部工具窗口不被额外终端遮挡。
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
+    // 控制台工具（如 where.exe）从 GUI 进程启动会弹出终端窗口。
+    hide_console(&mut command);
     command.spawn().map(|_| ()).map_err(|e| {
         UserVisibleError::new(
             ErrorCode::ExternalToolFailed,

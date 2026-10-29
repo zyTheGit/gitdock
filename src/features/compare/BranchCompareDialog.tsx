@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Modal } from "../../shared/Modal";
 import type { RefDto } from "../../shared/types";
 
 interface BranchCompareDialogProps {
@@ -40,62 +41,60 @@ export function BranchCompareDialog({
   const same = baseName === compareName;
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="confirm-dialog branch-compare-dialog">
-        <header>
-          <h2>对比分支</h2>
-          <button className="detail-close" onClick={onCancel} aria-label="关闭分支对比">
-            ×
-          </button>
-        </header>
+    <Modal className="confirm-dialog branch-compare-dialog">
+      <header>
+        <h2>对比分支</h2>
+        <button className="detail-close" onClick={onCancel} aria-label="关闭分支对比">
+          ×
+        </button>
+      </header>
 
-        <section>
-          <label className="branch-compare-field">
-            Base（基准）
-            <select value={baseName} onChange={(event) => setBaseName(event.target.value)}>
-              {branches.map((branch) => (
-                <option key={branch.full_name} value={branch.short_name}>
-                  {branch.short_name}
-                  {branch.is_head ? "（当前）" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="branch-compare-field">
-            Compare（对比）
-            <select value={compareName} onChange={(event) => setCompareName(event.target.value)}>
-              {branches.map((branch) => (
-                <option key={branch.full_name} value={branch.short_name}>
-                  {branch.short_name}
-                  {branch.is_head ? "（当前）" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="muted confirm-hint">
-            默认按三点 diff 比较（Base 与 Compare 的共同祖先 → Compare），可在对比视图切换为两点快照。
-          </p>
-          {same && <p className="danger-text">Base 与 Compare 不能是同一分支。</p>}
-          {base && compare && !same && base.commit_oid === compare.commit_oid && (
-            <p className="muted confirm-hint">两个分支当前指向同一提交，对比结果将为空。</p>
-          )}
-        </section>
+      <section>
+        <label className="branch-compare-field">
+          Base（基准）
+          <select value={baseName} onChange={(event) => setBaseName(event.target.value)}>
+            {branches.map((branch) => (
+              <option key={branch.full_name} value={branch.short_name}>
+                {branch.short_name}
+                {branch.is_head ? "（当前）" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="branch-compare-field">
+          Compare（对比）
+          <select value={compareName} onChange={(event) => setCompareName(event.target.value)}>
+            {branches.map((branch) => (
+              <option key={branch.full_name} value={branch.short_name}>
+                {branch.short_name}
+                {branch.is_head ? "（当前）" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="muted confirm-hint">
+          默认按三点 diff 比较（Base 与 Compare 的共同祖先 → Compare），可在对比视图切换为两点快照。
+        </p>
+        {same && <p className="danger-text">Base 与 Compare 不能是同一分支。</p>}
+        {base && compare && !same && base.commit_oid === compare.commit_oid && (
+          <p className="muted confirm-hint">两个分支当前指向同一提交，对比结果将为空。</p>
+        )}
+      </section>
 
-        <footer>
-          <button onClick={onCancel}>取消</button>
-          <button
-            className="primary"
-            disabled={!base || !compare || same}
-            onClick={() => {
-              if (base && compare) {
-                onConfirm(base, compare);
-              }
-            }}
-          >
-            开始对比
-          </button>
-        </footer>
-      </div>
-    </div>
+      <footer>
+        <button onClick={onCancel}>取消</button>
+        <button
+          className="primary"
+          disabled={!base || !compare || same}
+          onClick={() => {
+            if (base && compare) {
+              onConfirm(base, compare);
+            }
+          }}
+        >
+          开始对比
+        </button>
+      </footer>
+    </Modal>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
+import { Modal } from "../../shared/Modal";
 import type { GateReportDto } from "../../shared/types";
 
 interface BranchDescriptionDialogProps {
@@ -83,69 +84,67 @@ export function BranchDescriptionDialog({
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="confirm-dialog description-dialog">
-        <header>
-          <h2>编辑分支描述</h2>
-          <button className="detail-close" onClick={onCancel} aria-label="关闭描述编辑器">
-            ×
-          </button>
-        </header>
+    <Modal className="confirm-dialog description-dialog">
+      <header>
+        <h2>编辑分支描述</h2>
+        <button className="detail-close" onClick={onCancel} aria-label="关闭描述编辑器">
+          ×
+        </button>
+      </header>
 
-        <section>
-          <p className="confirm-target">
-            <span className="mono">{branch}</span>
-          </p>
+      <section>
+        <p className="confirm-target">
+          <span className="mono">{branch}</span>
+        </p>
+        <p className="muted confirm-hint">
+          写入 <span className="mono">git config --local branch.{branch}.description</span>
+          ；留空保存将删除该键。
+        </p>
+        {loading ? (
+          <p className="muted">正在读取现有描述…</p>
+        ) : (
+          <textarea
+            className="description-input"
+            rows={5}
+            autoFocus
+            disabled={saving || Boolean(loadError)}
+            placeholder="为该分支写一段说明（可留空）"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+          />
+        )}
+        {shared && (
           <p className="muted confirm-hint">
-            写入 <span className="mono">git config --local branch.{branch}.description</span>
-            ；留空保存将删除该键。
+            该仓库是 linked worktree：描述写入共享的仓库级 local config，同仓库其他 worktree
+            也会看到。
           </p>
-          {loading ? (
-            <p className="muted">正在读取现有描述…</p>
-          ) : (
-            <textarea
-              className="description-input"
-              rows={5}
-              autoFocus
-              disabled={saving || Boolean(loadError)}
-              placeholder="为该分支写一段说明（可留空）"
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-            />
-          )}
-          {shared && (
-            <p className="muted confirm-hint">
-              该仓库是 linked worktree：描述写入共享的仓库级 local config，同仓库其他 worktree
-              也会看到。
-            </p>
-          )}
-          {loadError && <p className="danger-text">{loadError}</p>}
-          {gate && !gate.ok && (
-            <div className="gate-report">
-              <p className="danger-text">写前检查未通过：</p>
-              <ul className="gate-issues">
-                {gate.issues.map((issue) => (
-                  <li key={`${issue.code}:${issue.message}`}>{issue.message}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {error && <p className="danger-text">{error}</p>}
-        </section>
+        )}
+        {loadError && <p className="danger-text">{loadError}</p>}
+        {gate && !gate.ok && (
+          <div className="gate-report">
+            <p className="danger-text">写前检查未通过：</p>
+            <ul className="gate-issues">
+              {gate.issues.map((issue) => (
+                <li key={`${issue.code}:${issue.message}`}>{issue.message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {error && <p className="danger-text">{error}</p>}
+      </section>
 
-        <footer>
-          <button onClick={onCancel} disabled={saving}>
-            取消
-          </button>
-          <button
-            className="primary"
-            onClick={() => void save()}
-            disabled={loading || saving || Boolean(loadError)}
-          >
-            {saving ? "保存中…" : "保存"}
-          </button>
-        </footer>
-      </div>
-    </div>
+      <footer>
+        <button onClick={onCancel} disabled={saving}>
+          取消
+        </button>
+        <button
+          className="primary"
+          onClick={() => void save()}
+          disabled={loading || saving || Boolean(loadError)}
+        >
+          {saving ? "保存中…" : "保存"}
+        </button>
+      </footer>
+    </Modal>
   );
 }

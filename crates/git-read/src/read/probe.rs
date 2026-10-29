@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use git_core::{InterruptionDto, InterruptionKind};
+use git_core::{git_command, InterruptionDto, InterruptionKind};
 
 use super::{INTERRUPTION_MARKERS, MINIMUM_GIT_VERSION};
 
@@ -35,16 +35,7 @@ pub(crate) fn detect_interruption(git_dir: &Path) -> InterruptionDto {
 
 /// 探测系统 Git 版本与最低版本支持情况；供应用外壳展示能力。
 pub fn detect_git_version() -> (Option<String>, bool) {
-    let mut command = std::process::Command::new("git");
-    command.arg("--version");
-    // Windows GUI 程序直接启动控制台程序会触发默认终端接管，单次可阻塞数秒；
-    // CREATE_NO_WINDOW 让子进程使用无窗口控制台。
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
-    let output = command.output();
+    let output = git_command().arg("--version").output();
     let Ok(output) = output else {
         return (None, false);
     };
