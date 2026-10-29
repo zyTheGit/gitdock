@@ -4,7 +4,30 @@ use std::sync::Arc;
 
 use app::commands;
 use app::AppState;
-use tauri::{Manager, WindowEvent};
+use tauri::{Manager, WebviewWindow, WindowEvent};
+
+/// 旧配置只存过尺寸：最大化关窗会把全屏尺寸当成普通尺寸存下来，
+/// 下次启动就成了“看起来全屏、其实没最大化”的窗口。按工作区尺寸判定一次。
+fn legacy_maximized(window: &WebviewWindow, width: Option<u32>, height: Option<u32>) -> bool {
+    let (Some(width), Some(height)) = (width, height) else {
+        return false;
+    };
+    let Ok(Some(monitor)) = window.current_monitor() else {
+        return false;
+    };
+    let Ok(scale) = window.scale_factor() else {
+        return false;
+    };
+    let area = monitor.work_area().size;
+    let area_width = (area.width as f64 / scale).round() as i64;
+    let area_height = (area.height as f64 / scale).round() as i64;
+    // 最大化时客户区宽度就是工作区宽度，高度还要减去标题栏与边框，
+    // 所以只有“等宽 + 略矮”才判定为最大化窗口。
+    width as i64 - area_width <= 2
+        && area_width - width as i64 <= 2
+        && area_height - height as i64 >= 0
+        && area_height - height as i64 <= 80
+}
 
 pub fn run() {
     tauri::Builder::default()
@@ -15,10 +38,17 @@ pub fn run() {
             app.manage(Arc::clone(&state));
 
             if let Some(window) = app.get_webview_window("main") {
-                // 先套用保存的尺寸，再由前端首帧回调显示，窗口不会先大后小地跳一次。
+                // 显示前先定好几何：窗口在配置里是隐藏的，用户看不到默认尺寸到目标尺寸的过渡。
+                let maximized = settings.window_maximized.unwrap_or_else(|| {
+                    legacy_maximized(&window, settings.window_width, settings.window_height)
+                });
+                // 先套用普通尺寸再最大化：取消最大化时才会回到全屏前的大小。
                 if let (Some(width), Some(height)) = (settings.window_width, settings.window_height)
                 {
                     let _ = window.set_size(tauri::LogicalSize::new(width, height));
+                }
+                if maximized {
+                    let _ = window.maximize();
                 }
                 // 前端脚本异常时兜底显示，避免窗口永远隐藏。
                 let fallback = window.clone();
@@ -38,7 +68,8 @@ pub fn run() {
                 };
                 if let (Ok(size), Ok(scale)) = (window.inner_size(), window.scale_factor()) {
                     let logical = size.to_logical::<u32>(scale);
-                    state.save_window_size(logical.width, logical.height);
+                    let maximized = window.is_maximized().unwrap_or(false);
+                    state.save_window_geometry(logical.width, logical.height, maximized);
                 }
             }
         })

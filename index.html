@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/icon.png" />
     <title>Git Graph</title>
+    <style>
+      /* 内联首屏底色：styles.css 是外部资源，未加载前文档默认白底会闪一下。 */
+      html,
+      body,
+      #root {
+        margin: 0;
+        min-height: 100%;
+        background: #16181d;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
