@@ -117,7 +117,7 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
                   <span className="tool-path">
                     <input
                       value={tool.executable}
-                      placeholder="完整路径，例如 C:\\Program Files\\...\\BCompare.exe"
+                      placeholder="完整路径，例如 C:\Program Files\...\BCompare.exe"
                       onChange={(event) => update(index, { executable: event.target.value })}
                     />
                     <button type="button" onClick={() => void browse(index)}>

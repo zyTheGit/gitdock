@@ -80,7 +80,7 @@ export function CompareBar({
       <div className="compare-hint muted">
         {compare
           ? "Compare 相对 Base 共同祖先的改动 · Ctrl+点击可替换"
-          : "Ctrl+点击提交填入 Compare（初始 Base 为 HEAD）"}
+          : "Ctrl+点击提交填入 Compare，或用「对比分支…」按分支选择"}
         <span className="mono compare-head">HEAD {repo.head.oid ? shortOid(repo.head.oid) : "—"}</span>
       </div>
 

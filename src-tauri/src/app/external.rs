@@ -131,17 +131,22 @@ pub fn launch(
         &local.display().to_string(),
         &remote.display().to_string(),
     )?;
-    std::process::Command::new(&tool.executable)
-        .args(&args)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| {
-            UserVisibleError::new(
-                ErrorCode::ExternalToolFailed,
-                format!("启动外部工具失败：{}", tool.name),
-            )
-            .with_detail(e.to_string())
-        })
+    let mut command = std::process::Command::new(&tool.executable);
+    command.args(&args);
+    // 控制台工具（如 where.exe）从 GUI 进程启动会弹出终端窗口；
+    // CREATE_NO_WINDOW 保持外部工具窗口不被额外终端遮挡。
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    command.spawn().map(|_| ()).map_err(|e| {
+        UserVisibleError::new(
+            ErrorCode::ExternalToolFailed,
+            format!("启动外部工具失败：{}", tool.name),
+        )
+        .with_detail(e.to_string())
+    })
 }
 
 #[cfg(test)]

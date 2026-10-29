@@ -64,10 +64,10 @@ export function CompareView({
   const diff = useCompareFileDiff(base, compare, filePath, repoGeneration, twoDot);
   const safeToolIndex = Math.min(toolIndex, Math.max(0, tools.length - 1));
   const activeTool = tools[safeToolIndex];
-  // 三点 diff 为空且 Compare 是 Base 的祖先时，提示可切换到两点快照。
-  const ancestorHint = Boolean(
-    result && !twoDot && result.files.length === 0 && result.merge_base === compare.oid,
-  );
+  // Base 与 Compare 指向同一提交时优先给出明确提示，避免被误认为功能失效。
+  const sameTip = Boolean(result && result.files.length === 0 && base.oid === compare.oid);
+  // 三点 diff 为空（祖先关系或两端工作树一致）时解释原因并提供两点快照入口。
+  const emptyHint = Boolean(result && !twoDot && !sameTip && result.files.length === 0);
 
   useEffect(() => {
     setFilePath((current) => {
@@ -147,9 +147,16 @@ export function CompareView({
           两个引用没有共同祖先（shallow / orphan 仓库），已降级为两端快照对比。
         </div>
       )}
-      {ancestorHint && (
+      {sameTip && (
         <div className="banner info compact">
-          Compare 是 Base 的祖先，三点 diff 只显示 Compare 侧新增的改动，因此为空。
+          Base 与 Compare 指向同一提交（<span className="mono">{base.oid.slice(0, 8)}</span>
+          ），没有可显示的差异。
+        </div>
+      )}
+      {emptyHint && (
+        <div className="banner info compact">
+          三点 diff 为空：Compare 相对共同祖先没有引入文件改动（例如 Compare 是 Base 的祖先，
+          或两端工作树内容一致）。
           <button className="link" onClick={() => onTwoDotChange(true)}>
             切换到两点快照查看两端完整差异
           </button>

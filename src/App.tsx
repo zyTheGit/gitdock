@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { BranchCompareDialog } from "./features/compare/BranchCompareDialog";
 import { CompareBar } from "./features/compare/CompareBar";
 import { CompareView } from "./features/compare/CompareView";
 import { commitSlot, useCompareResult, useCompareSlots } from "./features/compare/useCompare";
@@ -95,6 +96,7 @@ export default function App() {
   const [pathFilter, setPathFilter] = useState("");
   const [twoDot, setTwoDot] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [branchCompareOpen, setBranchCompareOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rowMenu, setRowMenu] = useState<{
@@ -611,9 +613,20 @@ export default function App() {
                 搜索
               </button>
               <button
-                onClick={() => setMode("compare")}
-                disabled={!compareReady}
-                title={compareReady ? "查看对比结果" : "先用 Ctrl+点击选择 Base / Compare"}
+                className={mode === "compare" ? "active" : ""}
+                onClick={() => {
+                  if (compareReady) {
+                    setMode("compare");
+                  } else {
+                    setBranchCompareOpen(true);
+                  }
+                }}
+                disabled={!compareReady && localBranches.length < 2}
+                title={
+                  compareReady
+                    ? "查看对比结果"
+                    : "选择两个分支对比，或用 Ctrl+点击提交选择 Base / Compare"
+                }
               >
                 对比
               </button>
@@ -672,8 +685,18 @@ export default function App() {
             </div>
           )}
           {repo && (
-            <div className="branch-list">
-              <h2>本地分支</h2>
+            <div className="branch-list branch-panel">
+              <div className="branch-panel-head">
+                <h2>本地分支</h2>
+                <button
+                  className="link"
+                  disabled={localBranches.length < 2}
+                  onClick={() => setBranchCompareOpen(true)}
+                  title="选择两个本地分支进行对比"
+                >
+                  对比分支…
+                </button>
+              </div>
               {localBranches.length === 0 ? (
                 <p className="muted">没有本地分支</p>
               ) : (
@@ -931,6 +954,21 @@ export default function App() {
         <div className="toast" role="status">
           {toast}
         </div>
+      )}
+
+      {branchCompareOpen && repo && localBranches.length >= 2 && (
+        <BranchCompareDialog
+          branches={localBranches}
+          headBranch={repo.head.branch ?? null}
+          initialBase={slots.base?.label}
+          initialCompare={slots.compare?.label}
+          onCancel={() => setBranchCompareOpen(false)}
+          onConfirm={(base, compare) => {
+            slots.setSide("base", branchSlot(base));
+            slots.setSide("compare", branchSlot(compare));
+            setBranchCompareOpen(false);
+          }}
+        />
       )}
 
       {settingsOpen && settings && (

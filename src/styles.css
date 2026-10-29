@@ -715,6 +715,25 @@ button.large {
   flex-wrap: wrap;
 }
 
+.branch-panel {
+  display: block;
+}
+
+.branch-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.branch-panel-head h2 {
+  margin: 8px 0;
+}
+
+.branch-panel-head button {
+  font-size: 12px;
+}
+
 .branch-chip {
   font-size: 11px;
   line-height: 16px;
@@ -1123,7 +1142,8 @@ button.large {
   margin-left: auto;
 }
 
-.compare-tools select {
+.compare-tools select,
+.branch-compare-field select {
   font: inherit;
   font-size: 12px;
   color: var(--text);
@@ -1131,6 +1151,19 @@ button.large {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 5px 8px;
+}
+
+.branch-compare-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.branch-compare-field select {
+  width: 100%;
 }
 
 .compare-tools button {
