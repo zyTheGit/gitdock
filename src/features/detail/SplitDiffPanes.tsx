@@ -1,7 +1,7 @@
 import { useMemo, useRef, type ReactNode } from "react";
 import type { HunkData, HunkTokens, TokenNode } from "react-diff-view";
 
-// 放大视图的并排 diff：左右两栏各自横向滚动，纵向滚动互相同步。
+// 放大视图的并排 diff：左右两栏等宽，纵向与横向滚动均互相同步。
 // react-diff-view 的表格只能整体横向滚动，长行会把另一侧一起推出视野。
 
 interface SplitDiffPanesProps {
@@ -128,22 +128,38 @@ export function SplitDiffPanes({ hunks, tokens }: SplitDiffPanesProps) {
   const rows = useMemo(() => buildRows(hunks, tokens), [hunks, tokens]);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
-  const syncing = useRef<"left" | "right" | null>(null);
+  // 记录最近一次同步写入的值，用于识别由此触发的滚动事件，避免两栏回弹。
+  const written = useRef<{ pane: "left" | "right"; top: number; left: number; at: number } | null>(
+    null,
+  );
 
   const onScroll = (source: "left" | "right") => {
-    if (syncing.current !== null && syncing.current !== source) {
-      return;
-    }
     const from = source === "left" ? leftRef.current : rightRef.current;
     const to = source === "left" ? rightRef.current : leftRef.current;
     if (!from || !to) {
       return;
     }
-    syncing.current = source;
+    const pending = written.current;
+    const echo =
+      pending !== null &&
+      pending.pane === source &&
+      pending.top === from.scrollTop &&
+      pending.left === from.scrollLeft &&
+      performance.now() - pending.at < 250;
+    if (echo) {
+      written.current = null;
+      return;
+    }
     to.scrollTop = from.scrollTop;
-    requestAnimationFrame(() => {
-      syncing.current = null;
-    });
+    // 两侧内容宽度不同时，超出目标栏滚动范围的值会被浏览器截断；
+    // 滚动较宽的一栏时保持原值，不被较窄一栏截断后的回传事件拽回。
+    to.scrollLeft = from.scrollLeft;
+    written.current = {
+      pane: to === rightRef.current ? "right" : "left",
+      top: to.scrollTop,
+      left: to.scrollLeft,
+      at: performance.now(),
+    };
   };
 
   return (

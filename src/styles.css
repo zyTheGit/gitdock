@@ -1317,7 +1317,8 @@ button.large {
 .split-panes {
   flex: 1;
   min-height: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1326,20 +1327,15 @@ button.large {
   font-family: "Cascadia Mono", Consolas, monospace;
 }
 
+/* 两栏等宽；分隔线用内阴影绘制，不占布局宽度，两侧内容宽度保持一致。 */
 .split-pane {
-  flex: 1;
   min-width: 0;
   overflow: auto;
   overscroll-behavior: contain;
 }
 
 .split-pane + .split-pane {
-  border-left: 1px solid var(--border);
-}
-
-/* 右栏纵向滚动通过左栏同步，隐藏其纵向滚动条，保留横向滚动条。 */
-.split-pane.right::-webkit-scrollbar:vertical {
-  width: 0;
+  box-shadow: inset 1px 0 0 var(--border);
 }
 
 .split-line {
