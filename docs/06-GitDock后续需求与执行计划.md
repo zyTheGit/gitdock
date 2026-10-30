@@ -1,7 +1,6 @@
 # GitDock 后续需求与执行计划
 
-> 状态：产品讨论基线，待技术 Spike 与用户确认后进入实现。
-> 产品代号：GitDock。Git Graph 作为图谱模块名称保留。
+> 状态：阶段 A（技术 Spike，go）与阶段 B（内置终端工作区）已完成；阶段 C 待产品裁决 dirty/staged 分支切换策略。产品代号：GitDock，Git Graph 作为图谱模块名称保留。
 
 ## 1. 产品定位
 
@@ -67,6 +66,8 @@ GitDock 是可扩展的 Git 桌面工作台。图谱用于理解提交历史；�
 5. 终端操作后的仓库状态与图谱刷新，复用现有 generation/refresh coordinator。
 
 完成标准：可在同一窗口当前仓库启动 LazyGit 和 Shell；两者修改仓库后 GitDock 收敛到最新状态；切仓库和退出不会留下孤儿进程；无 LazyGit 时其它主功能可用。
+
+> 阶段 B 状态（2026-10-30）：已完成，提交 `fcdbc4c`。验收实测：LazyGit 0.66.1 与 PowerShell 均可在当前仓库启动并退出（退出码 0）；Shell 中提交后图谱自动刷新；切仓库自动结束旧会话并收起面板；优雅关闭应用后无 `git-graph-app.exe`/Shell 残留；LazyGit 缺失时显示安装与设置指引且 Shell 不受影响；安装包 MSI 4.92 MiB / NSIS 3.41 MiB（终端增量 MSI +152 KiB / NSIS +136 KiB）。未完成项：真实中文 IME 候选窗与多屏 DPI resize 的人工逐项验证。详见 `docs/05-交接文档.md` 8.2。
 
 ### 阶段 C：高频原生 Git 操作
 
