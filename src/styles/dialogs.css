@@ -113,15 +113,7 @@
   gap: 6px;
 }
 
-/* 设置项变多后整窗滚动；工具列表单独限高，避免挤掉其它分区。 */
-.settings-dialog {
-  overflow-y: auto;
-}
-
-.settings-tools {
-  flex: none;
-}
-
+/* 工具列表限高并自行滚动；新增的外观/关于分区保持固定，弹窗整体不滚动。 */
 .tool-list-scroll {
   max-height: 260px;
 }
