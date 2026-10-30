@@ -216,18 +216,20 @@ export function FileDiffView({
                 >
                   ‹
                 </button>
-                <select
-                  value={activePath ?? diff.path}
-                  onChange={(event) => onSelectFile?.(event.target.value)}
-                  aria-label="切换对比文件"
-                  title="切换对比文件"
-                >
-                  {fileEntries.map((file, index) => (
-                    <option key={file.path} value={file.path}>
-                      {index + 1}/{fileEntries.length} · {file.path}
-                    </option>
-                  ))}
-                </select>
+                <span className="diff-file-select">
+                  <select
+                    value={activePath ?? diff.path}
+                    onChange={(event) => onSelectFile?.(event.target.value)}
+                    aria-label="切换对比文件"
+                    title={activePath ?? diff.path}
+                  >
+                    {fileEntries.map((file, index) => (
+                      <option key={file.path} value={file.path}>
+                        {index + 1}/{fileEntries.length} · {file.path}
+                      </option>
+                    ))}
+                  </select>
+                </span>
                 <button
                   disabled={currentIndex < 0 || currentIndex >= fileEntries.length - 1}
                   onClick={() => onSelectFile?.(fileEntries[currentIndex + 1].path)}

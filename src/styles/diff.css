@@ -314,13 +314,57 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 2px 0;
+}
+
+.diff-file-select {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 用自绘箭头替代各版本外观不一致的原生 select 下拉。 */
+.diff-file-select::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
 }
 
 .diff-file-nav select {
   flex: 1;
   min-width: 0;
+  width: 100%;
+  font: inherit;
   font-size: 12px;
-  padding: 2px 4px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 26px 4px 8px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.diff-file-nav select:hover {
+  border-color: var(--accent);
+}
+
+.diff-file-nav select:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.diff-file-nav option {
+  background: var(--bg-elevated);
+  color: var(--text);
 }
 
 .diff-file-nav button {
