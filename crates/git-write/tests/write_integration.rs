@@ -530,3 +530,117 @@ fn switch_rejects_worktree_occupied_branch() {
         .iter()
         .any(|issue| issue.code == "branch_checked_out"));
 }
+
+#[test]
+fn switch_carries_dirty_changes_with_warning() {
+    let temp = init_repo();
+    let dir = temp.path();
+    commit(dir, "tracked.txt", "base\n", "base");
+    git(dir, &["branch", "topic"]);
+    write(dir, "staged.txt", "staged\n");
+    git(dir, &["add", "staged.txt"]);
+    write(dir, "tracked.txt", "base\nlocal\n");
+    write(dir, "new.txt", "new\n");
+
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+    let request = request(WriteKind::SwitchBranch, None, Some("topic"), None);
+    let report = module.validate(&request).expect("Gate");
+    assert!(report.ok, "dirty 切换应在确认后允许：{:?}", report.issues);
+    assert!(report.issues.is_empty());
+    assert!(report
+        .warnings
+        .iter()
+        .any(|warning| warning.code == "worktree_dirty"));
+    assert_eq!(report.affected_total, 3);
+    let mut paths = report.affected_paths.clone();
+    paths.sort();
+    assert_eq!(paths, vec!["new.txt", "staged.txt", "tracked.txt"]);
+    assert!(report.summary.contains("3 个有改动的文件"));
+
+    let outcome = module.execute(&request).expect("执行");
+    assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
+    assert!(
+        outcome.message.contains("改动已保留"),
+        "{}",
+        outcome.message
+    );
+    assert_eq!(
+        git(dir, &["symbolic-ref", "--short", "HEAD"]).trim(),
+        "topic"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("tracked.txt")).expect("读取文件"),
+        "base\nlocal\n"
+    );
+    let status = git(dir, &["status", "--porcelain=v2"]);
+    assert!(status.contains("1 A. "), "{status}");
+    assert!(status.contains("1 .M "), "{status}");
+    assert!(status.contains("? new.txt"), "{status}");
+}
+
+#[test]
+fn switch_overwrite_failure_preserves_dirty_changes() {
+    let temp = init_repo();
+    let dir = temp.path();
+    commit(dir, "shared.txt", "base\n", "base");
+    git(dir, &["switch", "-c", "topic"]);
+    commit(dir, "shared.txt", "topic\n", "topic 修改");
+    git(dir, &["switch", "main"]);
+    write(dir, "shared.txt", "local\n");
+
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+    let request = request(WriteKind::SwitchBranch, None, Some("topic"), None);
+    let report = module.validate(&request).expect("Gate");
+    assert!(report.ok, "覆盖风险由 Git 判定：{:?}", report.issues);
+    assert_eq!(report.affected_paths, vec!["shared.txt".to_owned()]);
+
+    let outcome = module.execute(&request).expect("执行");
+    assert_eq!(outcome.status, WriteStatus::Failed, "{outcome:?}");
+    assert!(
+        outcome
+            .stderr
+            .as_deref()
+            .unwrap_or("")
+            .contains("would be overwritten"),
+        "stderr：{:?}",
+        outcome.stderr
+    );
+    assert_eq!(
+        git(dir, &["symbolic-ref", "--short", "HEAD"]).trim(),
+        "main"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("shared.txt")).expect("读取文件"),
+        "local\n"
+    );
+    assert!(git(dir, &["status", "--porcelain=v2"]).contains("1 .M "));
+}
+
+#[test]
+fn switch_rejects_unmerged_index_without_operation_marker() {
+    let temp = init_repo();
+    let dir = temp.path();
+    commit(dir, "f.txt", "a\nb\nc\n", "base");
+    git(dir, &["switch", "-c", "topic"]);
+    commit(dir, "f.txt", "a\ntopic\nc\n", "topic 修改");
+    git(dir, &["switch", "main"]);
+    commit(dir, "f.txt", "a\nmain\nc\n", "main 修改");
+    let merge = Command::new("git")
+        .current_dir(dir)
+        .args(["merge", "topic"])
+        .output()
+        .expect("启动 git merge");
+    assert!(!merge.status.success(), "merge 应产生冲突");
+    // 模拟没有操作标记但索引仍未合并的残留状态。
+    std::fs::remove_file(dir.join(".git").join("MERGE_HEAD")).expect("删除 MERGE_HEAD");
+
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+    let report = module
+        .validate(&request(WriteKind::SwitchBranch, None, Some("topic"), None))
+        .expect("Gate");
+    assert!(!report.ok);
+    assert!(report
+        .issues
+        .iter()
+        .any(|issue| issue.code == "conflicted_index"));
+}

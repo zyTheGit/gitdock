@@ -436,6 +436,15 @@ pub struct GateIssueDto {
 pub struct GateReportDto {
     pub ok: bool,
     pub issues: Vec<GateIssueDto>,
+    /// 不阻断执行的提示，例如切换分支时工作区改动会被保留。
+    #[serde(default)]
+    pub warnings: Vec<WarningDto>,
+    /// 受影响的工作区文件（最多 `MAX_AFFECTED_PATHS` 条）。
+    #[serde(default)]
+    pub affected_paths: Vec<String>,
+    /// 受影响文件总数；大于 `affected_paths.len()` 表示清单被截断。
+    #[serde(default)]
+    pub affected_total: usize,
     /// 用于确认框展示的摘要。
     pub summary: String,
     pub is_merge_commit: bool,

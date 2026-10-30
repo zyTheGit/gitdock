@@ -12,7 +12,8 @@ const ACTION_LABEL: Record<DialogKind, string> = {
 const ACTION_HINT: Record<DialogKind, string> = {
   cherry_pick: "将在当前 HEAD 上重放该提交；merge commit 不受支持。",
   revert: "将生成一个反向提交，提交说明由 Git 自动生成。",
-  switch_branch: "仅切换到已存在的本地分支（git switch --no-guess），不会创建分支或猜测远程分支。",
+  switch_branch:
+    "仅切换到已存在的本地分支（git switch --no-guess），不会创建分支或猜测远程分支；存在改动时不会自动 stash、reset 或 clean。",
 };
 
 interface ConfirmWriteDialogProps {
@@ -82,6 +83,29 @@ export function ConfirmWriteDialog({
               ))}
             </ul>
           </>
+        )}
+        {gate?.warnings.map((warning) => (
+          <p className="gate-warning" key={`${warning.code}:${warning.message}`}>
+            {warning.message}
+          </p>
+        ))}
+        {gate && gate.affected_paths.length > 0 && (
+          <div className="gate-affected">
+            <p className="muted">
+              受影响文件（{gate.affected_total}）
+              {gate.affected_total > gate.affected_paths.length
+                ? `，仅列出前 ${gate.affected_paths.length} 项`
+                : ""}
+              ：
+            </p>
+            <ul className="gate-paths">
+              {gate.affected_paths.map((path) => (
+                <li className="mono" key={path}>
+                  {path}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
         {gate?.is_merge_commit && (
           <p className="muted">该提交是 merge commit，命令行的 -m 父选择在 P1 提供。</p>

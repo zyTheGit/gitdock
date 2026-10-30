@@ -21,6 +21,8 @@ use parking_lot::Mutex;
 const MAX_STAGING_PATHS: usize = 1000;
 const MAX_STAGING_DIFF_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_STAGING_PATCH_LINES: usize = 5000;
+/// Gate 报告中受影响文件清单的上限；超出部分由 `affected_total` 说明。
+const MAX_AFFECTED_PATHS: usize = 50;
 
 const MARKERS: &[(&str, InterruptionKind)] = &[
     ("MERGE_HEAD", InterruptionKind::Merge),
@@ -92,6 +94,9 @@ impl GitWriteModule {
     /// 写前 Gate。`issues` 非空即拒绝执行；summary 用于确认框。
     pub fn validate(&self, request: &WriteRequest) -> Result<GateReportDto> {
         let mut issues = Vec::new();
+        let mut warnings = Vec::new();
+        let mut affected_paths = Vec::new();
+        let mut affected_total = 0usize;
         let mut is_merge_commit = false;
 
         if self.is_bare()? {
@@ -102,6 +107,9 @@ impl GitWriteModule {
             return Ok(GateReportDto {
                 ok: false,
                 issues,
+                warnings,
+                affected_paths,
+                affected_total,
                 summary: "bare 仓库不支持写操作".into(),
                 is_merge_commit,
             });
@@ -169,8 +177,34 @@ impl GitWriteModule {
                         "detached HEAD 状态不支持切换，请先用命令行处理",
                     ));
                 }
+                if status.conflicted > 0 {
+                    issues.push(issue(
+                        "conflicted_index",
+                        format!(
+                            "索引中还有 {} 个未解决冲突文件，请先在终端解决后再切换分支",
+                            status.conflicted
+                        ),
+                    ));
+                }
                 if status.staged > 0 || status.tracked > 0 || status.untracked > 0 {
-                    issues.push(dirty_issue(status));
+                    let dirty_files: Vec<&StatusEntry> = detail
+                        .entries
+                        .iter()
+                        .filter(|entry| !entry.conflicted)
+                        .collect();
+                    affected_total = dirty_files.len();
+                    affected_paths = dirty_files
+                        .iter()
+                        .take(MAX_AFFECTED_PATHS)
+                        .map(|entry| entry.path.clone())
+                        .collect();
+                    warnings.push(WarningDto {
+                        code: "worktree_dirty".into(),
+                        message: format!(
+                            "工作区有 {affected_total} 个文件存在改动（{}）。不会自动 stash、reset 或 clean：改动会保留在工作区并可能带到目标分支；若目标分支会覆盖这些文件，Git 将拒绝切换并保持现状。",
+                            dirty_parts(status)
+                        ),
+                    });
                 }
                 if !self.local_branch_exists(branch)? {
                     issues.push(issue(
@@ -191,7 +225,13 @@ impl GitWriteModule {
                         ));
                     }
                 }
-                format!("将切换到本地分支 {branch}")
+                if affected_total > 0 {
+                    format!(
+                        "将切换到本地分支 {branch}；{affected_total} 个有改动的文件会保留在工作区"
+                    )
+                } else {
+                    format!("将切换到本地分支 {branch}")
+                }
             }
             WriteKind::SetBranchDescription => {
                 let branch = request.branch.as_deref().ok_or_else(|| {
@@ -266,6 +306,9 @@ impl GitWriteModule {
         Ok(GateReportDto {
             ok: issues.is_empty(),
             issues,
+            warnings,
+            affected_paths,
+            affected_total,
             summary,
             is_merge_commit,
         })
@@ -361,10 +404,17 @@ impl GitWriteModule {
                 message: match request.kind {
                     WriteKind::CherryPick => "Cherry-pick 成功，图谱已刷新".into(),
                     WriteKind::Revert => "Revert 成功，图谱已刷新".into(),
-                    WriteKind::SwitchBranch => format!(
-                        "已切换到分支 {}",
-                        request.branch.as_deref().unwrap_or_default()
-                    ),
+                    WriteKind::SwitchBranch => {
+                        let branch = request.branch.as_deref().unwrap_or_default();
+                        if gate.affected_total > 0 {
+                            format!(
+                                "已切换到分支 {branch}，{} 个文件的工作区改动已保留",
+                                gate.affected_total
+                            )
+                        } else {
+                            format!("已切换到分支 {branch}")
+                        }
+                    }
                     WriteKind::SetBranchDescription => description_message(request, false),
                     WriteKind::StageFiles => format!(
                         "已暂存 {} 个文件",
@@ -437,7 +487,12 @@ impl GitWriteModule {
 
         Ok(WriteOutcomeDto {
             status: WriteStatus::Failed,
-            message: "Git 拒绝了本次操作".into(),
+            message: if request.kind == WriteKind::SwitchBranch {
+                "切换被 Git 拒绝，未执行 stash / reset / clean；请根据诊断信息处理（提交、暂存或在终端处理）后重试"
+                    .into()
+            } else {
+                "Git 拒绝了本次操作".into()
+            },
             exit_code,
             stderr: Some(stderr),
             conflict_files: Vec::new(),
@@ -1367,7 +1422,7 @@ fn terminal_hint(kinds: &[InterruptionKind]) -> String {
     "请在终端完成或放弃当前操作".into()
 }
 
-fn dirty_issue(status: &StatusSummary) -> GateIssueDto {
+fn dirty_parts(status: &StatusSummary) -> String {
     let mut parts = Vec::new();
     if status.tracked > 0 {
         parts.push(format!("{} 个已修改文件", status.tracked));
@@ -1378,9 +1433,16 @@ fn dirty_issue(status: &StatusSummary) -> GateIssueDto {
     if status.untracked > 0 {
         parts.push(format!("{} 个未跟踪文件", status.untracked));
     }
+    parts.join("、")
+}
+
+fn dirty_issue(status: &StatusSummary) -> GateIssueDto {
     issue(
         "worktree_dirty",
-        format!("工作区不干净（{}），请先提交或在终端处理", parts.join("、")),
+        format!(
+            "工作区不干净（{}），请先提交或在终端处理",
+            dirty_parts(status)
+        ),
     )
 }
 

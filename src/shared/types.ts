@@ -249,6 +249,9 @@ export interface GateIssueDto {
 export interface GateReportDto {
   ok: boolean;
   issues: GateIssueDto[];
+  warnings: WarningDto[];
+  affected_paths: string[];
+  affected_total: number;
   summary: string;
   is_merge_commit: boolean;
 }

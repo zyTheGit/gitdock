@@ -93,7 +93,12 @@ export function useWriteFlow({
       setPrompt(null);
       setToast(outcomeMessage(kind, outcome, branch));
       if (outcome.status === "failed") {
-        setError(outcome.message);
+        // 切换分支失败时直接展示 stderr，用户需要看到 Git 点名的覆盖路径。
+        setError(
+          kind === "switch_branch" && outcome.stderr
+            ? `${outcome.message}\n\n${outcome.stderr.trim()}`
+            : outcome.message,
+        );
         setDiagnostic(outcome.stderr ?? outcome.message);
       }
       if (outcome.status !== "rejected") {

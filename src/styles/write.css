@@ -91,6 +91,38 @@
   gap: 4px;
 }
 
+.gate-warning {
+  margin: 8px 0 0;
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1px solid var(--warning, #b58900);
+  border-radius: 6px;
+  color: var(--fg);
+}
+
+.gate-affected {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.gate-affected .muted {
+  margin: 0 0 4px;
+}
+
+.gate-paths {
+  margin: 0;
+  padding: 6px 8px 6px 26px;
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  word-break: break-all;
+}
+
 .banner-text {
   white-space: pre-wrap;
   word-break: break-word;
