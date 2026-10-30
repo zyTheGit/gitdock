@@ -1,6 +1,6 @@
 # GitDock 后续需求与执行计划
 
-> 状态：阶段 A（技术 Spike，go）与阶段 B（内置终端工作区）已完成；阶段 C 暂存区已实现，分支切换 dirty 策略待产品裁决（ADR 0002）。产品代号：GitDock，Git Graph 作为图谱模块名称保留。
+> 状态：阶段 A（技术 Spike，go）、阶段 B（内置终端工作区）与阶段 C（暂存区与分支切换）已完成；下一阶段为阶段 D（产品完善）。产品代号：GitDock，Git Graph 作为图谱模块名称保留。
 
 ## 1. 产品定位
 
@@ -42,9 +42,9 @@ GitDock 是可扩展的 Git 桌面工作台。图谱用于理解提交历史；�
 
 暂存区按 `HEAD → Index → Worktree` 展示状态。文件行显示 staged/unstaged 两类状态；用户可查看 staged diff 与 unstaged diff，并分别 stage、unstage。第一版不提供部分行暂存、交互式暂存或自动 stash。
 
-切换分支时先读取状态并在确认 UI 中列出受影响文件。不得自动 stash、reset 或丢弃改动。若 Git 能安全保留改动，可由用户显式确认后尝试 `git switch`；若目标分支会覆盖文件或 Git 拒绝，保留原状态并展示错误与建议。需更新 MVP 原有“所有 dirty 一律拒绝”的 Gate 决策与验收，避免旧规则和新需求冲突。
+切换分支时先读取状态并在确认 UI 中列出受影响文件。不得自动 stash、reset 或丢弃改动。若 Git 能安全保留改动，可由用户显式确认后尝试 `git switch`；若目标分支会覆盖文件或 Git 拒绝，保留原状态并展示错误与建议。MVP 原有“所有 dirty 一律拒绝”的 Gate 已按 ADR 0002 更新为“显式确认 + Git 判定”，实现见 `ee9aadf`。
 
-> 决策状态（2026-10-30）：需求与 ADR 已修订，方案见 `docs/adr/0002-暂存区与-dirty-分支切换策略.md`；推荐“显式确认 + 由 Git 判定”。产品裁决前，切换分支继续保持“dirty 一律拒绝”，不实现依赖新策略的行为；暂存区部分不受影响。
+> 决策状态（2026-10-30）：产品已裁决采用方案 A“显式确认 + 由 Git 判定”，确认交互为普通二次确认（不增加勾选项）。实现与验收记录见 `docs/adr/0002-暂存区与-dirty-分支切换策略.md` C-7…C-11 与 `docs/05-交接文档.md` 8.2。
 
 ## 4. 分阶段任务拆分
 
@@ -81,7 +81,7 @@ GitDock 是可扩展的 Git 桌面工作台。图谱用于理解提交历史；�
 
 完成标准：暂存区状态与 Git CLI 一致；任何失败都保留用户改动并提供可理解诊断；原有 F1–F8 可靠性不变量持续成立。
 
-> 阶段 C 状态（2026-10-30）：暂存区部分已完成，提交 `1137a38`（后端 `staging_status` / `read_staging_diff` 与 `StageFiles` / `UnstageFiles`）、`f800df1`（generation 修正与格式化）、`2809a41`（暂存区前端视图）。验收实测：porcelain v2 分组与 Git CLI 一致，staged/unstaged 双侧 diff 与未跟踪文件 `--no-index` diff 正常，单文件与批量 stage/unstage 后文件字节不变，`MM` 状态两侧 diff 分别对应 Index→Worktree 与 HEAD→Index，Gate 拒绝时保留改动并显示诊断、恢复后可自动清横幅。分支切换的 dirty/staged 分流（第 5 项）**未实现**：方案在 `docs/adr/0002-暂存区与-dirty-分支切换策略.md` 中待产品裁决，裁决前不实现依赖该策略的行为；cherry-pick / revert 的“工作区必须干净”Gate 不变。本期未新增依赖与安装包构建，体积沿用阶段 B 的 MSI 4.92 MiB / NSIS 3.41 MiB。详见 `docs/05-交接文档.md` 8.2。
+> 阶段 C 状态（2026-10-30）：已完成。暂存区提交 `1137a38`（后端 `staging_status` / `read_staging_diff` 与 `StageFiles` / `UnstageFiles`）、`f800df1`（generation 修正与格式化）、`2809a41`（暂存区前端视图）；分支切换提交 `ee9aadf`（Gate 对 dirty 返回 warning 与受影响路径，由 `git switch --no-guess` 判定覆盖风险，失败展示 stderr 与处理建议）。验收实测：porcelain v2 分组与 Git CLI 一致，staged/unstaged 双侧 diff 与未跟踪文件 `--no-index` diff 正常，单文件与批量 stage/unstage 后文件字节不变，`MM` 状态两侧 diff 分别对应 Index→Worktree 与 HEAD→Index，Gate 拒绝时保留改动并显示诊断、恢复后可自动清横幅；dirty 切换在目标分支不覆盖时有 3 个文件改动被完整保留，覆盖 `shared.txt` 时 Git 拒绝且分支、内容、暂存与未跟踪文件均未变化，错误横幅展示 stderr 路径，冲突索引与中断态仍被拒绝。`npm run check` 全绿（94 项测试）。本期未新增依赖与安装包构建，体积沿用阶段 B 的 MSI 4.92 MiB / NSIS 3.41 MiB。详见 `docs/05-交接文档.md` 8.2。
 
 ### 阶段 D：产品完善
 
