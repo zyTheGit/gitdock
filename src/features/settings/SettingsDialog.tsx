@@ -21,6 +21,7 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
   );
   const [restore, setRestore] = useState(settings.restore_last_repository);
   const [watch, setWatch] = useState(settings.watch_enabled);
+  const [lazygitPath, setLazygitPath] = useState(settings.lazygit_path ?? "");
   const [defaultTool, setDefaultTool] = useState<string | null>(
     settings.default_tool ?? null,
   );
@@ -61,6 +62,21 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
     }
   };
 
+  const browseLazygit = async () => {
+    try {
+      const selected = await openDialog({
+        multiple: false,
+        directory: false,
+        title: "选择 LazyGit 可执行文件",
+      });
+      if (typeof selected === "string") {
+        setLazygitPath(selected);
+      }
+    } catch (err) {
+      onError(errorText(err));
+    }
+  };
+
   const save = async () => {
     const cleaned = tools
       .map((tool) => ({ ...tool, name: tool.name.trim(), executable: tool.executable.trim() }))
@@ -77,6 +93,7 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
         default_tool: nextDefault,
         restore_last_repository: restore,
         watch_enabled: watch,
+        lazygit_path: lazygitPath.trim() || null,
       });
       onSaved(saved);
       onClose();
@@ -113,6 +130,28 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
             onChange={(event) => setWatch(event.target.checked)}
           />
           监视 Git 目录变化并自动刷新（外部 commit、切换分支等）
+        </label>
+      </section>
+
+      <section>
+        <h3>终端</h3>
+        <p className="muted settings-hint">
+          GitDock 不捆绑 LazyGit。留空时从 PATH 查找；填写后只使用该文件，找不到会在终端面板提示。
+          终端以当前用户权限、在当前打开的仓库目录中运行。
+        </p>
+        <label>
+          LazyGit 可执行文件
+          <span className="tool-path">
+            <input
+              className="mono"
+              value={lazygitPath}
+              placeholder="留空则从 PATH 查找 LazyGit，例如 C:\Users\me\scoop\shims\lazygit.exe"
+              onChange={(event) => setLazygitPath(event.target.value)}
+            />
+            <button type="button" onClick={() => void browseLazygit()}>
+              浏览…
+            </button>
+          </span>
         </label>
       </section>
 

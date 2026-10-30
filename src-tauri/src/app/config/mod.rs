@@ -25,6 +25,9 @@ pub struct SettingsDto {
     /// 文件系统监听开关；旧配置缺省时按开启处理。
     #[serde(default = "default_watch_enabled")]
     pub watch_enabled: bool,
+    /// LazyGit 可执行文件路径；留空时从 PATH 查找。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lazygit_path: Option<String>,
     /// 对比视图默认选中的外部工具名称；工具被删除或改名后自动失效。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_tool: Option<String>,
@@ -45,6 +48,7 @@ impl Default for SettingsDto {
             external_tools: Vec::new(),
             restore_last_repository: true,
             watch_enabled: true,
+            lazygit_path: None,
             default_tool: None,
             tools_seeded: false,
             window_width: None,

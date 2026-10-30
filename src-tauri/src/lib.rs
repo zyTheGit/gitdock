@@ -68,6 +68,8 @@ pub fn run() {
                 let Some(state) = window.try_state::<Arc<AppState>>() else {
                     return;
                 };
+                // 关闭窗口前结束终端子进程，避免 LazyGit/Shell 残留成孤儿。
+                state.terminals.close_all();
                 if let (Ok(size), Ok(scale)) = (window.inner_size(), window.scale_factor()) {
                     let logical = size.to_logical::<u32>(scale);
                     let maximized = window.is_maximized().unwrap_or(false);
@@ -77,6 +79,11 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            commands::terminal_capabilities,
+            commands::terminal_open,
+            commands::terminal_write,
+            commands::terminal_resize,
+            commands::terminal_close,
             commands::load_settings,
             commands::save_settings,
             commands::remember_repository,

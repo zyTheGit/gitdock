@@ -12,6 +12,7 @@ use tauri::{AppHandle, Manager};
 
 use super::config::{self, SettingsDto};
 use super::logging;
+use super::terminal::TerminalRegistry;
 use super::watch::{self, RepositoryWatcher};
 
 pub struct Session {
@@ -31,6 +32,7 @@ pub struct AppState {
     settings: Mutex<SettingsDto>,
     refresh: Mutex<RefreshCoordinator>,
     watcher: Mutex<Option<RepositoryWatcher>>,
+    pub terminals: TerminalRegistry,
     pub paths: AppPaths,
 }
 
@@ -62,6 +64,7 @@ impl AppState {
             settings: Mutex::new(settings),
             refresh: Mutex::new(RefreshCoordinator::new()),
             watcher: Mutex::new(None),
+            terminals: TerminalRegistry::new(),
             paths: AppPaths {
                 config_dir,
                 log_path,

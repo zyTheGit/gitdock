@@ -278,6 +278,14 @@ export interface RepositoryChangedDto {
   generation: number;
 }
 
+export interface TerminalCapabilitiesDto {
+  lazygit_path?: string | null;
+}
+
+export type TerminalEvent =
+  | { kind: "data"; data: string }
+  | { kind: "exit"; code: number };
+
 export interface ExternalToolConfig {
   name: string;
   executable: string;
@@ -295,6 +303,8 @@ export interface SettingsDto {
   external_tools: ExternalToolConfig[];
   restore_last_repository: boolean;
   watch_enabled: boolean;
+  /** LazyGit 可执行文件路径；留空时从 PATH 查找。 */
+  lazygit_path?: string | null;
   default_tool?: string | null;
   /** 只读：保存时后端强制置 true，前端无需回写。 */
   tools_seeded?: boolean;
@@ -302,8 +312,7 @@ export interface SettingsDto {
   window_height?: number;
 }
 
-export interface AppInfoDto {
-  app_version: string;
+export interface AppInfoDto {  app_version: string;
   git_version?: string;
   git_version_supported: boolean;
   minimum_git_version: string;

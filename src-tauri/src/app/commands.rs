@@ -22,6 +22,7 @@ use tauri::State;
 use super::config::SettingsDto;
 use super::logging;
 use super::state::{AppState, Session};
+use super::terminal::{self, TerminalCapabilitiesDto, TerminalEvent};
 
 type Shared = Arc<AppState>;
 
@@ -145,6 +146,8 @@ pub async fn open_repository(
             state_dto.object_format.as_str(),
             state_dto.generation
         ));
+        // 切换仓库前结束旧终端，避免旧仓库的 LazyGit/Shell 继续运行并改动旧仓库。
+        state.terminals.close_all();
         state.replace_session(Some(Session { read, write }))?;
         state.request_refresh(RefreshReason::Manual);
         state.accept_generation(state_dto.generation);
@@ -159,6 +162,7 @@ pub async fn close_repository(state: State<'_, Shared>) -> Result<()> {
     let state = Arc::clone(&state);
     blocking(move || {
         state.stop_watcher();
+        state.terminals.close_all();
         state.close()?;
         logging::info("关闭仓库");
         Ok(())
@@ -446,6 +450,39 @@ pub async fn read_branch_description(
     let state = Arc::clone(&state);
     blocking(move || state.with_session(|session| session.write.read_branch_description(&branch)))
         .await
+}
+
+#[tauri::command]
+pub fn terminal_capabilities(state: State<'_, Shared>) -> Result<TerminalCapabilitiesDto> {
+    terminal::capabilities(&state)
+}
+
+/// 工作目录由后端取当前仓库；前端只能选择模式与 PTY 尺寸。
+#[tauri::command]
+pub fn terminal_open(
+    app: tauri::AppHandle,
+    state: State<'_, Shared>,
+    mode: String,
+    cols: u16,
+    rows: u16,
+    channel: tauri::ipc::Channel<TerminalEvent>,
+) -> Result<u64> {
+    terminal::open(&state, &app, &mode, cols, rows, channel)
+}
+
+#[tauri::command]
+pub fn terminal_write(state: State<'_, Shared>, id: u64, data: String) -> Result<()> {
+    terminal::write(&state, id, &data)
+}
+
+#[tauri::command]
+pub fn terminal_resize(state: State<'_, Shared>, id: u64, cols: u16, rows: u16) -> Result<()> {
+    terminal::resize(&state, id, cols, rows)
+}
+
+#[tauri::command]
+pub fn terminal_close(state: State<'_, Shared>, id: u64) {
+    terminal::close(&state, id);
 }
 
 fn parse_oid(value: &str) -> Result<Oid> {

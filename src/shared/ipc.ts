@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import type {
   AppInfoDto,
   BranchDescriptionDto,
@@ -14,6 +14,8 @@ import type {
   SearchPageDto,
   SearchRequest,
   SettingsDto,
+  TerminalCapabilitiesDto,
+  TerminalEvent,
   UserVisibleError,
   WorkspaceStatusDto,
   WriteOutcomeDto,
@@ -85,4 +87,11 @@ export const ipc = {
   workspaceStatus: () => call<WorkspaceStatusDto>("workspace_status"),
   readBranchDescription: (branch: string) =>
     call<BranchDescriptionDto>("read_branch_description", { branch }),
+  terminalCapabilities: () => call<TerminalCapabilitiesDto>("terminal_capabilities"),
+  terminalOpen: (mode: string, cols: number, rows: number, channel: Channel<TerminalEvent>) =>
+    call<number>("terminal_open", { mode, cols, rows, channel }),
+  terminalWrite: (id: number, data: string) => call<void>("terminal_write", { id, data }),
+  terminalResize: (id: number, cols: number, rows: number) =>
+    call<void>("terminal_resize", { id, cols, rows }),
+  terminalClose: (id: number) => call<void>("terminal_close", { id }),
 };

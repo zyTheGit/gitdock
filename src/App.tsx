@@ -18,6 +18,7 @@ import { RepositorySwitcher } from "./features/repository/RepositorySwitcher";
 import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
+import { TerminalPanel } from "./features/terminal/TerminalPanel";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
 import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
 import { ContextMenu } from "./shared/ContextMenu";
@@ -39,6 +40,9 @@ export default function App() {
   const [pathFilter, setPathFilter] = useState("");
   const [twoDot, setTwoDot] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalMounted, setTerminalMounted] = useState(false);
+  const [terminalRunning, setTerminalRunning] = useState(false);
   const [branchCompareOpen, setBranchCompareOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<{
     x: number;
@@ -82,6 +86,16 @@ export default function App() {
     setToast,
   });
   writeBusyRef.current = write.busy;
+
+  const handleTerminalRunning = useCallback((running: boolean) => {
+    setTerminalRunning(running);
+  }, []);
+
+  // 切仓库时 Rust 已结束旧会话；收起面板并提示，避免误以为旧终端仍在。
+  const handleTerminalRepoChanged = useCallback(() => {
+    setTerminalOpen(false);
+    setToast("已结束原仓库的终端进程");
+  }, [setToast]);
 
   const generation = repo?.generation ?? 0;
   const slots = useCompareSlots(repo);
@@ -160,6 +174,10 @@ export default function App() {
       if (event.key !== "Escape") {
         return;
       }
+      // 终端内的 Esc 属于终端程序（例如关闭 LazyGit 弹层），不触发界面退出逻辑。
+      if ((event.target as HTMLElement | null)?.closest(".terminal-panel")) {
+        return;
+      }
       if (slots.pending) {
         slots.resolvePending(null);
         return;
@@ -179,6 +197,22 @@ export default function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [closeSearch, mode, slots]);
+
+  // Ctrl+` 切换底部终端；在终端内按下时也由窗口层接管，避免误发给 Shell。
+  useEffect(() => {
+    if (!repo) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && !event.altKey && !event.metaKey && event.key === "`") {
+        event.preventDefault();
+        setTerminalMounted(true);
+        setTerminalOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [repo]);
 
   // 描述编辑只依赖 Git CLI；不受中断态、bare 工作区写限制影响。
   const descriptionDisabled = busy || write.busy || !repo || !info?.git_version_supported;
@@ -300,6 +334,23 @@ export default function App() {
                 }
               >
                 对比
+              </button>
+              <button
+                className={terminalOpen ? "active" : ""}
+                onClick={() => {
+                  setTerminalMounted(true);
+                  setTerminalOpen((open) => !open);
+                }}
+                title={
+                  terminalRunning
+                    ? "切换底部终端（Ctrl+`）；进程运行中，收起不会结束进程"
+                    : "切换底部终端（Ctrl+`）"
+                }
+              >
+                终端
+                {terminalRunning && (
+                  <span className="terminal-running-dot" aria-label="终端进程运行中" />
+                )}
               </button>
             </>
           )}
@@ -448,6 +499,18 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {repo && terminalMounted && (
+        <TerminalPanel
+          repoPath={repo.path}
+          visible={terminalOpen}
+          lazygitConfig={settings?.lazygit_path ?? ""}
+          onCollapse={() => setTerminalOpen(false)}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onRunningChange={handleTerminalRunning}
+          onRepoChanged={handleTerminalRepoChanged}
+        />
+      )}
 
       <StatusBar busy={busy} repo={repo} info={info} settings={settings} />
 

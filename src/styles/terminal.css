@@ -1,0 +1,109 @@
+/* 底部终端面板：高度由内联样式给出，拖动顶部把手调整。 */
+
+.terminal-panel {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 140px;
+  max-height: calc(100vh - 240px);
+  background: #111318;
+  border-top: 1px solid #2a2f38;
+}
+
+/* class 选择器优先级高于 UA 的 [hidden]，需显式关闭。 */
+.terminal-panel[hidden] {
+  display: none;
+}
+
+.terminal-running-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #7cc4ff;
+  vertical-align: middle;
+}
+
+.terminal-resizer {
+  height: 6px;
+  cursor: ns-resize;
+  background: transparent;
+}
+
+.terminal-resizer:hover {
+  background: #2f4d6b;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 10px 6px;
+  border-bottom: 1px solid #22262e;
+}
+
+.terminal-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.terminal-path {
+  overflow: hidden;
+  color: #8a93a3;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-permission {
+  color: #d8a657;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.terminal-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.terminal-notice,
+.terminal-error {
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.terminal-notice {
+  color: #c8b98a;
+  background: #241f16;
+}
+
+.terminal-error {
+  color: #f48771;
+  background: #2a1917;
+}
+
+.terminal-notice code {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #302a1e;
+}
+
+.terminal-body {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 8px;
+  overflow: hidden;
+}
+
+.terminal-body .xterm {
+  height: 100%;
+}
+
+.terminal-body .xterm-viewport {
+  background-color: transparent !important;
+}
