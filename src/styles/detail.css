@@ -174,7 +174,7 @@
   border-radius: 3px;
   border: 1px solid var(--accent);
   background: var(--accent-soft);
-  color: #d7e5ff;
+  color: var(--on-accent-soft);
   cursor: pointer;
 }
 
@@ -182,7 +182,7 @@
 .branch-chip:focus-visible {
   border-color: var(--accent-strong, var(--accent));
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .baseline-note {

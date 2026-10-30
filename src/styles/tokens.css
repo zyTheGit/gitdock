@@ -1,4 +1,4 @@
-/* 设计令牌：颜色、字体、间距等全局变量 */
+/* 设计令牌：颜色、字体、间距等全局变量。深色为默认，浅色跟随系统外观。 */
 
 :root {
   color-scheme: dark;
@@ -12,9 +12,129 @@
   --muted: #8b93a3;
   --accent: #4c8dff;
   --accent-soft: #24406b;
+  --on-accent: #ffffff;
+  --on-accent-soft: #d7e5ff;
   --warning: #d9a441;
   --danger: #e06c75;
+  --danger-text: #e0a0a5;
   --ok: #6fbf73;
+  --shadow-sm: rgba(0, 0, 0, 0.45);
+  --shadow-lg: rgba(0, 0, 0, 0.55);
+  --backdrop: rgba(6, 8, 12, 0.55);
+  --row-divider: rgba(46, 51, 64, 0.55);
+  --row-hover: rgba(76, 141, 255, 0.06);
+  --accent-weak: rgba(76, 141, 255, 0.08);
+  --warning-weak: rgba(217, 164, 65, 0.1);
+  --danger-weak: rgba(224, 108, 117, 0.1);
+  --danger-soft: rgba(224, 108, 117, 0.12);
+  --splitter-active: rgba(76, 141, 255, 0.35);
+  --ok-border: rgba(111, 191, 115, 0.45);
+  --warning-border: rgba(217, 164, 65, 0.55);
+  --danger-border: rgba(224, 108, 117, 0.6);
+  --remote-border: #4a5568;
+  --remote-text: #b6c0d0;
+  --diff-bg: #1b1e24;
+  --diff-text: #d7dae0;
+  --diff-selection-bg: #35507a;
+  --diff-selection-text: #ffffff;
+  --diff-insert-gutter: rgba(111, 191, 115, 0.16);
+  --diff-delete-gutter: rgba(224, 108, 117, 0.16);
+  --diff-insert-code: rgba(111, 191, 115, 0.1);
+  --diff-delete-code: rgba(224, 108, 117, 0.1);
+  --diff-insert-edit: rgba(111, 191, 115, 0.32);
+  --diff-delete-edit: rgba(224, 108, 117, 0.32);
+  --diff-insert-gutter-strong: #283831;
+  --diff-delete-gutter-strong: #3b2b31;
+
+  /* 终端内容固定深色，避免浅色背景下 ANSI 亮色不可读。 */
+  --terminal-bg: #111318;
+  --terminal-border: #2a2f38;
+  --terminal-header-border: #22262e;
+  --terminal-muted: #8a93a3;
+  --terminal-warning: #d8a657;
+  --terminal-notice-text: #c8b98a;
+  --terminal-notice-bg: #241f16;
+  --terminal-error-text: #f48771;
+  --terminal-error-bg: #2a1917;
+  --terminal-code-bg: #302a1e;
+  --terminal-running: #7cc4ff;
+  --terminal-resizer-hover: #2f4d6b;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f5f6f8;
+    --bg-panel: #ffffff;
+    --bg-elevated: #eef1f6;
+    --border: #d4d9e3;
+    --text: #1d2129;
+    --muted: #5b6472;
+    --accent: #2f6fdd;
+    --accent-soft: #dbe7fb;
+    --on-accent-soft: #1a4f9c;
+    --warning: #8a5a00;
+    --danger: #c62828;
+    --danger-text: #a01f26;
+    --ok: #1a7f37;
+    --shadow-sm: rgba(20, 28, 40, 0.16);
+    --shadow-lg: rgba(20, 28, 40, 0.22);
+    --backdrop: rgba(26, 32, 44, 0.35);
+    --row-divider: rgba(212, 217, 227, 0.8);
+    --row-hover: rgba(47, 111, 221, 0.06);
+    --accent-weak: rgba(47, 111, 221, 0.08);
+    --warning-weak: rgba(138, 90, 0, 0.08);
+    --danger-weak: rgba(198, 40, 40, 0.08);
+    --danger-soft: rgba(198, 40, 40, 0.1);
+    --splitter-active: rgba(47, 111, 221, 0.3);
+    --ok-border: rgba(26, 127, 55, 0.4);
+    --warning-border: rgba(138, 90, 0, 0.45);
+    --danger-border: rgba(198, 40, 40, 0.45);
+    --remote-border: #c5cbd6;
+    --remote-text: #4a5568;
+    --diff-bg: #ffffff;
+    --diff-text: #24292f;
+    --diff-selection-bg: #cfe0ff;
+    --diff-selection-text: #1d2129;
+    --diff-insert-gutter: rgba(26, 127, 55, 0.12);
+    --diff-delete-gutter: rgba(198, 40, 40, 0.12);
+    --diff-insert-code: rgba(26, 127, 55, 0.08);
+    --diff-delete-code: rgba(198, 40, 40, 0.08);
+    --diff-insert-edit: rgba(26, 127, 55, 0.24);
+    --diff-delete-edit: rgba(198, 40, 40, 0.24);
+    --diff-insert-gutter-strong: #e3f2e6;
+    --diff-delete-gutter-strong: #fbe7e9;
+  }
+}
+
+/* 高对比度：选中/激活态不依赖低对比度背景色。 */
+@media (forced-colors: active) {
+  :root {
+    color-scheme: light dark;
+  }
+
+  .graph-row.selected,
+  .staging-row.active,
+  .repo-menu-item.active,
+  .branch-item.active,
+  .scope-tabs button.active,
+  .view-toggle button.active,
+  .diff-option.active,
+  .branch-chip {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+
+  .workspace-badge,
+  .banner,
+  .staging-group,
+  .graph-list,
+  .graph-empty,
+  .context-menu,
+  .repo-menu,
+  .terminal-panel {
+    border-color: CanvasText;
+  }
 }
 
 * {
@@ -56,7 +176,7 @@ button:disabled {
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 button.large {

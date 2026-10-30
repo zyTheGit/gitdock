@@ -91,7 +91,7 @@
   position: fixed;
   inset: 0;
   z-index: 39;
-  background: rgba(6, 8, 12, 0.55);
+  background: var(--backdrop);
 }
 
 .file-diff.expanded {
@@ -105,7 +105,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg-panel);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 24px 80px var(--shadow-lg);
   overflow: hidden;
 }
 
@@ -225,8 +225,8 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #1b1e24;
-  color: #d7dae0;
+  background: var(--diff-bg);
+  color: var(--diff-text);
   font-family: "Cascadia Mono", Consolas, monospace;
 }
 
@@ -250,11 +250,11 @@
 }
 
 .split-line.insert {
-  background: rgba(111, 191, 115, 0.1);
+  background: var(--diff-insert-code);
 }
 
 .split-line.delete {
-  background: rgba(224, 108, 117, 0.1);
+  background: var(--diff-delete-code);
 }
 
 .split-gutter {
@@ -267,16 +267,16 @@
   text-align: right;
   color: var(--muted);
   font-size: 13px;
-  background: #1b1e24;
+  background: var(--diff-bg);
   user-select: none;
 }
 
 .split-gutter.insert {
-  background: #283831;
+  background: var(--diff-insert-gutter-strong);
 }
 
 .split-gutter.delete {
-  background: #3b2b31;
+  background: var(--diff-delete-gutter-strong);
 }
 
 .split-code {
@@ -286,11 +286,11 @@
 }
 
 .split-line.insert .diff-code-edit {
-  background: rgba(111, 191, 115, 0.32);
+  background: var(--diff-insert-edit);
 }
 
 .split-line.delete .diff-code-edit {
-  background: rgba(224, 108, 117, 0.32);
+  background: var(--diff-delete-edit);
 }
 
 .split-hunk {
@@ -334,17 +334,17 @@
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
-  --diff-background-color: #1b1e24;
-  --diff-text-color: #d7dae0;
+  --diff-background-color: var(--diff-bg);
+  --diff-text-color: var(--diff-text);
   --diff-font-family: "Cascadia Mono", Consolas, monospace;
-  --diff-selection-background-color: #35507a;
-  --diff-selection-text-color: #fff;
-  --diff-gutter-insert-background-color: rgba(111, 191, 115, 0.16);
-  --diff-gutter-delete-background-color: rgba(224, 108, 117, 0.16);
-  --diff-code-insert-background-color: rgba(111, 191, 115, 0.1);
-  --diff-code-delete-background-color: rgba(224, 108, 117, 0.1);
-  --diff-code-insert-edit-background-color: rgba(111, 191, 115, 0.32);
-  --diff-code-delete-edit-background-color: rgba(224, 108, 117, 0.32);
+  --diff-selection-background-color: var(--diff-selection-bg);
+  --diff-selection-text-color: var(--diff-selection-text);
+  --diff-gutter-insert-background-color: var(--diff-insert-gutter);
+  --diff-gutter-delete-background-color: var(--diff-delete-gutter);
+  --diff-code-insert-background-color: var(--diff-insert-code);
+  --diff-code-delete-background-color: var(--diff-delete-code);
+  --diff-code-insert-edit-background-color: var(--diff-insert-edit);
+  --diff-code-delete-edit-background-color: var(--diff-delete-edit);
 }
 
 .diff-view .diff {
