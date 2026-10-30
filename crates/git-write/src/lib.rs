@@ -11,9 +11,9 @@ use std::process::{Output, Stdio};
 
 use git_core::{
     git_command, language_for, BranchDescriptionDto, ErrorCode, FileDiffDto, FileStatus,
-    GateIssueDto, GateReportDto, HeadDto, InterruptionDto, InterruptionKind, Result, StagingFileDto,
-    StagingStatusDto, UserVisibleError, WarningDto, WorkspaceStatusDto, WriteKind, WriteOutcomeDto,
-    WriteRequest, WriteStatus,
+    GateIssueDto, GateReportDto, HeadDto, InterruptionDto, InterruptionKind, Result,
+    StagingFileDto, StagingStatusDto, UserVisibleError, WarningDto, WorkspaceStatusDto, WriteKind,
+    WriteOutcomeDto, WriteRequest, WriteStatus,
 };
 use parking_lot::Mutex;
 
@@ -800,10 +800,11 @@ impl GitWriteModule {
         ])?;
         // --no-index 在存在差异时返回 1，这不是失败。
         if !matches!(output.status.code(), Some(0) | Some(1)) {
-            return Err(
-                UserVisibleError::new(ErrorCode::GitCommandFailed, "无法生成未跟踪文件 diff")
-                    .with_detail(text(&output.stderr)),
-            );
+            return Err(UserVisibleError::new(
+                ErrorCode::GitCommandFailed,
+                "无法生成未跟踪文件 diff",
+            )
+            .with_detail(text(&output.stderr)));
         }
         Ok(build_diff(
             &entry.path,
@@ -814,13 +815,7 @@ impl GitWriteModule {
     }
 
     fn tracked_diff(&self, entry: &StatusEntry, staged: bool) -> Result<FileDiffDto> {
-        let mut args = vec![
-            "diff",
-            "--no-color",
-            "--no-ext-diff",
-            "--unified=3",
-            "-M",
-        ];
+        let mut args = vec!["diff", "--no-color", "--no-ext-diff", "--unified=3", "-M"];
         if staged {
             args.push("--cached");
         }
@@ -846,11 +841,7 @@ impl GitWriteModule {
         } else {
             entry.worktree_code
         });
-        let old_path = if staged {
-            entry.old_path.clone()
-        } else {
-            None
-        };
+        let old_path = if staged { entry.old_path.clone() } else { None };
         Ok(build_diff(&entry.path, old_path, status, &output.stdout))
     }
 
@@ -1100,7 +1091,10 @@ fn parse_status_detail(bytes: &[u8]) -> StatusDetail {
         } else if token.starts_with("u ") {
             let fields: Vec<&str> = token.splitn(11, ' ').collect();
             summary.conflicted += 1;
-            let path = fields.get(10).map(|path| (*path).to_owned()).unwrap_or_default();
+            let path = fields
+                .get(10)
+                .map(|path| (*path).to_owned())
+                .unwrap_or_default();
             if !path.is_empty() {
                 summary.conflicted_files.push(path.clone());
             }
@@ -1121,10 +1115,7 @@ fn parse_status_detail(bytes: &[u8]) -> StatusDetail {
 
 fn xy_codes(xy: &str) -> (char, char) {
     let mut chars = xy.chars();
-    (
-        chars.next().unwrap_or('.'),
-        chars.next().unwrap_or('.'),
-    )
+    (chars.next().unwrap_or('.'), chars.next().unwrap_or('.'))
 }
 
 fn parse_numstat_z(bytes: &[u8]) -> HashMap<String, Numstat> {
@@ -1179,11 +1170,7 @@ fn make_staging_file(
     let stat = stats.get(&entry.path);
     StagingFileDto {
         path: entry.path.clone(),
-        old_path: if staged {
-            entry.old_path.clone()
-        } else {
-            None
-        },
+        old_path: if staged { entry.old_path.clone() } else { None },
         status: file_status_from_code(code),
         index_code: (!entry.untracked).then(|| entry.index_code.to_string()),
         worktree_code: (!entry.untracked).then(|| entry.worktree_code.to_string()),
@@ -1317,7 +1304,8 @@ fn pathspec_stdin(paths: &Option<Vec<String>>, entries: Option<&[StatusEntry]>) 
             stdin.extend_from_slice(path.as_bytes());
             stdin.push(0);
         }
-        if let Some(entry) = entries.and_then(|entries| entries.iter().find(|entry| entry.path == *path))
+        if let Some(entry) =
+            entries.and_then(|entries| entries.iter().find(|entry| entry.path == *path))
         {
             if let Some(old_path) = entry.old_path.as_ref() {
                 if old_path != path && seen.insert(old_path.clone()) {

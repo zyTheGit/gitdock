@@ -252,7 +252,9 @@ fn stage_and_unstage_round_trip_preserves_content() {
     let status = module.staging_status().expect("暂存区状态");
     assert!(status.staged.iter().any(|file| file.path == "u.txt"));
 
-    let diff = module.staging_file_diff("u.txt", true).expect("staged diff");
+    let diff = module
+        .staging_file_diff("u.txt", true)
+        .expect("staged diff");
     assert_eq!(diff.status, FileStatus::Added);
     assert!(diff.patch.as_deref().unwrap_or("").contains("+hello"));
 
@@ -377,7 +379,10 @@ fn conflicted_files_are_listed_and_excluded_from_groups() {
         .iter()
         .any(|file| file == "conflict.txt"));
     assert!(!status.staged.iter().any(|file| file.path == "conflict.txt"));
-    assert!(!status.unstaged.iter().any(|file| file.path == "conflict.txt"));
+    assert!(!status
+        .unstaged
+        .iter()
+        .any(|file| file.path == "conflict.txt"));
 
     let outcome = module
         .execute(&staging_request(WriteKind::StageFiles, &["conflict.txt"]))

@@ -449,7 +449,7 @@ pub async fn staging_status(state: State<'_, Shared>) -> Result<StagingStatusDto
     blocking(move || {
         state.with_session(|session| {
             let mut dto = session.write.staging_status()?;
-            dto.generation = session.read.current_generation();
+            dto.generation = session.read.current_generation()?;
             Ok(dto)
         })
     })
@@ -466,7 +466,7 @@ pub async fn read_staging_diff(
     blocking(move || {
         state.with_session(|session| {
             let mut dto = session.write.staging_file_diff(&path, staged)?;
-            dto.generation = session.read.current_generation();
+            dto.generation = session.read.current_generation()?;
             Ok(dto)
         })
     })
