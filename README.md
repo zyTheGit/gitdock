@@ -8,7 +8,10 @@ Windows 优先的单窗口 Git 图谱桌面应用。图谱、提交详情、三�
 - 提交详情：message / parents / 文件列表、单文件 diff、Shiki 语法高亮
 - 对比：Base / Compare 双槽、三点 diff、两点快照、分支对比弹窗、路径过滤、外部工具拉起
 - 搜索：message / hash 前缀 / author / 路径，结果直接在主图谱定位
+- 暂存区：按 HEAD / Index / Worktree 展示 staged 与 unstaged 文件，文件级与批量暂存、取消暂存
+- 内置终端：在当前仓库目录启动 LazyGit 或 PowerShell，终端改动会触发图谱与状态刷新
 - 分支描述、外部 diff 工具配置、写前 Gate（cherry-pick / revert / switch）
+- 外观跟随 Windows 浅色/深色；全局字体缩放；设置/关于显示版本并提供 Issue 入口
 
 ## 技术栈
 
@@ -48,6 +51,19 @@ npm run check
 npm run tauri build
 ```
 
+## 快捷键
+
+| 快捷键 | 行为 |
+|---|---|
+| `Ctrl` + `` ` `` | 展开 / 收起底部终端（不结束正在运行的进程） |
+| `Ctrl` + `=` / `Ctrl` + `+` | 放大界面（75%–200%，固定档位） |
+| `Ctrl` + `-` | 缩小界面 |
+| `Ctrl` + `0` | 恢复 100% |
+| `Ctrl` + 点击提交 | 依次设置对比的 Base / Compare |
+| `Esc` | 关闭搜索或对比、取消待替换选择、清空双槽；终端内与暂存区自行处理 |
+
+缩放立即生效并写入 `settings.json` 的 `font_scale`（旧配置缺省 100%）；状态栏和“设置 → 外观”都会显示当前比例。
+
 ## 目录结构
 
 ```text
@@ -57,7 +73,7 @@ src/                    # 前端
   features/detail/      # 提交详情、文件 diff、语法高亮、并排分栏
   features/compare/     # 双槽、对比弹窗、文件与 commit 列表
   features/search/      # 搜索弹框与候选生成
-  features/settings/    # 外部工具、监听与恢复选项
+  features/settings/    # 外部工具、监听、外观缩放、关于与反馈
   features/write/       # 写确认框与结果展示
   shared/               # IPC 唯一入口、DTO 类型、通用 UI
   styles/               # 按层叠顺序 @import 的样式片段
