@@ -16,7 +16,7 @@
   margin: 16px 0 8px;
 }
 
-/* 头部与底部按钮固定，中间设置分区整体滚动；工具列表再限高自滚，避免长列表拖走其它分区。 */
+/* 头部与底部按钮固定，中间设置分区整体滚动；工具列表随内容展开，避免内外两条滚动条并排。 */
 .settings-dialog > header,
 .settings-dialog > footer {
   flex: none;
@@ -42,12 +42,6 @@
 .settings-tools > p,
 .settings-tools > button {
   flex: none;
-}
-
-.tool-list-scroll {
-  overflow-y: auto;
-  /* 滚动条浮在内容上，右侧留出空隙，避免压住“删除”等按钮。 */
-  padding-right: 10px;
 }
 
 .settings-dialog footer {
@@ -116,11 +110,6 @@
 .tool-actions .settings-check {
   flex-direction: row;
   gap: 6px;
-}
-
-/* 工具列表在设置分区内单独限高滚动。 */
-.tool-list-scroll {
-  max-height: 260px;
 }
 
 .zoom-row {

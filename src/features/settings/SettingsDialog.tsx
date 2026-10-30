@@ -212,9 +212,7 @@ export function SettingsDialog({
             <code>$LOCAL $REMOTE</code>；只传两个路径会打开两个独立文件而不是差异视图；未指定默认工具时使用列表第一项。
           </p>
           {tools.length === 0 && <p className="muted">尚未配置外部工具。</p>}
-          {/* 工具多时只滚列表，弹窗本身与底部按钮不动。 */}
-          <div className="tool-list-scroll">
-            <ul className="tool-list">
+          <ul className="tool-list">
               {tools.map((tool, index) => (
                 <li key={index}>
                   <label>
@@ -263,8 +261,7 @@ export function SettingsDialog({
                   </div>
                 </li>
               ))}
-            </ul>
-          </div>
+          </ul>
           <button onClick={() => setTools((current) => current.concat({ ...EMPTY_TOOL }))}>
             添加工具
           </button>
