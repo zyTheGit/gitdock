@@ -4,6 +4,7 @@ import { RepositorySidebar } from "./app/RepositorySidebar";
 import { StatusBar } from "./app/StatusBar";
 import { WorkspaceBadge } from "./app/WorkspaceBadge";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
+import { useFontScale } from "./app/useFontScale";
 import { useRepositorySession } from "./app/useRepositorySession";
 import { useWriteFlow } from "./app/useWriteFlow";
 import { BranchCompareDialog } from "./features/compare/BranchCompareDialog";
@@ -74,6 +75,7 @@ export default function App() {
   const session = useRepositorySession({ scope, onOpened: resetView, writeBusyRef });
   const { repo, info, settings, workspace, busy, error, diagnostic, toast, graph } = session;
   const { setSettings, setError, setDiagnostic, setToast } = session;
+  const zoom = useFontScale({ settings, setSettings, onError: setError });
 
   const panes = usePaneWidths();
   const write = useWriteFlow({
@@ -556,7 +558,13 @@ export default function App() {
         />
       )}
 
-      <StatusBar busy={busy} repo={repo} info={info} settings={settings} />
+      <StatusBar
+        busy={busy}
+        repo={repo}
+        info={info}
+        settings={settings}
+        fontScale={zoom.fontScale}
+      />
 
       {mode === "search" && repo && (
         <SearchView
@@ -631,6 +639,11 @@ export default function App() {
       {settingsOpen && settings && (
         <SettingsDialog
           settings={settings}
+          info={info}
+          fontScale={zoom.fontScale}
+          onZoomIn={zoom.zoomIn}
+          onZoomOut={zoom.zoomOut}
+          onResetZoom={zoom.resetZoom}
           onClose={() => setSettingsOpen(false)}
           onSaved={setSettings}
           onError={setError}

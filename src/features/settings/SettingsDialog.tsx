@@ -3,19 +3,37 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
-import type { ExternalToolConfig, SettingsDto } from "../../shared/types";
+import type { AppInfoDto, ExternalToolConfig, SettingsDto } from "../../shared/types";
+import { FeedbackDialog } from "./FeedbackDialog";
 
 interface SettingsDialogProps {
   settings: SettingsDto;
+  info: AppInfoDto | null;
+  fontScale: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onResetZoom: () => void;
   onClose: () => void;
   onSaved: (settings: SettingsDto) => void;
   onError: (message: string) => void;
 }
 
 const EMPTY_TOOL: ExternalToolConfig = { name: "", executable: "", args_template: "$LOCAL $REMOTE" };
+const MIN_SCALE = 0.75;
+const MAX_SCALE = 2;
 
 /** 外部对比工具只保存名称、可执行文件与参数模板；后端按参数数组调用，不经 shell。 */
-export function SettingsDialog({ settings, onClose, onSaved, onError }: SettingsDialogProps) {
+export function SettingsDialog({
+  settings,
+  info,
+  fontScale,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+  onClose,
+  onSaved,
+  onError,
+}: SettingsDialogProps) {
   const [tools, setTools] = useState<ExternalToolConfig[]>(
     settings.external_tools.map((tool) => ({ ...tool })),
   );
@@ -26,6 +44,7 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
     settings.default_tool ?? null,
   );
   const [saving, setSaving] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const update = (index: number, patch: Partial<ExternalToolConfig>) => {
     const previousName = tools[index]?.name;
@@ -94,6 +113,7 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
         restore_last_repository: restore,
         watch_enabled: watch,
         lazygit_path: lazygitPath.trim() || null,
+        font_scale: fontScale,
       });
       onSaved(saved);
       onClose();
@@ -105,7 +125,8 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
   };
 
   return (
-    <Modal className="settings-dialog">
+    <>
+      <Modal className="settings-dialog">
       <header>
         <h2>设置</h2>
         <button className="detail-close" onClick={onClose} aria-label="关闭设置">
@@ -131,6 +152,30 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
           />
           监视 Git 目录变化并自动刷新（外部 commit、切换分支等）
         </label>
+      </section>
+
+      <section>
+        <h3>外观</h3>
+        <p className="muted settings-hint">
+          颜色跟随 Windows 系统的浅色/深色设置，不提供应用内主题覆盖；终端内容保持深色
+          ANSI 配色。
+        </p>
+        <div className="zoom-row">
+          <span>界面缩放</span>
+          <button type="button" onClick={onZoomOut} disabled={fontScale <= MIN_SCALE}>
+            缩小
+          </button>
+          <button type="button" className="mono" onClick={onResetZoom} disabled={fontScale === 1}>
+            {Math.round(fontScale * 100)}%
+          </button>
+          <button type="button" onClick={onZoomIn} disabled={fontScale >= MAX_SCALE}>
+            放大
+          </button>
+        </div>
+        <p className="muted settings-hint">
+          快捷键：<kbd>Ctrl</kbd>+<kbd>=</kbd> 放大，<kbd>Ctrl</kbd>+<kbd>-</kbd> 缩小，
+          <kbd>Ctrl</kbd>+<kbd>0</kbd> 恢复 100%。调整立即生效并保存。
+        </p>
       </section>
 
       <section>
@@ -225,6 +270,32 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
         </button>
       </section>
 
+      <section>
+        <h3>关于</h3>
+        {info ? (
+          <dl className="about-grid">
+            <dt>版本</dt>
+            <dd className="mono">{info.app_version}</dd>
+            <dt>平台</dt>
+            <dd className="mono">{info.platform}</dd>
+            <dt>Git</dt>
+            <dd className="mono">
+              {info.git_version ?? "未检测到"}（最低 {info.minimum_git_version}）
+            </dd>
+          </dl>
+        ) : (
+          <p className="muted">正在读取版本信息…</p>
+        )}
+        <div className="about-actions">
+          <button type="button" onClick={() => setFeedbackOpen(true)} disabled={!info}>
+            提交 Issue…
+          </button>
+        </div>
+        <p className="muted settings-hint">
+          反馈框只预填应用版本、操作系统与 Git 版本，不含日志或仓库路径；点击后由你在浏览器中检查并提交。
+        </p>
+      </section>
+
       <footer>
         <button onClick={onClose}>取消</button>
         <button className="primary" onClick={() => void save()} disabled={saving}>
@@ -232,5 +303,9 @@ export function SettingsDialog({ settings, onClose, onSaved, onError }: Settings
         </button>
       </footer>
     </Modal>
+      {feedbackOpen && info && (
+        <FeedbackDialog info={info} onClose={() => setFeedbackOpen(false)} onError={onError} />
+      )}
+    </>
   );
 }

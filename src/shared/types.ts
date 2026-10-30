@@ -349,9 +349,12 @@ export interface SettingsDto {
   tools_seeded?: boolean;
   window_width?: number;
   window_height?: number;
+  /** 界面缩放比例，1.0 为 100%；后端正反校验 0.75–2.0。 */
+  font_scale: number;
 }
 
-export interface AppInfoDto {  app_version: string;
+export interface AppInfoDto {
+  app_version: string;
   git_version?: string;
   git_version_supported: boolean;
   minimum_git_version: string;

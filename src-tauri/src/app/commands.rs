@@ -55,6 +55,41 @@ pub async fn app_info(state: State<'_, Shared>) -> Result<AppInfoDto> {
     .await
 }
 
+const FEEDBACK_ISSUE_URL: &str = "https://github.com/zyTheGit/git-graph/issues/new";
+const MAX_FEEDBACK_TITLE_CHARS: usize = 120;
+const MAX_FEEDBACK_BODY_CHARS: usize = 8000;
+
+/// 反馈入口只接受标题与正文，目标地址固定；由后端拼 query，前端不能指定 URL 或协议。
+fn feedback_issue_url(title: &str, body: &str) -> Result<String> {
+    let title = title.trim();
+    if title.is_empty() {
+        return Err(UserVisibleError::new(
+            ErrorCode::InvalidArgument,
+            "反馈标题不能为空",
+        ));
+    }
+    if title.chars().count() > MAX_FEEDBACK_TITLE_CHARS
+        || body.chars().count() > MAX_FEEDBACK_BODY_CHARS
+    {
+        return Err(UserVisibleError::new(
+            ErrorCode::InvalidArgument,
+            "反馈内容过长，请精简后再提交",
+        ));
+    }
+    let mut url = tauri::Url::parse(FEEDBACK_ISSUE_URL)
+        .map_err(|e| UserVisibleError::internal(format!("反馈地址无效：{e}")))?;
+    url.query_pairs_mut()
+        .append_pair("title", title)
+        .append_pair("body", body);
+    Ok(url.to_string())
+}
+
+#[tauri::command]
+pub fn open_feedback_issue(title: String, body: String) -> Result<()> {
+    let url = feedback_issue_url(&title, &body)?;
+    super::external::open_url(&url)
+}
+
 /// 前端完成首帧后再显示主窗口：窗口在配置里保持隐藏，避免启动时先按默认尺寸
 /// 出现、再跳成保存的尺寸，以及 WebView2 未绘制前的白底闪帧。
 #[tauri::command]
@@ -526,4 +561,34 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T> + Send + 'sta
     tauri::async_runtime::spawn_blocking(f)
         .await
         .map_err(|e| UserVisibleError::internal(format!("后台任务异常：{e}")))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn feedback_url_uses_fixed_repository_and_encodes_content() {
+        let url = feedback_issue_url("标题 & bug", "第一行\n第二行 https://x.test?a=1").unwrap();
+        assert!(url.starts_with("https://github.com/zyTheGit/git-graph/issues/new?"));
+        assert!(url.contains("title=%E6%A0%87%E9%A2%98+%26+bug"));
+        assert!(url.contains("body="));
+        // 换行与正文里的问号、冒号都必须留在 query 内，不能改变 URL 结构。
+        assert!(!url.contains('\n'));
+        assert!(url.contains("%0A"));
+        assert!(url.contains("%3A%2F%2F"));
+    }
+
+    #[test]
+    fn feedback_url_rejects_empty_title_and_oversized_content() {
+        assert_eq!(
+            feedback_issue_url("   ", "body").unwrap_err().code,
+            ErrorCode::InvalidArgument
+        );
+        let long = "字".repeat(MAX_FEEDBACK_BODY_CHARS + 1);
+        assert_eq!(
+            feedback_issue_url("title", &long).unwrap_err().code,
+            ErrorCode::InvalidArgument
+        );
+    }
 }

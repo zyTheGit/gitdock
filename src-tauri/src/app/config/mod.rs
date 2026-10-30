@@ -38,6 +38,9 @@ pub struct SettingsDto {
     pub window_width: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window_height: Option<u32>,
+    /// 界面缩放比例；1.0 为 100%。旧配置缺省时按 100% 处理。
+    #[serde(default = "default_font_scale")]
+    pub font_scale: f64,
 }
 
 impl Default for SettingsDto {
@@ -53,12 +56,24 @@ impl Default for SettingsDto {
             tools_seeded: false,
             window_width: None,
             window_height: None,
+            font_scale: default_font_scale(),
         }
     }
 }
 
 fn default_watch_enabled() -> bool {
     true
+}
+
+fn default_font_scale() -> f64 {
+    1.0
+}
+
+pub const MIN_FONT_SCALE: f64 = 0.75;
+pub const MAX_FONT_SCALE: f64 = 2.0;
+
+fn font_scale_in_range(value: f64) -> bool {
+    (MIN_FONT_SCALE..=MAX_FONT_SCALE).contains(&value)
 }
 
 pub fn load(dir: &Path) -> SettingsDto {
@@ -71,6 +86,10 @@ pub fn load(dir: &Path) -> SettingsDto {
             // 旧配置没有工具时补一次内置探测；用户清空后 tools_seeded 已为 true，不再注入。
             if !settings.tools_seeded {
                 seed_tools(&mut settings, detected_tools());
+            }
+            // 手改配置可能越界；读取时回落到 100%，避免把界面缩到不可用。
+            if !font_scale_in_range(settings.font_scale) {
+                settings.font_scale = default_font_scale();
             }
             settings
         }
@@ -103,6 +122,12 @@ pub fn save(dir: &Path, settings: &SettingsDto) -> Result<SettingsDto, UserVisib
     // 一旦落盘，工具列表归用户所有，后续启动不再自动补探测结果。
     next.tools_seeded = true;
     normalize_default_tool(&mut next);
+    if !font_scale_in_range(next.font_scale) {
+        return Err(UserVisibleError::new(
+            ErrorCode::InvalidArgument,
+            "界面缩放比例需在 75% 与 200% 之间",
+        ));
+    }
     validate(&next)?;
     std::fs::create_dir_all(dir).map_err(io_error)?;
     let path = settings_path(dir);
@@ -148,6 +173,53 @@ mod tests {
 
     fn temp_dir() -> tempfile::TempDir {
         tempfile::tempdir().expect("创建临时目录失败")
+    }
+
+    #[test]
+    fn missing_font_scale_defaults_to_one() {
+        let dir = temp_dir();
+        std::fs::write(
+            settings_path(dir.path()),
+            br#"{"schema_version":1,"recent_repositories":[],"external_tools":[],"restore_last_repository":true}"#,
+        )
+        .expect("写入旧版设置失败");
+        assert_eq!(load(dir.path()).font_scale, 1.0);
+    }
+
+    #[test]
+    fn font_scale_roundtrips_when_saved() {
+        let dir = temp_dir();
+        let settings = SettingsDto {
+            font_scale: 1.25,
+            ..Default::default()
+        };
+        let saved = save(dir.path(), &settings).expect("保存设置失败");
+        assert_eq!(saved.font_scale, 1.25);
+        assert_eq!(load(dir.path()).font_scale, 1.25);
+    }
+
+    #[test]
+    fn out_of_range_font_scale_is_rejected_on_save() {
+        let dir = temp_dir();
+        for scale in [0.5, 2.5, f64::NAN] {
+            let settings = SettingsDto {
+                font_scale: scale,
+                ..Default::default()
+            };
+            let err = save(dir.path(), &settings).expect_err("应拒绝越界缩放");
+            assert_eq!(err.code, ErrorCode::InvalidArgument);
+        }
+    }
+
+    #[test]
+    fn out_of_range_font_scale_falls_back_to_one_on_load() {
+        let dir = temp_dir();
+        std::fs::write(
+            settings_path(dir.path()),
+            br#"{"schema_version":1,"recent_repositories":[],"external_tools":[],"restore_last_repository":true,"font_scale":5.0}"#,
+        )
+        .expect("写入越界设置失败");
+        assert_eq!(load(dir.path()).font_scale, 1.0);
     }
 
     #[test]
