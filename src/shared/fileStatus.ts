@@ -6,6 +6,8 @@ export const STATUS_LETTER: Record<FileStatus, string> = {
   deleted: "D",
   modified: "M",
   type_changed: "T",
+  renamed: "R",
+  copied: "C",
 };
 
 export const STATUS_LABEL: Record<FileStatus, string> = {
@@ -13,4 +15,6 @@ export const STATUS_LABEL: Record<FileStatus, string> = {
   deleted: "删除",
   modified: "修改",
   type_changed: "类型变更",
+  renamed: "重命名",
+  copied: "复制",
 };

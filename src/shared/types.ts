@@ -10,7 +10,13 @@ export type InterruptionKind =
   | "rebase"
   | "sequencer"
   | "index_lock";
-export type FileStatus = "added" | "deleted" | "modified" | "type_changed";
+export type FileStatus =
+  | "added"
+  | "deleted"
+  | "modified"
+  | "type_changed"
+  | "renamed"
+  | "copied";
 export type DiffBaseline = "root" | "first_parent" | "merge_first_parent";
 export type CompareMode = "three_dot" | "two_dot" | "two_dot_fallback";
 export type SearchField = "message" | "hash" | "author" | "path";
@@ -222,13 +228,17 @@ export type WriteKind =
   | "cherry_pick"
   | "revert"
   | "switch_branch"
-  | "set_branch_description";
+  | "set_branch_description"
+  | "stage_files"
+  | "unstage_files";
 
 export interface WriteRequest {
   kind: WriteKind;
   oid?: string;
   branch?: string;
   description?: string;
+  /** stage/unstage 的文件路径；其他操作忽略。 */
+  paths?: string[];
 }
 
 export interface GateIssueDto {
@@ -254,6 +264,32 @@ export interface WriteOutcomeDto {
   interruption?: InterruptionDto;
   generation?: number;
   head_oid?: string;
+}
+
+/** 暂存区条目；同一路径可能同时出现在 staged 与 unstaged 列表中。 */
+export interface StagingFileDto {
+  path: string;
+  old_path?: string;
+  status: FileStatus;
+  index_code?: string;
+  worktree_code?: string;
+  additions: number;
+  deletions: number;
+  binary: boolean;
+  gitlink: boolean;
+  untracked: boolean;
+}
+
+export interface StagingStatusDto {
+  generation: number;
+  head: HeadDto;
+  unborn: boolean;
+  detached: boolean;
+  is_bare: boolean;
+  staged: StagingFileDto[];
+  unstaged: StagingFileDto[];
+  conflicted_files: string[];
+  warnings: WarningDto[];
 }
 
 export interface WorkspaceStatusDto {

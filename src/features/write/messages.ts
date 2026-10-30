@@ -5,6 +5,8 @@ const WRITE_LABEL: Record<WriteKind, string> = {
   revert: "Revert",
   switch_branch: "切换分支",
   set_branch_description: "更新分支描述",
+  stage_files: "暂存文件",
+  unstage_files: "取消暂存",
 };
 
 /** 写操作结果 → 状态栏文案；failed 的详情仍由调用方以错误横幅展示。 */

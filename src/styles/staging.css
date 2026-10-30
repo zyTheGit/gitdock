@@ -1,0 +1,218 @@
+/* 暂存区：未暂存/已暂存分组、文件操作与 diff */
+
+.staging-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.staging-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.staging-head-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.staging-head-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.staging-head-actions button {
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.staging-counts {
+  font-size: 12px;
+}
+
+.staging-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+}
+
+.staging-lists {
+  flex: 0 0 380px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.staging-group {
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+
+.staging-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.staging-group-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.staging-group-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.staging-group-actions button,
+.staging-row-action {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.staging-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 32vh;
+  overflow: auto;
+}
+
+.staging-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.staging-row:hover {
+  background: var(--bg-elevated);
+}
+
+.staging-row.active {
+  background: var(--accent-soft);
+}
+
+.staging-check {
+  flex: none;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.staging-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staging-stats {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.staging-row-action {
+  flex: none;
+}
+
+.staging-empty {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.file-status-renamed {
+  color: var(--warning);
+}
+
+.file-status-copied {
+  color: var(--ok);
+}
+
+.file-status-conflicted {
+  color: var(--danger);
+}
+
+.staging-conflicts {
+  border-color: var(--danger);
+}
+
+.staging-conflict-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+
+.staging-conflict-hint {
+  margin: 0;
+  padding: 0 10px 8px;
+  font-size: 12px;
+}
+
+.staging-conflicts > button {
+  margin: 0 10px 10px;
+  align-self: flex-start;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.staging-diff {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  overflow: auto;
+}
+
+.staging-diff > .file-diff {
+  flex: none;
+}
+
+@media (max-width: 900px) {
+  .staging-body {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .staging-lists {
+    flex: none;
+  }
+
+  .staging-diff {
+    min-height: 320px;
+  }
+}

@@ -18,6 +18,7 @@ import { RepositorySwitcher } from "./features/repository/RepositorySwitcher";
 import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
+import { StagingView } from "./features/staging/StagingView";
 import { TerminalPanel } from "./features/terminal/TerminalPanel";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
 import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
@@ -28,7 +29,7 @@ import { errorText } from "./shared/error";
 import { ipc } from "./shared/ipc";
 import type { CommitSummaryDto, GraphScope, RefDto } from "./shared/types";
 
-type ViewMode = "graph" | "compare" | "search";
+type ViewMode = "graph" | "compare" | "search" | "staging";
 
 export default function App() {
   const [scope, setScope] = useState<GraphScope>({ kind: "head" });
@@ -55,6 +56,7 @@ export default function App() {
     branch: RefDto;
   } | null>(null);
   const [descriptionBranch, setDescriptionBranch] = useState<string | null>(null);
+  const [stagingBusy, setStagingBusy] = useState(false);
   const writeBusyRef = useRef(false);
 
   const resetView = useCallback(() => {
@@ -85,7 +87,7 @@ export default function App() {
     setDiagnostic,
     setToast,
   });
-  writeBusyRef.current = write.busy;
+  writeBusyRef.current = write.busy || stagingBusy;
 
   const handleTerminalRunning = useCallback((running: boolean) => {
     setTerminalRunning(running);
@@ -178,6 +180,10 @@ export default function App() {
       if ((event.target as HTMLElement | null)?.closest(".terminal-panel")) {
         return;
       }
+      // 暂存区自行处理 Esc（先收起放大 diff，再退出视图）。
+      if (mode === "staging") {
+        return;
+      }
       if (slots.pending) {
         slots.resolvePending(null);
         return;
@@ -234,6 +240,25 @@ export default function App() {
       }
     },
     // 快照函数来自 session 且引用稳定，只在仓库路径或 reload 变化时重建。
+    [repo?.path, session.readSnapshot, session.applySnapshot, graph.reload, setToast, setError],
+  );
+
+  // 暂存区写成功后刷新仓库快照与图谱；暂存列表由 StagingView 自行重载。
+  const stagingMutated = useCallback(
+    async (message: string) => {
+      const repoPath = repo?.path;
+      setToast(message);
+      setError(null);
+      try {
+        const [state, status] = await session.readSnapshot();
+        if (!repoPath || state.path === repoPath) {
+          session.applySnapshot(state, status);
+          await graph.reload({ keepRows: true });
+        }
+      } catch (err) {
+        setError(errorText(err));
+      }
+    },
     [repo?.path, session.readSnapshot, session.applySnapshot, graph.reload, setToast, setError],
   );
 
@@ -316,6 +341,13 @@ export default function App() {
                 onClick={() => (mode === "search" ? closeSearch() : setMode("search"))}
               >
                 搜索
+              </button>
+              <button
+                className={mode === "staging" ? "active" : ""}
+                onClick={() => setMode(mode === "staging" ? "graph" : "staging")}
+                title="查看工作区改动，分别暂存或取消暂存文件"
+              >
+                暂存区
               </button>
               <button
                 className={mode === "compare" ? "active" : ""}
@@ -422,6 +454,18 @@ export default function App() {
                   }
                 }}
                 onBack={() => setMode("graph")}
+              />
+            ) : mode === "staging" ? (
+              <StagingView
+                repo={repo}
+                writeDisabled={write.disabled}
+                onBusyChange={setStagingBusy}
+                onMutated={stagingMutated}
+                onOpenTerminal={() => {
+                  setTerminalMounted(true);
+                  setTerminalOpen(true);
+                }}
+                onExit={() => setMode("graph")}
               />
             ) : (
               <>

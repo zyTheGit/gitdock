@@ -14,6 +14,7 @@ import type {
   SearchPageDto,
   SearchRequest,
   SettingsDto,
+  StagingStatusDto,
   TerminalCapabilitiesDto,
   TerminalEvent,
   UserVisibleError,
@@ -85,6 +86,9 @@ export const ipc = {
   executeWrite: (request: WriteRequest) => call<WriteOutcomeDto>("execute_write", { request }),
   inspectInterruption: () => call<InterruptionDto>("inspect_interruption"),
   workspaceStatus: () => call<WorkspaceStatusDto>("workspace_status"),
+  stagingStatus: () => call<StagingStatusDto>("staging_status"),
+  readStagingDiff: (path: string, staged: boolean) =>
+    call<FileDiffDto>("read_staging_diff", { path, staged }),
   readBranchDescription: (branch: string) =>
     call<BranchDescriptionDto>("read_branch_description", { branch }),
   terminalCapabilities: () => call<TerminalCapabilitiesDto>("terminal_capabilities"),
