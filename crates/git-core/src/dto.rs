@@ -222,6 +222,8 @@ pub enum FileStatus {
     Deleted,
     Modified,
     TypeChanged,
+    Renamed,
+    Copied,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -406,6 +408,8 @@ pub enum WriteKind {
     Revert,
     SwitchBranch,
     SetBranchDescription,
+    StageFiles,
+    UnstageFiles,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -417,6 +421,9 @@ pub struct WriteRequest {
     pub branch: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// stage/unstage 的文件路径；其他操作忽略。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paths: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -470,6 +477,42 @@ pub struct WorkspaceStatusDto {
     pub conflicted: u32,
     pub is_bare: bool,
     pub detached: bool,
+}
+
+/* ------------------------------ 暂存区 ------------------------------ */
+
+/// 暂存区中的一个文件条目；同一路径可能同时出现在 staged 与 unstaged 列表中。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StagingFileDto {
+    pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub old_path: Option<String>,
+    pub status: FileStatus,
+    /// porcelain v2 的 index 侧状态字母；未跟踪条目为 None。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index_code: Option<String>,
+    /// porcelain v2 的 worktree 侧状态字母；未跟踪条目为 None。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub worktree_code: Option<String>,
+    pub additions: u32,
+    pub deletions: u32,
+    pub binary: bool,
+    pub gitlink: bool,
+    pub untracked: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StagingStatusDto {
+    pub generation: u64,
+    pub head: HeadDto,
+    pub unborn: bool,
+    pub detached: bool,
+    pub is_bare: bool,
+    pub staged: Vec<StagingFileDto>,
+    pub unstaged: Vec<StagingFileDto>,
+    /// 未解决冲突文件；暂存区对冲突文件禁用 stage/unstage。
+    pub conflicted_files: Vec<String>,
+    pub warnings: Vec<WarningDto>,
 }
 
 /* ------------------------------ 分支 ------------------------------ */

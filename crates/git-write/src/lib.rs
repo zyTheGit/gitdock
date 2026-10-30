@@ -4,15 +4,23 @@
 //! Gate；状态路径全部经 `git rev-parse --git-path` 取得；绝不自动 abort / quit。
 //! 结果以退出码与执行后重新探测到的操作态判定，不解析输出文本猜测冲突。
 
+use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Output;
+use std::process::{Output, Stdio};
 
 use git_core::{
-    git_command, BranchDescriptionDto, ErrorCode, GateIssueDto, GateReportDto, InterruptionDto,
-    InterruptionKind, Result, UserVisibleError, WorkspaceStatusDto, WriteKind, WriteOutcomeDto,
+    git_command, language_for, BranchDescriptionDto, ErrorCode, FileDiffDto, FileStatus,
+    GateIssueDto, GateReportDto, HeadDto, InterruptionDto, InterruptionKind, Result, StagingFileDto,
+    StagingStatusDto, UserVisibleError, WarningDto, WorkspaceStatusDto, WriteKind, WriteOutcomeDto,
     WriteRequest, WriteStatus,
 };
 use parking_lot::Mutex;
+
+/// 单次批量暂存的文件上限；足够覆盖常规操作，同时限制路径列表与命令耗时。
+const MAX_STAGING_PATHS: usize = 1000;
+const MAX_STAGING_DIFF_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_STAGING_PATCH_LINES: usize = 5000;
 
 const MARKERS: &[(&str, InterruptionKind)] = &[
     ("MERGE_HEAD", InterruptionKind::Merge),
@@ -37,6 +45,32 @@ struct StatusSummary {
     untracked: u32,
     conflicted: u32,
     conflicted_files: Vec<String>,
+}
+
+struct StatusEntry {
+    path: String,
+    old_path: Option<String>,
+    index_code: char,
+    worktree_code: char,
+    untracked: bool,
+    conflicted: bool,
+}
+
+struct StatusDetail {
+    summary: StatusSummary,
+    entries: Vec<StatusEntry>,
+}
+
+struct Numstat {
+    additions: u32,
+    deletions: u32,
+    binary: bool,
+}
+
+struct CommandSpec {
+    args: Vec<String>,
+    stdin: Option<Vec<u8>>,
+    description_write: bool,
 }
 
 impl GitWriteModule {
@@ -86,7 +120,8 @@ impl GitWriteModule {
         }
 
         let head = self.head_kind()?;
-        let status = self.status_summary()?;
+        let detail = self.status_detail()?;
+        let status = &detail.summary;
 
         let summary = match request.kind {
             WriteKind::CherryPick | WriteKind::Revert => {
@@ -108,7 +143,7 @@ impl GitWriteModule {
                     issues.push(issue("unborn_head", "当前分支尚无提交，拒绝写操作"));
                 }
                 if status.staged > 0 || status.tracked > 0 || status.untracked > 0 {
-                    issues.push(dirty_issue(&status));
+                    issues.push(dirty_issue(status));
                 }
                 format!(
                     "将 {} {} 到当前分支 {}",
@@ -135,7 +170,7 @@ impl GitWriteModule {
                     ));
                 }
                 if status.staged > 0 || status.tracked > 0 || status.untracked > 0 {
-                    issues.push(dirty_issue(&status));
+                    issues.push(dirty_issue(status));
                 }
                 if !self.local_branch_exists(branch)? {
                     issues.push(issue(
@@ -169,6 +204,62 @@ impl GitWriteModule {
                     ));
                 }
                 format!("将更新分支 {branch} 的本地描述")
+            }
+            WriteKind::StageFiles | WriteKind::UnstageFiles => {
+                let staging = request.kind == WriteKind::StageFiles;
+                let paths = request.paths.as_deref().unwrap_or(&[]);
+                if paths.is_empty() {
+                    issues.push(issue("paths_required", "请选择要处理的文件"));
+                }
+                if paths.len() > MAX_STAGING_PATHS {
+                    issues.push(issue(
+                        "too_many_paths",
+                        format!("一次最多处理 {MAX_STAGING_PATHS} 个文件"),
+                    ));
+                }
+                for path in paths {
+                    if !safe_rel_path(path) {
+                        issues.push(issue("invalid_path", format!("路径无效：{path}")));
+                        continue;
+                    }
+                    match detail.entries.iter().find(|entry| entry.path == *path) {
+                        None => issues.push(issue(
+                            "path_not_in_status",
+                            format!("{path} 当前没有可处理的变更，请刷新后重试"),
+                        )),
+                        Some(entry) if entry.conflicted => issues.push(issue(
+                            "conflicted_file",
+                            format!("{path} 存在未解决冲突，请在终端处理"),
+                        )),
+                        Some(entry) => {
+                            let has_worktree = entry.untracked || entry.worktree_code != '.';
+                            let has_index = !entry.untracked && entry.index_code != '.';
+                            if staging && !has_worktree {
+                                issues.push(issue(
+                                    "nothing_to_stage",
+                                    format!("{path} 没有未暂存改动"),
+                                ));
+                            }
+                            if !staging && !has_index {
+                                issues.push(issue(
+                                    "nothing_to_unstage",
+                                    format!("{path} 没有已暂存改动"),
+                                ));
+                            }
+                        }
+                    }
+                }
+                if detail.summary.conflicted > 0 {
+                    issues.push(issue(
+                        "conflicted_index",
+                        "存在未解决的冲突文件，请先在终端处理后再暂存",
+                    ));
+                }
+                format!(
+                    "将{} {} 个文件",
+                    if staging { "暂存" } else { "取消暂存" },
+                    paths.len()
+                )
             }
         };
 
@@ -205,23 +296,52 @@ impl GitWriteModule {
             });
         }
 
-        let (args, description_write) = self.command_for(request)?;
+        let spec = self.command_for(request)?;
         let mut command = git_command();
         command
             .current_dir(&self.root)
-            .args(&args)
+            .args(&spec.args)
             .env("GIT_EDITOR", "true")
             .env("GIT_SEQUENCE_EDITOR", "true")
             .env("GIT_TERMINAL_PROMPT", "0");
-        let output = command.output().map_err(|e| {
-            UserVisibleError::new(ErrorCode::GitCommandFailed, "无法启动 git 命令")
-                .with_detail(e.to_string())
-        })?;
+        let output = if let Some(stdin) = spec.stdin {
+            command
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped());
+            let mut child = command.spawn().map_err(|e| {
+                UserVisibleError::new(ErrorCode::GitCommandFailed, "无法启动 git 命令")
+                    .with_detail(e.to_string())
+            })?;
+            let write_result = child
+                .stdin
+                .take()
+                .map(|mut pipe| pipe.write_all(&stdin))
+                .unwrap_or(Ok(()));
+            if let Err(err) = write_result {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(UserVisibleError::new(
+                    ErrorCode::GitCommandFailed,
+                    "无法向 git 写入路径列表",
+                )
+                .with_detail(err.to_string()));
+            }
+            child.wait_with_output().map_err(|e| {
+                UserVisibleError::new(ErrorCode::GitCommandFailed, "等待 git 命令结束失败")
+                    .with_detail(e.to_string())
+            })?
+        } else {
+            command.output().map_err(|e| {
+                UserVisibleError::new(ErrorCode::GitCommandFailed, "无法启动 git 命令")
+                    .with_detail(e.to_string())
+            })?
+        };
         let exit_code = output.status.code();
         let stderr = text(&output.stderr);
         let head_oid = self.head_oid().ok();
 
-        if description_write && exit_code == Some(5) {
+        if spec.description_write && exit_code == Some(5) {
             // --unset-all 在键不存在时返回 5；结果等价于空描述。
             return Ok(WriteOutcomeDto {
                 status: WriteStatus::Succeeded,
@@ -246,6 +366,14 @@ impl GitWriteModule {
                         request.branch.as_deref().unwrap_or_default()
                     ),
                     WriteKind::SetBranchDescription => description_message(request, false),
+                    WriteKind::StageFiles => format!(
+                        "已暂存 {} 个文件",
+                        request.paths.as_deref().unwrap_or(&[]).len()
+                    ),
+                    WriteKind::UnstageFiles => format!(
+                        "已取消暂存 {} 个文件",
+                        request.paths.as_deref().unwrap_or(&[]).len()
+                    ),
                 },
                 exit_code,
                 stderr: None,
@@ -373,6 +501,123 @@ impl GitWriteModule {
         })
     }
 
+    /// 按 HEAD → Index → Worktree 读取暂存区：staged 与 unstaged 分开，未跟踪只在 unstaged，
+    /// 冲突文件单列；generation 由 command 层注入。
+    pub fn staging_status(&self) -> Result<StagingStatusDto> {
+        let head = self.head_kind()?;
+        let is_bare = self.is_bare()?;
+        let mut head_dto = head.dto();
+        head_dto.oid = self.head_oid().ok();
+        if is_bare {
+            return Ok(StagingStatusDto {
+                generation: 0,
+                head: head_dto,
+                unborn: head.unborn,
+                detached: head.detached,
+                is_bare: true,
+                staged: Vec::new(),
+                unstaged: Vec::new(),
+                conflicted_files: Vec::new(),
+                warnings: vec![WarningDto {
+                    code: "bare_repository".into(),
+                    message: "bare 仓库没有工作区，暂存区为空".into(),
+                }],
+            });
+        }
+
+        let detail = self.status_detail()?;
+        let staged_stats = self.numstat(true)?;
+        let unstaged_stats = self.numstat(false)?;
+        let mut staged = Vec::new();
+        let mut unstaged = Vec::new();
+        for entry in &detail.entries {
+            if entry.conflicted {
+                continue;
+            }
+            if entry.untracked {
+                unstaged.push(make_staging_file(entry, false, &unstaged_stats));
+                continue;
+            }
+            if entry.index_code != '.' {
+                staged.push(make_staging_file(entry, true, &staged_stats));
+            }
+            if entry.worktree_code != '.' {
+                unstaged.push(make_staging_file(entry, false, &unstaged_stats));
+            }
+        }
+        let mut warnings = Vec::new();
+        if detail.summary.conflicted > 0 {
+            warnings.push(WarningDto {
+                code: "conflicted_index".into(),
+                message: format!(
+                    "存在 {} 个未解决冲突文件，暂存区操作已禁用；请在终端解决后继续",
+                    detail.summary.conflicted
+                ),
+            });
+        }
+        Ok(StagingStatusDto {
+            generation: 0,
+            head: head_dto,
+            unborn: head.unborn,
+            detached: head.detached,
+            is_bare: false,
+            staged,
+            unstaged,
+            conflicted_files: detail.summary.conflicted_files,
+            warnings,
+        })
+    }
+
+    /// 单文件 diff：staged 取索引对 HEAD，unstaged 取工作区对索引；
+    /// 未跟踪文件用 `git diff --no-index` 生成新增 diff。
+    pub fn staging_file_diff(&self, path: &str, staged: bool) -> Result<FileDiffDto> {
+        if !safe_rel_path(path) {
+            return Err(UserVisibleError::new(
+                ErrorCode::InvalidArgument,
+                format!("路径无效：{path}"),
+            ));
+        }
+        let detail = self.status_detail()?;
+        let entry = detail
+            .entries
+            .iter()
+            .find(|entry| entry.path == path)
+            .ok_or_else(|| {
+                UserVisibleError::new(
+                    ErrorCode::FileNotFound,
+                    format!("暂存区中没有文件 {path}，请刷新后重试"),
+                )
+            })?;
+        if entry.conflicted {
+            return Err(UserVisibleError::new(
+                ErrorCode::InvalidArgument,
+                "冲突文件需要在终端解决，应用内不提供冲突 diff",
+            ));
+        }
+        if entry.untracked {
+            if staged {
+                return Err(UserVisibleError::new(
+                    ErrorCode::InvalidArgument,
+                    "未跟踪文件尚未暂存",
+                ));
+            }
+            return self.untracked_diff(entry);
+        }
+        if staged && entry.index_code == '.' {
+            return Err(UserVisibleError::new(
+                ErrorCode::InvalidArgument,
+                format!("{path} 没有已暂存改动"),
+            ));
+        }
+        if !staged && entry.worktree_code == '.' {
+            return Err(UserVisibleError::new(
+                ErrorCode::InvalidArgument,
+                format!("{path} 没有未暂存改动"),
+            ));
+        }
+        self.tracked_diff(entry, staged)
+    }
+
     pub fn read_branch_description(&self, branch: &str) -> Result<BranchDescriptionDto> {
         if !self.local_branch_exists(branch)? {
             return Err(UserVisibleError::new(
@@ -396,8 +641,13 @@ impl GitWriteModule {
         })
     }
 
-    fn command_for(&self, request: &WriteRequest) -> Result<(Vec<String>, bool)> {
-        let args: Vec<String> = match request.kind {
+    fn command_for(&self, request: &WriteRequest) -> Result<CommandSpec> {
+        let mut spec = CommandSpec {
+            args: Vec::new(),
+            stdin: None,
+            description_write: false,
+        };
+        spec.args = match request.kind {
             WriteKind::CherryPick => vec![
                 "cherry-pick".into(),
                 request
@@ -438,11 +688,42 @@ impl GitWriteModule {
                     vec!["config".into(), "--local".into(), key, value]
                 }
             }
+            WriteKind::StageFiles => {
+                spec.stdin = Some(pathspec_stdin(&request.paths, None));
+                vec![
+                    "add".into(),
+                    "-A".into(),
+                    "--pathspec-from-file=-".into(),
+                    "--pathspec-file-nul".into(),
+                ]
+            }
+            WriteKind::UnstageFiles => {
+                // 重命名条目的旧路径也在索引中，必须一起取消暂存；由状态条目补全。
+                let detail = self.status_detail()?;
+                spec.stdin = Some(pathspec_stdin(&request.paths, Some(&detail.entries)));
+                if self.head_commit_exists()? {
+                    vec![
+                        "restore".into(),
+                        "--staged".into(),
+                        "--pathspec-from-file=-".into(),
+                        "--pathspec-file-nul".into(),
+                    ]
+                } else {
+                    // unborn HEAD 下 `git restore --staged` 无法解析 HEAD，改用 git rm --cached。
+                    vec![
+                        "rm".into(),
+                        "--cached".into(),
+                        "--pathspec-from-file=-".into(),
+                        "--pathspec-file-nul".into(),
+                    ]
+                }
+            }
         };
-        Ok((args, request.kind == WriteKind::SetBranchDescription))
+        spec.description_write = request.kind == WriteKind::SetBranchDescription;
+        Ok(spec)
     }
 
-    fn status_summary(&self) -> Result<StatusSummary> {
+    fn status_detail(&self) -> Result<StatusDetail> {
         let output = self.run_readonly(&[
             "status",
             "--porcelain=v2",
@@ -456,7 +737,121 @@ impl GitWriteModule {
                     .with_detail(text(&output.stderr)),
             );
         }
-        Ok(parse_status(&output.stdout))
+        Ok(parse_status_detail(&output.stdout))
+    }
+
+    fn status_summary(&self) -> Result<StatusSummary> {
+        Ok(self.status_detail()?.summary)
+    }
+
+    fn numstat(&self, staged: bool) -> Result<HashMap<String, Numstat>> {
+        let mut args = vec!["diff", "--numstat", "-z", "-M"];
+        if staged {
+            args.push("--cached");
+        }
+        let output = self.run_readonly(&args)?;
+        if !output.status.success() {
+            return Err(
+                UserVisibleError::new(ErrorCode::GitCommandFailed, "无法读取变更统计")
+                    .with_detail(text(&output.stderr)),
+            );
+        }
+        Ok(parse_numstat_z(&output.stdout))
+    }
+
+    fn untracked_diff(&self, entry: &StatusEntry) -> Result<FileDiffDto> {
+        let full = self.root.join(&entry.path);
+        let meta = std::fs::symlink_metadata(&full).map_err(|err| {
+            UserVisibleError::new(ErrorCode::Io, format!("无法读取 {}", entry.path))
+                .with_detail(err.to_string())
+        })?;
+        if meta.file_type().is_symlink() {
+            return Ok(note_diff(
+                &entry.path,
+                FileStatus::Added,
+                "未跟踪的符号链接，不展开链接目标内容",
+            ));
+        }
+        if !meta.is_file() {
+            return Ok(note_diff(
+                &entry.path,
+                FileStatus::Added,
+                "该路径不是普通文件，无法显示 diff",
+            ));
+        }
+        if meta.len() > MAX_STAGING_DIFF_BYTES {
+            let mut dto = note_diff(
+                &entry.path,
+                FileStatus::Added,
+                "文件超过 2MB，未生成文本差异",
+            );
+            dto.too_large = true;
+            return Ok(dto);
+        }
+        let output = self.run_readonly(&[
+            "diff",
+            "--no-index",
+            "--no-color",
+            "--no-ext-diff",
+            "--unified=3",
+            "--",
+            "/dev/null",
+            &entry.path,
+        ])?;
+        // --no-index 在存在差异时返回 1，这不是失败。
+        if !matches!(output.status.code(), Some(0) | Some(1)) {
+            return Err(
+                UserVisibleError::new(ErrorCode::GitCommandFailed, "无法生成未跟踪文件 diff")
+                    .with_detail(text(&output.stderr)),
+            );
+        }
+        Ok(build_diff(
+            &entry.path,
+            None,
+            FileStatus::Added,
+            &output.stdout,
+        ))
+    }
+
+    fn tracked_diff(&self, entry: &StatusEntry, staged: bool) -> Result<FileDiffDto> {
+        let mut args = vec![
+            "diff",
+            "--no-color",
+            "--no-ext-diff",
+            "--unified=3",
+            "-M",
+        ];
+        if staged {
+            args.push("--cached");
+        }
+        args.push("--");
+        args.push(&entry.path);
+        // 已暂存的重命名只有同时传入旧路径才会显示为 rename，否则会被当成新增。
+        if staged {
+            if let Some(old_path) = entry.old_path.as_deref() {
+                if old_path != entry.path {
+                    args.push(old_path);
+                }
+            }
+        }
+        let output = self.run_readonly(&args)?;
+        if !output.status.success() {
+            return Err(
+                UserVisibleError::new(ErrorCode::GitCommandFailed, "无法生成文件 diff")
+                    .with_detail(text(&output.stderr)),
+            );
+        }
+        let status = file_status_from_code(if staged {
+            entry.index_code
+        } else {
+            entry.worktree_code
+        });
+        let old_path = if staged {
+            entry.old_path.clone()
+        } else {
+            None
+        };
+        Ok(build_diff(&entry.path, old_path, status, &output.stdout))
     }
 
     fn marker_exists(&self, name: &str) -> bool {
@@ -482,22 +877,25 @@ impl GitWriteModule {
         })
     }
 
-    fn head_kind(&self) -> Result<HeadKind> {
+    fn head_kind(&self) -> Result<HeadInfo> {
         let branch = self.run(&["symbolic-ref", "--quiet", "--short", "HEAD"])?;
         let branch = if branch.status.success() {
             Some(text(&branch.stdout).trim().to_owned())
         } else {
             None
         };
-        let has_commit = self
-            .run(&["rev-parse", "--verify", "--quiet", "HEAD"])?
-            .status
-            .success();
-        Ok(HeadKind {
-            unborn: branch.is_some() && !has_commit,
+        Ok(HeadInfo {
+            unborn: branch.is_some() && !self.head_commit_exists()?,
             detached: branch.is_none(),
             branch,
         })
+    }
+
+    fn head_commit_exists(&self) -> Result<bool> {
+        Ok(self
+            .run(&["rev-parse", "--verify", "--quiet", "HEAD"])?
+            .status
+            .success())
     }
 
     fn head_oid(&self) -> Result<git_core::Oid> {
@@ -603,13 +1001,29 @@ impl GitWriteModule {
     }
 }
 
-struct HeadKind {
+struct HeadInfo {
     branch: Option<String>,
     detached: bool,
     unborn: bool,
 }
 
-fn parse_status(bytes: &[u8]) -> StatusSummary {
+impl HeadInfo {
+    fn dto(&self) -> HeadDto {
+        HeadDto {
+            kind: if self.unborn {
+                git_core::HeadKind::Unborn
+            } else if self.detached {
+                git_core::HeadKind::Detached
+            } else {
+                git_core::HeadKind::Branch
+            },
+            branch: self.branch.clone(),
+            oid: None,
+        }
+    }
+}
+
+fn parse_status_detail(bytes: &[u8]) -> StatusDetail {
     let mut summary = StatusSummary {
         staged: 0,
         tracked: 0,
@@ -617,6 +1031,7 @@ fn parse_status(bytes: &[u8]) -> StatusSummary {
         conflicted: 0,
         conflicted_files: Vec::new(),
     };
+    let mut entries = Vec::new();
     let tokens: Vec<String> = bytes
         .split(|byte| *byte == 0)
         .filter(|token| !token.is_empty())
@@ -629,41 +1044,304 @@ fn parse_status(bytes: &[u8]) -> StatusSummary {
         if token.starts_with('#') || token.starts_with('!') {
             continue;
         }
-        if token.starts_with("1 ") {
+        if let Some(path) = token.strip_prefix("? ") {
+            summary.untracked += 1;
+            entries.push(StatusEntry {
+                path: path.to_owned(),
+                old_path: None,
+                index_code: '?',
+                worktree_code: '?',
+                untracked: true,
+                conflicted: false,
+            });
+        } else if token.starts_with("1 ") {
             let fields: Vec<&str> = token.splitn(9, ' ').collect();
             if fields.len() == 9 {
-                let xy = fields[1].as_bytes();
-                if xy.first().is_some_and(|x| *x != b'.') {
+                let (x, y) = xy_codes(fields[1]);
+                if x != '.' {
                     summary.staged += 1;
                 }
-                if xy.get(1).is_some_and(|y| *y != b'.') {
+                if y != '.' {
                     summary.tracked += 1;
                 }
+                entries.push(StatusEntry {
+                    path: fields[8].to_owned(),
+                    old_path: None,
+                    index_code: x,
+                    worktree_code: y,
+                    untracked: false,
+                    conflicted: false,
+                });
             }
         } else if token.starts_with("2 ") {
             let fields: Vec<&str> = token.splitn(10, ' ').collect();
-            if fields.len() >= 10 {
-                let xy = fields[1].as_bytes();
-                if xy.first().is_some_and(|x| *x != b'.') {
+            if fields.len() == 10 {
+                let (x, y) = xy_codes(fields[1]);
+                if x != '.' {
                     summary.staged += 1;
                 }
-                if xy.get(1).is_some_and(|y| *y != b'.') {
+                if y != '.' {
                     summary.tracked += 1;
                 }
+                // -z 模式下重命名条目的原路径是下一个 NUL 分隔字段。
+                let old_path = tokens.get(index).cloned();
+                index += 1;
+                entries.push(StatusEntry {
+                    path: fields[9].to_owned(),
+                    old_path,
+                    index_code: x,
+                    worktree_code: y,
+                    untracked: false,
+                    conflicted: false,
+                });
+            } else {
+                index += 1;
             }
-            // -z 模式下重命名条目的原路径是下一个 NUL 分隔字段。
-            index += 1;
         } else if token.starts_with("u ") {
             let fields: Vec<&str> = token.splitn(11, ' ').collect();
             summary.conflicted += 1;
-            if fields.len() == 11 {
-                summary.conflicted_files.push(fields[10].to_owned());
+            let path = fields.get(10).map(|path| (*path).to_owned()).unwrap_or_default();
+            if !path.is_empty() {
+                summary.conflicted_files.push(path.clone());
             }
-        } else if token.starts_with("? ") {
-            summary.untracked += 1;
+            if fields.len() == 11 {
+                entries.push(StatusEntry {
+                    path,
+                    old_path: None,
+                    index_code: 'U',
+                    worktree_code: 'U',
+                    untracked: false,
+                    conflicted: true,
+                });
+            }
         }
     }
-    summary
+    StatusDetail { summary, entries }
+}
+
+fn xy_codes(xy: &str) -> (char, char) {
+    let mut chars = xy.chars();
+    (
+        chars.next().unwrap_or('.'),
+        chars.next().unwrap_or('.'),
+    )
+}
+
+fn parse_numstat_z(bytes: &[u8]) -> HashMap<String, Numstat> {
+    let tokens: Vec<String> = bytes
+        .split(|byte| *byte == 0)
+        .filter(|token| !token.is_empty())
+        .map(|token| String::from_utf8_lossy(token).into_owned())
+        .collect();
+    let mut stats = HashMap::new();
+    let mut index = 0;
+    while index < tokens.len() {
+        let token = &tokens[index];
+        index += 1;
+        let mut parts = token.splitn(3, '\t');
+        let additions = parts.next().unwrap_or("");
+        let deletions = parts.next().unwrap_or("");
+        let path = parts.next().unwrap_or("");
+        let path = if path.is_empty() {
+            // 重命名/复制：路径字段为空，随后两个 NUL 字段为旧路径与新路径。
+            index += 2;
+            tokens.get(index - 1).cloned().unwrap_or_default()
+        } else {
+            path.to_owned()
+        };
+        if path.is_empty() {
+            continue;
+        }
+        stats.insert(
+            path,
+            Numstat {
+                additions: additions.parse().unwrap_or(0),
+                deletions: deletions.parse().unwrap_or(0),
+                binary: additions == "-" || deletions == "-",
+            },
+        );
+    }
+    stats
+}
+
+fn make_staging_file(
+    entry: &StatusEntry,
+    staged: bool,
+    stats: &HashMap<String, Numstat>,
+) -> StagingFileDto {
+    let code = if entry.untracked {
+        '?'
+    } else if staged {
+        entry.index_code
+    } else {
+        entry.worktree_code
+    };
+    let stat = stats.get(&entry.path);
+    StagingFileDto {
+        path: entry.path.clone(),
+        old_path: if staged {
+            entry.old_path.clone()
+        } else {
+            None
+        },
+        status: file_status_from_code(code),
+        index_code: (!entry.untracked).then(|| entry.index_code.to_string()),
+        worktree_code: (!entry.untracked).then(|| entry.worktree_code.to_string()),
+        additions: stat.map(|value| value.additions).unwrap_or(0),
+        deletions: stat.map(|value| value.deletions).unwrap_or(0),
+        binary: stat.map(|value| value.binary).unwrap_or(false),
+        gitlink: false,
+        untracked: entry.untracked,
+    }
+}
+
+fn file_status_from_code(code: char) -> FileStatus {
+    match code {
+        'A' | '?' => FileStatus::Added,
+        'D' => FileStatus::Deleted,
+        'R' => FileStatus::Renamed,
+        'C' => FileStatus::Copied,
+        'T' => FileStatus::TypeChanged,
+        _ => FileStatus::Modified,
+    }
+}
+
+fn build_diff(
+    path: &str,
+    old_path: Option<String>,
+    status: FileStatus,
+    bytes: &[u8],
+) -> FileDiffDto {
+    let encoding_fallback = std::str::from_utf8(bytes).is_err();
+    let patch_text = text(bytes);
+    let binary = patch_text.contains("Binary files") || patch_text.contains("GIT binary patch");
+    let gitlink = patch_text.contains("Subproject commit");
+    let (additions, deletions) = if binary || gitlink {
+        (0, 0)
+    } else {
+        patch_stats(&patch_text)
+    };
+    let mut dto = FileDiffDto {
+        generation: 0,
+        path: path.to_owned(),
+        old_path,
+        status,
+        patch: None,
+        binary,
+        too_large: false,
+        truncated: false,
+        encoding_fallback,
+        gitlink,
+        gitlink_old: None,
+        gitlink_new: None,
+        additions,
+        deletions,
+        language: language_for(path),
+        note: None,
+    };
+    if binary {
+        dto.note = Some("二进制文件，无法显示文本差异".into());
+        return dto;
+    }
+    if gitlink {
+        dto.note = Some("子模块（gitlink）变更，请在终端查看".into());
+        return dto;
+    }
+    if patch_text.trim().is_empty() {
+        dto.note = Some("没有可显示的文本差异".into());
+        return dto;
+    }
+    let line_count = patch_text.lines().count();
+    if line_count > MAX_STAGING_PATCH_LINES {
+        let truncated = patch_text
+            .lines()
+            .take(MAX_STAGING_PATCH_LINES)
+            .collect::<Vec<_>>()
+            .join("\n");
+        dto.patch = Some(truncated);
+        dto.truncated = true;
+        dto.note = Some(format!(
+            "差异超过 {MAX_STAGING_PATCH_LINES} 行，仅显示前 {MAX_STAGING_PATCH_LINES} 行"
+        ));
+    } else {
+        dto.patch = Some(patch_text);
+    }
+    if encoding_fallback {
+        dto.note = Some("文件不是合法 UTF-8，已按有损方式解码显示".into());
+    }
+    dto
+}
+
+fn note_diff(path: &str, status: FileStatus, note: &str) -> FileDiffDto {
+    FileDiffDto {
+        generation: 0,
+        path: path.to_owned(),
+        old_path: None,
+        status,
+        patch: None,
+        binary: false,
+        too_large: false,
+        truncated: false,
+        encoding_fallback: false,
+        gitlink: false,
+        gitlink_old: None,
+        gitlink_new: None,
+        additions: 0,
+        deletions: 0,
+        language: language_for(path),
+        note: Some(note.to_owned()),
+    }
+}
+
+fn patch_stats(patch: &str) -> (u32, u32) {
+    let mut additions = 0;
+    let mut deletions = 0;
+    for line in patch.lines() {
+        if line.starts_with("+++ ") || line.starts_with("--- ") {
+            continue;
+        }
+        if line.starts_with('+') {
+            additions += 1;
+        } else if line.starts_with('-') {
+            deletions += 1;
+        }
+    }
+    (additions, deletions)
+}
+
+fn pathspec_stdin(paths: &Option<Vec<String>>, entries: Option<&[StatusEntry]>) -> Vec<u8> {
+    let mut stdin = Vec::new();
+    let mut seen = HashSet::new();
+    for path in paths.as_deref().unwrap_or(&[]) {
+        if seen.insert(path.clone()) {
+            stdin.extend_from_slice(path.as_bytes());
+            stdin.push(0);
+        }
+        if let Some(entry) = entries.and_then(|entries| entries.iter().find(|entry| entry.path == *path))
+        {
+            if let Some(old_path) = entry.old_path.as_ref() {
+                if old_path != path && seen.insert(old_path.clone()) {
+                    stdin.extend_from_slice(old_path.as_bytes());
+                    stdin.push(0);
+                }
+            }
+        }
+    }
+    stdin
+}
+
+/// 只允许仓库内的相对路径；拒绝绝对路径、盘符、`..` 与 pathspec magic。
+fn safe_rel_path(path: &str) -> bool {
+    !path.is_empty()
+        && path == path.trim()
+        && !path.starts_with('/')
+        && !path.starts_with('\\')
+        && !path.starts_with(':')
+        && !path.starts_with('-')
+        && !path.contains('\\')
+        && path
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != "..")
 }
 
 fn kind_names(kinds: &[InterruptionKind]) -> String {

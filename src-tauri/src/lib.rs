@@ -108,6 +108,8 @@ pub fn run() {
             commands::execute_write,
             commands::inspect_interruption,
             commands::workspace_status,
+            commands::staging_status,
+            commands::read_staging_diff,
             commands::read_branch_description,
         ])
         .run(tauri::generate_context!())

@@ -10,8 +10,8 @@ use std::sync::Arc;
 use git_core::{
     BranchDescriptionDto, CommitBranchContextDto, CommitDetailDto, CompareResultDto, ErrorCode,
     FileDiffDto, GateReportDto, GraphPageDto, GraphScope, InterruptionDto, Oid, RepoStateDto,
-    Result, SearchPageDto, SearchRequest, UserVisibleError, WorkspaceStatusDto, WriteOutcomeDto,
-    WriteRequest,
+    Result, SearchPageDto, SearchRequest, StagingStatusDto, UserVisibleError, WorkspaceStatusDto,
+    WriteOutcomeDto, WriteRequest,
 };
 use git_read::{detect_git_version, GitReadModule, DEFAULT_PAGE_LIMIT, MINIMUM_GIT_VERSION};
 use git_write::GitWriteModule;
@@ -440,6 +440,37 @@ pub async fn inspect_interruption(state: State<'_, Shared>) -> Result<Interrupti
 pub async fn workspace_status(state: State<'_, Shared>) -> Result<WorkspaceStatusDto> {
     let state = Arc::clone(&state);
     blocking(move || state.with_session(|session| session.write.workspace_status())).await
+}
+
+/// 暂存区按 HEAD/Index/Worktree 读取；generation 取当前仓库会话，前端据此丢弃过期响应。
+#[tauri::command]
+pub async fn staging_status(state: State<'_, Shared>) -> Result<StagingStatusDto> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        state.with_session(|session| {
+            let mut dto = session.write.staging_status()?;
+            dto.generation = session.read.current_generation();
+            Ok(dto)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn read_staging_diff(
+    state: State<'_, Shared>,
+    path: String,
+    staged: bool,
+) -> Result<FileDiffDto> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        state.with_session(|session| {
+            let mut dto = session.write.staging_file_diff(&path, staged)?;
+            dto.generation = session.read.current_generation();
+            Ok(dto)
+        })
+    })
+    .await
 }
 
 #[tauri::command]
