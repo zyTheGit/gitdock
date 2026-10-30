@@ -81,6 +81,8 @@ GitDock 是可扩展的 Git 桌面工作台。图谱用于理解提交历史；�
 
 完成标准：暂存区状态与 Git CLI 一致；任何失败都保留用户改动并提供可理解诊断；原有 F1–F8 可靠性不变量持续成立。
 
+> 阶段 C 状态（2026-10-30）：暂存区部分已完成，提交 `1137a38`（后端 `staging_status` / `read_staging_diff` 与 `StageFiles` / `UnstageFiles`）、`f800df1`（generation 修正与格式化）、`2809a41`（暂存区前端视图）。验收实测：porcelain v2 分组与 Git CLI 一致，staged/unstaged 双侧 diff 与未跟踪文件 `--no-index` diff 正常，单文件与批量 stage/unstage 后文件字节不变，`MM` 状态两侧 diff 分别对应 Index→Worktree 与 HEAD→Index，Gate 拒绝时保留改动并显示诊断、恢复后可自动清横幅。分支切换的 dirty/staged 分流（第 5 项）**未实现**：方案在 `docs/adr/0002-暂存区与-dirty-分支切换策略.md` 中待产品裁决，裁决前不实现依赖该策略的行为；cherry-pick / revert 的“工作区必须干净”Gate 不变。本期未新增依赖与安装包构建，体积沿用阶段 B 的 MSI 4.92 MiB / NSIS 3.41 MiB。详见 `docs/05-交接文档.md` 8.2。
+
 ### 阶段 D：产品完善
 
 1. 系统主题跟随与高对比度/控件可读性检查。
