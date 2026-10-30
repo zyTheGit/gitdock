@@ -1,6 +1,6 @@
 # GitDock 后续需求与执行计划
 
-> 状态：阶段 A（技术 Spike，go）与阶段 B（内置终端工作区）已完成；阶段 C 待产品裁决 dirty/staged 分支切换策略。产品代号：GitDock，Git Graph 作为图谱模块名称保留。
+> 状态：阶段 A（技术 Spike，go）与阶段 B（内置终端工作区）已完成；阶段 C 暂存区已实现，分支切换 dirty 策略待产品裁决（ADR 0002）。产品代号：GitDock，Git Graph 作为图谱模块名称保留。
 
 ## 1. 产品定位
 
@@ -43,6 +43,8 @@ GitDock 是可扩展的 Git 桌面工作台。图谱用于理解提交历史；�
 暂存区按 `HEAD → Index → Worktree` 展示状态。文件行显示 staged/unstaged 两类状态；用户可查看 staged diff 与 unstaged diff，并分别 stage、unstage。第一版不提供部分行暂存、交互式暂存或自动 stash。
 
 切换分支时先读取状态并在确认 UI 中列出受影响文件。不得自动 stash、reset 或丢弃改动。若 Git 能安全保留改动，可由用户显式确认后尝试 `git switch`；若目标分支会覆盖文件或 Git 拒绝，保留原状态并展示错误与建议。需更新 MVP 原有“所有 dirty 一律拒绝”的 Gate 决策与验收，避免旧规则和新需求冲突。
+
+> 决策状态（2026-10-30）：需求与 ADR 已修订，方案见 `docs/adr/0002-暂存区与-dirty-分支切换策略.md`；推荐“显式确认 + 由 Git 判定”。产品裁决前，切换分支继续保持“dirty 一律拒绝”，不实现依赖新策略的行为；暂存区部分不受影响。
 
 ## 4. 分阶段任务拆分
 
