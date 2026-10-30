@@ -16,18 +16,25 @@
   margin: 16px 0 8px;
 }
 
-/* 弹窗本身不滚动：头部、启动项与底部按钮固定，只有工具列表在框内滚动。 */
+/* 头部与底部按钮固定，中间设置分区整体滚动；工具列表再限高自滚，避免长列表拖走其它分区。 */
 .settings-dialog > header,
-.settings-dialog > section:first-of-type,
 .settings-dialog > footer {
   flex: none;
+}
+
+.settings-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* 滚动条浮在内容上，右侧留出空隙，避免压住“删除”等按钮。 */
+  padding-right: 10px;
+  scrollbar-gutter: stable;
 }
 
 .settings-tools {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: none;
 }
 
 .settings-tools > h3,
@@ -38,8 +45,6 @@
 }
 
 .tool-list-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
   overflow-y: auto;
   /* 滚动条浮在内容上，右侧留出空隙，避免压住“删除”等按钮。 */
   padding-right: 10px;
@@ -113,7 +118,7 @@
   gap: 6px;
 }
 
-/* 工具列表限高并自行滚动；新增的外观/关于分区保持固定，弹窗整体不滚动。 */
+/* 工具列表在设置分区内单独限高滚动。 */
 .tool-list-scroll {
   max-height: 260px;
 }
