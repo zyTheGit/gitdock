@@ -15,16 +15,6 @@
   display: none;
 }
 
-.terminal-running-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-left: 6px;
-  border-radius: 50%;
-  background: var(--terminal-running);
-  vertical-align: middle;
-}
-
 .terminal-resizer {
   height: 6px;
   cursor: ns-resize;
@@ -67,7 +57,32 @@
 
 .terminal-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+/* 收起为图标按钮，和状态栏的终端开关呼应。 */
+.terminal-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--terminal-muted);
+}
+
+.terminal-icon-button:hover:not(:disabled) {
+  border-color: var(--terminal-border);
+  background: transparent;
+  color: var(--terminal-running);
+}
+
+.terminal-icon-button svg {
+  width: 16px;
+  height: 16px;
 }
 
 .terminal-notice,
