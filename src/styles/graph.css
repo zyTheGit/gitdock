@@ -71,6 +71,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-panel);
+  container: graph / inline-size;
 }
 
 .graph-list-inner {
@@ -297,6 +298,25 @@
   width: 70px;
   color: var(--muted);
   text-align: right;
+}
+
+/* 图谱变窄时按优先级收起次要列，避免提交列表出现横向滚动条。 */
+@container graph (max-width: 520px) {
+  .graph-row-date {
+    display: none;
+  }
+}
+
+@container graph (max-width: 420px) {
+  .graph-row-author {
+    display: none;
+  }
+}
+
+@container graph (max-width: 300px) {
+  .graph-row-oid {
+    display: none;
+  }
 }
 
 .graph-loading {

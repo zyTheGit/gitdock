@@ -133,6 +133,18 @@
   overflow: hidden;
 }
 
+/* 高缩放把可视宽度压到约 900 px 以下时，侧栏改为隐藏，优先保证图谱与详情可用。 */
+@media (max-width: 900px) {
+  .layout > .sidebar,
+  .layout > .sidebar + .pane-splitter {
+    display: none;
+  }
+
+  .main {
+    padding: 10px;
+  }
+}
+
 .main > .banner {
   flex: none;
 }

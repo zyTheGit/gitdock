@@ -10,6 +10,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
@@ -195,7 +197,17 @@
 
 .topbar-actions {
   display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
+  margin-left: auto;
+}
+
+/* 高缩放时按钮不参与压缩，整体换行到下一行，避免中文被挤成竖排。 */
+.topbar-actions button {
+  flex: none;
+  white-space: nowrap;
 }
 
 .workspace-badge {

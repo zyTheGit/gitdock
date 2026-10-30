@@ -79,6 +79,17 @@
   gap: 8px;
 }
 
+/* 缩放或窄窗口下提示独占一行，避免与 Base/Compare 槽位互相挤压换行。 */
+@media (max-width: 1100px) {
+  .compare-hint {
+    flex: 1 1 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    text-align: right;
+  }
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

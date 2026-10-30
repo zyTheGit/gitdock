@@ -22,6 +22,8 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-panel);
+  /* 窄面板（高缩放或手动拖窄）下按自身宽度切换布局。 */
+  container-type: inline-size;
 }
 
 .detail-header {
@@ -219,6 +221,36 @@
   margin: 0 0 6px;
   font-weight: 500;
   flex: none;
+}
+
+/* 面板窄于约 520 px 时，文件列表改为上下排列，避免把 diff 挤到只剩几十像素。
+   此时整个详情允许纵向滚动，纵向空间不够也不会裁掉 diff 头部与操作按钮。 */
+@container (max-width: 520px) {
+  .detail-scroll {
+    overflow-y: auto;
+  }
+
+  .detail-info {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .detail-columns {
+    flex: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .detail-files {
+    flex: none;
+    width: auto;
+    /* 高度按内容收缩但封顶，避免半行文件被裁掉。 */
+    max-height: 160px;
+  }
+
+  .detail-pane .detail-columns > .detail-diff {
+    min-height: 220px;
+  }
 }
 
 .file-list {
