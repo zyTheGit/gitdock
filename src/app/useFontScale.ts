@@ -41,6 +41,7 @@ export function useFontScale({ settings, setSettings, onError }: FontScaleOption
   const settingsRef = useRef(settings);
   const scaleRef = useRef(fontScale);
   const requestSeq = useRef(0);
+  const saveTimer = useRef<number | null>(null);
   settingsRef.current = settings;
   scaleRef.current = fontScale;
 
@@ -56,8 +57,10 @@ export function useFontScale({ settings, setSettings, onError }: FontScaleOption
   }, [settings]);
 
   useEffect(() => {
-    void getCurrentWebview().setZoom(fontScale);
-  }, [fontScale]);
+    getCurrentWebview()
+      .setZoom(fontScale)
+      .catch((err) => onError(errorText(err)));
+  }, [fontScale, onError]);
 
   const apply = useCallback(
     (next: number) => {
@@ -68,16 +71,23 @@ export function useFontScale({ settings, setSettings, onError }: FontScaleOption
       if (!current) {
         return;
       }
+      // 连续按键只落盘最后一档：并发写会乱序，磁盘可能停在中间档位。
+      if (saveTimer.current !== null) {
+        window.clearTimeout(saveTimer.current);
+      }
       const requestId = ++requestSeq.current;
-      void ipc
-        .saveSettings({ ...current, font_scale: scale })
-        .then((saved) => {
-          // 连续按键时只接受最后一次保存结果，避免旧响应覆盖新比例。
-          if (requestId === requestSeq.current) {
-            setSettings(saved);
-          }
-        })
-        .catch((err) => onError(errorText(err)));
+      saveTimer.current = window.setTimeout(() => {
+        saveTimer.current = null;
+        void ipc
+          .saveSettings({ ...(settingsRef.current ?? current), font_scale: scale })
+          .then((saved) => {
+            // 旧响应不得覆盖新比例。
+            if (requestId === requestSeq.current) {
+              setSettings(saved);
+            }
+          })
+          .catch((err) => onError(errorText(err)));
+      }, 300);
     },
     [onError, setSettings],
   );
