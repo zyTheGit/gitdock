@@ -350,6 +350,26 @@
 .settings-dialog .about-actions { margin-bottom: 10px; }
 .settings-dialog .about-actions button { min-height: 32px; padding: 5px 14px; font-size: 12px; }
 
+.settings-dialog .update-row {
+  gap: 6px 10px;
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-elevated) 45%, var(--bg-panel));
+  color: var(--text);
+  font-size: 12.5px;
+}
+.settings-dialog .update-row.is-available {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-panel));
+}
+.settings-dialog .update-row.is-failed .update-row-status { color: var(--warning); }
+.settings-dialog .update-row-note { font-size: 12px; }
+.settings-dialog .update-row-actions { flex: none; }
+.settings-dialog .update-row-actions button { min-height: 30px; padding: 4px 13px; font-size: 12px; }
+.settings-dialog .update-row-actions .link { min-height: 30px; padding: 4px 5px; }
+
 .settings-dialog kbd { display: inline-block; padding: 1px 5px; border: 1px solid var(--border); border-radius: 3px; background: var(--bg-elevated); font: 11px Consolas, monospace; }
 
 .search-backdrop { z-index: 90; }

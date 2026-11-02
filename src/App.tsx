@@ -6,6 +6,12 @@ import { WorkspaceBadge } from "./app/WorkspaceBadge";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
 import { useFontScale } from "./app/useFontScale";
 import { useRepositorySession } from "./app/useRepositorySession";
+import {
+  openAvailableUpdate,
+  pendingUpdate,
+  runUpdateCheck,
+  useUpdateCheck,
+} from "./app/useUpdateCheck";
 import { useWriteFlow } from "./app/useWriteFlow";
 import { BranchCompareDialog } from "./features/compare/BranchCompareDialog";
 import { CompareBar } from "./features/compare/CompareBar";
@@ -90,6 +96,8 @@ export default function App() {
   const zoom = useFontScale({ settings, setSettings, onError: setError });
 
   const panes = usePaneWidths();
+  const updateState = useUpdateCheck();
+  const updateVersion = pendingUpdate(updateState)?.latest_version ?? null;
   const write = useWriteFlow({
     repo,
     info,
@@ -110,6 +118,11 @@ export default function App() {
   const toggleTerminal = useCallback(() => {
     setTerminalMounted(true);
     setTerminalOpen((open) => !open);
+  }, []);
+
+  // 下载页地址由后端返回并经 Rust 打开，前端不拼 URL、不用 window.open。
+  const openUpdatePage = useCallback(() => {
+    void openAvailableUpdate();
   }, []);
 
   // 切仓库时 Rust 已结束旧会话；收起面板并提示，避免误以为旧终端仍在。
@@ -149,6 +162,18 @@ export default function App() {
     [closeSearch, graph.jumpTo],
   );
   const tools = settings?.external_tools ?? [];
+
+  // 更新检查要等启动数据（appInfo + settings）落地、且首次仓库加载收尾后再补发一次：
+  // 它是一次外网请求，既不能推迟 uiReady 开窗，也不该与恢复仓库抢 IPC。
+  // 24 小时节流由 useUpdateCheck 内部负责，这里只保证一个会话内只发起一次。
+  const updateChecked = useRef(false);
+  useEffect(() => {
+    if (!info || !settings || busy || updateChecked.current) {
+      return;
+    }
+    updateChecked.current = true;
+    void runUpdateCheck();
+  }, [info, settings, busy]);
 
   // 两个槽位齐全时自动进入对比视图；用户点“查看图谱”后保持图谱，直到再次选择。
   useEffect(() => {
@@ -581,7 +606,9 @@ export default function App() {
         fontScale={zoom.fontScale}
         terminalOpen={terminalOpen}
         terminalRunning={terminalRunning}
+        updateVersion={updateVersion}
         onToggleTerminal={toggleTerminal}
+        onOpenUpdate={openUpdatePage}
       />
 
       {mode === "search" && repo && (

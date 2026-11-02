@@ -267,3 +267,29 @@
   border-radius: 50%;
   background: var(--terminal-running);
 }
+
+/* 更新标记与终端开关同族：状态栏右侧的低调小按钮，无待更新时不渲染。 */
+.update-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.update-status-chip:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.update-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}

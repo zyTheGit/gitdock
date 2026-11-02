@@ -377,6 +377,16 @@ export interface AppInfoDto {
   platform: string;
 }
 
+/** 版本检查结果：由 Rust 侧访问 GitHub Releases 得到，前端只读不拼地址。 */
+export interface UpdateCheckDto {
+  current_version: string;
+  latest_version: string;
+  available: boolean;
+  /** Release 页面地址，只用于交给系统浏览器。 */
+  page_url: string;
+  published_at?: string | null;
+}
+
 export interface UserVisibleError {
   code: string;
   message: string;

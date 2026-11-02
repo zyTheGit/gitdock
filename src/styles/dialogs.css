@@ -149,6 +149,45 @@
   margin-bottom: 8px;
 }
 
+/* 检查更新：与关于分区同宽的一行内联状态，不弹窗。 */
+.update-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+.update-row-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.update-row-note {
+  overflow-wrap: anywhere;
+}
+
+.update-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.update-row-actions button {
+  min-height: 28px;
+  padding: 3px 12px;
+  font-size: 12px;
+}
+
+.update-row-actions .link {
+  padding: 3px 4px;
+  font-size: 12px;
+}
+
 .feedback-dialog {
   background: var(--bg-panel);
   border: 1px solid var(--border);

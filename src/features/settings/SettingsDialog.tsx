@@ -1,5 +1,13 @@
 import { useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import {
+  clearSkippedUpdate,
+  openAvailableUpdate,
+  pendingUpdate,
+  runUpdateCheck,
+  skipAvailableUpdate,
+  useUpdateCheck,
+} from "../../app/useUpdateCheck";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
@@ -48,6 +56,21 @@ export function SettingsDialog({
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("启动");
   const [theme, setTheme] = useState(() => localStorage.getItem("gitdock.theme") ?? "system");
+  const updateCheck = useUpdateCheck();
+  const [updateNotice, setUpdateNotice] = useState<string | null>(null);
+  const updateOffer = pendingUpdate(updateCheck);
+
+  const manualUpdateCheck = async () => {
+    setUpdateNotice(null);
+    const outcome = await runUpdateCheck(true);
+    if (outcome.kind === "failed") setUpdateNotice(outcome.message);
+  };
+
+  const openDownloadPage = async () => {
+    setUpdateNotice(null);
+    const outcome = await openAvailableUpdate();
+    if (outcome.kind === "failed") setUpdateNotice(outcome.message);
+  };
 
   const update = (index: number, patch: Partial<ExternalToolConfig>) => {
     const previousName = tools[index]?.name;
@@ -339,6 +362,66 @@ export function SettingsDialog({
           ) : (
             <p className="muted">正在读取版本信息…</p>
           )}
+          <div
+            className={`update-row${updateOffer ? " is-available" : ""}${
+              updateCheck.status === "failed" ? " is-failed" : ""
+            }`}
+          >
+            <span className="update-row-status" role="status">
+              {updateCheck.status === "checking" ? (
+                "检查中…"
+              ) : updateOffer ? (
+                <>
+                  发现新版本 <span className="mono">v{updateOffer.latest_version}</span>
+                  {updateOffer.published_at && (
+                    <span className="update-row-note muted">发布于 {updateOffer.published_at}</span>
+                  )}
+                </>
+              ) : updateCheck.status === "failed" ? (
+                "检查更新未成功"
+              ) : updateCheck.result ? (
+                updateCheck.result.available ? (
+                  <>
+                    已跳过 <span className="mono">v{updateCheck.result.latest_version}</span>
+                  </>
+                ) : (
+                  <>
+                    已是最新版本 <span className="mono">v{updateCheck.result.latest_version}</span>
+                  </>
+                )
+              ) : (
+                <span className="muted">尚未检查新版本。</span>
+              )}
+            </span>
+            {updateNotice && <span className="update-row-note muted">{updateNotice}</span>}
+            <span className="update-row-actions">
+              {updateOffer ? (
+                <>
+                  <button type="button" className="link" onClick={() => skipAvailableUpdate()}>
+                    跳过此版本
+                  </button>
+                  <button type="button" className="primary" onClick={() => void openDownloadPage()}>
+                    打开下载页
+                  </button>
+                </>
+              ) : (
+                <>
+                  {updateCheck.skippedVersion && updateCheck.result?.available ? (
+                    <button type="button" className="link" onClick={clearSkippedUpdate}>
+                      撤销跳过
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void manualUpdateCheck()}
+                    disabled={updateCheck.status === "checking"}
+                  >
+                    {updateCheck.status === "failed" ? "重新检查" : "检查更新"}
+                  </button>
+                </>
+              )}
+            </span>
+          </div>
           <div className="about-actions">
             <button type="button" onClick={() => setFeedbackOpen(true)} disabled={!info}>
               提交 Issue…

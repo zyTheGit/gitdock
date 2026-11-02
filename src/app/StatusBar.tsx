@@ -8,7 +8,9 @@ interface StatusBarProps {
   fontScale: number;
   terminalOpen: boolean;
   terminalRunning: boolean;
+  updateVersion: string | null;
   onToggleTerminal: () => void;
+  onOpenUpdate: () => void;
 }
 
 function TerminalIcon() {
@@ -37,7 +39,9 @@ export function StatusBar({
   fontScale,
   terminalOpen,
   terminalRunning,
+  updateVersion,
   onToggleTerminal,
+  onOpenUpdate,
 }: StatusBarProps) {
   return (
     <footer className="statusbar">
@@ -48,6 +52,17 @@ export function StatusBar({
           {repo && settings ? ` · ${settings.watch_enabled ? "监听已开启" : "监听已关闭"}` : ""}
           {` · 缩放 ${Math.round(fontScale * 100)}%`}
         </span>
+        {updateVersion && (
+          <button
+            className="update-status-chip"
+            onClick={onOpenUpdate}
+            aria-label={`发现新版本 v${updateVersion}，点击查看下载页`}
+            title={`发现新版本 v${updateVersion}，点击查看下载页`}
+          >
+            <span className="update-status-dot" aria-hidden="true" />
+            更新
+          </button>
+        )}
         {repo && (
           <button
             className={terminalOpen ? "terminal-status-button active" : "terminal-status-button"}

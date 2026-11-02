@@ -17,6 +17,7 @@ import type {
   StagingStatusDto,
   TerminalCapabilitiesDto,
   TerminalEvent,
+  UpdateCheckDto,
   UserVisibleError,
   WorkspaceStatusDto,
   WriteOutcomeDto,
@@ -51,6 +52,8 @@ export const ipc = {
   appInfo: () => call<AppInfoDto>("app_info"),
   openFeedbackIssue: (title: string, body: string) =>
     call<void>("open_feedback_issue", { title, body }),
+  checkForUpdate: () => call<UpdateCheckDto>("check_for_update"),
+  openReleasePage: (url: string) => call<void>("open_release_page", { url }),
   loadSettings: () => call<SettingsDto>("load_settings"),
   saveSettings: (settings: SettingsDto) => call<SettingsDto>("save_settings", { settings }),
   rememberRepository: (path: string) => call<SettingsDto>("remember_repository", { path }),

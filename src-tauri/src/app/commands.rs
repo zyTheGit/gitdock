@@ -23,6 +23,7 @@ use super::config::SettingsDto;
 use super::logging;
 use super::state::{AppState, Session};
 use super::terminal::{self, TerminalCapabilitiesDto, TerminalEvent};
+use super::update::{self, UpdateCheckDto};
 
 type Shared = Arc<AppState>;
 
@@ -55,7 +56,7 @@ pub async fn app_info(state: State<'_, Shared>) -> Result<AppInfoDto> {
     .await
 }
 
-const FEEDBACK_ISSUE_URL: &str = "https://github.com/zyTheGit/git-graph/issues/new";
+const FEEDBACK_ISSUE_URL: &str = "https://github.com/zyTheGit/gitdock/issues/new";
 const MAX_FEEDBACK_TITLE_CHARS: usize = 120;
 const MAX_FEEDBACK_BODY_CHARS: usize = 8000;
 
@@ -87,6 +88,21 @@ fn feedback_issue_url(title: &str, body: &str) -> Result<String> {
 #[tauri::command]
 pub fn open_feedback_issue(title: String, body: String) -> Result<()> {
     let url = feedback_issue_url(&title, &body)?;
+    super::external::open_url(&url)
+}
+
+/// 检查远端是否有新版本。只读比较，不下载也不安装；下载地址由后端返回，
+/// 前端拿到的仍是固定在本仓库 Release 页内的 URL。
+#[tauri::command]
+pub async fn check_for_update() -> Result<UpdateCheckDto> {
+    blocking(move || update::check(env!("CARGO_PKG_VERSION"))).await
+}
+
+/// 用系统浏览器打开发布页。地址虽由界面回传，仍在 Rust 侧按前缀校验，
+/// 界面无法把“打开”指向任意 URL 或协议。
+#[tauri::command]
+pub fn open_release_page(url: String) -> Result<()> {
+    update::ensure_release_page(&url)?;
     super::external::open_url(&url)
 }
 
@@ -574,7 +590,7 @@ mod tests {
     #[test]
     fn feedback_url_uses_fixed_repository_and_encodes_content() {
         let url = feedback_issue_url("标题 & bug", "第一行\n第二行 https://x.test?a=1").unwrap();
-        assert!(url.starts_with("https://github.com/zyTheGit/git-graph/issues/new?"));
+        assert!(url.starts_with("https://github.com/zyTheGit/gitdock/issues/new?"));
         assert!(url.contains("title=%E6%A0%87%E9%A2%98+%26+bug"));
         assert!(url.contains("body="));
         // 换行与正文里的问号、冒号都必须留在 query 内，不能改变 URL 结构。
