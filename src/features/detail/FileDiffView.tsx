@@ -4,6 +4,7 @@ import "react-diff-view/style/index.css";
 import type { FileDiffDto, FileStatus } from "../../shared/types";
 import { STATUS_LABEL } from "../../shared/fileStatus";
 import { Select } from "../../shared/Select";
+import { useResolvedTheme } from "../../shared/theme";
 import { buildDiffTokens } from "./highlight";
 import { SplitDiffPanes } from "./SplitDiffPanes";
 
@@ -48,6 +49,7 @@ export function FileDiffView({
   const [wrap, setWrap] = useState(storedWrap);
   const [filesOpen, setFilesOpen] = useState(storedFilesOpen);
   const [tokens, setTokens] = useState<Awaited<ReturnType<typeof buildDiffTokens>> | null>(null);
+  const theme = useResolvedTheme();
 
   useEffect(() => {
     localStorage.setItem(DIFF_WRAP_KEY, wrap ? "1" : "0");
@@ -84,7 +86,7 @@ export function FileDiffView({
       return;
     }
     let cancelled = false;
-    void buildDiffTokens(parsed.hunks, diff.language).then((result) => {
+    void buildDiffTokens(parsed.hunks, diff.language, theme).then((result) => {
       if (!cancelled) {
         setTokens(result);
       }
@@ -92,7 +94,7 @@ export function FileDiffView({
     return () => {
       cancelled = true;
     };
-  }, [parsed, diff.language]);
+  }, [parsed, diff.language, theme]);
 
   const pathLabel = diff.old_path && diff.old_path !== diff.path
     ? `${diff.old_path} → ${diff.path}`

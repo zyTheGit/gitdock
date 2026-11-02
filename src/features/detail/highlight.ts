@@ -12,6 +12,7 @@ import {
   MAX_HIGHLIGHT_LINES,
   resolveLanguage,
   styleClass,
+  type SyntaxTheme,
 } from "./highlightShiki";
 
 export type { DiffChangeLike, DiffHunkLike } from "./highlightMarks";
@@ -120,6 +121,7 @@ function tokenNodes(
 export async function buildDiffTokens(
   hunks: DiffHunkLike[],
   language: string | undefined,
+  theme: SyntaxTheme,
 ): Promise<DiffTokenResult> {
   const marks = collectMarks(hunks);
   const oldLines = collectSide(hunks, "old");
@@ -136,12 +138,14 @@ export async function buildDiffTokens(
         oldHighlighted = await highlightLines(
           oldLines.map((line) => line.text).join("\n"),
           lang,
+          theme,
         );
       }
       if (newLines.length > 0) {
         newHighlighted = await highlightLines(
           newLines.map((line) => line.text).join("\n"),
           lang,
+          theme,
         );
       }
     } catch {

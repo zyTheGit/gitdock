@@ -66,18 +66,20 @@ const ALIASES: Record<string, string> = {
   patch: "diff",
 };
 
-const THEME = "github-dark";
+const THEME_NAMES = { light: "github-light", dark: "github-dark" } as const;
+export type SyntaxTheme = keyof typeof THEME_NAMES;
 export const MAX_HIGHLIGHT_LINES = 2000;
 
 async function createHighlighter(): Promise<HighlighterCore> {
-  const [core, engine, theme, langs] = await Promise.all([
+  const [core, engine, lightTheme, darkTheme, langs] = await Promise.all([
     import("shiki/core"),
     import("shiki/engine/oniguruma"),
+    import("shiki/themes/github-light.mjs"),
     import("shiki/themes/github-dark.mjs"),
     Promise.all(Object.values(LANGS).map(async (load) => (await load()).default)),
   ]);
   return core.createHighlighterCore({
-    themes: [theme.default],
+    themes: [lightTheme.default, darkTheme.default],
     langs,
     engine: engine.createOnigurumaEngine(import("shiki/wasm")),
   });
@@ -111,9 +113,10 @@ export function resolveLanguage(language: string | undefined): string | null {
 export async function highlightLines(
   text: string,
   lang: string,
+  theme: SyntaxTheme,
 ): Promise<ThemedToken[][]> {
   const highlighter = await getHighlighter();
-  return highlighter.codeToTokens(text, { lang, theme: THEME }).tokens;
+  return highlighter.codeToTokens(text, { lang, theme: THEME_NAMES[theme] }).tokens;
 }
 
 /* ------------------------------ 样式类 ------------------------------ */
