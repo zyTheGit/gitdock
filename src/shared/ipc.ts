@@ -9,6 +9,9 @@ import type {
   GateReportDto,
   GraphPageDto,
   GraphScope,
+  GitConfigDto,
+  GitConfigEntry,
+  GitConfigScope,
   InterruptionDto,
   RepoStateDto,
   SearchPageDto,
@@ -96,6 +99,9 @@ export const ipc = {
     call<FileDiffDto>("read_staging_diff", { path, staged }),
   readBranchDescription: (branch: string) =>
     call<BranchDescriptionDto>("read_branch_description", { branch }),
+  readGitConfig: () => call<GitConfigDto>("read_git_config"),
+  saveGitConfig: (scope: GitConfigScope, entries: GitConfigEntry[]) =>
+    call<GitConfigDto>("save_git_config", { scope, entries }),
   terminalCapabilities: () => call<TerminalCapabilitiesDto>("terminal_capabilities"),
   terminalOpen: (mode: string, cols: number, rows: number, channel: Channel<TerminalEvent>) =>
     call<number>("terminal_open", { mode, cols, rows, channel }),

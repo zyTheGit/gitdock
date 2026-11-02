@@ -5,6 +5,7 @@ import { StatusBar } from "./app/StatusBar";
 import { WorkspaceBadge } from "./app/WorkspaceBadge";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
 import { useFontScale } from "./app/useFontScale";
+import { useBindings, useKeybindings } from "./app/keybindings";
 import { useRepositorySession } from "./app/useRepositorySession";
 import {
   openAvailableUpdate,
@@ -248,21 +249,15 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [closeSearch, mode, slots]);
 
-  // Ctrl+` 切换底部终端；在终端内按下时也由窗口层接管，避免误发给 Shell。
-  useEffect(() => {
-    if (!repo) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && !event.altKey && !event.metaKey && event.key === "`") {
-        event.preventDefault();
-        setTerminalMounted(true);
-        setTerminalOpen((open) => !open);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [repo]);
+  // 全局快捷键：终端开合与界面缩放，键位可在设置「快捷键」分区改。
+  // 在捕获阶段派发，终端里的按键也由窗口层接管，避免误发给 Shell。
+  const bindings = useBindings();
+  useKeybindings({
+    "terminal.toggle": repo ? toggleTerminal : undefined,
+    "zoom.in": zoom.zoomIn,
+    "zoom.out": zoom.zoomOut,
+    "zoom.reset": zoom.resetZoom,
+  });
 
   // 描述编辑只依赖 Git CLI；不受中断态、bare 工作区写限制影响。
   const descriptionDisabled = busy || write.busy || !repo || !info?.git_version_supported;
@@ -383,13 +378,14 @@ export default function App() {
               <button
                 className={mode === "search" ? "active" : ""}
                 onClick={() => (mode === "search" ? closeSearch() : setMode("search"))}
+                title="按说明、作者、路径或 hash 搜索提交；Esc 关闭"
               >
                 <ActionIcon name="search" /><span>搜索</span>
               </button>
               <button
                 className={mode === "staging" ? "active" : ""}
                 onClick={() => setMode(mode === "staging" ? "graph" : "staging")}
-                title="查看工作区改动，分别暂存或取消暂存文件"
+                title="查看工作区改动，分别暂存或取消暂存文件；Esc 退出"
               >
                 <ActionIcon name="stage" /><span>暂存区</span>
               </button>
@@ -414,7 +410,11 @@ export default function App() {
               <button
                 className={terminalOpen ? "active" : ""}
                 aria-pressed={terminalOpen}
-                title={terminalRunning ? "终端进程运行中；收起不会结束进程（Ctrl+`）" : "打开终端（Ctrl+`）"}
+                title={
+                  terminalRunning
+                    ? `终端进程运行中；收起不会结束进程（${bindings["terminal.toggle"]}）`
+                    : `打开终端（${bindings["terminal.toggle"]}）`
+                }
                 onClick={() => {
                   setTerminalMounted(true);
                   setTerminalOpen((open) => !open);
@@ -591,6 +591,7 @@ export default function App() {
           repoPath={repo.path}
           visible={terminalOpen}
           lazygitConfig={settings?.lazygit_path ?? ""}
+          terminalShortcut={bindings["terminal.toggle"]}
           onCollapse={() => setTerminalOpen(false)}
           onOpenSettings={() => setSettingsOpen(true)}
           onRunningChange={handleTerminalRunning}
@@ -606,6 +607,7 @@ export default function App() {
         fontScale={zoom.fontScale}
         terminalOpen={terminalOpen}
         terminalRunning={terminalRunning}
+        terminalShortcut={bindings["terminal.toggle"]}
         updateVersion={updateVersion}
         onToggleTerminal={toggleTerminal}
         onOpenUpdate={openUpdatePage}

@@ -367,6 +367,37 @@ export interface SettingsDto {
   font_scale: number;
 }
 
+/** Git 配置作用域：用户级（`--global`）或当前仓库（`--local`）。保存只写所选层。 */
+export type GitConfigScope = "user" | "repo";
+
+/** 保存请求里的一项；空串表示在所选作用域删除该键。 */
+export interface GitConfigEntry {
+  key: string;
+  value: string;
+}
+
+/**
+ * 一个键在各层里显式写过的值，以及最终生效的值与来源。
+ * 生效顺序：仓库级 > 用户级 > 系统级；三层都没写过时 `effective` 为 null，
+ * 界面显示「未设置」，并在说明里注明 Git 自己的默认行为。
+ */
+export interface GitConfigValue {
+  key: string;
+  user: string | null;
+  repo: string | null;
+  system: string | null;
+  effective: string | null;
+  effective_scope: GitConfigScope | "system" | "command" | null;
+}
+
+/** 后端只回白名单键，键顺序固定；两组文件路径仅用于展示配置来自哪里。 */
+export interface GitConfigDto {
+  user_file_paths: string[];
+  repo_path: string | null;
+  repo_file_path: string | null;
+  entries: GitConfigValue[];
+}
+
 export interface AppInfoDto {
   app_version: string;
   git_version?: string;

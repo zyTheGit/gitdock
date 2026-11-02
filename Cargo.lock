@@ -1062,7 +1062,7 @@ checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
 
 [[package]]
 name = "fixture-gen"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "flate2"
@@ -1376,7 +1376,7 @@ dependencies = [
 
 [[package]]
 name = "git-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "serde",
@@ -1386,7 +1386,7 @@ dependencies = [
 
 [[package]]
 name = "git-read"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "fixture-gen",
  "git-core",
@@ -1403,7 +1403,7 @@ dependencies = [
 
 [[package]]
 name = "git-write"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "git-core",
  "parking_lot",
@@ -1416,7 +1416,7 @@ dependencies = [
 
 [[package]]
 name = "gitdock-app"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "git-core",
@@ -2349,7 +2349,7 @@ dependencies = [
 
 [[package]]
 name = "graph-layout"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "git-core",
  "proptest",
@@ -3981,7 +3981,7 @@ dependencies = [
 
 [[package]]
 name = "refresh"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "git-core",
  "parking_lot",
@@ -5046,7 +5046,7 @@ dependencies = [
 
 [[package]]
 name = "test-support"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "fixture-gen",
 ]

@@ -32,7 +32,7 @@ interface FontScaleOptions {
 
 /**
  * 整体缩放 WebView。缩放立即生效，持久化失败只提示，不回退当前比例。
- * 全局快捷键在捕获阶段处理，优先于终端和输入框。
+ * 键位派发在 `keybindings.useKeybindings`，这里只暴露档位动作。
  */
 export function useFontScale({ settings, setSettings, onError }: FontScaleOptions) {
   const [fontScale, setFontScale] = useState(() =>
@@ -95,32 +95,6 @@ export function useFontScale({ settings, setSettings, onError }: FontScaleOption
   const zoomIn = useCallback(() => apply(stepFontScale(scaleRef.current, 1)), [apply]);
   const zoomOut = useCallback(() => apply(stepFontScale(scaleRef.current, -1)), [apply]);
   const resetZoom = useCallback(() => apply(1), [apply]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!event.ctrlKey || event.altKey || event.metaKey) {
-        return;
-      }
-      const key = event.key;
-      if (key === "0") {
-        event.preventDefault();
-        resetZoom();
-        return;
-      }
-      // 主键盘与小键盘的加号在不同布局下报 "=" / "+" / "Add"。
-      if (key === "=" || key === "+" || key === "Add") {
-        event.preventDefault();
-        zoomIn();
-        return;
-      }
-      if (key === "-" || key === "_" || key === "Subtract") {
-        event.preventDefault();
-        zoomOut();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [resetZoom, zoomIn, zoomOut]);
 
   return { fontScale, zoomIn, zoomOut, resetZoom };
 }

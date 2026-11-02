@@ -166,6 +166,7 @@
   .branch-item.active,
   .scope-tabs button.active,
   .view-toggle button.active,
+  .git-config-tab.active,
   .diff-icon-button.active,
   .branch-chip {
     outline: 1px solid Highlight;

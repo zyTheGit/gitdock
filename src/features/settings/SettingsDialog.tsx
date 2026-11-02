@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import {
   clearSkippedUpdate,
@@ -14,6 +14,8 @@ import { Modal } from "../../shared/Modal";
 import { Select } from "../../shared/Select";
 import type { AppInfoDto, ExternalToolConfig, SettingsDto } from "../../shared/types";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { GitConfigSection } from "./GitConfigSection";
+import { KeyBindingsSection } from "./KeyBindingsSection";
 
 interface SettingsDialogProps {
   settings: SettingsDto;
@@ -55,10 +57,16 @@ export function SettingsDialog({
   const [saving, setSaving] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("启动");
+  // Git 配置要读真实配置文件，首次进入该分区才发起读取；之后保留编辑内容。
+  const [gitConfigOpened, setGitConfigOpened] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("gitdock.theme") ?? "system");
   const updateCheck = useUpdateCheck();
   const [updateNotice, setUpdateNotice] = useState<string | null>(null);
   const updateOffer = pendingUpdate(updateCheck);
+
+  useEffect(() => {
+    if (activeSection === "Git配置") setGitConfigOpened(true);
+  }, [activeSection]);
 
   const manualUpdateCheck = async () => {
     setUpdateNotice(null);
@@ -161,7 +169,7 @@ export function SettingsDialog({
       </header>
       <div className="settings-content">
       <nav className="settings-nav" aria-label="设置分区">
-        {["启动", "外观", "终端", "对比工具", "关于"].map((section) => (
+        {["启动", "外观", "快捷键", "终端", "对比工具", "Git配置", "关于"].map((section) => (
           <button key={section} className={activeSection === section ? "active" : ""} aria-current={activeSection === section ? "page" : undefined} onClick={() => setActiveSection(section)}>
             <span className={`settings-nav-mark mark-${section}`} aria-hidden="true" />{section}
           </button>
@@ -253,9 +261,12 @@ export function SettingsDialog({
             </span>
           </div>
           <p className="muted settings-hint">
-            快捷键：<kbd>Ctrl</kbd>+<kbd>=</kbd> 放大，<kbd>Ctrl</kbd>+<kbd>-</kbd> 缩小，
-            <kbd>Ctrl</kbd>+<kbd>0</kbd> 恢复 100%。调整立即生效并保存。
+            缩放快捷键可在「快捷键」分区调整；调整立即生效并保存。
           </p>
+        </section>
+
+        <section id="settings-快捷键" hidden={activeSection !== "快捷键"}>
+          <KeyBindingsSection />
         </section>
 
         <section id="settings-终端" hidden={activeSection !== "终端"}>
@@ -344,6 +355,11 @@ export function SettingsDialog({
           <button onClick={() => setTools((current) => current.concat({ ...EMPTY_TOOL }))}>
             添加工具
           </button>
+        </section>
+
+        <section id="settings-Git配置" className="settings-git-config" hidden={activeSection !== "Git配置"}>
+          <h3>Git 配置</h3>
+          {gitConfigOpened && <GitConfigSection onError={onError} />}
         </section>
 
         <section id="settings-关于" hidden={activeSection !== "关于"}>

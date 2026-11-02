@@ -1,119 +1,54 @@
 # GitDock
 
-> 产品名：GitDock。文中的“Git Graph”指图谱视图/模块，区别于 VS Code 的 Git Graph 扩展。
+Windows 上的 Git 图谱桌面应用。看提交历史和 diff，做分支对比与搜索，管理暂存区，也能执行 cherry-pick、revert、切换分支这些常用写操作。
 
-Windows 优先的单窗口 Git 图谱桌面应用。图谱、提交详情、三点/两点对比、搜索与少量写操作（cherry-pick / revert / switch）集中在一个界面里；只读走 gix，写操作全部通过 Git CLI 的参数数组执行，不经过 shell。
+## 安装
+
+从 [Releases 页面](https://github.com/zyTheGit/gitdock/releases/latest) 下载 `GitDock_<版本>_x64-setup.exe`（约 3.7 MB），双击安装到当前用户目录，不需要管理员权限。
+
+系统里要有 Git，建议 2.30 以上；版本更低时仓库照样能浏览，写操作会禁用。
+
+安装包尚未做代码签名，首次运行 SmartScreen 可能提示「Windows 已保护你的电脑」，确认来源后点「更多信息」→「仍要运行」。升级直接装新版覆盖。配置和最近仓库记录留在 `%APPDATA%\com.gitdock.desktop`，卸载不会清掉。
 
 ## 功能
 
-- 仓库图谱：范围切换、分支过滤、分页加载、稳定 lane、文件监听与自动刷新
-- 提交详情：message / parents / 文件列表、单文件 diff、Shiki 语法高亮
-- 对比：Base / Compare 双槽、三点 diff、两点快照、分支对比弹窗、路径过滤、外部工具拉起
-- 搜索：message / hash 前缀 / author / 路径，结果直接在主图谱定位
-- 暂存区：按 HEAD / Index / Worktree 展示 staged 与 unstaged 文件，文件级与批量暂存、取消暂存
-- 内置终端：在当前仓库目录启动 LazyGit 或 PowerShell，终端改动会触发图谱与状态刷新
-- 分支描述、外部 diff 工具配置、写前 Gate（cherry-pick / revert / switch）
-- 外观跟随 Windows 浅色/深色；全局字体缩放；设置/关于显示版本并提供 Issue 入口
-- 版本检查：对比本仓库 GitHub Releases 的最新标签，发现新版本时在设置与状态栏提示，安装包仍由你在浏览器中自行下载
-
-## 技术栈
-
-| 层 | 选型 |
-|---|---|
-| 桌面壳 | Tauri 2 |
-| 前端 | React 18 + TypeScript 5.6 + Vite 5 |
-| 图谱布局 | 纯函数 crate `graph-layout` |
-| 只读 Git | gix（只读） |
-| 写操作 | Git CLI（参数数组，固定工作目录，不经 shell） |
-| 语言 | Rust stable |
-
-## 环境要求
-
-- Windows 10/11，WebView2 运行时
-- Node.js >= 24.0.0，npm >= 11.0.0（CI 使用 Node 24）
-- Rust stable，附带 `rustfmt` 与 `clippy` 组件（建议用 [rustup](https://rustup.rs/) 安装）
-- Git >= 2.30.0（低于该版本只读可用、写操作禁用）
-- Tauri 的 Windows 构建依赖：MSVC 构建工具与 Windows SDK，详见 [Tauri prerequisites](https://tauri.app/start/prerequisites/)
-
-## 快速开始
-
-```bash
-# 安装依赖
-npm install
-
-# 开发运行
-npm run tauri dev
-
-# 带仓库路径启动（启动参数优先于“恢复上次仓库”）
-npm run tauri dev -- -- -- "C:/path/to/repo"
-
-# 全量校验：前端构建 + cargo fmt --check + clippy -D warnings + workspace 测试
-npm run check
-
-# 打包 release（Windows 下需先退出正在运行的 exe）
-npm run tauri build
-```
+- 提交图谱：分支泳道、范围切换、按分支过滤，工作区改动自动刷新
+- 提交详情和单文件 diff，带语法高亮，支持并排/统一视图与整窗放大
+- 对比任意两个提交或分支，两点或三点，可按路径过滤
+- 按提交说明、hash 前缀、作者、文件路径搜索，选中即在图谱里定位
+- 暂存区：HEAD / 索引 / 工作区三种视图，单文件与批量暂存
+- 底部内置终端，在当前仓库启动 LazyGit 或 PowerShell，终端里的改动会同步刷新界面
+- 差异文件可交给外部工具打开（VS Code / Zed / Beyond Compare 等）；首次启动自动探测本机已装的，之后在「设置 → 外部工具」增删
+- 界面跟随 Windows 浅色/深色主题，支持整窗字体缩放
+- 「设置 → Git配置」读写 Git 的用户级与当前仓库配置（署名、邮箱、换行转换等），显示生效值与来源，每项带说明
 
 ## 快捷键
 
 | 快捷键 | 行为 |
 |---|---|
-| `Ctrl` + `` ` `` | 展开 / 收起底部终端（状态栏右侧终端图标同效，不结束正在运行的进程） |
-| `Ctrl` + `=` / `Ctrl` + `+` | 放大界面（75%–200%，固定档位） |
-| `Ctrl` + `-` | 缩小界面 |
-| `Ctrl` + `0` | 恢复 100% |
-| `Ctrl` + 点击提交 | 依次设置对比的 Base / Compare |
-| `Esc` | 关闭搜索或对比、取消待替换选择、清空双槽；终端内与暂存区自行处理 |
+| `Ctrl` + `` ` `` | 展开 / 收起终端 |
+| `Ctrl` + `=` / `-` / `0` | 放大 / 缩小 / 复位，75%–200% |
+| `Ctrl` + 点击提交 | 依次选对比的 Base 和 Compare |
+| `Esc` | 关闭搜索或对比面板 |
 
-缩放立即生效并写入 `settings.json` 的 `font_scale`（旧配置缺省 100%）；状态栏和“设置 → 外观”都会显示当前比例。
+终端开合与缩放三项可在「设置 → 快捷键」改成自己的组合，只存在本机；那个分区同时列出了不支持改键的固定键位（`Esc`、列表方向键等）。
 
-## 版本更新
+## Git 配置
 
-应用只回答“有没有新版本”，不下载也不安装任何东西：检查读取本仓库 GitHub Releases 的最新标签并与当前版本比较，界面里唯一的动作是在默认浏览器中打开该 Release 页面，是否下载安装包由你自己决定。
+「设置 → Git配置」读写 Git 自己的配置，分「用户级」（等价 `git config --global`）和「项目级」（等价 `git config --local`，写当前打开仓库的 `.git/config`）两栏，只开放常用且安全的几项：`user.name`、`user.email`、`core.autocrlf`、`init.defaultBranch`、`pull.rebase`。
 
-- 手动检查：设置 → 关于 → 检查更新，结果显示在同一行（已是最新版本 / 发现新版本 vX / 检查更新未成功）。
-- 自动检查：应用启动后检查一次；距上次成功检查不足 24 小时则跳过，手动检查不受此限制。
-- 发现新版本且未被跳过时，状态栏右侧出现“更新”标记，点击直接打开 Release 页面。
-- 跳过此版本：该版本不再提示，直到出现严格更新的版本；误跳可以在「设置 → 关于」里点「撤销跳过」立即恢复提示。跳过记录与上次检查时间存 `localStorage`（`gitdock.update.lastCheckedAt` / `gitdock.update.skippedVersion`），不写入 `settings.json`。
-- 版本比较按 semver：标签版本号必须严格高于当前版本才提示（`0.2.0-rc.1` 不算比 `0.2.0` 新）。
-- 前提与限制：本仓库需在 GitHub 上公开可见，离线或读取失败时只在界面提示错误，不影响其他功能。
+- 每行显示的是**实际生效值**和它来自哪一层（生效顺序：仓库级 > 用户级 > 系统级），不是某一文件里的孤立取值。
+- 保存只写当前选中那一栏；另一栏的值不动。用户级一栏里若本仓库另设了同一个键，会提示该仓库仍以仓库级为准。
+- 两层都没设过时显示「未设置」，并在下方注明 Git 的默认行为（例如 `core.autocrlf` 默认不转换），不会把默认值冒充成你设过的值。
+- 用户级配置可能不止一个文件（`%USERPROFILE%\.gitconfig` 与 `~\.config\git\config`），面板会把 Git 实际读取的文件都列出来；项目级一栏显示 `.git/config` 的真实路径。
+- 清空某一项再保存，只删除当前这一栏里的该键（等价 `--unset-all`），生效值回落到另一层或 Git 默认；写项目级配置不改仓库内容与历史。
+- 未打开仓库时项目级一栏不可用，读取仍会给出用户级与系统级的取值。
+- 白名单以外的键不读写，需要其它键请在命令行里改。GitDock 自身的设置（工具、终端、缩放、快捷键）与 Git 配置分开保存，点「保存」不会改动 Git 配置。
 
-## 目录结构
+## 更新与反馈
 
-```text
-src/                    # 前端
-  app/                  # 会话、分栏、写流程与外壳组件
-  features/graph/       # 图谱虚拟列表、行渲染、悬浮卡、分页
-  features/detail/      # 提交详情、文件 diff、语法高亮、并排分栏
-  features/compare/     # 双槽、对比弹窗、文件与 commit 列表
-  features/search/      # 搜索弹框与候选生成
-  features/settings/    # 外部工具、监听、外观缩放、关于与反馈
-  features/write/       # 写确认框与结果展示
-  shared/               # IPC 唯一入口、DTO 类型、通用 UI
-  styles/               # 按层叠顺序 @import 的样式片段
-crates/
-  git-core/             # 公共 DTO、Oid 校验、错误码、cursor
-  git-read/             # GitReadModule 与 gix adapter（只读）
-  graph-layout/         # 图谱 lane 纯函数
-  git-write/            # GitWriteModule、写前 Gate、CLI adapter
-  refresh/              # RefreshCoordinator（generation 与旧结果丢弃）
-  fixture-gen/          # 测试夹具生成
-src-tauri/              # Tauri command、会话状态、监听、配置与日志
-docs/                   # 架构、任务拆分、验证记录与交接文档
-```
+启动后自动检查一次更新（24 小时内检查过会跳过），有新版本时状态栏右侧出现「更新」，点开是浏览器里的下载页。应用不会自己下载或替换文件，下不下载由你决定；手动检查和「跳过此版本」在「设置 → 关于」。
 
-## 开发约束
+问题和新需求请开 [Issue](https://github.com/zyTheGit/gitdock/issues)，应用内「设置 → 关于」也有反馈入口。
 
-- gix 只读；所有写操作（cherry-pick / revert / switch 等）必须走 Git CLI 的参数数组，不经 shell。
-- 前端不执行任意命令、不拼接 shell、不访问 `.git` 内部路径、不解析 Git 对象。
-- 状态类命令使用 `GIT_OPTIONAL_LOCKS=0`，避免创建 `index.lock` 触发刷新自激循环；该变量不得用于写操作。
-- 写操作前先过 Gate；冲突后只展示状态与终端提示，绝不自动 `--abort` / `--quit`。
-- 只实现需求文档定义的范围，不扩展 P1/P2；不复制参考项目的代码、资源、样式或测试夹具。
-
-## 文档
-
-- 交接文档：[docs/05-交接文档.md](docs/05-交接文档.md)（当前状态、验证记录、已知限制）
-- 需求与冻结：[需求文档.md](需求文档.md)、[docs/01-需求冻结.md](docs/01-需求冻结.md)
-- 架构与任务：[docs/03-技术架构.md](docs/03-技术架构.md)、[docs/04-任务拆分.md](docs/04-任务拆分.md)
-- 选型研究：[docs/02-选型终审.md](docs/02-选型终审.md)、[docs/spike-research.md](docs/spike-research.md)
-- 验证记录：[docs/verification/](docs/verification/)
+想从源码构建或参与开发，见 [开发者指南](docs/07-开发者指南.md)。

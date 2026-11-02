@@ -20,6 +20,7 @@ use serde::Serialize;
 use tauri::State;
 
 use super::config::SettingsDto;
+use super::gitconfig;
 use super::logging;
 use super::state::{AppState, Session};
 use super::terminal::{self, TerminalCapabilitiesDto, TerminalEvent};
@@ -536,6 +537,32 @@ pub async fn read_branch_description(
     let state = Arc::clone(&state);
     blocking(move || state.with_session(|session| session.write.read_branch_description(&branch)))
         .await
+}
+
+/// 读取 Git 配置：一次返回用户级与当前仓库级两层的取值和生效来源。未打开仓库时仓库级为空。
+#[tauri::command]
+pub async fn read_git_config(state: State<'_, Shared>) -> Result<gitconfig::GitConfigDto> {
+    let repo = current_repo(&state);
+    blocking(move || gitconfig::read(repo.as_deref())).await
+}
+
+/// 把条目写入指定作用域（`user` 或 `repo`）：键名与取值由 gitconfig 的白名单把关，空值表示删除该项。
+/// 返回重新读取后的配置，界面回显的是真实落盘结果。
+#[tauri::command]
+pub async fn save_git_config(
+    state: State<'_, Shared>,
+    scope: gitconfig::ConfigScope,
+    entries: Vec<gitconfig::ConfigEntryDto>,
+) -> Result<gitconfig::GitConfigDto> {
+    let repo = current_repo(&state);
+    blocking(move || gitconfig::save(scope, repo.as_deref(), &entries)).await
+}
+
+/// 配置读写用仓库路径：没有会话时返回 None，让 Git 配置面板在未打开仓库时仍可用。
+fn current_repo(state: &AppState) -> Option<PathBuf> {
+    state
+        .with_session(|session| Ok(session.read.path().to_path_buf()))
+        .ok()
 }
 
 #[tauri::command]

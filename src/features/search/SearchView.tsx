@@ -175,7 +175,10 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
         )}
 
         {!search.text && !search.loading && (
-          <p className="muted">输入关键词后回车搜索；候选来自当前已加载提交的作者与说明。</p>
+          <p className="muted">
+            输入关键词后回车搜索；<kbd>↑</kbd> <kbd>↓</kbd> 选择候选，
+            <kbd>Esc</kbd> 关闭。候选来自当前已加载提交的作者与说明。
+          </p>
         )}
         {search.results.length === 0 && !search.loading && search.text && !search.canceled && (
           <p className="muted">没有匹配的提交。hash 前缀至少 7 位。</p>

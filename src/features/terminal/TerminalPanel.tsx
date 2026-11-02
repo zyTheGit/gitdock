@@ -41,6 +41,8 @@ interface TerminalPanelProps {
   visible: boolean;
   /** 设置中的 LazyGit 路径；变化后重新探测能力，无需重启应用。 */
   lazygitConfig: string;
+  /** 终端开合的当前键位，只用于提示文案。 */
+  terminalShortcut: string;
   onCollapse: () => void;
   onOpenSettings: () => void;
   onRunningChange: (running: boolean) => void;
@@ -55,6 +57,7 @@ export function TerminalPanel({
   repoPath,
   visible,
   lazygitConfig,
+  terminalShortcut,
   onCollapse,
   onOpenSettings,
   onRunningChange,
@@ -355,7 +358,7 @@ export function TerminalPanel({
             className="terminal-icon-button"
             onClick={onCollapse}
             aria-label="收起终端"
-            title="收起面板；终端进程继续运行，可用 Ctrl+` 恢复"
+            title={`收起面板；终端进程继续运行，可用 ${terminalShortcut} 恢复`}
           >
             <svg
               viewBox="0 0 24 24"

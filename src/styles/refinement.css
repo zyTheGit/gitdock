@@ -159,6 +159,7 @@
 .mark-终端 { width: 9px; height: 7px; border-radius: 2px; }
 .mark-对比工具 { transform: rotate(45deg); border-radius: 1px; }
 .mark-关于 { border-radius: 50%; }
+.mark-Git配置 { border-radius: 50% 2px 50% 2px; }
 
 .settings-body {
   flex: 1;
@@ -295,6 +296,26 @@
 }
 .settings-dialog .settings-tools > button:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
 
+/* Git 配置行与工具卡片同构：卡片包一行取值 + 一行说明。 */
+.settings-dialog .git-config-list { margin-bottom: 10px; }
+.settings-dialog .git-config-list li {
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-elevated) 45%, var(--bg-panel));
+  transition: border-color 120ms ease;
+}
+.settings-dialog .git-config-list li:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.settings-dialog .git-config-list li:focus-within { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+.settings-dialog .git-config-list li.is-dirty { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+.settings-dialog .git-config-list .select-control > select { min-height: 30px; }
+.settings-dialog .git-config-control > input { min-height: 30px; }
+.settings-dialog .git-config-actions { margin-top: 2px; }
+.settings-dialog .git-config-actions button { min-height: 32px; padding: 5px 16px; font-size: 12.5px; }
+.settings-dialog .git-config-actions .link { min-height: 32px; padding: 5px 6px; font-size: 12px; }
+.settings-dialog .git-config-actions .primary { min-width: 128px; }
+
 .settings-dialog .zoom-row {
   align-items: center;
   gap: 12px;
@@ -370,7 +391,36 @@
 .settings-dialog .update-row-actions button { min-height: 30px; padding: 4px 13px; font-size: 12px; }
 .settings-dialog .update-row-actions .link { min-height: 30px; padding: 4px 5px; }
 
-.settings-dialog kbd { display: inline-block; padding: 1px 5px; border: 1px solid var(--border); border-radius: 3px; background: var(--bg-elevated); font: 11px Consolas, monospace; }
+kbd { display: inline-block; padding: 1px 5px; border: 1px solid var(--border); border-radius: 3px; background: var(--bg-elevated); font: 11px Consolas, monospace; }
+
+.keybinding-list,
+.keybinding-fixed { list-style: none; margin: 0; padding: 0; }
+.keybinding-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 34px;
+  padding: 4px 8px;
+  border-radius: 5px;
+}
+.keybinding-list li:hover { background: var(--row-hover); }
+.keybinding-list li.is-capturing { background: var(--accent-soft); }
+.keybinding-action { font-size: 13px; }
+.keybinding-keys { display: inline-flex; align-items: center; gap: 3px; justify-self: start; }
+.keybinding-keys .muted { margin-left: 6px; font-size: 12px; }
+.keybinding-actions { display: inline-flex; gap: 8px; white-space: nowrap; }
+.keybinding-footer { display: flex; align-items: center; gap: 12px; min-height: 26px; font-size: 12px; }
+.keybinding-subtitle { margin: 18px 0 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.keybinding-fixed li {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 8px;
+  font-size: 12.5px;
+}
+.keybinding-fixed li + li { border-top: 1px solid var(--border); }
 
 .search-backdrop { z-index: 90; }
 .search-dialog {
@@ -420,6 +470,13 @@
   .settings-nav button { flex: none; min-height: 30px; padding: 4px 8px; }
   .settings-nav-mark { display: none; }
   .settings-body { min-height: 0; padding: 14px 14px 16px; }
+  /* 窄窗口下压缩标签列与来源列，把宽度让给取值控件。 */
+  .settings-dialog .git-config-list li {
+    --git-config-label-width: 106px;
+    --git-config-state-width: 118px;
+    column-gap: 9px;
+  }
+  .settings-dialog .git-config-head { flex-wrap: wrap; }
 }
 
 @media (max-width: 640px) {

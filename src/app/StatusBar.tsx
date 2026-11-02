@@ -8,6 +8,7 @@ interface StatusBarProps {
   fontScale: number;
   terminalOpen: boolean;
   terminalRunning: boolean;
+  terminalShortcut: string;
   updateVersion: string | null;
   onToggleTerminal: () => void;
   onOpenUpdate: () => void;
@@ -39,6 +40,7 @@ export function StatusBar({
   fontScale,
   terminalOpen,
   terminalRunning,
+  terminalShortcut,
   updateVersion,
   onToggleTerminal,
   onOpenUpdate,
@@ -71,8 +73,8 @@ export function StatusBar({
             aria-pressed={terminalOpen}
             title={
               terminalOpen
-                ? "收起终端（Ctrl+`）；进程继续运行"
-                : "打开终端（Ctrl+`）"
+                ? `收起终端（${terminalShortcut}）；进程继续运行`
+                : `打开终端（${terminalShortcut}）`
             }
           >
             <TerminalIcon />

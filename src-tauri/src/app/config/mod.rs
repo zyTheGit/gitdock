@@ -313,10 +313,13 @@ mod tests {
         let dir = temp_dir();
         let repo = dir.path().join("Repo");
         std::fs::create_dir_all(&repo).expect("创建仓库目录失败");
+        // 大小写不同的同一份路径要以规范化结果为基准构造：临时目录本身可能带 8.3 短名
+        // （如 CI 上的 C:\Users\RUNNER~1），而 canonicalize 会展开成长名。
+        let canonical = strip_verbatim(&std::fs::canonicalize(&repo).expect("规范化路径失败"));
         let settings = SettingsDto {
             recent_repositories: vec![
                 RecentRepository {
-                    path: repo.to_string_lossy().to_uppercase(),
+                    path: canonical.to_uppercase(),
                     last_opened_at: 1,
                 },
                 RecentRepository {
@@ -332,10 +335,7 @@ mod tests {
             .path
             .replace('\\', "/")
             .to_lowercase();
-        assert_eq!(
-            first,
-            repo.to_string_lossy().replace('\\', "/").to_lowercase()
-        );
+        assert_eq!(first, canonical.replace('\\', "/").to_lowercase());
     }
 
     #[test]
