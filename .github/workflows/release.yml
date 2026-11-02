@@ -33,8 +33,9 @@ jobs:
 
       - run: npm ci
 
-      # 版本号有三个来源，安装包内显示的版本与 releases/latest 都取自它们；
-      # 与 tag 不一致会让后续的版本检查读到错误结果，这里直接失败而不是继续打包。
+      # 版本号由 npm run bump（scripts/version.mjs）一次写齐，安装包内显示的版本与
+      # releases/latest 都取自这些声明；与 tag 不一致会让后续的版本检查读到错误结果，
+      # 这里直接失败而不是继续打包。脚本只保证各处一致，对 tag 的核对留在这里。
       - name: Verify version matches tag
         shell: bash
         run: |

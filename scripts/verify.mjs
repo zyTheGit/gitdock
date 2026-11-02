@@ -1,11 +1,13 @@
-// 本地校验与 CI 共用入口：顺序执行前端构建、格式检查、clippy 与 Rust 测试。
-// 前端构建放在最前，确保 src-tauri 编译期嵌入 dist 资源时目录已存在。
+// 本地校验与 CI 共用入口：顺序执行版本号一致性、前端构建、格式检查、clippy 与 Rust 测试。
+// 前端构建放在 cargo 之前，确保 src-tauri 编译期嵌入 dist 资源时目录已存在。
 // 用法：node scripts/verify.mjs [--skip-build]
 import { spawnSync } from 'node:child_process'
 
 const skipBuild = process.argv.includes('--skip-build')
 
 const steps = [
+  // 版本号有四处声明 + Cargo.lock，任一遗漏只会在打包后才暴露，这里最便宜就先挡住。
+  { name: '版本号一致性', command: 'node', args: ['scripts/version.mjs', '--check'] },
   // npm 在 Windows 下是 .cmd，须经 shell 执行；参数静态，不涉及用户输入。
   ...(skipBuild
     ? []

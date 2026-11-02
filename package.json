@@ -12,6 +12,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "check": "node scripts/verify.mjs",
+    "bump": "node scripts/version.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },
