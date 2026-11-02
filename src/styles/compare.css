@@ -224,17 +224,6 @@
   margin-left: auto;
 }
 
-.compare-tools select,
-.branch-compare-field select {
-  font: inherit;
-  font-size: 12px;
-  color: var(--text);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 5px 8px;
-}
-
 .branch-compare-field {
   display: flex;
   flex-direction: column;
@@ -244,7 +233,7 @@
   color: var(--muted);
 }
 
-.branch-compare-field select {
+.branch-compare-field .select-control {
   width: 100%;
 }
 

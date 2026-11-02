@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { CommitSummaryDto, ExternalToolConfig, FileDiffDto } from "../../shared/types";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
+import { Select } from "../../shared/Select";
 import { CompareCommitList } from "./CompareCommitList";
 import { CompareDiffPane } from "./CompareDiffPane";
 import { CompareFileList } from "./CompareFileList";
@@ -173,17 +174,13 @@ export function CompareView({
             <span className="muted">变更文件 {files.length} 个</span>
             {tools.length > 0 && (
               <span className="compare-tools">
-                <select
+                <Select
+                  compact
                   value={safeToolIndex}
                   onChange={(event) => setToolIndex(Number(event.target.value))}
                   aria-label="选择外部对比工具"
-                >
-                  {tools.map((tool, index) => (
-                    <option key={`${tool.name}:${index}`} value={index}>
-                      {tool.name}
-                    </option>
-                  ))}
-                </select>
+                  options={tools.map((tool, index) => ({ value: index, label: tool.name }))}
+                />
                 <button
                   disabled={!filePath}
                   onClick={() => {

@@ -46,3 +46,75 @@ button.active {
 .context-menu button:hover:not(:disabled) {
   background: var(--accent-soft);
 }
+
+/* 统一下拉：原生 select 保留键盘与无障碍，箭头与容器由组件自绘。 */
+.select-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  vertical-align: middle;
+}
+
+.select-control > select {
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 28px 4px 9px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.select-control.compact > select {
+  min-height: 28px;
+  padding: 3px 26px 3px 8px;
+  border-radius: 5px;
+}
+
+.select-control.block {
+  display: flex;
+  width: 100%;
+}
+
+.select-control > select:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.select-control > select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.select-control > select:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.select-control option {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.select-chevron {
+  position: absolute;
+  right: 9px;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.select-control.compact .select-chevron {
+  right: 8px;
+}
+

@@ -3,6 +3,7 @@ import { Diff, Hunk, parseDiff } from "react-diff-view";
 import "react-diff-view/style/index.css";
 import type { FileDiffDto, FileStatus } from "../../shared/types";
 import { STATUS_LABEL } from "../../shared/fileStatus";
+import { Select } from "../../shared/Select";
 import { buildDiffTokens } from "./highlight";
 import { SplitDiffPanes } from "./SplitDiffPanes";
 
@@ -122,51 +123,79 @@ export function FileDiffView({
               {loading && <span className="muted">读取中…</span>}
               <span className="diff-add">+{diff.additions}</span>
               <span className="diff-del">-{diff.deletions}</span>
-              {diff.language && <span className="muted">{diff.language}</span>}
+              {diff.language && <span className="muted diff-language">{diff.language}</span>}
             </span>
           </div>
           <div className="file-diff-meta">
             {listFiles && (
               <button
-                className={filesOpen ? "diff-option active" : "diff-option"}
+                className={filesOpen ? "diff-icon-button with-count active" : "diff-icon-button with-count"}
                 onClick={() => setFilesOpen((current) => !current)}
                 aria-pressed={filesOpen}
                 title={filesOpen ? "收起变更文件列表" : "展开变更文件列表"}
+                aria-label={filesOpen ? "收起变更文件列表" : "展开变更文件列表"}
               >
-                文件 {fileEntries.length}
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M6 4.5h7M6 8h7M6 11.5h7" />
+                  <path d="M3 4.5h.01M3 8h.01M3 11.5h.01" />
+                </svg>
+                <span className="diff-icon-count">{fileEntries.length}</span>
               </button>
             )}
             {parsed && (
-              <div className="view-toggle">
+              <div className="view-toggle" role="group" aria-label="diff 视图模式">
                 <button
                   className={viewType === "split" ? "active" : ""}
                   onClick={() => setViewType("split")}
+                  title="并排显示"
+                  aria-label="并排显示"
+                  aria-pressed={viewType === "split"}
                 >
-                  并排
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
+                    <path d="M8 3.5v9" />
+                  </svg>
                 </button>
                 <button
                   className={viewType === "unified" ? "active" : ""}
                   onClick={() => setViewType("unified")}
+                  title="统一显示"
+                  aria-label="统一显示"
+                  aria-pressed={viewType === "unified"}
                 >
-                  统一
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
+                    <path d="M4.5 6.5h7M4.5 9.5h5" />
+                  </svg>
                 </button>
               </div>
             )}
             <button
-              className={wrap ? "diff-option active" : "diff-option"}
+              className={wrap ? "diff-icon-button active" : "diff-icon-button"}
               onClick={() => setWrap((current) => !current)}
               aria-pressed={wrap}
               title="长行自动换行，避免横向滚动"
+              aria-label="长行自动换行"
             >
-              换行
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M3 5h10M3 8h7a2 2 0 0 1 0 4H7" />
+                <path d="M8.5 10.5 7 12l1.5 1.5" />
+              </svg>
             </button>
             <button
-              className={expanded ? "diff-option active" : "diff-option"}
+              className={expanded ? "diff-icon-button active" : "diff-icon-button"}
               onClick={() => onExpandedChange(!expanded)}
               aria-pressed={expanded}
               title={expanded ? "还原（Esc）" : "放大到整个窗口查看 diff"}
+              aria-label={expanded ? "还原 diff 视图" : "放大 diff 视图"}
             >
-              {expanded ? "还原" : "放大"}
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                {expanded ? (
+                  <path d="M9 7 13 3M13 7V3H9M7 9 3 13M3 9v4h4" />
+                ) : (
+                  <path d="M13 3 9 7M9 3h4v4M3 13l4-4M7 13H3V9" />
+                )}
+              </svg>
             </button>
           </div>
         </header>
@@ -216,20 +245,18 @@ export function FileDiffView({
                 >
                   ‹
                 </button>
-                <span className="diff-file-select">
-                  <select
-                    value={activePath ?? diff.path}
-                    onChange={(event) => onSelectFile?.(event.target.value)}
-                    aria-label="切换对比文件"
-                    title={activePath ?? diff.path}
-                  >
-                    {fileEntries.map((file, index) => (
-                      <option key={file.path} value={file.path}>
-                        {index + 1}/{fileEntries.length} · {file.path}
-                      </option>
-                    ))}
-                  </select>
-                </span>
+                <Select
+                  className="diff-file-picker"
+                  compact
+                  value={activePath ?? diff.path}
+                  onChange={(event) => onSelectFile?.(event.target.value)}
+                  aria-label="切换对比文件"
+                  title={activePath ?? diff.path}
+                  options={fileEntries.map((file, index) => ({
+                    value: file.path,
+                    label: `${index + 1}/${fileEntries.length} · ${file.path}`,
+                  }))}
+                />
                 <button
                   disabled={currentIndex < 0 || currentIndex >= fileEntries.length - 1}
                   onClick={() => onSelectFile?.(fileEntries[currentIndex + 1].path)}

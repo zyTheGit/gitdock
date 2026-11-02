@@ -89,15 +89,11 @@
 .graph-toolbar { min-height: 34px; padding: 2px 0; }
 .scope-tabs { padding: 2px; }
 .scope-tabs button { min-height: 26px; }
-.branch-filter { min-height: 28px; }
 
 .detail-columns { min-height: 0; }
 .detail-files { border-right-color: var(--border); }
 .file-row.active { background: var(--accent-soft); }
 .detail-diff { padding-left: 8px; }
-.file-diff { min-height: 0; }
-.file-diff-header { flex-direction: row; align-items: center; justify-content: space-between; }
-.file-diff-meta { justify-content: flex-end; }
 .file-diff.expanded { inset: 10px; border-radius: 6px; }
 
 .staging-view { gap: 6px; }
@@ -256,19 +252,11 @@
   background: color-mix(in srgb, var(--bg-elevated) 45%, var(--bg-panel));
 }
 .settings-theme-row > span { flex: none; color: var(--text); font-size: 12.5px; }
-.settings-theme-row select {
+.settings-theme-row .select-control {
   flex: 0 1 190px;
   margin-left: auto;
-  min-height: 30px;
-  padding: 3px 8px;
-  color: var(--text);
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  font: inherit;
-  font-size: 12px;
 }
-.settings-theme-row select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.settings-theme-row .select-control > select { min-height: 30px; }
 
 /* 终端分区沿用对比工具工具卡片的字段外观。 */
 .settings-dialog label.settings-field {
@@ -392,16 +380,17 @@
 .mono, code, .staging-path { font-family: Consolas, "Cascadia Mono", "Microsoft YaHei", monospace; }
 
 @media (max-width: 900px) {
-  .layout > .sidebar, .layout > .sidebar + .pane-splitter { display: flex; }
+  /* 侧栏默认是块级容器；恢复显示时不能用 flex，否则仓库信息与分支列表会并排挤成两列。 */
+  .layout > .sidebar, .layout > .sidebar + .pane-splitter { display: block; }
   .sidebar { width: min(220px, 25vw) !important; }
   .main { padding: 6px; }
   .topbar { align-items: flex-start; }
   .topbar-actions { margin-left: auto; }
   .workspace.detail-open { flex-direction: column; overflow-y: auto; }
-  .workspace.detail-open > .graph-pane { min-height: 320px; flex: none; }
+  /* 上下堆叠时图谱必须定高，否则虚拟列表的占位高度会把详情顶到视野外。 */
+  .workspace.detail-open > .graph-pane { flex: 0 0 320px; }
   .workspace.detail-open > .detail-pane { width: 100% !important; min-height: 360px; flex: none; }
   .detail-columns { grid-template-columns: minmax(180px, 30%) minmax(0, 1fr); }
-  .file-diff-header { flex-wrap: wrap; }
 }
 
 @media (max-width: 560px) {

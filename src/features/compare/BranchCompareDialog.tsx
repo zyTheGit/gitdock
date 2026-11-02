@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal } from "../../shared/Modal";
+import { Select } from "../../shared/Select";
 import type { RefDto } from "../../shared/types";
 
 interface BranchCompareDialogProps {
@@ -39,6 +40,10 @@ export function BranchCompareDialog({
   const base = branches.find((branch) => branch.short_name === baseName);
   const compare = branches.find((branch) => branch.short_name === compareName);
   const same = baseName === compareName;
+  const options = branches.map((branch) => ({
+    value: branch.short_name,
+    label: branch.is_head ? `${branch.short_name}（当前）` : branch.short_name,
+  }));
 
   return (
     <Modal className="confirm-dialog branch-compare-dialog">
@@ -52,25 +57,21 @@ export function BranchCompareDialog({
       <section>
         <label className="branch-compare-field">
           Base（基准）
-          <select value={baseName} onChange={(event) => setBaseName(event.target.value)}>
-            {branches.map((branch) => (
-              <option key={branch.full_name} value={branch.short_name}>
-                {branch.short_name}
-                {branch.is_head ? "（当前）" : ""}
-              </option>
-            ))}
-          </select>
+          <Select
+            block
+            value={baseName}
+            options={options}
+            onChange={(event) => setBaseName(event.target.value)}
+          />
         </label>
         <label className="branch-compare-field">
           Compare（对比）
-          <select value={compareName} onChange={(event) => setCompareName(event.target.value)}>
-            {branches.map((branch) => (
-              <option key={branch.full_name} value={branch.short_name}>
-                {branch.short_name}
-                {branch.is_head ? "（当前）" : ""}
-              </option>
-            ))}
-          </select>
+          <Select
+            block
+            value={compareName}
+            options={options}
+            onChange={(event) => setCompareName(event.target.value)}
+          />
         </label>
         <p className="muted confirm-hint">
           默认按三点 diff 比较（Base 与 Compare 的共同祖先 → Compare），可在对比视图切换为两点快照。

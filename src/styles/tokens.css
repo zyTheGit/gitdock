@@ -166,7 +166,7 @@
   .branch-item.active,
   .scope-tabs button.active,
   .view-toggle button.active,
-  .diff-option.active,
+  .diff-icon-button.active,
   .branch-chip {
     outline: 1px solid Highlight;
     outline-offset: -1px;

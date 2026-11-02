@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import type { CommitSummaryDto, RepoStateDto, GraphScope } from "../../shared/types";
+import { Select } from "../../shared/Select";
 import { GraphList } from "./GraphList";
 import type { GraphLoader } from "./useGraph";
 
@@ -49,22 +50,20 @@ export function GraphPane({
           </button>
         </div>
 
-        <select
+        <Select
           className="branch-filter"
+          compact
           aria-label="按本地分支过滤图谱"
           value={scope.kind === "branch" ? scope.value : ""}
+          options={[
+            { value: "", label: "分支过滤…" },
+            ...localBranches.map((ref) => ({ value: ref.short_name, label: ref.short_name })),
+          ]}
           onChange={(event) => {
             const value = event.target.value;
             onScopeChange(value ? { kind: "branch", value } : { kind: "head" });
           }}
-        >
-          <option value="">分支过滤…</option>
-          {localBranches.map((ref) => (
-            <option key={ref.full_name} value={ref.short_name}>
-              {ref.short_name}
-            </option>
-          ))}
-        </select>
+        />
 
         <span className="graph-view-label">{view.viewLabel || "—"}</span>
         <span className="graph-count muted">

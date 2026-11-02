@@ -11,11 +11,18 @@
   font-size: 12px;
 }
 
+.file-diff {
+  min-height: 0;
+  container-type: inline-size;
+}
+
 .file-diff-header {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 8px;
   margin-bottom: 6px;
 }
 
@@ -40,19 +47,31 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 窄容器先隐藏语言名，再隐藏增删统计，避免把路径挤没。 */
+@container (max-width: 460px) {
+  .file-diff-stats .diff-language { display: none; }
+}
+
+@container (max-width: 330px) {
+  .file-diff-stats { display: none; }
 }
 
 .file-diff-meta {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 6px 8px;
+  flex-wrap: nowrap;
+  flex: none;
+  gap: 6px;
   font-size: 12px;
 }
 
 .view-toggle {
   display: flex;
+  flex: none;
   gap: 2px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -61,30 +80,72 @@
 }
 
 .view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  padding: 0;
   border: none;
   background: transparent;
-  font-size: 12px;
-  padding: 3px 9px;
+  color: var(--muted);
   border-radius: 4px;
 }
 
+.view-toggle button:hover:not(:disabled) { color: var(--text); }
+
 .view-toggle button.active {
+  color: var(--text);
   background: var(--accent-soft);
 }
 
-.diff-option {
+.view-toggle button svg,
+.diff-icon-button svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 文件头控件固定为单行：容器变窄时只压缩路径，按钮不换行。 */
+.diff-icon-button {
   flex: none;
-  font-size: 12px;
-  padding: 3px 9px;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  color: var(--muted);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 5px;
 }
 
-.diff-option.active {
+.diff-icon-button:hover:not(:disabled) {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.diff-icon-button.active {
+  color: var(--text);
   background: var(--accent-soft);
   border-color: var(--accent);
+}
+
+.diff-icon-button.with-count {
+  width: auto;
+  min-width: 34px;
+  padding: 0 6px;
+}
+
+.diff-icon-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .file-diff-backdrop {
@@ -317,54 +378,9 @@
   padding: 2px 0;
 }
 
-.diff-file-select {
-  position: relative;
-  display: flex;
+.diff-file-picker {
   flex: 1;
   min-width: 0;
-}
-
-/* 用自绘箭头替代各版本外观不一致的原生 select 下拉。 */
-.diff-file-select::after {
-  content: "";
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid var(--muted);
-  border-bottom: 1.5px solid var(--muted);
-  transform: translateY(-70%) rotate(45deg);
-  pointer-events: none;
-}
-
-.diff-file-nav select {
-  flex: 1;
-  min-width: 0;
-  width: 100%;
-  font: inherit;
-  font-size: 12px;
-  color: var(--text);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 4px 26px 4px 8px;
-  appearance: none;
-  cursor: pointer;
-}
-
-.diff-file-nav select:hover {
-  border-color: var(--accent);
-}
-
-.diff-file-nav select:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.diff-file-nav option {
-  background: var(--bg-elevated);
-  color: var(--text);
 }
 
 .diff-file-nav button {

@@ -3,6 +3,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
+import { Select } from "../../shared/Select";
 import type { AppInfoDto, ExternalToolConfig, SettingsDto } from "../../shared/types";
 import { FeedbackDialog } from "./FeedbackDialog";
 
@@ -171,18 +172,23 @@ export function SettingsDialog({
           </p>
           <label className="settings-theme-row">
             <span>主题</span>
-            <select value={theme} onChange={(event) => {
-              const value = event.target.value;
-              setTheme(value);
-              if (value === "system") localStorage.removeItem("gitdock.theme");
-              else localStorage.setItem("gitdock.theme", value);
-              if (value === "system") document.documentElement.removeAttribute("data-theme");
-              else document.documentElement.dataset.theme = value;
-            }}>
-              <option value="system">跟随 Windows</option>
-              <option value="light">浅色</option>
-              <option value="dark">深色</option>
-            </select>
+            <Select
+              className="theme-select"
+              value={theme}
+              options={[
+                { value: "system", label: "跟随 Windows" },
+                { value: "light", label: "浅色" },
+                { value: "dark", label: "深色" },
+              ]}
+              onChange={(event) => {
+                const value = event.target.value;
+                setTheme(value);
+                if (value === "system") localStorage.removeItem("gitdock.theme");
+                else localStorage.setItem("gitdock.theme", value);
+                if (value === "system") document.documentElement.removeAttribute("data-theme");
+                else document.documentElement.dataset.theme = value;
+              }}
+            />
           </label>
           <div className="zoom-row">
             <span>界面缩放</span>
