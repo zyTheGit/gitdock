@@ -1,7 +1,7 @@
 # 阶段 A：内置终端技术 Spike 报告
 
 > 状态：通过（go）
-> 分支：`spike/terminal`（Spike 代码尚未合并到 `main`）
+> 分支：`spike/terminal`（2026-11-02 已合并到 `main`，阶段 B 验收后视为正式功能）
 > 日期：2026-10-30
 > 对应计划：`docs/06-GitDock后续需求与执行计划.md` 阶段 A
 > 结论：推荐 `portable-pty 0.9.0` + `xterm.js 6.0.0`；安装包增量 MSI +152 KiB、NSIS +136 KiB，远低于 10 MiB 门槛。LazyGit 保持外部安装、不进入安装包。

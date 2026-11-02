@@ -57,7 +57,7 @@ GitDock 是可扩展的 Git 桌面工作台。图谱用于理解提交历史；�
 
 完成标准：报告包含可复现步骤、版本/许可证来源、尺寸实测和明确的 go/no-go 建议；本阶段不新增正式 UI 或依赖到主应用。
 
-> 阶段 A 状态（2026-10-30）：已完成，结论 go。报告见 `docs/verification/阶段A-终端Spike.md`；推荐 `portable-pty 0.9.0` + `xterm.js 6.0.0`，MSI +152 KiB / NSIS +136 KiB。Spike 实现暂存在 `spike/terminal` 分支，按阶段 B 验收后再视为正式功能。
+> 阶段 A 状态（2026-10-30）：已完成，结论 go。报告见 `docs/verification/阶段A-终端Spike.md`；推荐 `portable-pty 0.9.0` + `xterm.js 6.0.0`，MSI +152 KiB / NSIS +136 KiB。Spike 实现已在 2026-11-02 合并到 `main`，仍按阶段 B 验收后才视为正式功能。
 
 ### 阶段 B：工作区外壳与同步
 
