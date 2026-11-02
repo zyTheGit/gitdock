@@ -186,15 +186,42 @@ export function SettingsDialog({
           </label>
           <div className="zoom-row">
             <span>界面缩放</span>
-            <button type="button" onClick={onZoomOut} disabled={fontScale <= MIN_SCALE}>
-              缩小
-            </button>
-            <button type="button" className="mono" onClick={onResetZoom} disabled={fontScale === 1}>
-              {Math.round(fontScale * 100)}%
-            </button>
-            <button type="button" onClick={onZoomIn} disabled={fontScale >= MAX_SCALE}>
-              放大
-            </button>
+            <span className="zoom-controls">
+              <button
+                type="button"
+                className="zoom-button"
+                title="缩小"
+                aria-label="缩小界面"
+                onClick={onZoomOut}
+                disabled={fontScale <= MIN_SCALE}
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" className="zoom-icon">
+                  <path d="M3.5 8h9" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="zoom-value mono"
+                title="恢复 100%"
+                aria-label={`当前缩放 ${Math.round(fontScale * 100)}%，恢复 100%`}
+                onClick={onResetZoom}
+                disabled={fontScale === 1}
+              >
+                {Math.round(fontScale * 100)}%
+              </button>
+              <button
+                type="button"
+                className="zoom-button"
+                title="放大"
+                aria-label="放大界面"
+                onClick={onZoomIn}
+                disabled={fontScale >= MAX_SCALE}
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true" className="zoom-icon">
+                  <path d="M8 3.5v9M3.5 8h9" />
+                </svg>
+              </button>
+            </span>
           </div>
           <p className="muted settings-hint">
             快捷键：<kbd>Ctrl</kbd>+<kbd>=</kbd> 放大，<kbd>Ctrl</kbd>+<kbd>-</kbd> 缩小，
@@ -208,11 +235,10 @@ export function SettingsDialog({
             GitDock 不捆绑 LazyGit。留空时从 PATH 查找；填写后只使用该文件，找不到会在终端面板提示。
             终端以当前用户权限、在当前打开的仓库目录中运行。
           </p>
-          <label>
-            LazyGit 可执行文件
+          <label className="settings-field">
+            <span className="settings-field-label">LazyGit 可执行文件</span>
             <span className="tool-path">
               <input
-                className="mono"
                 value={lazygitPath}
                 placeholder="留空则从 PATH 查找 LazyGit，例如 C:\Users\me\scoop\shims\lazygit.exe"
                 onChange={(event) => setLazygitPath(event.target.value)}

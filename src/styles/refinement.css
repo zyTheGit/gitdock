@@ -234,8 +234,10 @@
 .settings-dialog input:not([type="checkbox"]):not([type="radio"]) {
   min-height: 34px;
   padding: 6px 9px;
+  font: inherit;
+  font-size: 12px;
   background: var(--bg-panel);
-  border-color: var(--border);
+  border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
 }
@@ -255,7 +257,8 @@
 }
 .settings-theme-row > span { flex: none; color: var(--text); font-size: 12.5px; }
 .settings-theme-row select {
-  flex: 1;
+  flex: 0 1 190px;
+  margin-left: auto;
   min-height: 30px;
   padding: 3px 8px;
   color: var(--text);
@@ -266,6 +269,18 @@
   font-size: 12px;
 }
 .settings-theme-row select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+
+/* 终端分区沿用对比工具工具卡片的字段外观。 */
+.settings-dialog label.settings-field {
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-elevated) 45%, var(--bg-panel));
+  transition: border-color 120ms ease;
+}
+.settings-dialog label.settings-field:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.settings-field-label { font-size: 11.5px; }
 
 .settings-dialog .tool-list { gap: 10px; margin-bottom: 10px; }
 .settings-dialog .tool-list li {
@@ -293,14 +308,47 @@
 .settings-dialog .settings-tools > button:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
 
 .settings-dialog .zoom-row {
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
   padding: 8px 11px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: color-mix(in srgb, var(--bg-elevated) 45%, var(--bg-panel));
 }
-.settings-dialog .zoom-row > span { flex: 1; color: var(--text); font-size: 12.5px; margin-right: 0; }
-.settings-dialog .zoom-row button { min-height: 28px; padding: 3px 10px; font-size: 12px; }
+.settings-dialog .zoom-row > span:first-child { flex: 1; color: var(--text); font-size: 12.5px; margin-right: 0; }
+.zoom-controls {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-panel);
+}
+.zoom-controls button {
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.zoom-controls button:hover:not(:disabled) { color: var(--text); background: var(--bg-elevated); border-color: transparent; }
+.zoom-controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.zoom-controls .zoom-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+}
+.zoom-icon { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.zoom-controls .zoom-value { min-width: 58px; color: var(--text); font-variant-numeric: tabular-nums; }
+.zoom-controls .zoom-value:disabled { opacity: .9; color: var(--muted); }
 
 .settings-dialog .about-grid {
   gap: 8px 14px;
