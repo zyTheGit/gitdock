@@ -134,7 +134,7 @@ export function RepositorySwitcher({
         onClick={() => (open ? close() : setOpen(true))}
       >
         <span className="brand-mark">⎇</span>
-        <span className="repo-switch-name">{currentPath ? repoName(currentPath) : "Git Graph"}</span>
+        <span className="repo-switch-name">{currentPath ? repoName(currentPath) : "GitDock"}</span>
         <span className="repo-switch-caret">▾</span>
       </button>
       {open && (

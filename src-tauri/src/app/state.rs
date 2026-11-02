@@ -51,10 +51,10 @@ impl AppState {
             .app_cache_dir()
             .map_err(|e| internal("无法定位缓存目录", e))?;
         std::fs::create_dir_all(&config_dir).map_err(|e| internal("创建配置目录失败", e))?;
-        let log_path = log_dir.join("git-graph.log");
+        let log_path = log_dir.join("gitdock.log");
         logging::init(&log_path);
         logging::info(&format!(
-            "启动 Git Graph {}（{}）",
+            "启动 GitDock {}（{}）",
             env!("CARGO_PKG_VERSION"),
             config_dir.display()
         ));

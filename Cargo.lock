@@ -1354,25 +1354,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "git-graph-app"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "git-core",
- "git-read",
- "git-write",
- "notify",
- "portable-pty",
- "refresh",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tempfile",
-]
-
-[[package]]
 name = "git-read"
 version = "0.1.0"
 dependencies = [
@@ -1400,6 +1381,25 @@ dependencies = [
  "tempfile",
  "test-support",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "gitdock-app"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "git-core",
+ "git-read",
+ "git-write",
+ "notify",
+ "portable-pty",
+ "refresh",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tempfile",
 ]
 
 [[package]]

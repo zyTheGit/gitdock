@@ -114,5 +114,5 @@ pub fn run() {
             commands::read_branch_description,
         ])
         .run(tauri::generate_context!())
-        .expect("启动 Git Graph 失败");
+        .expect("启动 GitDock 失败");
 }
