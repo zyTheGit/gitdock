@@ -124,9 +124,15 @@
 .detail-facts {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
   font-size: 12px;
   margin-bottom: 6px;
+}
+
+/* 行首标签是固定文案，窄面板下不能被分支标签挤成两行。 */
+.detail-facts > .muted:first-child {
+  flex: none;
+  white-space: nowrap;
 }
 
 .parent-list {
