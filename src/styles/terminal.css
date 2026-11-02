@@ -10,6 +10,36 @@
   border-top: 1px solid var(--terminal-border);
 }
 
+.terminal-panel.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  width: 100vw;
+  height: 100vh !important;
+  max-height: none;
+  border: 1px solid var(--terminal-border);
+}
+
+.terminal-panel.fullscreen .terminal-resizer { display: none; }
+
+.terminal-fullscreen-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: transparent;
+  border-color: var(--terminal-border);
+  color: var(--terminal-muted);
+  font-size: 11px;
+}
+
+.terminal-fullscreen-button:hover:not(:disabled) {
+  color: var(--terminal-running);
+  border-color: var(--terminal-running);
+}
+
+.terminal-fullscreen-button svg { width: 14px; height: 14px; }
+
 /* class 选择器优先级高于 UA 的 [hidden]，需显式关闭。 */
 .terminal-panel[hidden] {
   display: none;
@@ -58,7 +88,51 @@
 .terminal-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+}
+
+.terminal-launch-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 112px;
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.terminal-launch-button svg { width: 15px; height: 15px; flex: none; }
+
+.terminal-launch-button.secondary {
+  color: #c7ccd5;
+  background: #1b1e24;
+  border-color: #3a404c;
+}
+
+.terminal-launch-button.secondary:hover:not(:disabled) {
+  color: #f0f3f8;
+  background: #252a34;
+  border-color: #596273;
+}
+
+.terminal-launch-button:focus-visible,
+.terminal-fullscreen-button:focus-visible,
+.terminal-icon-button:focus-visible {
+  outline: 2px solid var(--terminal-running);
+  outline-offset: 1px;
+}
+
+.terminal-launch-button:disabled { filter: saturate(.65); opacity: .55; }
+
+@media (max-width: 720px) {
+  .terminal-header { align-items: flex-start; flex-direction: column; }
+  .terminal-actions { width: 100%; justify-content: flex-end; }
+  .terminal-title { width: 100%; }
 }
 
 /* 收起为图标按钮，和状态栏的终端开关呼应。 */

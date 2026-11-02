@@ -62,7 +62,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme]) {
     color-scheme: light;
     --bg: #f5f6f8;
     --bg-panel: #ffffff;
@@ -106,6 +106,53 @@
     --diff-delete-gutter-strong: #fbe7e9;
   }
 }
+
+/* 用户可在设置中覆盖系统主题；未设置时仍跟随 Windows。 */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --bg-panel: #ffffff;
+  --bg-elevated: #eef1f6;
+  --border: #d4d9e3;
+  --text: #1d2129;
+  --muted: #5b6472;
+  --accent: #2f6fdd;
+  --accent-soft: #dbe7fb;
+  --on-accent-soft: #1a4f9c;
+  --warning: #8a5a00;
+  --danger: #c62828;
+  --danger-text: #a01f26;
+  --ok: #1a7f37;
+  --shadow-sm: rgba(20, 28, 40, 0.16);
+  --shadow-lg: rgba(20, 28, 40, 0.22);
+  --backdrop: rgba(26, 32, 44, 0.35);
+  --row-divider: rgba(212, 217, 227, 0.8);
+  --row-hover: rgba(47, 111, 221, 0.06);
+  --accent-weak: rgba(47, 111, 221, 0.08);
+  --warning-weak: rgba(138, 90, 0, 0.08);
+  --danger-weak: rgba(198, 40, 40, 0.08);
+  --danger-soft: rgba(198, 40, 40, 0.1);
+  --splitter-active: rgba(47, 111, 221, 0.3);
+  --ok-border: rgba(26, 127, 55, 0.4);
+  --warning-border: rgba(138, 90, 0, 0.45);
+  --danger-border: rgba(198, 40, 40, 0.45);
+  --remote-border: #c5cbd6;
+  --remote-text: #4a5568;
+  --diff-bg: #ffffff;
+  --diff-text: #24292f;
+  --diff-selection-bg: #cfe0ff;
+  --diff-selection-text: #1d2129;
+  --diff-insert-gutter: rgba(26, 127, 55, 0.12);
+  --diff-delete-gutter: rgba(198, 40, 40, 0.12);
+  --diff-insert-code: rgba(26, 127, 55, 0.08);
+  --diff-delete-code: rgba(198, 40, 40, 0.08);
+  --diff-insert-edit: rgba(26, 127, 55, 0.24);
+  --diff-delete-edit: rgba(198, 40, 40, 0.24);
+  --diff-insert-gutter-strong: #e3f2e6;
+  --diff-delete-gutter-strong: #fbe7e9;
+}
+
+:root[data-theme="dark"] { color-scheme: dark; }
 
 /* 高对比度：选中/激活态不依赖低对比度背景色。 */
 @media (forced-colors: active) {

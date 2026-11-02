@@ -45,6 +45,8 @@ export function SettingsDialog({
   );
   const [saving, setSaving] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("启动");
+  const [theme, setTheme] = useState(() => localStorage.getItem("gitdock.theme") ?? "system");
 
   const update = (index: number, patch: Partial<ExternalToolConfig>) => {
     const previousName = tools[index]?.name;
@@ -128,13 +130,21 @@ export function SettingsDialog({
     <>
       <Modal className="settings-dialog">
       <header>
-        <h2>设置</h2>
+        <div className="settings-heading"><h2>设置</h2><span className="muted">配置 GitDock 的行为与工具</span></div>
         <button className="detail-close" onClick={onClose} aria-label="关闭设置">
           ×
         </button>
       </header>
+      <div className="settings-content">
+      <nav className="settings-nav" aria-label="设置分区">
+        {["启动", "外观", "终端", "对比工具", "关于"].map((section) => (
+          <button key={section} className={activeSection === section ? "active" : ""} aria-current={activeSection === section ? "page" : undefined} onClick={() => setActiveSection(section)}>
+            <span className={`settings-nav-mark mark-${section}`} aria-hidden="true" />{section}
+          </button>
+        ))}
+      </nav>
       <div className="settings-body">
-        <section>
+        <section id="settings-启动" hidden={activeSection !== "启动"}>
           <h3>启动</h3>
           <label className="settings-check">
             <input
@@ -154,12 +164,26 @@ export function SettingsDialog({
           </label>
         </section>
 
-        <section>
+        <section id="settings-外观" hidden={activeSection !== "外观"}>
           <h3>外观</h3>
           <p className="muted settings-hint">
-            颜色跟随 Windows 系统的浅色/深色设置，不提供应用内主题覆盖；终端内容保持深色
-            ANSI 配色。
+            选择 GitDock 的配色方案；终端内容始终使用深色 ANSI 配色。
           </p>
+          <label className="settings-theme-row">
+            <span>主题</span>
+            <select value={theme} onChange={(event) => {
+              const value = event.target.value;
+              setTheme(value);
+              if (value === "system") localStorage.removeItem("gitdock.theme");
+              else localStorage.setItem("gitdock.theme", value);
+              if (value === "system") document.documentElement.removeAttribute("data-theme");
+              else document.documentElement.dataset.theme = value;
+            }}>
+              <option value="system">跟随 Windows</option>
+              <option value="light">浅色</option>
+              <option value="dark">深色</option>
+            </select>
+          </label>
           <div className="zoom-row">
             <span>界面缩放</span>
             <button type="button" onClick={onZoomOut} disabled={fontScale <= MIN_SCALE}>
@@ -178,7 +202,7 @@ export function SettingsDialog({
           </p>
         </section>
 
-        <section>
+        <section id="settings-终端" hidden={activeSection !== "终端"}>
           <h3>终端</h3>
           <p className="muted settings-hint">
             GitDock 不捆绑 LazyGit。留空时从 PATH 查找；填写后只使用该文件，找不到会在终端面板提示。
@@ -200,7 +224,7 @@ export function SettingsDialog({
           </label>
         </section>
 
-        <section className="settings-tools">
+        <section id="settings-对比工具" className="settings-tools" hidden={activeSection !== "对比工具"}>
           <h3>外部文件对比工具</h3>
           <p className="muted settings-hint">
             参数模板中 <code>$LOCAL</code> / <code>$REMOTE</code> 必须各自独立成段；程序按参数数组启动，不经过 shell。
@@ -267,7 +291,7 @@ export function SettingsDialog({
           </button>
         </section>
 
-        <section>
+        <section id="settings-关于" hidden={activeSection !== "关于"}>
           <h3>关于</h3>
           {info ? (
             <dl className="about-grid">
@@ -292,6 +316,7 @@ export function SettingsDialog({
             反馈框只预填应用版本、操作系统与 Git 版本，不含日志或仓库路径；点击后由你在浏览器中检查并提交。
           </p>
         </section>
+      </div>
       </div>
       <footer>
         <button onClick={onClose}>取消</button>

@@ -64,6 +64,7 @@ export function TerminalPanel({
   const [mode, setMode] = useState<TerminalMode | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
   const [lazygitPath, setLazygitPath] = useState<string | null | undefined>(undefined);
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<XTerm | null>(null);
@@ -165,6 +166,25 @@ export function TerminalPanel({
     return () => cancelAnimationFrame(frame);
   }, [visible, fit]);
 
+  useEffect(() => {
+    if (!visible) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && fullscreen) {
+        setFullscreen(false);
+      }
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "enter") {
+        event.preventDefault();
+        setFullscreen((current) => !current);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [visible, fullscreen]);
+
+  useEffect(() => {
+    if (!visible) setFullscreen(false);
+  }, [visible]);
+
   const start = useCallback(
     (nextMode: TerminalMode) => {
       const host = hostRef.current;
@@ -182,12 +202,6 @@ export function TerminalPanel({
         fontSize: 13,
         cursorBlink: true,
         scrollback: 5000,
-        theme: {
-          background: "#111318",
-          foreground: "#d7dce5",
-          cursor: "#7cc4ff",
-          selectionBackground: "#2f4d6b",
-        },
       });
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
@@ -290,7 +304,7 @@ export function TerminalPanel({
   const lazygitMissing = lazygitPath === null;
 
   return (
-    <section className="terminal-panel" style={{ height }} hidden={!visible}>
+    <section className={fullscreen ? "terminal-panel fullscreen" : "terminal-panel"} style={fullscreen ? undefined : { height }} hidden={!visible}>
       <div
         className="terminal-resizer"
         role="separator"
@@ -321,13 +335,22 @@ export function TerminalPanel({
               >
                 启动 LazyGit
               </button>
-              <button onClick={() => start("shell")}>启动 Shell</button>
+              <button className="terminal-launch-button secondary" onClick={() => start("shell")}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v14H4z" /><path d="m7 9 3 3-3 3m6 0h4" /></svg>
+                <span>启动 Shell</span>
+              </button>
             </>
           ) : (
             <button onClick={end} disabled={status === "starting"}>
               结束进程
             </button>
           )}
+          <button className="terminal-fullscreen-button" onClick={() => setFullscreen((current) => !current)} title={fullscreen ? "还原终端（Ctrl+Shift+Enter）" : "全屏终端（Ctrl+Shift+Enter）"}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              {fullscreen ? <path d="M8 3v5H3m13-5v5h5M3 16h5v5m13-5h-5v5" /> : <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />}
+            </svg>
+            <span>{fullscreen ? "还原" : "全屏"}</span>
+          </button>
           <button
             className="terminal-icon-button"
             onClick={onCollapse}

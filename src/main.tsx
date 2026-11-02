@@ -4,6 +4,11 @@ import App from "./App";
 import { ipc } from "./shared/ipc";
 import "./styles.css";
 
+const savedTheme = localStorage.getItem("gitdock.theme");
+if (savedTheme === "light" || savedTheme === "dark") {
+  document.documentElement.dataset.theme = savedTheme;
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
