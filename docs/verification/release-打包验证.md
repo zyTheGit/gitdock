@@ -1,5 +1,7 @@
 # Release 打包验证（Windows x64）
 
+> 注：本文记录 2026-10-28 的验证结果，文中 `git-graph-app.exe` / `Git Graph_*` 为更名前的可执行文件与安装包名；2026-11-02 起分别为 `gitdock-app.exe` / `GitDock_*`。
+
 - 日期：2026-10-28
 - 结论：MSI / NSIS 均构建成功，release exe 冒烟通过；**未签名**（无证书，见第 5 节）
 - 构建命令：`npm run tauri build`

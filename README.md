@@ -1,4 +1,6 @@
-# Git Graph
+# GitDock
+
+> 产品名：GitDock。文中的“Git Graph”指图谱视图/模块，区别于 VS Code 的 Git Graph 扩展。
 
 Windows 优先的单窗口 Git 图谱桌面应用。图谱、提交详情、三点/两点对比、搜索与少量写操作（cherry-pick / revert / switch）集中在一个界面里；只读走 gix，写操作全部通过 Git CLI 的参数数组执行，不经过 shell。
 
