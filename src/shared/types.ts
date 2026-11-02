@@ -230,7 +230,9 @@ export type WriteKind =
   | "switch_branch"
   | "set_branch_description"
   | "stage_files"
-  | "unstage_files";
+  | "unstage_files"
+  | "continue_operation"
+  | "abort_operation";
 
 export interface WriteRequest {
   kind: WriteKind;
@@ -239,11 +241,21 @@ export interface WriteRequest {
   description?: string;
   /** stage/unstage 的文件路径；其他操作忽略。 */
   paths?: string[];
+  /** 继续/中止时指定的中断类型；必须与后端探测结果严格一致。 */
+  interruption?: "cherry_pick" | "revert";
+  /** merge commit 的基线父序号（1 起始）；非 merge commit 不得提供。 */
+  mainline?: number;
 }
 
 export interface GateIssueDto {
   code: string;
   message: string;
+}
+
+export interface ParentOptionDto {
+  oid: string;
+  short_oid: string;
+  summary: string;
 }
 
 export interface GateReportDto {
@@ -254,6 +266,8 @@ export interface GateReportDto {
   affected_total: number;
   summary: string;
   is_merge_commit: boolean;
+  /** 父提交列表，顺序与 `-m N` 的 1 起始父序号一致。 */
+  parents: ParentOptionDto[];
 }
 
 export type WriteStatus = "succeeded" | "empty_pick" | "conflicted" | "failed" | "rejected";

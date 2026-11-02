@@ -434,6 +434,10 @@ export default function App() {
             info={info}
             error={error}
             diagnostic={diagnostic}
+            interruptionDisabled={write.interruptionDisabled}
+            onInterruptionAction={(kind, interruption) =>
+              void write.startInterruption(kind, interruption)
+            }
             onCopyDiagnostic={() => void copyText(diagnostic ?? "")}
           />
 
@@ -621,8 +625,12 @@ export default function App() {
           kind={write.prompt.kind}
           commit={write.prompt.commit}
           branch={write.prompt.branch}
+          interruption={write.prompt.interruption}
           gate={write.prompt.gate}
           gateError={write.prompt.gateError}
+          validating={write.validating}
+          mainline={write.mainline}
+          onMainlineChange={write.changeMainline}
           busy={write.busy}
           onCancel={write.cancel}
           onConfirm={() => void write.run()}

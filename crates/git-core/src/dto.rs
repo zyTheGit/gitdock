@@ -410,6 +410,8 @@ pub enum WriteKind {
     SetBranchDescription,
     StageFiles,
     UnstageFiles,
+    ContinueOperation,
+    AbortOperation,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -424,12 +426,25 @@ pub struct WriteRequest {
     /// stage/unstage 的文件路径；其他操作忽略。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub paths: Option<Vec<String>>,
+    /// 继续/中止时指定的中断类型；必须与探测到的标记严格一致。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interruption: Option<InterruptionKind>,
+    /// merge commit 的基线父序号（1 起始）；非 merge commit 不得提供。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mainline: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GateIssueDto {
     pub code: String,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParentOptionDto {
+    pub oid: Oid,
+    pub short_oid: String,
+    pub summary: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -448,6 +463,9 @@ pub struct GateReportDto {
     /// 用于确认框展示的摘要。
     pub summary: String,
     pub is_merge_commit: bool,
+    /// 提交的父提交列表，顺序与 `git cherry-pick -m N` 的 1 起始父序号一致。
+    #[serde(default)]
+    pub parents: Vec<ParentOptionDto>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -532,4 +550,62 @@ pub struct BranchDescriptionDto {
     pub description: String,
     /// linked worktree 中写入共享 local config，其他 worktree 可见。
     pub shared_across_worktrees: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_write_request_without_new_fields_deserializes_to_none() {
+        // 旧版前端请求只有 kind/oid，新增字段必须按 None 处理，不能导致 IPC 反序列化失败。
+        let legacy = r#"{"kind":"cherry_pick","oid":"0123456789abcdef0123456789abcdef01234567"}"#;
+        let request: WriteRequest = serde_json::from_str(legacy).expect("旧请求应可反序列化");
+        assert_eq!(request.kind, WriteKind::CherryPick);
+        assert!(request.interruption.is_none());
+        assert!(request.mainline.is_none());
+    }
+
+    #[test]
+    fn write_request_round_trips_interruption_and_mainline() {
+        let request = WriteRequest {
+            kind: WriteKind::ContinueOperation,
+            oid: None,
+            branch: None,
+            description: None,
+            paths: None,
+            interruption: Some(InterruptionKind::Revert),
+            mainline: Some(2),
+        };
+        let json = serde_json::to_string(&request).expect("序列化");
+        assert!(json.contains(r#""interruption":"revert""#), "{json}");
+        assert!(json.contains(r#""mainline":2"#), "{json}");
+        let decoded: WriteRequest = serde_json::from_str(&json).expect("反序列化");
+        assert_eq!(decoded.kind, WriteKind::ContinueOperation);
+        assert_eq!(decoded.interruption, Some(InterruptionKind::Revert));
+        assert_eq!(decoded.mainline, Some(2));
+
+        // None 时不序列化，保持与旧前端契约兼容。
+        let minimal = WriteRequest {
+            kind: WriteKind::CherryPick,
+            oid: None,
+            branch: None,
+            description: None,
+            paths: None,
+            interruption: None,
+            mainline: None,
+        };
+        let json = serde_json::to_string(&minimal).expect("序列化");
+        assert!(!json.contains("interruption"), "{json}");
+        assert!(!json.contains("mainline"), "{json}");
+    }
+
+    #[test]
+    fn legacy_gate_report_deserializes_parents_as_empty() {
+        let legacy = r#"{"ok":true,"issues":[],"summary":"x","is_merge_commit":false}"#;
+        let report: GateReportDto = serde_json::from_str(legacy).expect("旧 Gate 报告应可反序列化");
+        assert!(report.parents.is_empty());
+        assert!(report.warnings.is_empty());
+        assert_eq!(report.affected_total, 0);
+    }
 }

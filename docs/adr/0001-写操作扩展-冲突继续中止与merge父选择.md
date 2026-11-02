@@ -1,6 +1,6 @@
 # ADR 0001：冲突继续/中止与 merge 父选择
 
-- 状态：提议（待确认）
+- 状态：已接受（2026-11-02 确认第 6 节四项语义，并按第 7 节实测修正）
 - 日期：2026-10-28
 - 影响范围：`git-write` 写白名单、写前 Gate、执行状态机、F7 前端横幅、需求与任务文档
 - 触发依据：`docs/01-需求冻结.md` 变更控制——凡是触及 Git 写入边界的变化，必须先形成 ADR
@@ -28,14 +28,14 @@ MVP 的写操作白名单只有 cherry-pick、revert、切换本地分支、写�
 
 | kind | 前置条件 | 命令（参数数组，经 Git CLI） |
 |---|---|---|
-| `continue_operation` | 存在且仅存在本次对应的 `CHERRY_PICK_HEAD` 或 `REVERT_HEAD`；`index.lock` 不存在；无未解决冲突（`status.conflicted == 0`） | `GIT_EDITOR=true git cherry-pick --continue` 或 `GIT_EDITOR=true git revert --continue` |
-| `abort_operation` | 存在且仅存在本次对应的 `CHERRY_PICK_HEAD` 或 `REVERT_HEAD`；`index.lock` 不存在 | `git cherry-pick --abort` 或 `git revert --abort` |
+| `continue_operation` | 存在且仅存在本次对应的 `CHERRY_PICK_HEAD` 或 `REVERT_HEAD`；`sequencer`、`MERGE_HEAD`、`REBASE_HEAD`、`rebase-merge`、`rebase-apply`、`index.lock` 均不存在；无未解决冲突（`status.conflicted == 0`） | `GIT_EDITOR=true git cherry-pick --continue` 或 `GIT_EDITOR=true git revert --continue` |
+| `abort_operation` | 存在且仅存在本次对应的 `CHERRY_PICK_HEAD` 或 `REVERT_HEAD`；其余中断标记与 `index.lock` 均不存在 | `git cherry-pick --abort` 或 `git revert --abort` |
 
 规则：
 
 - **绝不自动调用**：继续/中止只能由用户点击并确认后执行；启动恢复横幅仍然只展示只读信息与终端提示，不出现自动动作。
 - `WriteRequest` 增加 `interruption: Option<InterruptionKind>`，取值仅允许 `cherry_pick` / `revert`。Gate 要求请求的 kind 与探测到的标记严格一致，避免在 rebase / merge / sequencer 状态下误触发。
-- 探测到多个中断标记（例如 `sequencer` + `CHERRY_PICK_HEAD`，说明是多提交序列）时拒绝，提示终端接管；首个版本不接管批量序列。
+- 单次 cherry-pick / revert **不会**创建 `sequencer`；一旦 `sequencer` 与对应标记并存即为多提交序列，必须拒绝并提示终端接管。首个版本不接管批量序列。
 - 中止属于破坏性操作：确认框必须明确说明「将回到操作开始前的状态，已手工解决的冲突内容会丢失」，且按钮文案为「中止并丢弃冲突解决」。这是本 ADR 中唯一新增的破坏性写入口。
 - 继续在仍有未解决冲突时直接拒绝（Gate 就绪性检查），不依赖 git 的报错文本；用户解决冲突并 `git add` 后可重试。
 - 继续时若 Git 判定结果为空提交，`cherry-pick --continue` 会以非零退出并保留 `CHERRY_PICK_HEAD`。应用按「失败 + 终端提示」展示，提示 `git cherry-pick --skip` 或 `git revert --skip`，**不自动 skip**。
@@ -57,6 +57,7 @@ MVP 的写操作白名单只有 cherry-pick、revert、切换本地分支、写�
 - 结果判定保持现有原则：**退出码 + 执行后重新探测操作态**，不解析输出文本。
   - 继续：退出码 0 且对应标记消失 → 成功；标记仍在 → 失败/未完成。
   - 中止：退出码 0 且对应标记消失 → 成功；否则失败。
+- 失败诊断只把 stderr 当作附加信息：revert 的空结果继续可能没有任何 stderr，应用必须合成可读提示并附对应 `--skip` 终端命令。
 - 成功后与现有写操作一致：发布新的 generation、刷新图谱、刷新横幅；`generation` 由应用层统一注入（与现状一致）。
 
 ### 2.4 不变量（不因本 ADR 放宽）
@@ -98,15 +99,28 @@ MVP 的写操作白名单只有 cherry-pick、revert、切换本地分支、写�
 |---|---|
 | 中止丢弃用户已解决的冲突内容 | 二次确认 + 明确文案；只在用户点击后执行 |
 | 在终端发起的多提交序列中被误操作 | `sequencer` 存在即拒绝；仅接管单次 cherry-pick / revert |
-| 继续时编辑器阻塞 | 沿用 `GIT_EDITOR=true` / `GIT_SEQUENCE_EDITOR=true` |
+| 继续时编辑器阻塞 | Git 2.53 实测 `--continue` 不启动编辑器；仍保留 `GIT_EDITOR=true` / `GIT_SEQUENCE_EDITOR=true` 作为防御 |
 | merge 父序号选错导致反向内容 | 确认框展示父提交短 OID + 摘要；默认第 1 父，不改用猜测 |
 | 继续/中止后 index 状态异常 | 执行后重新探测中断态与工作区状态；失败时保留 stderr 供诊断 |
 
-## 6. 待确认事项
+## 6. 决策结果（2026-11-02）
 
-1. merge commit 的父选择是否开放任意合法父序号（推荐：是，UI 默认第 1 父），还是首版仅 `-m 1`？
-2. 中止确认是否需要输入分支名/勾选确认（推荐：二次确认弹窗即可，不引入输入校验）？
-3. 是否允许对终端发起的单次 cherry-pick / revert 冲突使用应用内继续/中止（推荐：允许，仅限单次、标记严格匹配）？
-4. 空提交继续失败后是否后续提供【跳过】按钮（推荐：首版不给按钮，只给终端提示）？
+1. merge commit 开放任意合法父序号 `1..=parent_count`，UI 默认第 1 父，必须允许改选；不采用“首版仅 `-m 1`”。
+2. 中止采用二次确认弹窗 + 明确的破坏性按钮文案「中止并丢弃冲突解决」，不要求输入分支名，也不额外增加勾选框。
+3. 允许对终端发起的单次 cherry-pick / revert 冲突使用应用内继续/中止；判定只看标记严格匹配与其它中断标记不存在，不记录操作发起方。
+4. 空结果继续失败后首版不提供【跳过】按钮，只展示应用合成的失败说明与对应 `--skip` 终端命令。
 
-确认后把本文件状态改为「已接受」，再按第 4 节任务顺序实现；未确认前不改代码。
+## 7. 实测依据（Git 2.53，Windows）
+
+| 场景 | 观测结果 |
+|---|---|
+| 单次 `cherry-pick` / `revert` 冲突 | 只有 `CHERRY_PICK_HEAD` / `REVERT_HEAD`，**没有** `sequencer/` |
+| `cherry-pick A B` 序列冲突 | 标记与 `sequencer/` 同时存在 |
+| `merge` / `rebase` 冲突 | `MERGE_HEAD` / `REBASE_HEAD` + `rebase-merge/` 或 `rebase-apply/` |
+| 仍有未解决冲突时 `--continue` | 退出码 128，标记保留 |
+| 解决为空结果后 `--continue` | 退出码 1，标记保留；cherry-pick 的 stderr 有 `--skip` 提示，**revert 可能没有 stderr**（提示在 stdout） |
+| `-m` 父序号 | `1` 起始，与 `cat-file -p` / `rev-list --parents` 顺序一致；越界退出 128，`-m 0` 退出 129 |
+| 非 merge commit 加 `-m 1` | Git 静默接受，因此必须由 Gate 拒绝 `mainline_not_applicable` |
+| `--continue` 的编辑器 | Git 2.53 不启动编辑器；`GIT_EDITOR=true` 保留为防御 |
+
+补充边界：现有实现会在**应用发起的首次空 pick**、且工作区/索引干净时自动执行 `--skip` 清理；本 ADR 的“不自动 skip”针对继续/中止路径，两者不冲突。该既有行为保持不变，并在代码注释中说明适用范围。

@@ -132,6 +132,46 @@
   align-self: flex-start;
 }
 
+/* 中断态横幅里的继续/中止入口；与 .banner 一样纵向排布，按钮只占一行。 */
+.banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.banner-actions button {
+  flex: none;
+}
+
+/* merge commit 的基线父提交选择。 */
+.mainline-picker {
+  margin: 8px 0 0;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.mainline-picker legend {
+  padding: 0 4px;
+  font-size: 12px;
+}
+
+.mainline-option {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mainline-option input {
+  accent-color: var(--accent);
+}
+
 .toast {
   position: fixed;
   right: 16px;

@@ -11,9 +11,9 @@ use std::process::{Output, Stdio};
 
 use git_core::{
     git_command, language_for, BranchDescriptionDto, ErrorCode, FileDiffDto, FileStatus,
-    GateIssueDto, GateReportDto, HeadDto, InterruptionDto, InterruptionKind, Result,
-    StagingFileDto, StagingStatusDto, UserVisibleError, WarningDto, WorkspaceStatusDto, WriteKind,
-    WriteOutcomeDto, WriteRequest, WriteStatus,
+    GateIssueDto, GateReportDto, HeadDto, InterruptionDto, InterruptionKind, ParentOptionDto,
+    Result, StagingFileDto, StagingStatusDto, UserVisibleError, WarningDto, WorkspaceStatusDto,
+    WriteKind, WriteOutcomeDto, WriteRequest, WriteStatus,
 };
 use parking_lot::Mutex;
 
@@ -98,6 +98,7 @@ impl GitWriteModule {
         let mut affected_paths = Vec::new();
         let mut affected_total = 0usize;
         let mut is_merge_commit = false;
+        let mut parent_options = Vec::new();
 
         if self.is_bare()? {
             issues.push(issue(
@@ -112,11 +113,18 @@ impl GitWriteModule {
                 affected_total,
                 summary: "bare 仓库不支持写操作".into(),
                 is_merge_commit,
+                parents: parent_options,
             });
         }
 
+        let continues_interruption = matches!(
+            request.kind,
+            WriteKind::ContinueOperation | WriteKind::AbortOperation
+        );
+
+        // 继续/中止本身就是收尾中断态，只有其他操作才沿用「存在未完成操作即拒绝」。
         let interruption = self.inspect_interruption()?;
-        if interruption.is_active() {
+        if !continues_interruption && interruption.is_active() {
             issues.push(issue(
                 "interrupted",
                 format!(
@@ -124,6 +132,12 @@ impl GitWriteModule {
                     kind_names(&interruption.kinds),
                     interruption.terminal_hint
                 ),
+            ));
+        }
+        if !continues_interruption && request.interruption.is_some() {
+            issues.push(issue(
+                "interruption_not_applicable",
+                "只有继续/中止操作可以指定中断类型",
             ));
         }
 
@@ -136,12 +150,29 @@ impl GitWriteModule {
                 let oid = request.oid.as_ref().ok_or_else(|| {
                     UserVisibleError::new(ErrorCode::InvalidArgument, "缺少提交 OID")
                 })?;
-                let parents = self.commit_parents(oid.as_str())?;
-                is_merge_commit = parents.len() > 1;
+                let parent_oids = self.commit_parents(oid.as_str())?;
+                is_merge_commit = parent_oids.len() > 1;
+                // 父提交列表按 `-m` 的 1 起始顺序给出，供前端选择基线父。
+                parent_options = self.parent_options(&parent_oids)?;
+                let parent_count = parent_oids.len() as u32;
                 if is_merge_commit {
+                    match request.mainline {
+                        None => issues.push(issue(
+                            "mainline_required",
+                            format!(
+                                "该提交是 merge commit（共 {parent_count} 个父提交），必须选择基线父提交（-m N）"
+                            ),
+                        )),
+                        Some(n) if n == 0 || n > parent_count => issues.push(issue(
+                            "mainline_invalid",
+                            format!("基线父序号必须在 1..={parent_count} 之间"),
+                        )),
+                        Some(_) => {}
+                    }
+                } else if request.mainline.is_some() {
                     issues.push(issue(
-                        "merge_commit",
-                        "merge commit 不支持 cherry-pick / revert，请在终端使用 -m 指定父提交",
+                        "mainline_not_applicable",
+                        "该提交不是 merge commit，不能指定基线父提交（-m）",
                     ));
                 }
                 if head.detached {
@@ -153,16 +184,22 @@ impl GitWriteModule {
                 if status.staged > 0 || status.tracked > 0 || status.untracked > 0 {
                     issues.push(dirty_issue(status));
                 }
-                format!(
-                    "将 {} {} 到当前分支 {}",
-                    if request.kind == WriteKind::CherryPick {
-                        "cherry-pick"
-                    } else {
-                        "revert"
-                    },
-                    short_oid(oid.as_str()),
-                    head.branch.as_deref().unwrap_or("（未知分支）")
-                )
+                let action = if request.kind == WriteKind::CherryPick {
+                    "cherry-pick"
+                } else {
+                    "revert"
+                };
+                let branch = head.branch.as_deref().unwrap_or("（未知分支）");
+                match request.mainline {
+                    Some(n) if is_merge_commit && n >= 1 && n <= parent_count => format!(
+                        "将 {action} {} 到当前分支 {branch}，以第 {n} 父提交为基线（{n}/{parent_count}）",
+                        short_oid(oid.as_str())
+                    ),
+                    _ => format!(
+                        "将 {action} {} 到当前分支 {branch}",
+                        short_oid(oid.as_str())
+                    ),
+                }
             }
             WriteKind::SwitchBranch => {
                 let branch = request.branch.as_deref().ok_or_else(|| {
@@ -301,6 +338,94 @@ impl GitWriteModule {
                     paths.len()
                 )
             }
+            WriteKind::ContinueOperation | WriteKind::AbortOperation => {
+                let continuing = request.kind == WriteKind::ContinueOperation;
+                let verb = if continuing { "继续" } else { "中止" };
+                let pick = match request.interruption {
+                    Some(InterruptionKind::CherryPick) => Some(("cherry-pick", "CHERRY_PICK_HEAD")),
+                    Some(InterruptionKind::Revert) => Some(("revert", "REVERT_HEAD")),
+                    Some(_) => {
+                        issues.push(issue(
+                            "interruption_invalid",
+                            "继续/中止只支持 cherry-pick 或 revert 中断",
+                        ));
+                        None
+                    }
+                    None => {
+                        issues.push(issue(
+                            "interruption_required",
+                            format!("{verb}操作需要指定中断类型（cherry_pick 或 revert）"),
+                        ));
+                        None
+                    }
+                };
+                let mut summary = format!("无法{verb}当前操作");
+                if let Some((action, marker)) = pick {
+                    let (other_action, other_marker) = if marker == "CHERRY_PICK_HEAD" {
+                        ("revert", "REVERT_HEAD")
+                    } else {
+                        ("cherry-pick", "CHERRY_PICK_HEAD")
+                    };
+                    // 标记必须严格匹配：请求的 kind 与磁盘上唯一的中断标记一致。
+                    if self.marker_exists(other_marker) {
+                        issues.push(issue(
+                            "interruption_mismatch",
+                            format!(
+                                "请求的是 {action} 中断，但检测到 {other_action} 中断标记（{other_marker}）"
+                            ),
+                        ));
+                    } else if !self.marker_exists(marker) {
+                        issues.push(issue(
+                            "interruption_mismatch",
+                            format!("未检测到 {marker}，当前没有可{verb}的 {action} 操作"),
+                        ));
+                    }
+                    for (name, label) in [
+                        ("MERGE_HEAD", "merge"),
+                        ("REBASE_HEAD", "rebase"),
+                        ("rebase-merge", "rebase"),
+                        ("rebase-apply", "rebase"),
+                    ] {
+                        if self.marker_exists(name) {
+                            issues.push(issue(
+                                "interruption_mismatch",
+                                format!(
+                                    "检测到 {label} 中断（{name}），本应用只接管单次 cherry-pick / revert"
+                                ),
+                            ));
+                        }
+                    }
+                    if self.marker_exists("sequencer") {
+                        issues.push(issue(
+                            "sequenced_operation",
+                            "检测到批量 cherry-pick / revert 序列（sequencer），请在终端继续或中止",
+                        ));
+                    }
+                    if self.marker_exists("index.lock") {
+                        issues.push(issue(
+                            "index_locked",
+                            "index.lock 被占用，请等待其他 Git 进程结束后重试；本应用不会删除锁文件",
+                        ));
+                    }
+                    if continuing && status.conflicted > 0 {
+                        issues.push(issue(
+                            "unresolved_conflicts",
+                            format!(
+                                "还有 {} 个文件存在未解决冲突，请先解决冲突并 git add 后再继续",
+                                status.conflicted
+                            ),
+                        ));
+                    }
+                    summary = if continuing {
+                        format!("将执行 git {action} --continue，完成当前 {action} 操作")
+                    } else {
+                        format!(
+                            "将执行 git {action} --abort，回到操作开始前的状态；已手工解决的冲突内容会丢失"
+                        )
+                    };
+                }
+                summary
+            }
         };
 
         Ok(GateReportDto {
@@ -311,6 +436,7 @@ impl GitWriteModule {
             affected_total,
             summary,
             is_merge_commit,
+            parents: parent_options,
         })
     }
 
@@ -398,6 +524,88 @@ impl GitWriteModule {
             });
         }
 
+        // 继续/中止：成功必须同时满足「退出码 0」与「对应标记消失」，不做任何自动收尾。
+        if matches!(
+            request.kind,
+            WriteKind::ContinueOperation | WriteKind::AbortOperation
+        ) {
+            let (action, marker) = interruption_command(request)?;
+            let continuing = request.kind == WriteKind::ContinueOperation;
+            let marker_present = self.marker_exists(marker);
+            if exit_code == Some(0) && !marker_present {
+                return Ok(WriteOutcomeDto {
+                    status: WriteStatus::Succeeded,
+                    message: if continuing {
+                        format!("已继续并完成 {action} 操作，图谱已刷新")
+                    } else {
+                        format!("已中止 {action} 操作，已回到操作开始前的状态")
+                    },
+                    exit_code,
+                    stderr: None,
+                    conflict_files: Vec::new(),
+                    interruption: Some(self.inspect_interruption()?),
+                    generation: None,
+                    head_oid,
+                });
+            }
+            if !continuing {
+                return Ok(WriteOutcomeDto {
+                    status: WriteStatus::Failed,
+                    message: if marker_present {
+                        format!("中止 {action} 未完成，中断标记仍然存在；请在终端处理")
+                    } else {
+                        format!("中止 {action} 未生效，Git 返回非零退出码")
+                    },
+                    exit_code,
+                    stderr: stderr_option(&stderr),
+                    conflict_files: Vec::new(),
+                    interruption: Some(self.inspect_interruption()?),
+                    generation: None,
+                    head_oid,
+                });
+            }
+            if !marker_present {
+                // 标记已消失但退出码非零：属于 Git 的其他失败，不臆测为空提交。
+                return Ok(WriteOutcomeDto {
+                    status: WriteStatus::Failed,
+                    message: format!("继续 {action} 未完成，Git 返回非零退出码"),
+                    exit_code,
+                    stderr: stderr_option(&stderr),
+                    conflict_files: Vec::new(),
+                    interruption: Some(self.inspect_interruption()?),
+                    generation: None,
+                    head_oid,
+                });
+            }
+            let status = self.status_summary()?;
+            let (message, conflict_files) = if status.conflicted > 0 {
+                (
+                    format!(
+                        "还有 {} 个文件存在未解决冲突，请解决冲突并 git add 后再继续",
+                        status.conflicted
+                    ),
+                    status.conflicted_files,
+                )
+            } else {
+                (
+                    format!(
+                        "继续 {action} 后结果为空（{marker} 仍然存在）。请在终端执行 git cherry-pick --skip 或 git revert --skip 跳过该提交；本应用不会自动跳过"
+                    ),
+                    Vec::new(),
+                )
+            };
+            return Ok(WriteOutcomeDto {
+                status: WriteStatus::Failed,
+                message,
+                exit_code,
+                stderr: stderr_option(&stderr),
+                conflict_files,
+                interruption: Some(self.inspect_interruption()?),
+                generation: None,
+                head_oid,
+            });
+        }
+
         if exit_code == Some(0) {
             return Ok(WriteOutcomeDto {
                 status: WriteStatus::Succeeded,
@@ -424,6 +632,9 @@ impl GitWriteModule {
                         "已取消暂存 {} 个文件",
                         request.paths.as_deref().unwrap_or(&[]).len()
                     ),
+                    WriteKind::ContinueOperation | WriteKind::AbortOperation => {
+                        "操作已完成，图谱已刷新".into()
+                    }
                 },
                 exit_code,
                 stderr: None,
@@ -703,27 +914,33 @@ impl GitWriteModule {
             description_write: false,
         };
         spec.args = match request.kind {
-            WriteKind::CherryPick => vec![
-                "cherry-pick".into(),
-                request
+            WriteKind::CherryPick => {
+                let oid = request
                     .oid
                     .as_ref()
                     .ok_or_else(|| {
                         UserVisibleError::new(ErrorCode::InvalidArgument, "缺少提交 OID")
                     })?
-                    .to_string(),
-            ],
-            WriteKind::Revert => vec![
-                "revert".into(),
-                "--no-edit".into(),
-                request
+                    .to_string();
+                let mut args = vec!["cherry-pick".to_owned()];
+                push_mainline(&mut args, request.mainline);
+                args.push(oid);
+                args
+            }
+            WriteKind::Revert => {
+                let oid = request
                     .oid
                     .as_ref()
                     .ok_or_else(|| {
                         UserVisibleError::new(ErrorCode::InvalidArgument, "缺少提交 OID")
                     })?
-                    .to_string(),
-            ],
+                    .to_string();
+                let mut args = vec!["revert".to_owned()];
+                push_mainline(&mut args, request.mainline);
+                args.push("--no-edit".to_owned());
+                args.push(oid);
+                args
+            }
             WriteKind::SwitchBranch => vec![
                 "switch".into(),
                 "--no-guess".into(),
@@ -772,6 +989,15 @@ impl GitWriteModule {
                         "--pathspec-file-nul".into(),
                     ]
                 }
+            }
+            WriteKind::ContinueOperation | WriteKind::AbortOperation => {
+                let (action, _) = interruption_command(request)?;
+                let flag = if request.kind == WriteKind::ContinueOperation {
+                    "--continue"
+                } else {
+                    "--abort"
+                };
+                vec![action.to_owned(), flag.to_owned()]
             }
         };
         spec.description_write = request.kind == WriteKind::SetBranchDescription;
@@ -1016,6 +1242,33 @@ impl GitWriteModule {
         let mut parts = line.split_whitespace();
         let _self_oid = parts.next();
         Ok(parts.map(|value| value.to_owned()).collect())
+    }
+
+    /// 按 `-m N` 的 1 起始顺序生成父提交选项；短 OID 与标题由 Git CLI 提供，
+    /// 展示信息读取失败时退回前 8 位 OID 与空标题，不阻断 Gate。
+    fn parent_options(&self, parent_oids: &[String]) -> Result<Vec<ParentOptionDto>> {
+        let mut options = Vec::with_capacity(parent_oids.len());
+        for parent in parent_oids {
+            let oid = git_core::Oid::new(parent.clone()).map_err(|e| {
+                UserVisibleError::new(ErrorCode::GitCommandFailed, "无法解析父提交 OID")
+                    .with_detail(e.to_string())
+            })?;
+            let output = self.run_readonly(&["show", "-s", "--format=%h%x1f%s", parent])?;
+            let raw = text(&output.stdout);
+            let raw = raw.trim_end_matches(['\r', '\n']);
+            let (short_oid, summary) = match raw.split_once('\x1f') {
+                Some((short_oid, summary)) if !short_oid.is_empty() => {
+                    (short_oid.to_owned(), summary.to_owned())
+                }
+                _ => (oid.short(8).to_owned(), String::new()),
+            };
+            options.push(ParentOptionDto {
+                oid,
+                short_oid,
+                summary,
+            });
+        }
+        Ok(options)
     }
 
     fn run(&self, args: &[&str]) -> Result<Output> {
@@ -1471,6 +1724,30 @@ fn description_message(request: &WriteRequest, removed: bool) -> String {
     } else {
         format!("已更新分支 {branch} 的本地描述")
     }
+}
+
+/// 仅在提供了合法（1 起始）父序号时追加 `-m N`；范围由 Gate 校验。
+fn push_mainline(args: &mut Vec<String>, mainline: Option<u32>) {
+    if let Some(mainline) = mainline.filter(|value| *value >= 1) {
+        args.push("-m".to_owned());
+        args.push(mainline.to_string());
+    }
+}
+
+/// 继续/中止对应的 Git 子命令与操作标记；拒绝其他中断类型。
+fn interruption_command(request: &WriteRequest) -> Result<(&'static str, &'static str)> {
+    match request.interruption {
+        Some(InterruptionKind::CherryPick) => Ok(("cherry-pick", "CHERRY_PICK_HEAD")),
+        Some(InterruptionKind::Revert) => Ok(("revert", "REVERT_HEAD")),
+        _ => Err(UserVisibleError::new(
+            ErrorCode::InvalidArgument,
+            "继续/中止需要有效的 cherry-pick 或 revert 中断类型",
+        )),
+    }
+}
+
+fn stderr_option(stderr: &str) -> Option<String> {
+    (!stderr.trim().is_empty()).then(|| stderr.to_owned())
 }
 
 fn text(bytes: &[u8]) -> String {

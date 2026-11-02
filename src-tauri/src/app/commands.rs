@@ -454,6 +454,10 @@ pub async fn execute_write(
             }
             Ok(outcome)
         })?;
+        logging::info(&format!(
+            "写操作 {:?} 执行完成，状态 {:?}",
+            request.kind, outcome.status
+        ));
         // 写操作强制失效：先登记新代际，避免监听线程对同一变化重复通知。
         if let Some(generation) = outcome.generation {
             state.request_refresh(RefreshReason::Write);
