@@ -10,7 +10,6 @@ pub mod external_tool;
 pub mod language;
 pub mod oid;
 pub mod process;
-pub mod state;
 
 pub use cursor::{decode_cursor, encode_cursor, CursorData};
 pub use dto::*;
@@ -19,4 +18,3 @@ pub use external_tool::{render_args_template, split_args_template};
 pub use language::language_for;
 pub use oid::{ObjectFormat, Oid, OidError};
 pub use process::{git_command, hide_console};
-pub use state::*;

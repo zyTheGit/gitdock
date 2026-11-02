@@ -78,14 +78,6 @@ impl ObjectFormat {
             Self::Sha256 => "sha256",
         }
     }
-
-    pub fn from_hex_len(len: usize) -> Option<Self> {
-        match len {
-            40 => Some(Self::Sha1),
-            64 => Some(Self::Sha256),
-            _ => None,
-        }
-    }
 }
 
 #[cfg(test)]

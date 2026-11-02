@@ -42,14 +42,6 @@ impl FixtureSet {
         self.path("conflict")
     }
 
-    pub fn empty_pick(&self) -> PathBuf {
-        self.path("empty-pick")
-    }
-
-    pub fn hook_reject(&self) -> PathBuf {
-        self.path("hook-reject")
-    }
-
     pub fn dirty(&self) -> PathBuf {
         self.path("dirty")
     }
@@ -60,10 +52,6 @@ impl FixtureSet {
 
     pub fn bare(&self) -> PathBuf {
         self.path("bare")
-    }
-
-    pub fn worktree_main(&self) -> PathBuf {
-        self.path("worktree-main")
     }
 
     pub fn worktree_linked(&self) -> PathBuf {
