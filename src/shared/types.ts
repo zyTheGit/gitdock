@@ -114,7 +114,8 @@ export interface ResolvedEdgeDto {
 export interface GraphPageDto {
   generation: number;
   view_key: string;
-  view_label: string;
+  /** 本页数据对应的范围（结构化）；展示文案由前端按语言渲染。 */
+  scope: GraphScope;
   commits: CommitSummaryDto[];
   next_cursor?: string;
   has_more: boolean;

@@ -4,6 +4,7 @@ import type { MessageShape } from "../messages";
 const graph = {
   scopeHead: "当前分支相关",
   scopeAll: "全量",
+  scopeBranch: "分支 {{branch}}",
   branchFilterAria: "按本地分支过滤图谱",
   branchFilterPlaceholder: "分支过滤…",
   rowCountMore: "{{n}} 条 · 可继续加载",

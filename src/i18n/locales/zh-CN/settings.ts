@@ -128,6 +128,8 @@ const settings = {
   gitConfigSaveToUser: "保存到用户级",
   gitConfigSaveToRepo: "保存到仓库级",
   gitConfigReload: "重新读取",
+  gitConfigReloading: "重新读取中…",
+  gitConfigReloaded: "已重新读取配置",
 
   // Git 配置：各配置项（键名 user.name 等与枚举取值原文在组件内）
   gitConfigUserNameLabel: "提交署名",

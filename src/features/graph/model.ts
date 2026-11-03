@@ -1,6 +1,7 @@
 import type {
   CommitSummaryDto,
   GraphPageDto,
+  GraphScope,
   ResolvedEdgeDto,
   RowLayoutDto,
 } from "../../shared/types";
@@ -12,7 +13,8 @@ export interface GraphRow {
 
 export interface GraphView {
   viewKey: string;
-  viewLabel: string;
+  /** 本页数据的实际范围；null 表示尚未加载。 */
+  scope: GraphScope | null;
   generation: number;
   rows: GraphRow[];
   nextCursor: string | null;
@@ -21,7 +23,7 @@ export interface GraphView {
 
 export const EMPTY_GRAPH_VIEW: GraphView = {
   viewKey: "",
-  viewLabel: "",
+  scope: null,
   generation: 0,
   rows: [],
   nextCursor: null,
@@ -58,7 +60,7 @@ export function applyResolvedEdges(rows: GraphRow[], resolved: ResolvedEdgeDto[]
 export function startView(page: GraphPageDto): GraphView {
   return {
     viewKey: page.view_key,
-    viewLabel: page.view_label,
+    scope: page.scope,
     generation: page.generation,
     rows: pairRows(page),
     nextCursor: page.next_cursor ?? null,

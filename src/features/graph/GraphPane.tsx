@@ -67,7 +67,15 @@ export function GraphPane({
           }}
         />
 
-        <span className="graph-view-label">{view.viewLabel || "—"}</span>
+        <span className="graph-view-label">
+          {view.scope
+            ? view.scope.kind === "branch"
+              ? t("graph.scopeBranch", { branch: view.scope.value })
+              : view.scope.kind === "all"
+                ? t("graph.scopeAll")
+                : t("graph.scopeHead")
+            : "—"}
+        </span>
         <span className="graph-count muted">
           {view.hasMore
             ? t("graph.rowCountMore", { n: view.rows.length })

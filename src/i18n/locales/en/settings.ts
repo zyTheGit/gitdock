@@ -140,6 +140,8 @@ const settings = {
   gitConfigSaveToUser: "Save to user level",
   gitConfigSaveToRepo: "Save to repository level",
   gitConfigReload: "Reload",
+  gitConfigReloading: "Reloading…",
+  gitConfigReloaded: "Configuration reloaded",
 
   // Git configuration: items (keys like user.name and enum values stay verbatim in the component)
   gitConfigUserNameLabel: "Commit author name",

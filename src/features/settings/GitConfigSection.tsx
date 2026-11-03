@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useI18n, tLoose } from "../../i18n";
+import { useI18n, i18next, tLoose } from "../../i18n";
 import type settingsZh from "../../i18n/locales/zh-CN/settings";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
@@ -107,22 +107,28 @@ export function GitConfigSection({ onError }: { onError: (message: string) => vo
   // 只存被编辑过的键；未编辑的行继续显示后端给出的生效值。
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [reloading, setReloading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
-  const load = useCallback(async () => {
+  /** `announce` 为 true（手动点「重新读取」）时给出进行中与完成反馈；首屏静默加载。 */
+  const load = useCallback(async (announce: boolean) => {
     setNotice(null);
+    if (announce) setReloading(true);
     try {
       setConfig(await ipc.readGitConfig());
       setDraft({});
+      if (announce) setNotice(i18next.t("settings.gitConfigReloaded"));
     } catch (err) {
       onErrorRef.current(errorText(err));
+    } finally {
+      if (announce) setReloading(false);
     }
   }, []);
 
   useEffect(() => {
-    void load();
+    void load(false);
   }, [load]);
 
   const repoAvailable = config?.repo_path != null;
@@ -323,8 +329,13 @@ export function GitConfigSection({ onError }: { onError: (message: string) => vo
               ? t("settings.gitConfigSaveToUser")
               : t("settings.gitConfigSaveToRepo")}
         </button>
-        <button type="button" className="link" onClick={() => void load()} disabled={saving}>
-          {t("settings.gitConfigReload")}
+        <button
+          type="button"
+          className="link"
+          onClick={() => void load(true)}
+          disabled={saving || reloading}
+        >
+          {reloading ? t("settings.gitConfigReloading") : t("settings.gitConfigReload")}
         </button>
         {notice && <span className="muted git-config-notice">{notice}</span>}
       </div>

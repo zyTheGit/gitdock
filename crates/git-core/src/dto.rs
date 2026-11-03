@@ -131,14 +131,6 @@ impl GraphScope {
             Self::Branch(name) => format!("branch:{name}"),
         }
     }
-
-    pub fn describe(&self) -> String {
-        match self {
-            Self::Head => "当前分支相关".to_owned(),
-            Self::All => "全量".to_owned(),
-            Self::Branch(name) => format!("分支 {name}"),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -170,7 +162,8 @@ pub struct CommitSummaryDto {
 pub struct GraphPageDto {
     pub generation: u64,
     pub view_key: String,
-    pub view_label: String,
+    /// 本页数据对应的范围（结构化）；展示文案由前端按语言渲染，后端不拼句子。
+    pub scope: GraphScope,
     pub commits: Vec<CommitSummaryDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,

@@ -4,6 +4,7 @@ import type { GraphMessages } from "../zh-CN/graph";
 const graph = {
   scopeHead: "Current branch",
   scopeAll: "All",
+  scopeBranch: "Branch {{branch}}",
   branchFilterAria: "Filter graph by local branch",
   branchFilterPlaceholder: "Branch filter…",
   rowCountMore: "{{n}} commits · more available",

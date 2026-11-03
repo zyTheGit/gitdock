@@ -116,7 +116,7 @@ impl GitReadModule {
         Ok(GraphPageDto {
             generation,
             view_key,
-            view_label: scope.describe(),
+            scope: scope.clone(),
             commits,
             next_cursor,
             has_more,
