@@ -1,4 +1,10 @@
-import { useRef, type MouseEvent } from "react";
+import {
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatDate } from "../../shared/format";
 import type { CommitSummaryDto } from "../../shared/types";
@@ -7,6 +13,9 @@ import type { CommitSummaryDto } from "../../shared/types";
 // 首帧后由 measureElement 按实际渲染高度修正。
 const COMMIT_ROW_ESTIMATE = 28;
 const COMMIT_LIST_OVERSCAN = 10;
+const DEFAULT_HEIGHT = 160;
+const MIN_HEIGHT = 96;
+const MAX_HEIGHT_RATIO = 0.7;
 
 interface CompareCommitListProps {
   commits: CommitSummaryDto[];
@@ -22,6 +31,59 @@ export function CompareCommitList({
   onContextMenu,
 }: CompareCommitListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ startY: number; startHeight: number } | null>(null);
+  const [height, setHeight] = useState(DEFAULT_HEIGHT);
+  const [dragging, setDragging] = useState(false);
+
+  const maxHeight = () => Math.max(
+    MIN_HEIGHT,
+    Math.floor(
+      (containerRef.current?.parentElement?.clientHeight ?? window.innerHeight) *
+        MAX_HEIGHT_RATIO,
+    ),
+  );
+  const clampHeight = (value: number) =>
+    Math.min(maxHeight(), Math.max(MIN_HEIGHT, Math.round(value)));
+
+  const startResize = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    drag.current = { startY: event.clientY, startHeight: height };
+    setDragging(true);
+  };
+
+  const resize = (event: PointerEvent<HTMLDivElement>) => {
+    const state = drag.current;
+    if (!state) {
+      return;
+    }
+    setHeight(clampHeight(state.startHeight + state.startY - event.clientY));
+  };
+
+  const finishResize = (event: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) {
+      return;
+    }
+    drag.current = null;
+    setDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const onResizeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") {
+      return;
+    }
+    event.preventDefault();
+    const step = (event.shiftKey ? 40 : 12) * (event.key === "ArrowUp" ? 1 : -1);
+    setHeight(clampHeight(height + step));
+  };
+
   // 对比提交列表虚拟化：大范围对比数千提交时只渲染可视行。
   const virtualizer = useVirtualizer({
     count: commits.length,
@@ -32,7 +94,24 @@ export function CompareCommitList({
   });
 
   return (
-    <div className="compare-commits">
+    <div className="compare-commits" ref={containerRef} style={{ height }}>
+      <div
+        className={dragging ? "compare-commits-resizer dragging" : "compare-commits-resizer"}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="调整提交列表高度"
+        aria-valuenow={height}
+        aria-valuemin={MIN_HEIGHT}
+        aria-valuemax={maxHeight()}
+        tabIndex={0}
+        title="拖动调整提交列表高度，双击恢复默认"
+        onPointerDown={startResize}
+        onPointerMove={resize}
+        onPointerUp={finishResize}
+        onPointerCancel={finishResize}
+        onKeyDown={onResizeKeyDown}
+        onDoubleClick={() => setHeight(clampHeight(DEFAULT_HEIGHT))}
+      />
       <h3>
         Compare 引入的提交（{commits.length}
         {truncated ? "+" : ""}）

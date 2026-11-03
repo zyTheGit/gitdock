@@ -308,7 +308,30 @@
   min-height: 0;
 }
 
+.compare-commits-resizer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 7px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.compare-commits-resizer::before {
+  content: "";
+  width: 100%;
+  height: 1px;
+  background: transparent;
+}
+
+.compare-commits-resizer:hover::before,
+.compare-commits-resizer:focus-visible::before,
+.compare-commits-resizer.dragging::before {
+  background: var(--accent);
+}
+
 .compare-commits h3 {
+  flex: none;
   font-size: 12px;
   color: var(--muted);
   font-weight: 500;
@@ -316,10 +339,11 @@
 }
 
 .compare-commit-list {
+  flex: 1;
+  min-height: 0;
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 200px;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -350,7 +374,7 @@
   white-space: nowrap;
 }
 
-/* 对比提交列表虚拟化：外层 .compare-commit-list 仍是滚动容器（max-height 200px），
+/* 对比提交列表虚拟化：外层 .compare-commit-list 是滚动容器，
    inner 撑起总高度、行绝对定位。 */
 .compare-commit-inner {
   position: relative;
@@ -367,15 +391,15 @@
   min-height: 0;
 }
 
-.compare-columns .detail-diff > .file-diff {
+.compare-columns .detail-diff > .file-diff:not(.expanded) {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.compare-columns .file-diff-body,
-.compare-columns .file-diff-main {
+.compare-columns .file-diff:not(.expanded) .file-diff-body,
+.compare-columns .file-diff:not(.expanded) .file-diff-main {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -389,13 +413,13 @@
 }
 
 /* 文件头、文件导航与提示条不参与拉伸，滚动只发生在 diff 本体。 */
-.compare-columns .file-diff-header,
-.compare-columns .file-diff-main > :not(.diff-view):not(.split-panes) {
+.compare-columns .file-diff:not(.expanded) .file-diff-header,
+.compare-columns .file-diff:not(.expanded) .file-diff-main > :not(.diff-view):not(.split-panes) {
   flex: none;
 }
 
 /* 对比视图的 diff 区域独立滚动，文件头保持可见。 */
-.compare-columns .detail-diff .file-diff-header {
+.compare-columns .detail-diff .file-diff:not(.expanded) .file-diff-header {
   position: sticky;
   top: 0;
   z-index: 2;
