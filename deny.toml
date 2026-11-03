@@ -1,0 +1,55 @@
+# cargo-deny 配置：依赖许可证与安全公告检查门禁。
+# 用途：落地 docs/08 G3「许可证/供应链检查」与 §3.5 发布检查表项，堵住 docs/09 §9
+# 记录的缺口（此前无 cargo-deny、供应链零覆盖）。CI 入口为 .github/workflows/ci.yml
+# 的 licenses job（cargo-deny-action，仅 licenses + advisories，秒级）。
+#
+# 允许 CC0-1.0 的理由：notify 8.2（文件监听，Tauri 传递依赖）上游许可证为 CC0-1.0，
+# 属公有领域贡献许可、无 copyleft 义务，经 docs/09 §9 评审决定显式允许并在此记录。
+#
+# allow 列表依据：本机未安装 cargo-deny（不装全局工具），基于 Cargo.lock
+# （561 个包）依赖树静态整理——notify(CC0)、num-conv(CDLA-Permissive-2.0)、
+# unicode-ident / litemap / zerofrom / tinystr(Unicode-3.0 及 LLVM-exception)、
+# openssl / openssl-sys(Apache-2.0)、miniz_oxide / getrandom(Zlib)等；
+# ISC 为 docs/09 记录的 ring 传递依赖及将来 rustls 方向预留。CI 首跑校验。
+
+[licenses]
+version = 2
+# allow 列表中出现 lock 依赖树未用到的许可证时仅告警，避免依赖增减后门禁漂移。
+unused-allowed-license = "warn"
+confidence-threshold = 0.93
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    # notify 8.2 为 CC0-1.0（公有领域贡献），显式允许，理由见文件头。
+    "CC0-1.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "MPL-2.0",
+    "Zlib",
+    "0BSD",
+    "CDLA-Permissive-2.0",
+]
+
+[advisories]
+version = 2
+# yanked 依赖告警而非硬失败：给升级留窗口期，RustSec 撤回标记常滞后于修复发布。
+yanked = "warn"
+ignore = [
+    # proc-macro-error 仅“维护停滞”告警（无安全漏洞）；为 thiserror v1 等旧链传递依赖，
+    # 上游仍广泛使用，待直接依赖升级后自然消除。
+    "RUSTSEC-2024-0370",
+]
+
+[bans]
+# 重复版本仅输出信息供清理参考（lock 中 miniz_oxide/getrandom 已双版本），不作门禁。
+multiple-versions = "warn"
+
+[sources]
+# 只信任 crates.io 官方索引；git 源与未知 registry 一律拒绝，防供应链投毒。
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

@@ -386,6 +386,36 @@ mod tests {
     }
 
     #[test]
+    fn remember_dedupes_existing_path_and_moves_to_front() {
+        let dir = temp_dir();
+        let repo = dir.path().join("Repo");
+        std::fs::create_dir_all(&repo).expect("创建仓库目录失败");
+        let canonical = strip_verbatim(&std::fs::canonicalize(&repo).expect("规范化路径失败"));
+        let settings = SettingsDto {
+            recent_repositories: vec![
+                RecentRepository {
+                    path: canonical.clone(),
+                    last_opened_at: 1,
+                },
+                RecentRepository {
+                    path: "C:/other".to_string(),
+                    last_opened_at: 2,
+                },
+            ],
+            ..Default::default()
+        };
+        let saved = remember(dir.path(), &settings, &repo).expect("记录最近仓库失败");
+        assert_eq!(saved.recent_repositories.len(), 2);
+        assert_eq!(
+            saved.recent_repositories[0].path.replace('\\', "/"),
+            canonical.replace('\\', "/")
+        );
+    }
+
+    /// 大小写折叠去重仅 Windows/macOS（platform::same_path 语义，ADR-0005）；
+    /// Linux 文件系统大小写敏感，见下方对应用例。
+    #[cfg(not(target_os = "linux"))]
+    #[test]
     fn remember_dedupes_case_insensitive_paths_and_moves_to_front() {
         let dir = temp_dir();
         let repo = dir.path().join("Repo");
@@ -413,6 +443,35 @@ mod tests {
             .replace('\\', "/")
             .to_lowercase();
         assert_eq!(first, canonical.replace('\\', "/").to_lowercase());
+    }
+
+    /// Linux 大小写敏感：仅大小写不同的路径是两个真实仓库，不去重（A-3）。
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn remember_keeps_case_variants_separately_on_linux() {
+        let dir = temp_dir();
+        let repo = dir.path().join("Repo");
+        std::fs::create_dir_all(&repo).expect("创建仓库目录失败");
+        let canonical = strip_verbatim(&std::fs::canonicalize(&repo).expect("规范化路径失败"));
+        let settings = SettingsDto {
+            recent_repositories: vec![
+                RecentRepository {
+                    path: canonical.to_uppercase(),
+                    last_opened_at: 1,
+                },
+                RecentRepository {
+                    path: "C:/other".to_string(),
+                    last_opened_at: 2,
+                },
+            ],
+            ..Default::default()
+        };
+        let saved = remember(dir.path(), &settings, &repo).expect("记录最近仓库失败");
+        assert_eq!(saved.recent_repositories.len(), 3);
+        assert_eq!(
+            saved.recent_repositories[0].path.replace('\\', "/"),
+            canonical.replace('\\', "/")
+        );
     }
 
     #[test]
@@ -518,10 +577,34 @@ mod tests {
             ],
             ..Default::default()
         };
-        let saved = forget(dir.path(), &settings, "c:\\repo\\A").expect("移除最近仓库失败");
+        let saved = forget(dir.path(), &settings, "C:/repo/a").expect("移除最近仓库失败");
         assert_eq!(saved.recent_repositories.len(), 1);
         assert_eq!(saved.recent_repositories[0].path, "C:/repo/b");
         assert_eq!(load(dir.path()).recent_repositories.len(), 1);
+    }
+
+    /// 大小写变体移除仅 Windows/macOS（platform::same_path 折叠语义）；
+    /// Linux 精确比较下大小写变体不是同一条目。
+    #[cfg(not(target_os = "linux"))]
+    #[test]
+    fn forget_matches_case_insensitive_paths() {
+        let dir = temp_dir();
+        let settings = SettingsDto {
+            recent_repositories: vec![
+                RecentRepository {
+                    path: "C:/repo/a".to_string(),
+                    last_opened_at: 2,
+                },
+                RecentRepository {
+                    path: "C:/repo/b".to_string(),
+                    last_opened_at: 1,
+                },
+            ],
+            ..Default::default()
+        };
+        let saved = forget(dir.path(), &settings, "c:\\repo\\A").expect("移除最近仓库失败");
+        assert_eq!(saved.recent_repositories.len(), 1);
+        assert_eq!(saved.recent_repositories[0].path, "C:/repo/b");
     }
 
     #[test]

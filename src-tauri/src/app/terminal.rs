@@ -20,6 +20,7 @@ use tauri::{AppHandle, Emitter};
 
 use super::config::SettingsDto;
 use super::logging;
+use super::platform::absolute_path_entries;
 use super::state::AppState;
 use super::watch::{RepositoryChangedDto, EVENT_REPOSITORY_CHANGED};
 
@@ -145,27 +146,6 @@ pub fn resolve_lazygit(settings: &SettingsDto) -> Option<PathBuf> {
     None
 }
 
-/// PATH 查找只保留绝对路径条目：相对条目与 "." 会随进程当前目录解析，
-/// 仓库内伪造的同名可执行文件可能先于系统目录命中（当前目录劫持）。
-fn absolute_path_entries(paths: &std::ffi::OsStr) -> Vec<PathBuf> {
-    std::env::split_paths(paths)
-        .filter(|dir| dir.is_absolute())
-        .collect()
-}
-
-/// PowerShell 必须以 System32 绝对路径启动：相对程序名会先按父进程当前目录
-/// 解析，从仓库目录启动应用时，仓库内伪造的 powershell.exe 会先于系统执行。
-fn powershell_path() -> Result<PathBuf> {
-    let system_root = std::env::var("SystemRoot").map_err(|_| {
-        UserVisibleError::new(
-            ErrorCode::ExternalToolFailed,
-            "未找到 PowerShell：缺少 SystemRoot 环境变量",
-        )
-        .with_key("errors.terminalPowershellNotFound")
-    })?;
-    Ok(PathBuf::from(system_root).join(r"System32\WindowsPowerShell\v1.0\powershell.exe"))
-}
-
 pub fn capabilities(state: &AppState) -> Result<TerminalCapabilitiesDto> {
     let settings = state.settings()?;
     Ok(TerminalCapabilitiesDto {
@@ -197,21 +177,10 @@ pub fn open(
             (path.to_string_lossy().into_owned(), Vec::<String>::new())
         }
         "shell" => {
-            // 绝对路径启动，避免相对程序名被当前目录下的伪造可执行文件劫持。
-            let path = powershell_path()?;
-            (
-                path.to_string_lossy().into_owned(),
-                vec![
-                    "-NoLogo".to_owned(),
-                    "-NoExit".to_owned(),
-                    "-Command".to_owned(),
-                    // ConPTY 不会替 PowerShell 设编码；不设则中文按 GBK 输出成乱码。
-                    "[Console]::InputEncoding=[Text.UTF8Encoding]::new($false);\
-                     [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);\
-                     $OutputEncoding=[Text.UTF8Encoding]::new($false)"
-                        .to_owned(),
-                ],
-            )
+            // 平台差异（PowerShell 的 System32 绝对路径与 UTF-8 参数、Unix
+            // 登录 Shell 选择）收敛在 platform 层，这里只消费解析结果。
+            let shell = super::platform::default_shell()?;
+            (shell.path.to_string_lossy().into_owned(), shell.args)
         }
         other => {
             return Err(UserVisibleError::new(
@@ -407,15 +376,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(windows)]
-    fn powershell_path_is_absolute_and_ends_with_executable() {
-        // 测试环境（Windows）必然存在 SystemRoot；此处只验证拼接结果。
-        let path = powershell_path().expect("SystemRoot 应存在");
-        assert!(path.is_absolute());
-        assert!(path.ends_with(std::path::Path::new("powershell.exe")));
-    }
 
-    #[test]
     fn path_lookup_skips_relative_entries_and_dot() {
         let absolute = if cfg!(windows) {
             r"C:\Tools"

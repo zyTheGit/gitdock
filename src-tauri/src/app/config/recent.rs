@@ -7,6 +7,7 @@ use git_core::{ErrorCode, UserVisibleError};
 use serde::{Deserialize, Serialize};
 
 use super::SettingsDto;
+use crate::app::platform::same_path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecentRepository {
@@ -60,11 +61,6 @@ pub fn forget(
         .recent_repositories
         .retain(|entry| !same_path(&entry.path, path));
     super::save(dir, &settings)
-}
-
-fn same_path(a: &str, b: &str) -> bool {
-    let normalize = |value: &str| value.replace('\\', "/").to_lowercase();
-    normalize(a) == normalize(b)
 }
 
 /// Windows 的 canonicalize 会返回 `\\?\` 扩展前缀；最近仓库列表需要展示用户熟悉的路径。

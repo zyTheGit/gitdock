@@ -30,7 +30,7 @@ const settings = {
   appearanceTitle: "Appearance",
   appearanceHint: "Choose the GitDock color scheme; terminal content always uses the dark ANSI palette.",
   themeLabel: "Theme",
-  themeOptionSystem: "Follow Windows",
+  themeOptionSystem: "Follow system",
   themeOptionLight: "Light",
   themeOptionDark: "Dark",
   zoomLabel: "UI zoom",
@@ -47,14 +47,14 @@ const settings = {
   terminalHint:
     "GitDock does not bundle LazyGit. When empty, it is looked up on PATH; once set, only that file is used, and a missing file is reported in the terminal panel. The terminal runs with the current user's privileges, inside the currently opened repository.",
   terminalLazygitLabel: "LazyGit executable",
-  terminalLazygitPlaceholder: "Leave empty to find LazyGit on PATH, e.g. C:\\Users\\me\\scoop\\shims\\lazygit.exe",
+  terminalLazygitPlaceholder: "Full path to the executable (e.g. lazygit)",
 
   // External compare tools ($LOCAL / $REMOTE and command examples stay verbatim, rendered as code)
   toolsTitle: "External file compare tools",
   toolsHintTemplateHead: "In the argument template, ",
   toolsHintTemplateTail: " must each stand as a separate argument; the program is launched with an argument array, never through a shell.",
   toolsHintDetect:
-    "On first launch, installed VS Code / Beyond Compare / Zed are detected on the current system as built-in defaults, with the first one selected; every tool can be modified or removed, and adding tools requires no code changes.",
+    "Installed VS Code / Beyond Compare / Zed are detected on the current system (fill in the path manually if none is found).",
   toolsHintExampleHead: "Example: VS Code / Zed uses ",
   toolsHintExampleMid: ", and Beyond Compare uses ",
   toolsHintExampleTail: "; passing only two paths opens two separate files instead of a diff view; when no default tool is set, the first item in the list is used.",
@@ -62,7 +62,7 @@ const settings = {
   toolsNameLabel: "Name",
   toolsNamePlaceholder: "e.g. Beyond Compare",
   toolsExecutableLabel: "Executable",
-  toolsExecutablePlaceholder: "Full path, e.g. C:\\Program Files\\...\\BCompare.exe",
+  toolsExecutablePlaceholder: "Full path to the compare tool executable",
   toolsArgsTemplateLabel: "Argument template",
   toolsSetDefault: "Set as default compare tool",
   toolsRemove: "Remove",
@@ -82,14 +82,17 @@ const settings = {
   keybindResetAllMessage: "All shortcuts have been reset to defaults.",
   keybindFixedTitle: "Fixed keys",
   keybindKeyClick: "Click",
-  keybindRejectNoModifier: "Must include Ctrl or Alt.",
+  keybindRejectNoModifier:
+    "Must include Ctrl or Alt. On macOS, ⌘ is equivalent to Ctrl and can be used directly.",
   keybindRejectShift:
-    "Shift combos are not supported: WebView2 devtools and most system shortcuts rely on them.",
-  keybindRejectCtrlAlt: "Ctrl+Alt combos are reserved by Windows input methods.",
+    "Shift combos are not supported: browser devtools and most system shortcuts rely on them.",
+  keybindRejectCtrlAltWin: "Ctrl+Alt combos are reserved by Windows input methods.",
+  keybindRejectCtrlAltMac: "Ctrl+Option is reserved for special character input on macOS.",
+  keybindRejectCtrlAltLinux: "Ctrl+Alt equals AltGr (special characters) on most layouts.",
   keybindRejectAltReserved: "Alt+{{key}} is reserved by the system.",
   keybindRejectCtrlLetter:
-    "Ctrl+letter combos are reserved for system actions such as copy, paste and find.",
-  keybindRejectUnsupported: "Unsupported combo Ctrl+{{key}}.",
+    "Ctrl/Cmd+letter combos are reserved for common shortcuts such as copy, paste and find.",
+  keybindRejectUnsupported: "Unsupported combo {{modifier}}+{{key}}.",
   keybindRejectUnrecognized: "Could not recognize this combo.",
   keybindRejectClash: "Already used by \"{{action}}\".",
   actionTerminalToggle: "Toggle terminal",
@@ -102,7 +105,8 @@ const settings = {
   fixedArrows:
     "Moves the highlight in the repository switcher and search suggestions; adjusts column widths while dragging splitters, with larger steps when Shift is held",
   fixedEnter: "Confirms the highlighted item in the repository switcher / search input",
-  fixedCtrlClick: "Puts the commit into the compare slots; a second click switches to the other slot",
+  fixedCtrlClick:
+    "{{modifier}}+click: puts the commit into the compare slots; a second click switches to the other slot",
 
   // Git configuration: shared
   gitConfigTitle: "Git configuration",

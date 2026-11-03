@@ -1,6 +1,7 @@
 import { useI18n } from "../../i18n";
 import { shortOid } from "../../shared/format";
 import { Modal } from "../../shared/Modal";
+import { primaryModifierLabel } from "../../shared/platform";
 import type { RepoStateDto } from "../../shared/types";
 import type { CompareSide, CompareSlot } from "./useCompare";
 
@@ -88,7 +89,9 @@ export function CompareBar({
         onClear={() => onClear("compare")}
       />
       <div className="compare-hint muted">
-        {compare ? t("compare.hintActive") : t("compare.hintIdle")}
+        {compare
+          ? t("compare.hintActive", { modifier: primaryModifierLabel() })
+          : t("compare.hintIdle", { modifier: primaryModifierLabel() })}
         <span className="mono compare-head">HEAD {repo.head.oid ? shortOid(repo.head.oid) : "—"}</span>
       </div>
 

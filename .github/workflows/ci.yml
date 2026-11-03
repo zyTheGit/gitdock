@@ -55,3 +55,13 @@ jobs:
 
       # 与本地共用同一份校验流程：前端构建、fmt、clippy、workspace 测试。
       - run: npm run check
+
+  # 依赖许可证与安全公告检查（docs/08 §3.5 发布检查表项）。
+  licenses:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses advisories

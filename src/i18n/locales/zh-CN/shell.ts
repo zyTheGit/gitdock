@@ -18,7 +18,7 @@ const shell = {
   stagingButtonTitle: "查看工作区改动，分别暂存或取消暂存文件；Esc 退出",
   compare: "对比",
   compareReadyTitle: "查看对比结果",
-  compareButtonTitle: "选择两个分支对比，或用 Ctrl+点击提交选择 Base / Compare",
+  compareButtonTitle: "选择两个分支对比，或用 {{modifier}}+点击提交选择 Base / Compare",
   terminal: "终端",
   openTerminalTitle: "打开终端（{{shortcut}}）",
   terminalRunningTitle: "终端进程运行中；收起不会结束进程（{{shortcut}}）",
