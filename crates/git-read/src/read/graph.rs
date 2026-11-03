@@ -90,10 +90,10 @@ impl GitReadModule {
         let end = (start + limit).min(index.order.len());
         let mut warnings = self.warnings(repo);
         if index.order.is_empty() {
-            warnings.push(WarningDto {
-                code: "empty_repository".to_owned(),
-                message: "该视图没有可显示的提交".to_owned(),
-            });
+            warnings.push(WarningDto::new(
+                "empty_repository",
+                "该视图没有可显示的提交",
+            ));
         }
         let (rows, resolved) = self.ensure_layout(index, &view_key, generation, start, end);
         let (_, badges) = read_refs(repo, &read_head(repo)?)?;

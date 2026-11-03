@@ -1,4 +1,5 @@
 import { useI18n } from "../../i18n";
+import { issueText, warningText } from "../../shared/error";
 import { Modal } from "../../shared/Modal";
 import type { CommitSummaryDto, GateReportDto, WriteKind } from "../../shared/types";
 
@@ -116,7 +117,7 @@ export function ConfirmWriteDialog({
             <p className="danger-text">{t("write.gateFailedPrefix")}</p>
             <ul className="gate-issues">
               {gate.issues.map((issue) => (
-                <li key={`${issue.code}:${issue.message}`}>{issue.message}</li>
+                <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
               ))}
             </ul>
           </>
@@ -124,7 +125,7 @@ export function ConfirmWriteDialog({
         {validating && gate && <p className="muted">{t("write.gateRechecking")}</p>}
         {gate?.warnings.map((warning) => (
           <p className="gate-warning" key={`${warning.code}:${warning.message}`}>
-            {warning.message}
+            {warningText(warning)}
           </p>
         ))}
         {gate && gate.affected_paths.length > 0 && (

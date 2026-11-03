@@ -207,36 +207,36 @@ impl GitReadModule {
     fn warnings(&self, repo: &gix::Repository) -> Vec<WarningDto> {
         let mut warnings = Vec::new();
         if self.object_format == ObjectFormat::Sha256 {
-            warnings.push(WarningDto {
-                code: "sha256_repository".to_owned(),
-                message: "该仓库使用 SHA-256 对象格式；请确认所有 Git 工具版本支持".to_owned(),
-            });
+            warnings.push(WarningDto::new(
+                "sha256_repository",
+                "该仓库使用 SHA-256 对象格式；请确认所有 Git 工具版本支持",
+            ));
         }
         if self.git_dir.join("shallow").exists() {
-            warnings.push(WarningDto {
-                code: "shallow_repository".to_owned(),
-                message: "浅克隆仓库：仅显示已经取回的提交历史".to_owned(),
-            });
+            warnings.push(WarningDto::new(
+                "shallow_repository",
+                "浅克隆仓库：仅显示已经取回的提交历史",
+            ));
         }
         if self.git_version.is_none() {
-            warnings.push(WarningDto {
-                code: "git_missing".to_owned(),
-                message: "未检测到系统 Git，写操作不可用；只读功能不受影响".to_owned(),
-            });
+            warnings.push(WarningDto::new(
+                "git_missing",
+                "未检测到系统 Git，写操作不可用；只读功能不受影响",
+            ));
         } else if !self.git_version_supported {
-            warnings.push(WarningDto {
-                code: "git_version_too_old".to_owned(),
-                message: format!(
-                    "系统 Git 版本低于 {}，写操作已禁用，请升级 Git",
-                    MINIMUM_GIT_VERSION
-                ),
-            });
+            warnings.push(
+                WarningDto::new(
+                    "git_version_too_old",
+                    format!("系统 Git 版本低于 {MINIMUM_GIT_VERSION}，写操作已禁用，请升级 Git"),
+                )
+                .with_arg("minimum", MINIMUM_GIT_VERSION),
+            );
         }
         if repo.is_bare() {
-            warnings.push(WarningDto {
-                code: "bare_repository".to_owned(),
-                message: "裸仓库：工作区相关写操作不可用".to_owned(),
-            });
+            warnings.push(WarningDto::new(
+                "bare_repository",
+                "裸仓库：工作区相关写操作不可用",
+            ));
         }
         warnings
     }

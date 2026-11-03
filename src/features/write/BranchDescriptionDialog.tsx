@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 import { useI18n } from "../../i18n";
-import { errorText } from "../../shared/error";
+import { errorText, issueText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
 import { useIpcResource } from "../../shared/useIpcResource";
@@ -115,7 +115,7 @@ export function BranchDescriptionDialog({
             <p className="danger-text">{t("write.gateFailedPrefix")}</p>
             <ul className="gate-issues">
               {gate.issues.map((issue) => (
-                <li key={`${issue.code}:${issue.message}`}>{issue.message}</li>
+                <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
               ))}
             </ul>
           </div>

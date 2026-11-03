@@ -2,6 +2,7 @@ import type zhCnCommon from "./locales/zh-CN/common";
 import type zhCnCompare from "./locales/zh-CN/compare";
 import type zhCnDetail from "./locales/zh-CN/detail";
 import type zhCnDiff from "./locales/zh-CN/diff";
+import type zhCnErrors from "./locales/zh-CN/errors";
 import type zhCnGraph from "./locales/zh-CN/graph";
 import type zhCnRepository from "./locales/zh-CN/repository";
 import type zhCnSearch from "./locales/zh-CN/search";
@@ -32,6 +33,7 @@ declare module "i18next" {
       terminal: typeof zhCnTerminal;
       settings: typeof zhCnSettings;
       write: typeof zhCnWrite;
+      errors: typeof zhCnErrors;
     };
   }
 }

@@ -24,6 +24,8 @@ export type SearchField = "message" | "hash" | "author" | "path";
 export interface WarningDto {
   code: string;
   message: string;
+  /** 插值参数；Rust 侧已拆分（计数、版本号等），本地化时优先使用。 */
+  args?: Record<string, string> | null;
 }
 
 export interface RefDto {
@@ -251,6 +253,8 @@ export interface WriteRequest {
 export interface GateIssueDto {
   code: string;
   message: string;
+  /** 插值参数（分支名、计数等）；本地化时优先使用，缺失翻译回落 message。 */
+  args?: Record<string, string> | null;
 }
 
 export interface ParentOptionDto {
@@ -440,4 +444,8 @@ export interface UserVisibleError {
   code: string;
   message: string;
   detail?: string;
+  /** i18n key（errors.xxx）；有值时前端优先本地化，缺失翻译回落 message。 */
+  key?: string | null;
+  /** 插值参数。 */
+  args?: Record<string, string> | null;
 }

@@ -158,13 +158,17 @@ impl GitWriteModule {
                         .take(MAX_AFFECTED_PATHS)
                         .map(|entry| entry.path.clone())
                         .collect();
-                    warnings.push(WarningDto {
-                        code: "worktree_dirty".into(),
-                        message: format!(
-                            "工作区有 {affected_total} 个文件存在改动（{}）。不会自动 stash、reset 或 clean：改动会保留在工作区并可能带到目标分支；若目标分支会覆盖这些文件，Git 将拒绝切换并保持现状。",
-                            dirty_parts(status)
-                        ),
-                    });
+                    warnings.push(
+                        WarningDto::new(
+                            "worktree_dirty",
+                            format!(
+                                "工作区有 {affected_total} 个文件存在改动（{}）。不会自动 stash、reset 或 clean：改动会保留在工作区并可能带到目标分支；若目标分支会覆盖这些文件，Git 将拒绝切换并保持现状。",
+                                dirty_parts(status)
+                            ),
+                        )
+                        .with_arg("total", affected_total.to_string())
+                        .with_arg("parts", dirty_parts(status)),
+                    );
                 }
                 if !self.local_branch_exists(branch)? {
                     issues.push(issue(
@@ -393,10 +397,7 @@ fn dirty_issue(status: &StatusSummary) -> GateIssueDto {
 }
 
 fn issue(code: &str, message: impl Into<String>) -> GateIssueDto {
-    GateIssueDto {
-        code: code.into(),
-        message: message.into(),
-    }
+    GateIssueDto::new(code, message)
 }
 
 fn short_oid(oid: &str) -> &str {

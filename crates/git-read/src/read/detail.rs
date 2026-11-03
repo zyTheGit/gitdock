@@ -39,10 +39,13 @@ impl GitReadModule {
         let files: Vec<ChangedFileDto> = changes.files.iter().map(|c| c.to_dto()).collect();
         let mut warnings = Vec::new();
         if changes.truncated {
-            warnings.push(WarningDto {
-                code: "diff_truncated".to_owned(),
-                message: format!("变更文件过多，仅显示前 {} 个文件", files.len()),
-            });
+            warnings.push(
+                WarningDto::new(
+                    "changed_files_truncated",
+                    format!("变更文件过多，仅显示前 {} 个文件", files.len()),
+                )
+                .with_arg("n", files.len().to_string()),
+            );
         }
         let (_, badges) = read_refs(&repo, &read_head(&repo)?)?;
         let message = lossy(commit.message_raw().map_err(gix_error)?.as_ref());

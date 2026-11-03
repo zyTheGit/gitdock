@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useI18n } from "../../i18n";
 import { FileDiffView } from "../diff/FileDiffView";
 import { isEscConsumed, isEventInTerminal } from "../../shared/esc";
-import { errorText } from "../../shared/error";
+import { errorText, warningText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type {
   FileDiffDto,
@@ -364,7 +364,7 @@ export function StagingView({
 
       {status?.warnings.map((warning) => (
         <div className="banner warning compact" key={warning.code}>
-          {warning.message}
+          {warningText(warning)}
         </div>
       ))}
 

@@ -107,6 +107,26 @@ pub struct RepoStateDto {
 pub struct WarningDto {
     pub code: String,
     pub message: String,
+    /// 插值参数（计数、版本号等）；前端按 code+args 本地化，缺失翻译时回落 message。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args: Option<std::collections::BTreeMap<String, String>>,
+}
+
+impl WarningDto {
+    pub fn new(code: &str, message: impl Into<String>) -> Self {
+        Self {
+            code: code.to_owned(),
+            message: message.into(),
+            args: None,
+        }
+    }
+
+    /// 带单个插值参数；多参数链式调用多次即可。
+    pub fn with_arg(mut self, key: &str, value: impl Into<String>) -> Self {
+        let args = self.args.get_or_insert_with(Default::default);
+        args.insert(key.to_owned(), value.into());
+        self
+    }
 }
 
 /* ------------------------------ 图谱分页 ------------------------------ */
@@ -431,6 +451,26 @@ pub struct WriteRequest {
 pub struct GateIssueDto {
     pub code: String,
     pub message: String,
+    /// 插值参数（分支名、计数等）；前端按 code+args 本地化，缺失翻译时回落 message。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args: Option<std::collections::BTreeMap<String, String>>,
+}
+
+impl GateIssueDto {
+    pub fn new(code: &str, message: impl Into<String>) -> Self {
+        Self {
+            code: code.to_owned(),
+            message: message.into(),
+            args: None,
+        }
+    }
+
+    /// 带单个插值参数；多参数链式调用多次即可。
+    pub fn with_arg(mut self, key: &str, value: impl Into<String>) -> Self {
+        let args = self.args.get_or_insert_with(Default::default);
+        args.insert(key.to_owned(), value.into());
+        self
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

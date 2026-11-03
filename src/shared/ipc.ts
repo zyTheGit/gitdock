@@ -31,11 +31,15 @@ import type {
 export class CommandError extends Error {
   readonly code: string;
   readonly detail?: string;
+  readonly key?: string | null;
+  readonly args?: Record<string, string> | null;
 
   constructor(error: UserVisibleError) {
     super(error.message);
     this.code = error.code;
     this.detail = error.detail;
+    this.key = error.key;
+    this.args = error.args;
   }
 }
 

@@ -1,4 +1,9 @@
 import { useI18n } from "../i18n";
+import {
+  interruptionHintText,
+  interruptionText,
+  warningText,
+} from "../shared/error";
 import type { AppInfoDto, InterruptionKind, RepoStateDto } from "../shared/types";
 
 export type InterruptionActionKind = "continue_operation" | "abort_operation";
@@ -41,7 +46,7 @@ export function Banners({
     <>
       {repo?.interruption.kinds.length ? (
         <div className="banner warning">
-          <strong>{repo.interruption.message}</strong>
+          <strong>{interruptionText(repo.interruption.kinds)}</strong>
           {repo.interruption.files.length > 0 && (
             <span>
               {t("shell.interruptionFiles", {
@@ -49,7 +54,7 @@ export function Banners({
               })}
             </span>
           )}
-          {repo.interruption.terminal_hint && <code>{repo.interruption.terminal_hint}</code>}
+          <code>{interruptionHintText(repo.interruption.kinds)}</code>
           {single && (
             <div className="banner-actions">
               <button
@@ -75,7 +80,7 @@ export function Banners({
 
       {repo?.warnings.map((warning) => (
         <div className="banner info" key={warning.code}>
-          {warning.message}
+          {warningText(warning)}
         </div>
       ))}
 

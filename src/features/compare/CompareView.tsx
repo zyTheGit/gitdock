@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "../../i18n";
+import { warningText } from "../../shared/error";
 import type { CommitSummaryDto, ExternalToolConfig, FileDiffDto } from "../../shared/types";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import { Select } from "../../shared/Select";
@@ -149,7 +150,7 @@ export function CompareView({
       )}
       {result?.warnings.map((warning) => (
         <div className="banner info compact" key={warning.code}>
-          {warning.message}
+          {warningText(warning)}
         </div>
       ))}
 

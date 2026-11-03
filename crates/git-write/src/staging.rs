@@ -38,10 +38,10 @@ impl GitWriteModule {
                 staged: Vec::new(),
                 unstaged: Vec::new(),
                 conflicted_files: Vec::new(),
-                warnings: vec![WarningDto {
-                    code: "bare_repository".into(),
-                    message: "bare 仓库没有工作区，暂存区为空".into(),
-                }],
+                warnings: vec![WarningDto::new(
+                    "staging_bare_empty",
+                    "bare 仓库没有工作区，暂存区为空",
+                )],
             });
         }
 
@@ -67,13 +67,16 @@ impl GitWriteModule {
         }
         let mut warnings = Vec::new();
         if detail.summary.conflicted > 0 {
-            warnings.push(WarningDto {
-                code: "conflicted_index".into(),
-                message: format!(
-                    "存在 {} 个未解决冲突文件，暂存区操作已禁用；请在终端解决后继续",
-                    detail.summary.conflicted
-                ),
-            });
+            warnings.push(
+                WarningDto::new(
+                    "conflicted_index",
+                    format!(
+                        "存在 {} 个未解决冲突文件，暂存区操作已禁用；请在终端解决后继续",
+                        detail.summary.conflicted
+                    ),
+                )
+                .with_arg("n", detail.summary.conflicted.to_string()),
+            );
         }
         Ok(StagingStatusDto {
             generation: 0,

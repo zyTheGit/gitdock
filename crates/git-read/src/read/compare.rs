@@ -72,16 +72,16 @@ impl GitReadModule {
 
         let mut warnings = Vec::new();
         if merge_base.is_none() {
-            warnings.push(WarningDto {
-                code: "no_merge_base".to_owned(),
-                message: "两个引用没有共同祖先，已降级为两端快照对比".to_owned(),
-            });
+            warnings.push(WarningDto::new(
+                "no_merge_base",
+                "两个引用没有共同祖先，已降级为两端快照对比",
+            ));
         }
         if changes.truncated {
-            warnings.push(WarningDto {
-                code: "diff_truncated".to_owned(),
-                message: "变更文件过多，文件列表已截断".to_owned(),
-            });
+            warnings.push(WarningDto::new(
+                "diff_truncated",
+                "变更文件过多，文件列表已截断",
+            ));
         }
         Ok(CompareResultDto {
             generation: self.current_generation()?,

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useI18n } from "../../i18n";
+import { warningText } from "../../shared/error";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import { STATUS_LETTER } from "../../shared/fileStatus";
 import { formatDate, shortOid } from "../../shared/format";
@@ -212,7 +213,7 @@ export function CommitDetailPane({
 
               {detail.data.warnings.map((warning) => (
                 <div className="banner warning compact" key={warning.code}>
-                  {warning.message}
+                  {warningText(warning)}
                 </div>
               ))}
             </div>

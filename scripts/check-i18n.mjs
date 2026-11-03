@@ -117,13 +117,15 @@ for (const used of usedKeys) {
   }
 }
 
-// --- 5. 冗余 key 警告（定义未使用；动态拼接场景可能误报，仅提示） ---
+// --- 5. 冗余 key 警告（定义未使用；errors 域经 byCode 动态拼接，静态不可见，豁免） ---
 const definedKeys = new Set()
 for (const ns of namespaces) {
   for (const key of zhKeys.get(ns)) definedKeys.add(`${ns}.${key}`)
 }
 for (const defined of definedKeys) {
-  if (!usedKeys.has(defined)) warnings.push(`定义未使用：${defined}`)
+  if (!usedKeys.has(defined) && !defined.startsWith('errors.')) {
+    warnings.push(`定义未使用：${defined}`)
+  }
 }
 
 // --- 6. 硬编码中文扫描（排除注释与白名单） ---
