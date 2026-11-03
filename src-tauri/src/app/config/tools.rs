@@ -110,19 +110,21 @@ pub(super) fn validate(settings: &SettingsDto) -> Result<(), UserVisibleError> {
             return Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
                 "外部工具的名称与可执行文件不能为空",
-            ));
+            )
+            .with_key("errors.externalToolNameOrExecutableEmpty"));
         }
         if tool.args_template.len() > MAX_TEMPLATE_LEN {
-            return Err(UserVisibleError::new(
-                ErrorCode::InvalidArgument,
-                "外部工具参数模板过长",
-            ));
+            return Err(
+                UserVisibleError::new(ErrorCode::InvalidArgument, "外部工具参数模板过长")
+                    .with_key("errors.externalToolTemplateTooLong"),
+            );
         }
         if tool.args_template.contains('\0') || tool.executable.contains('\0') {
             return Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
                 "外部工具配置包含非法字符",
-            ));
+            )
+            .with_key("errors.externalToolInvalidCharacter"));
         }
     }
     Ok(())

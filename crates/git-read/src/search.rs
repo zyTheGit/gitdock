@@ -66,10 +66,12 @@ impl GitReadModule {
                     return Err(UserVisibleError::new(
                         ErrorCode::CursorStale,
                         "仓库状态已变化，请重新搜索",
-                    ));
+                    )
+                    .with_key("errors.searchCursorStale"));
                 }
                 let after = Oid::new(data.after).map_err(|e| {
                     UserVisibleError::new(ErrorCode::CursorInvalid, "搜索游标无效")
+                        .with_key("errors.searchCursorInvalid")
                         .with_detail(e.to_string())
                 })?;
                 index
@@ -100,12 +102,14 @@ impl GitReadModule {
                     .message_raw()
                     .map_err(|e| {
                         UserVisibleError::new(ErrorCode::Internal, "读取提交信息失败")
+                            .with_key("errors.searchReadMessageFailed")
                             .with_detail(e.to_string())
                     })?
                     .as_ref(),
             );
             let author = commit.author().map_err(|e| {
                 UserVisibleError::new(ErrorCode::Internal, "读取提交作者失败")
+                    .with_key("errors.searchReadAuthorFailed")
                     .with_detail(e.to_string())
             })?;
             let mut fields = Vec::new();
@@ -169,6 +173,7 @@ impl GitReadModule {
         let new_tree = {
             let id = commit.tree_id().map_err(|e| {
                 UserVisibleError::new(ErrorCode::Internal, "读取提交树失败")
+                    .with_key("errors.searchReadTreeFailed")
                     .with_detail(e.to_string())
             })?;
             Some(crate::util::oid_from_id(&id))

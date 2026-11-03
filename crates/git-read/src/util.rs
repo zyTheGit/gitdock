@@ -6,7 +6,9 @@ pub(crate) use git_core::lossy_text as lossy;
 
 pub(crate) fn gix_oid(oid: &Oid) -> Result<gix::hash::ObjectId> {
     gix::hash::ObjectId::from_hex(oid.as_str().as_bytes()).map_err(|e| {
-        UserVisibleError::new(ErrorCode::InvalidArgument, "OID 无效").with_detail(e.to_string())
+        UserVisibleError::new(ErrorCode::InvalidArgument, "OID 无效")
+            .with_key("errors.readInvalidOid")
+            .with_detail(e.to_string())
     })
 }
 
@@ -19,7 +21,9 @@ pub(crate) fn oid_from_id(id: &gix::Id<'_>) -> Oid {
 }
 
 fn internal(err: impl std::fmt::Display) -> UserVisibleError {
-    UserVisibleError::new(ErrorCode::Internal, "读取 Git 对象失败").with_detail(err.to_string())
+    UserVisibleError::new(ErrorCode::Internal, "读取 Git 对象失败")
+        .with_key("errors.readGitObjectFailed")
+        .with_detail(err.to_string())
 }
 
 pub(crate) fn find_commit<'repo>(

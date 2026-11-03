@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { errorText } from "../shared/error";
 import { ipc } from "../shared/ipc";
 import type { UpdateCheckDto, UpdateCheckOutcome, UpdateCheckState } from "../shared/types";
 
@@ -100,5 +101,6 @@ export function useUpdateCheck(): UpdateCheckState {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  // CommandError 携带 i18n key 时按当前语言翻译；其余按 Error.message。
+  return error instanceof Error ? errorText(error) : String(error);
 }

@@ -1,6 +1,12 @@
 import { i18next } from "../i18n";
 import { CommandError } from "./ipc";
-import type { GateIssueDto, InterruptionKind, WarningDto } from "./types";
+import type {
+  GateIssueDto,
+  GateReportDto,
+  InterruptionKind,
+  WarningDto,
+  WriteOutcomeDto,
+} from "./types";
 
 type LooseTranslate = (
   key: string,
@@ -47,6 +53,24 @@ export function warningText(warning: WarningDto): string {
 /** GateIssueDto → 本地化文本；code+args 优先，缺失翻译回落 message。 */
 export function issueText(issue: GateIssueDto): string {
   return byCode(issue.code, issue.args, issue.message);
+}
+
+/** GateReportDto 摘要 → 本地化文本；summary_key+args 优先，缺失回落 summary。 */
+export function gateSummaryText(gate: GateReportDto): string {
+  if (gate.summary_key) {
+    const translated = looseT(gate.summary_key, gate.summary_args ?? {});
+    if (translated !== gate.summary_key) return translated;
+  }
+  return gate.summary;
+}
+
+/** 写操作结果 → 本地化文本；key+args 优先，缺失翻译回落 message。 */
+export function outcomeText(outcome: WriteOutcomeDto): string {
+  if (outcome.key) {
+    const translated = looseT(outcome.key, outcome.args ?? {});
+    if (translated !== outcome.key) return translated;
+  }
+  return outcome.message;
 }
 
 const KIND_KEYS: Record<InterruptionKind, string> = {

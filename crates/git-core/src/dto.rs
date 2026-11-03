@@ -495,6 +495,12 @@ pub struct GateReportDto {
     pub affected_total: usize,
     /// 用于确认框展示的摘要。
     pub summary: String,
+    /// 摘要对应的 i18n key；前端优先按 key+args 本地化，缺失翻译时回落 summary。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary_key: Option<String>,
+    /// 摘要插值参数（操作名、分支名、计数等）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary_args: Option<std::collections::BTreeMap<String, String>>,
     pub is_merge_commit: bool,
     /// 提交的父提交列表，顺序与 `git cherry-pick -m N` 的 1 起始父序号一致。
     #[serde(default)]
@@ -515,6 +521,12 @@ pub enum WriteStatus {
 pub struct WriteOutcomeDto {
     pub status: WriteStatus,
     pub message: String,
+    /// i18n key（`errors.xxx`）；前端优先按 key+args 本地化，缺失翻译时回落 message。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    /// 插值参数（分支名、计数等）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args: Option<std::collections::BTreeMap<String, String>>,
     pub exit_code: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stderr: Option<String>,
@@ -526,6 +538,21 @@ pub struct WriteOutcomeDto {
     pub generation: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub head_oid: Option<Oid>,
+}
+
+impl WriteOutcomeDto {
+    /// 标注 i18n key；message 保留为无翻译语言下的兜底文案。
+    pub fn with_key(mut self, key: impl Into<String>) -> Self {
+        self.key = Some(key.into());
+        self
+    }
+
+    /// 带单个插值参数；多参数链式调用多次即可。
+    pub fn with_arg(mut self, key: &str, value: impl Into<String>) -> Self {
+        let args = self.args.get_or_insert_with(Default::default);
+        args.insert(key.to_owned(), value.into());
+        self
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

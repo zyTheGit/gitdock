@@ -270,6 +270,10 @@ export interface GateReportDto {
   affected_paths: string[];
   affected_total: number;
   summary: string;
+  /** 摘要 i18n key；本地化优先使用，缺失翻译回落 summary。 */
+  summary_key?: string | null;
+  /** 摘要插值参数。 */
+  summary_args?: Record<string, string> | null;
   is_merge_commit: boolean;
   /** 父提交列表，顺序与 `-m N` 的 1 起始父序号一致。 */
   parents: ParentOptionDto[];
@@ -280,6 +284,10 @@ export type WriteStatus = "succeeded" | "empty_pick" | "conflicted" | "failed" |
 export interface WriteOutcomeDto {
   status: WriteStatus;
   message: string;
+  /** 结果文案 i18n key；本地化优先使用，缺失翻译回落 message。 */
+  key?: string | null;
+  /** 插值参数。 */
+  args?: Record<string, string> | null;
   exit_code?: number;
   stderr?: string;
   conflict_files: string[];

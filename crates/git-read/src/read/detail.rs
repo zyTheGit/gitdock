@@ -127,6 +127,7 @@ impl GitReadModule {
                 })
                 .ok_or_else(|| {
                     UserVisibleError::new(ErrorCode::Internal, "读取本地分支失败")
+                        .with_key("errors.readLocalBranchFailed")
                         .with_detail(format!("找不到本地分支 {name}"))
                 })?;
             let Some(tip) = reference.commit_oid.as_ref() else {

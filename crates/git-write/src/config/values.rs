@@ -33,37 +33,59 @@ pub(super) fn validate_value(key: &str, raw: &str) -> Result<String> {
         return Ok(String::new());
     }
     if value.chars().any(char::is_control) {
-        return Err(invalid(key, "配置值不能包含换行或控制字符"));
-    }
-    if value.chars().count() > MAX_VALUE_CHARS {
         return Err(invalid(
             key,
-            &format!("配置值长度需小于 {MAX_VALUE_CHARS} 个字符"),
+            "配置值不能包含换行或控制字符",
+            "errors.configValueControlChars",
         ));
+    }
+    if value.chars().count() > MAX_VALUE_CHARS {
+        return Err(UserVisibleError::new(
+            ErrorCode::InvalidArgument,
+            format!("{key} 配置值长度需小于 {MAX_VALUE_CHARS} 个字符"),
+        )
+        .with_key("errors.configValueTooLong")
+        .with_arg("key", key)
+        .with_arg("max", MAX_VALUE_CHARS.to_string()));
     }
     if let Some((_, choices)) = CHOICE_KEYS.iter().find(|(name, _)| *name == key) {
         let lowered = value.to_lowercase();
         return match choices.iter().find(|choice| **choice == lowered) {
             Some(choice) => Ok((*choice).to_owned()),
-            None => Err(invalid(
-                key,
-                &format!("只能取 {} 之一", choices.join(" / ")),
-            )),
+            None => Err(UserVisibleError::new(
+                ErrorCode::InvalidArgument,
+                format!("{key} 只能取 {} 之一", choices.join(" / ")),
+            )
+            .with_key("errors.configValueChoice")
+            .with_arg("key", key)
+            .with_arg("choices", choices.join(" / "))),
         };
     }
     // 姓名允许空格（如 "Jane Doe"），邮箱与分支名不允许；其余键各自单独把关。
     match key {
         "user.email" => {
             if value.chars().any(char::is_whitespace) {
-                return Err(invalid(key, "邮箱不能包含空格"));
+                return Err(invalid(
+                    key,
+                    "邮箱不能包含空格",
+                    "errors.configEmailWhitespace",
+                ));
             }
             if !value.contains('@') || value.starts_with('@') || value.ends_with('@') {
-                return Err(invalid(key, "邮箱格式无效，需要包含 @ 且前后有内容"));
+                return Err(invalid(
+                    key,
+                    "邮箱格式无效，需要包含 @ 且前后有内容",
+                    "errors.configEmailInvalid",
+                ));
             }
         }
         "init.defaultBranch" => {
             if value.chars().any(char::is_whitespace) {
-                return Err(invalid(key, "分支名不能包含空格"));
+                return Err(invalid(
+                    key,
+                    "分支名不能包含空格",
+                    "errors.configBranchWhitespace",
+                ));
             }
             if value.contains("..")
                 || value.contains("@{")
@@ -72,7 +94,11 @@ pub(super) fn validate_value(key: &str, raw: &str) -> Result<String> {
                 || value.ends_with('/')
                 || value.ends_with(".lock")
             {
-                return Err(invalid(key, "不是合法的分支名"));
+                return Err(invalid(
+                    key,
+                    "不是合法的分支名",
+                    "errors.configBranchInvalid",
+                ));
             }
         }
         _ => {}
@@ -80,6 +106,8 @@ pub(super) fn validate_value(key: &str, raw: &str) -> Result<String> {
     Ok(value.to_owned())
 }
 
-fn invalid(key: &str, message: &str) -> UserVisibleError {
+fn invalid(key: &str, message: &str, error_key: &str) -> UserVisibleError {
     UserVisibleError::new(ErrorCode::InvalidArgument, format!("{key} {message}"))
+        .with_key(error_key)
+        .with_arg("key", key)
 }

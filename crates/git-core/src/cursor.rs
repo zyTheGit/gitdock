@@ -32,6 +32,7 @@ pub fn encode_cursor(view_key: &str, generation: u64, after: &Oid) -> String {
 pub fn decode_cursor(token: &str) -> Result<CursorData> {
     let invalid = |detail: String| {
         UserVisibleError::new(ErrorCode::CursorInvalid, "分页游标无效，请刷新图谱")
+            .with_key("errors.paginationCursorInvalid")
             .with_detail(detail)
     };
     let bytes = URL_SAFE_NO_PAD

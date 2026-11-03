@@ -1,5 +1,5 @@
 import { useI18n } from "../../i18n";
-import { issueText, warningText } from "../../shared/error";
+import { gateSummaryText, issueText, warningText } from "../../shared/error";
 import { Modal } from "../../shared/Modal";
 import type { CommitSummaryDto, GateReportDto, WriteKind } from "../../shared/types";
 
@@ -111,7 +111,7 @@ export function ConfirmWriteDialog({
         ) : !gate ? (
           <p className="muted">{t("write.gateChecking")}</p>
         ) : gate.ok ? (
-          <p className="gate-ok">{gate.summary}</p>
+          <p className="gate-ok">{gateSummaryText(gate)}</p>
         ) : (
           <>
             <p className="danger-text">{t("write.gateFailedPrefix")}</p>

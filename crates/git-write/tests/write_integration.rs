@@ -95,7 +95,7 @@ fn gate_rejects_untracked_and_allows_clean() {
     assert!(report
         .issues
         .iter()
-        .any(|issue| issue.code == "worktree_dirty"));
+        .any(|issue| issue.code == "gate_worktree_dirty"));
 
     std::fs::remove_file(dir.join("untracked.txt")).expect("删除未跟踪文件");
     let report = module
@@ -118,7 +118,7 @@ fn gate_requires_mainline_for_merge_commit() {
     assert!(report
         .issues
         .iter()
-        .any(|issue| issue.code == "mainline_required"));
+        .any(|issue| issue.code == "gate_mainline_required"));
     assert_eq!(report.parents.len(), 2);
 
     let first = module
@@ -154,7 +154,7 @@ fn gate_rejects_invalid_or_inapplicable_mainline() {
             report
                 .issues
                 .iter()
-                .any(|issue| issue.code == "mainline_invalid"),
+                .any(|issue| issue.code == "gate_mainline_invalid"),
             "-m {mainline}: {:?}",
             report.issues
         );
@@ -173,7 +173,7 @@ fn gate_rejects_invalid_or_inapplicable_mainline() {
     assert!(report
         .issues
         .iter()
-        .any(|issue| issue.code == "mainline_not_applicable"));
+        .any(|issue| issue.code == "gate_mainline_not_applicable"));
 }
 
 #[test]
@@ -228,7 +228,7 @@ fn gate_rejects_detached_head() {
     assert!(report
         .issues
         .iter()
-        .any(|issue| issue.code == "detached_head"));
+        .any(|issue| issue.code == "gate_detached_head"));
 }
 
 #[test]
@@ -278,7 +278,7 @@ fn cherry_pick_conflict_is_reported_without_abort() {
     assert!(blocked
         .issues
         .iter()
-        .any(|issue| issue.code == "interrupted"));
+        .any(|issue| issue.code == "gate_interrupted"));
 
     let interruption = module.inspect_interruption().expect("探测中断");
     assert!(interruption.is_active());
@@ -300,7 +300,7 @@ fn continue_gate_requires_matching_interruption() {
     assert!(missing_kind
         .issues
         .iter()
-        .any(|issue| issue.code == "interruption_required"));
+        .any(|issue| issue.code == "gate_interruption_required"));
 
     let invalid = module
         .validate(&operation_request(
@@ -312,7 +312,7 @@ fn continue_gate_requires_matching_interruption() {
     assert!(invalid
         .issues
         .iter()
-        .any(|issue| issue.code == "interruption_invalid"));
+        .any(|issue| issue.code == "gate_interruption_invalid"));
 
     // 无标记时由 Gate 拒绝，不把用户请求交给 git。
     let no_marker = module
@@ -325,7 +325,7 @@ fn continue_gate_requires_matching_interruption() {
     assert!(no_marker
         .issues
         .iter()
-        .any(|issue| issue.code == "interruption_mismatch"));
+        .any(|issue| issue.code == "gate_interruption_marker_absent"));
 
     // 非继续/中止操作不得携带 interruption，避免静默忽略。
     let not_applicable = module
@@ -338,7 +338,7 @@ fn continue_gate_requires_matching_interruption() {
     assert!(not_applicable
         .issues
         .iter()
-        .any(|issue| issue.code == "interruption_not_applicable"));
+        .any(|issue| issue.code == "gate_interruption_not_applicable"));
 }
 
 #[test]
@@ -368,7 +368,7 @@ fn continue_gate_accepts_externally_started_single_pick() {
         report
             .issues
             .iter()
-            .all(|issue| issue.code == "unresolved_conflicts"),
+            .all(|issue| issue.code == "gate_unresolved_conflicts"),
         "{:?}",
         report.issues
     );
@@ -396,7 +396,7 @@ fn continue_gate_rejects_marker_of_other_kind() {
     assert!(report
         .issues
         .iter()
-        .any(|issue| issue.code == "interruption_mismatch"));
+        .any(|issue| issue.code == "gate_interruption_mismatch"));
     assert!(report
         .issues
         .iter()
@@ -412,7 +412,7 @@ fn continue_gate_rejects_marker_of_other_kind() {
     assert!(abort
         .issues
         .iter()
-        .any(|issue| issue.code == "interruption_mismatch"));
+        .any(|issue| issue.code == "gate_interruption_mismatch"));
 }
 
 #[test]
@@ -438,7 +438,7 @@ fn continue_gate_rejects_sequencer_and_index_lock() {
         report
             .issues
             .iter()
-            .any(|issue| issue.code == "sequenced_operation"),
+            .any(|issue| issue.code == "gate_sequenced_operation"),
         "{:?}",
         report.issues
     );
@@ -457,7 +457,7 @@ fn continue_gate_rejects_sequencer_and_index_lock() {
         report
             .issues
             .iter()
-            .any(|issue| issue.code == "index_locked"),
+            .any(|issue| issue.code == "gate_index_locked"),
         "{:?}",
         report.issues
     );
@@ -485,7 +485,7 @@ fn continue_gate_rejects_unresolved_conflicts_without_running_git() {
     let issue = report
         .issues
         .iter()
-        .find(|issue| issue.code == "unresolved_conflicts")
+        .find(|issue| issue.code == "gate_unresolved_conflicts")
         .expect("应拒绝未解决冲突");
     assert!(issue.message.contains("git add"), "{}", issue.message);
 
@@ -836,7 +836,7 @@ fn switch_requires_existing_local_branch() {
     assert!(missing
         .issues
         .iter()
-        .any(|issue| issue.code == "branch_not_found"));
+        .any(|issue| issue.code == "gate_branch_not_found"));
 
     let current = module
         .validate(&request(WriteKind::SwitchBranch, None, Some("main"), None))
@@ -844,7 +844,7 @@ fn switch_requires_existing_local_branch() {
     assert!(current
         .issues
         .iter()
-        .any(|issue| issue.code == "already_on_branch"));
+        .any(|issue| issue.code == "gate_already_on_branch"));
 
     let outcome = module
         .execute(&request(WriteKind::SwitchBranch, None, Some("topic"), None))
@@ -933,7 +933,7 @@ fn switch_rejects_worktree_occupied_branch() {
     assert!(report
         .issues
         .iter()
-        .any(|issue| issue.code == "branch_checked_out"));
+        .any(|issue| issue.code == "gate_branch_checked_out"));
 }
 
 #[test]
@@ -1047,7 +1047,7 @@ fn switch_rejects_unmerged_index_without_operation_marker() {
     assert!(report
         .issues
         .iter()
-        .any(|issue| issue.code == "conflicted_index"));
+        .any(|issue| issue.code == "gate_conflicted_index_switch"));
 }
 #[test]
 fn valid_description_is_written_after_gate_validation() {

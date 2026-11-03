@@ -21,13 +21,14 @@ pub fn remember(
 ) -> Result<SettingsDto, UserVisibleError> {
     let canonical = std::fs::canonicalize(path).map_err(|e| {
         UserVisibleError::new(ErrorCode::RepositoryNotFound, "仓库目录不可访问")
+            .with_key("errors.repoDirInaccessible")
             .with_detail(e.to_string())
     })?;
     if !canonical.is_dir() {
-        return Err(UserVisibleError::new(
-            ErrorCode::InvalidArgument,
-            "仓库路径必须是目录",
-        ));
+        return Err(
+            UserVisibleError::new(ErrorCode::InvalidArgument, "仓库路径必须是目录")
+                .with_key("errors.repoPathMustBeDirectory"),
+        );
     }
     let text = strip_verbatim(&canonical);
     let now = SystemTime::now()

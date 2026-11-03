@@ -47,10 +47,10 @@ const MAX_FEEDBACK_BODY_CHARS: usize = 8000;
 fn feedback_issue_url(title: &str, body: &str) -> Result<String> {
     let title = title.trim();
     if title.is_empty() {
-        return Err(UserVisibleError::new(
-            ErrorCode::InvalidArgument,
-            "反馈标题不能为空",
-        ));
+        return Err(
+            UserVisibleError::new(ErrorCode::InvalidArgument, "反馈标题不能为空")
+                .with_key("errors.feedbackTitleRequired"),
+        );
     }
     if title.chars().count() > MAX_FEEDBACK_TITLE_CHARS
         || body.chars().count() > MAX_FEEDBACK_BODY_CHARS
@@ -58,10 +58,14 @@ fn feedback_issue_url(title: &str, body: &str) -> Result<String> {
         return Err(UserVisibleError::new(
             ErrorCode::InvalidArgument,
             "反馈内容过长，请精简后再提交",
-        ));
+        )
+        .with_key("errors.feedbackTooLong"));
     }
-    let mut url = tauri::Url::parse(FEEDBACK_ISSUE_URL)
-        .map_err(|e| UserVisibleError::internal(format!("反馈地址无效：{e}")))?;
+    let mut url = tauri::Url::parse(FEEDBACK_ISSUE_URL).map_err(|e| {
+        UserVisibleError::internal(format!("反馈地址无效：{e}"))
+            .with_key("errors.feedbackUrlInvalid")
+            .with_arg("error", e.to_string())
+    })?;
     url.query_pairs_mut()
         .append_pair("title", title)
         .append_pair("body", body);
@@ -94,7 +98,9 @@ pub fn open_release_page(url: String) -> Result<()> {
 #[tauri::command]
 pub fn ui_ready(window: tauri::WebviewWindow) -> Result<()> {
     window.show().map_err(|err| {
-        UserVisibleError::new(ErrorCode::Internal, "显示主窗口失败").with_detail(err.to_string())
+        UserVisibleError::new(ErrorCode::Internal, "显示主窗口失败")
+            .with_key("errors.windowShowFailed")
+            .with_detail(err.to_string())
     })?;
     let _ = window.set_focus();
     Ok(())

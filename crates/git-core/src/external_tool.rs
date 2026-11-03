@@ -50,7 +50,8 @@ pub fn split_args_template(template: &str) -> Result<Vec<String>> {
         return Err(UserVisibleError::new(
             ErrorCode::InvalidArgument,
             "外部工具参数模板存在未闭合的引号",
-        ));
+        )
+        .with_key("errors.externalArgsUnclosedQuote"));
     }
     if has_token {
         args.push(current);

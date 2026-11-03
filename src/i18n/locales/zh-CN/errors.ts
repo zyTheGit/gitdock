@@ -1,12 +1,13 @@
 import type { MessageShape } from "../messages";
 
 /**
- * errors 域：Rust 侧 WarningDto / GateIssueDto / UserVisibleError 的文案。
+ * errors 域：Rust 侧 WarningDto / GateIssueDto / GateReportDto.summary /
+ * UserVisibleError / WriteOutcomeDto 的文案。
  * key 规则：code 的 snake_case 转 camelCase（worktree_dirty → worktreeDirty）。
- * Rust 侧 message 保留中文兜底；此处有翻译则优先。
+ * Rust 侧 message/summary 保留中文兜底；此处有翻译则优先。
  */
 const errors = {
-  // WarningDto（git-read 仓库打开 / 图谱 / 对比 / 详情；git-write 暂存 / Gate）
+  // ---- WarningDto（git-read 仓库打开 / 图谱 / 对比 / 详情；git-write 暂存 / Gate）----
   sha256Repository: "该仓库使用 SHA-256 对象格式；请确认所有 Git 工具版本支持",
   shallowRepository: "浅克隆仓库：仅显示已经取回的提交历史",
   gitMissing: "未检测到系统 Git，写操作不可用；只读功能不受影响",
@@ -21,7 +22,7 @@ const errors = {
   stagingBareEmpty: "bare 仓库没有工作区，暂存区为空",
   conflictedIndex: "存在 {{n}} 个未解决冲突文件，暂存区操作已禁用；请在终端解决后继续",
 
-  // 中断态（InterruptionDto.kinds 由前端渲染）
+  // ---- 中断态（InterruptionDto.kinds 由前端渲染）----
   interruptionDetected: "检测到未完成的 Git 操作：{{names}}",
   kindMerge: "merge 未完成",
   kindCherryPick: "cherry-pick 未完成",
@@ -36,6 +37,208 @@ const errors = {
   hintRebase: "请在终端执行 git rebase --continue（或 --abort）",
   hintMerge: "请在终端执行 git merge --continue（或 git merge --abort）",
   hintGeneral: "请在终端完成或放弃当前操作",
+
+  // ---- git-write 基础设施：暂存 staging* ----
+  stagingInvalidPath: "路径无效：{{path}}",
+  stagingFileMissing: "暂存区中没有文件 {{path}}，请刷新后重试",
+  stagingConflictedDiff: "冲突文件需要在终端解决，应用内不提供冲突 diff",
+  stagingUntrackedNotStaged: "未跟踪文件尚未暂存",
+  stagingNoStagedChanges: "{{path}} 没有已暂存改动",
+  stagingNoUnstagedChanges: "{{path}} 没有未暂存改动",
+  stagingNumstatFailed: "无法读取变更统计",
+  stagingReadFileFailed: "无法读取 {{path}}",
+  stagingUntrackedDiffFailed: "无法生成未跟踪文件 diff",
+  stagingDiffFailed: "无法生成文件 diff",
+
+  // ---- git-write 基础设施：命令与描述 command*/description* ----
+  commandMissingOid: "缺少提交 OID",
+  commandMissingBranch: "缺少分支名",
+  commandHeadUnreadable: "无法读取 HEAD",
+  commandCommitUnreadable: "提交不存在或无法读取",
+  commandParentOidInvalid: "无法解析父提交 OID",
+  commandSpawnFailed: "无法启动 git 命令",
+  commandInterruptionKindInvalid: "继续/中止需要有效的 cherry-pick 或 revert 中断类型",
+  descriptionBranchMissing: "本地分支 {{branch}} 不存在",
+  descriptionLeadingDash: "分支描述不能以 \"-\" 开头，该值会被 Git 当作选项解析",
+  descriptionControlChars: "分支描述不能包含换行或控制字符",
+  descriptionTooLong: "分支描述长度需小于 {{max}} 个字符",
+  writeIoRepoRootUnavailable: "仓库目录不存在或不可访问",
+
+  // ---- git-write 基础设施：Git 配置 config* ----
+  configSaveBusy: "已有写操作正在进行，请稍后再试",
+  configKeyUnsupported: "不支持读写该 Git 配置项",
+  configUnsetFailed: "删除配置项失败",
+  configWriteFailed: "写入配置项失败",
+  configReadFailed: "读取 Git 配置失败",
+  configRepoRequired: "未打开仓库，无法读写项目级配置",
+  configHomeMissing: "无法定位用户主目录",
+  configValueControlChars: "{{key}} 配置值不能包含换行或控制字符",
+  configValueTooLong: "{{key}} 配置值长度需小于 {{max}} 个字符",
+  configValueChoice: "{{key}} 只能取 {{choices}} 之一",
+  configEmailWhitespace: "{{key}} 邮箱不能包含空格",
+  configEmailInvalid: "{{key}} 邮箱格式无效，需要包含 @ 且前后有内容",
+  configBranchWhitespace: "{{key}} 分支名不能包含空格",
+  configBranchInvalid: "{{key}} 不是合法的分支名",
+
+  // ---- git-read 读侧 read*/graph*/search* ----
+  readRepositoryOpenFailed: "无法打开 Git 仓库",
+  readUnsupportedHashAlgorithm: "仓库使用了暂不支持的哈希算法",
+  readRepositoryUnavailable: "仓库已不可用",
+  readGitDataFailed: "读取 Git 数据失败",
+  readLocalBranchFailed: "读取本地分支失败",
+  readInvalidFilePath: "文件路径无效",
+  readFileNotInCommit: "提交中没有文件 {{path}}",
+  readInvalidOid: "OID 无效",
+  readGitObjectFailed: "读取 Git 对象失败",
+  readTreeEntryFailed: "读取树条目失败",
+  readCommitWalkFailed: "遍历提交失败",
+  readWalkResultFailed: "读取提交遍历结果失败",
+  readOidConvertFailed: "OID 无法转换为 gix 对象 ID",
+  graphCursorStale: "仓库状态已变化，请刷新后重新加载",
+  graphCursorViewMismatch: "分页游标与当前视图不匹配，请刷新图谱",
+  graphCursorOidInvalid: "分页游标中的 OID 无效",
+  graphCommitNotInView: "该提交不在当前图谱视图中",
+  graphRefNotFound: "找不到引用 {{name}}",
+  searchCursorStale: "仓库状态已变化，请重新搜索",
+  searchCursorInvalid: "搜索游标无效",
+  searchReadMessageFailed: "读取提交信息失败",
+  searchReadAuthorFailed: "读取提交作者失败",
+  searchReadTreeFailed: "读取提交树失败",
+
+  // ---- src-tauri 应用层：终端 terminal* ----
+  terminalResizeFailed: "调整终端尺寸失败",
+  terminalPowershellNotFound: "未找到 PowerShell：缺少 SystemRoot 环境变量",
+  terminalLazygitNotFound: "未找到 LazyGit，可在设置中填写可执行文件路径",
+  terminalModeUnsupported: "不支持的终端模式：{{mode}}",
+  terminalPtyCreateFailed: "创建伪终端失败",
+  terminalStartLazygitFailed: "启动 LazyGit 失败，请检查安装与路径配置",
+  terminalStartShellFailed: "启动 Shell 失败",
+  terminalReadFailed: "读取终端输出失败",
+  terminalInputOpenFailed: "打开终端输入失败",
+  terminalInputInvalid: "终端输入格式无效",
+
+  // ---- src-tauri 应用层：设置与仓库 setting*/repo* ----
+  settingFontScaleOutOfRange: "界面缩放比例需在 75% 与 200% 之间",
+  settingLanguageUnsupported: "不支持的语言",
+  settingSerializeFailed: "设置序列化失败",
+  settingReadWriteFailed: "读写应用配置失败",
+  repoDirInaccessible: "仓库目录不可访问",
+  repoPathMustBeDirectory: "仓库路径必须是目录",
+  repoDirNotFound: "仓库目录不存在或不可访问",
+  repoDirectoryRequired: "请选择仓库目录",
+  repoNotOpen: "尚未打开仓库",
+
+  // ---- src-tauri 应用层：应用目录与后台任务 appDir*/background* ----
+  appDirConfigLocateFailed: "无法定位配置目录",
+  appDirLogLocateFailed: "无法定位日志目录",
+  appDirCacheLocateFailed: "无法定位缓存目录",
+  appDirConfigCreateFailed: "创建配置目录失败",
+  backgroundTaskFailed: "后台任务异常：{{error}}",
+
+  // ---- src-tauri 应用层：更新检查 update* ----
+  updateUnexpectedStatus: "版本信息接口返回状态 {{code}}",
+  updateFetchFailed: "无法获取最新版本信息",
+  updateFormatInvalid: "版本信息格式异常",
+  updateVersionParseFailed: "版本号无法解析",
+  updateUrlNotInRepo: "下载地址不属于本仓库的发布页",
+
+  // ---- src-tauri 应用层：外部工具与反馈 external*/feedback*/window* ----
+  externalToolNameOrExecutableEmpty: "外部工具的名称与可执行文件不能为空",
+  externalToolTemplateTooLong: "外部工具参数模板过长",
+  externalToolInvalidCharacter: "外部工具配置包含非法字符",
+  externalTemplateUnclosedQuote: "外部工具参数模板引号未闭合",
+  externalTemplateEmpty: "外部工具参数模板为空",
+  externalVariableNotStandalone: "模板变量 $LOCAL / $REMOTE 必须独占一个参数",
+  externalTempDirCreateFailed: "创建外部 diff 临时目录失败",
+  externalLaunchFailed: "启动外部工具失败：{{name}}",
+  externalBrowserOpenFailed: "打开默认浏览器失败",
+  externalToolNotFound: "外部工具不存在，请重新配置",
+  externalFileTooLarge: "文件超过 50MB，未交给外部工具",
+  externalTempFileWriteFailed: "写入外部 diff 临时文件失败",
+  externalArgsUnclosedQuote: "外部工具参数模板存在未闭合的引号",
+  feedbackTitleRequired: "反馈标题不能为空",
+  feedbackTooLong: "反馈内容过长，请精简后再提交",
+  feedbackUrlInvalid: "反馈地址无效：{{error}}",
+  windowShowFailed: "显示主窗口失败",
+  oidFormatInvalid: "OID 格式无效",
+  paginationCursorInvalid: "分页游标无效，请刷新图谱",
+
+  // ---- 写前 Gate：GateIssueDto（code 已统一 gate_ 前缀）----
+  gateBareRepository: "bare 仓库不提供写操作，请使用工作区仓库或命令行",
+  gateInterrupted: "存在未完成的 Git 操作：{{kinds}}；{{hint}}",
+  gateInterruptionNotApplicable: "只有继续/中止操作可以指定中断类型",
+  gateMainlineRequired: "该提交是 merge commit（共 {{n}} 个父提交），必须选择基线父提交（-m N）",
+  gateMainlineInvalid: "基线父序号必须在 1..={{n}} 之间",
+  gateMainlineNotApplicable: "该提交不是 merge commit，不能指定基线父提交（-m）",
+  gateDetachedHead: "当前处于 detached HEAD，拒绝写操作",
+  gateDetachedHeadSwitch: "detached HEAD 状态不支持切换，请先用命令行处理",
+  gateUnbornHead: "当前分支尚无提交，拒绝写操作",
+  gateUnbornHeadSwitch: "当前分支尚无提交，无法切换",
+  gateWorktreeDirty: "工作区不干净（{{parts}}），请先提交或在终端处理",
+  gateConflictedIndexSwitch: "索引中还有 {{n}} 个未解决冲突文件，请先在终端解决后再切换分支",
+  gateBranchNotFound: "本地分支 {{branch}} 不存在（不会猜测远程跟踪分支）",
+  gateAlreadyOnBranch: "已经在分支 {{branch}} 上",
+  gateBranchCheckedOut: "分支 {{branch}} 已被其他 worktree 占用：{{path}}",
+  gateBranchMissing: "本地分支 {{branch}} 不存在",
+  gatePathsRequired: "请选择要处理的文件",
+  gateTooManyPaths: "一次最多处理 {{max}} 个文件",
+  gateInvalidPath: "路径无效：{{path}}",
+  gatePathNotInStatus: "{{path}} 当前没有可处理的变更，请刷新后重试",
+  gateConflictedFile: "{{path}} 存在未解决冲突，请在终端处理",
+  gateNothingToStage: "{{path}} 没有未暂存改动",
+  gateNothingToUnstage: "{{path}} 没有已暂存改动",
+  gateConflictedIndexStage: "存在未解决的冲突文件，请先在终端处理后再暂存",
+  gateInterruptionInvalid: "继续/中止只支持 cherry-pick 或 revert 中断",
+  gateInterruptionRequired: "{{verb}}操作需要指定中断类型（cherry_pick 或 revert）",
+  gateInterruptionMismatch: "请求的是 {{action}} 中断，但检测到 {{other}} 中断标记（{{marker}}）",
+  gateInterruptionMarkerAbsent: "未检测到 {{marker}}，当前没有可{{verb}}的 {{action}} 操作",
+  gateInterruptionUnsupported: "检测到 {{label}} 中断（{{marker}}），本应用只接管单次 cherry-pick / revert",
+  gateSequencedOperation: "检测到批量 cherry-pick / revert 序列（sequencer），请在终端继续或中止",
+  gateIndexLocked: "index.lock 被占用，请等待其他 Git 进程结束后重试；本应用不会删除锁文件",
+  gateUnresolvedConflicts: "还有 {{n}} 个文件存在未解决冲突，请先解决冲突并 git add 后再继续",
+
+  // ---- 写前 Gate：GateReportDto.summary ----
+  gateSummaryBare: "bare 仓库不支持写操作",
+  gateSummaryCherryPick: "将 {{action}} {{oid}} 到当前分支 {{branch}}",
+  gateSummaryCherryPickWithBase:
+    "将 {{action}} {{oid}} 到当前分支 {{branch}}，以第 {{n}} 父提交为基线（{{n}}/{{total}}）",
+  gateSummarySwitch: "将切换到本地分支 {{branch}}",
+  gateSummarySwitchWithChanges: "将切换到本地分支 {{branch}}；{{n}} 个有改动的文件会保留在工作区",
+  gateSummaryDescription: "将更新分支 {{branch}} 的本地描述",
+  gateSummaryStage: "将暂存 {{n}} 个文件",
+  gateSummaryUnstage: "将取消暂存 {{n}} 个文件",
+  gateSummaryContinueUnavailable: "无法继续当前操作",
+  gateSummaryAbortUnavailable: "无法中止当前操作",
+  gateSummaryContinue: "将执行 git {{action}} --continue，完成当前 {{action}} 操作",
+  gateSummaryAbort:
+    "将执行 git {{action}} --abort，回到操作开始前的状态；已手工解决的冲突内容会丢失",
+
+  // ---- 写操作执行结果 WriteOutcomeDto ----
+  outcomeRejected: "操作被拒绝：{{issues}}",
+  outcomeDescriptionRemoved: "已删除分支 {{branch}} 的本地描述",
+  outcomeDescriptionUpdated: "已更新分支 {{branch}} 的本地描述",
+  outcomeContinueCompleted: "已继续并完成 {{action}} 操作，图谱已刷新",
+  outcomeAbortCompleted: "已中止 {{action}} 操作，已回到操作开始前的状态",
+  outcomeAbortIncomplete: "中止 {{action}} 未完成，中断标记仍然存在；请在终端处理",
+  outcomeAbortFailed: "中止 {{action}} 未生效，Git 返回非零退出码",
+  outcomeContinueFailed: "继续 {{action}} 未完成，Git 返回非零退出码",
+  outcomeUnresolvedConflicts: "还有 {{n}} 个文件存在未解决冲突，请解决冲突并 git add 后再继续",
+  outcomeContinueEmpty:
+    "继续 {{action}} 后结果为空（{{marker}} 仍然存在）。请在终端执行 git cherry-pick --skip 或 git revert --skip 跳过该提交；本应用不会自动跳过",
+  outcomeCherryPickSucceeded: "Cherry-pick 成功，图谱已刷新",
+  outcomeRevertSucceeded: "Revert 成功，图谱已刷新",
+  outcomeSwitched: "已切换到分支 {{branch}}",
+  outcomeSwitchedWithChanges: "已切换到分支 {{branch}}，{{n}} 个文件的工作区改动已保留",
+  outcomeStaged: "已暂存 {{n}} 个文件",
+  outcomeUnstaged: "已取消暂存 {{n}} 个文件",
+  outcomeCompleted: "操作已完成，图谱已刷新",
+  outcomeConflicted: "{{action}} 产生冲突，请在终端处理；本应用不会自动 abort / quit",
+  outcomeEmptyPick: "无变更：该提交的内容已包含在当前分支中，已清理操作状态",
+  outcomeSwitchRejected:
+    "切换被 Git 拒绝，未执行 stash / reset / clean；请根据诊断信息处理（提交、暂存或在终端处理）后重试",
+  outcomeGitRejected: "Git 拒绝了本次操作",
+  outcomeStdinWriteFailed: "无法向 git 写入路径列表",
+  outcomeWaitFailed: "等待 git 命令结束失败",
 } as const;
 
 export default errors;

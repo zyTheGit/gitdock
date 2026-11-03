@@ -79,6 +79,7 @@ impl GitWriteModule {
                     .as_ref()
                     .ok_or_else(|| {
                         UserVisibleError::new(ErrorCode::InvalidArgument, "缺少提交 OID")
+                            .with_key("errors.commandMissingOid")
                     })?
                     .to_string();
                 let mut args = vec!["cherry-pick".to_owned()];
@@ -92,6 +93,7 @@ impl GitWriteModule {
                     .as_ref()
                     .ok_or_else(|| {
                         UserVisibleError::new(ErrorCode::InvalidArgument, "缺少提交 OID")
+                            .with_key("errors.commandMissingOid")
                     })?
                     .to_string();
                 let mut args = vec!["revert".to_owned()];
@@ -105,11 +107,13 @@ impl GitWriteModule {
                 "--no-guess".into(),
                 request.branch.clone().ok_or_else(|| {
                     UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+                        .with_key("errors.commandMissingBranch")
                 })?,
             ],
             WriteKind::SetBranchDescription => {
                 let branch = request.branch.clone().ok_or_else(|| {
                     UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+                        .with_key("errors.commandMissingBranch")
                 })?;
                 let key = format!("branch.{branch}.description");
                 let value = request.description.clone().unwrap_or_default();
@@ -211,6 +215,7 @@ impl GitWriteModule {
         let raw = text(&output.stdout).trim().to_owned();
         git_core::Oid::new(&raw).map_err(|e| {
             UserVisibleError::new(ErrorCode::GitCommandFailed, "无法读取 HEAD")
+                .with_key("errors.commandHeadUnreadable")
                 .with_detail(e.to_string())
         })
     }
@@ -275,6 +280,7 @@ impl GitWriteModule {
         if !output.status.success() {
             return Err(
                 UserVisibleError::new(ErrorCode::InvalidArgument, "提交不存在或无法读取")
+                    .with_key("errors.commandCommitUnreadable")
                     .with_detail(text(&output.stderr)),
             );
         }
@@ -291,6 +297,7 @@ impl GitWriteModule {
         for parent in parent_oids {
             let oid = git_core::Oid::new(parent.clone()).map_err(|e| {
                 UserVisibleError::new(ErrorCode::GitCommandFailed, "无法解析父提交 OID")
+                    .with_key("errors.commandParentOidInvalid")
                     .with_detail(e.to_string())
             })?;
             let output = self.run_readonly(&["show", "-s", "--format=%h%x1f%s", parent])?;
@@ -319,6 +326,7 @@ impl GitWriteModule {
             .output()
             .map_err(|e| {
                 UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
+                    .with_key("errors.commandSpawnFailed")
                     .with_detail(e.to_string())
             })
     }
@@ -335,6 +343,7 @@ impl GitWriteModule {
             .output()
             .map_err(|e| {
                 UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
+                    .with_key("errors.commandSpawnFailed")
                     .with_detail(e.to_string())
             })
     }
@@ -356,6 +365,7 @@ pub(crate) fn interruption_command(request: &WriteRequest) -> Result<(&'static s
         _ => Err(UserVisibleError::new(
             ErrorCode::InvalidArgument,
             "继续/中止需要有效的 cherry-pick 或 revert 中断类型",
-        )),
+        )
+        .with_key("errors.commandInterruptionKindInvalid")),
     }
 }

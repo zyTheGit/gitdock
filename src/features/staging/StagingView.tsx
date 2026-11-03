@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useI18n } from "../../i18n";
 import { FileDiffView } from "../diff/FileDiffView";
 import { isEscConsumed, isEventInTerminal } from "../../shared/esc";
-import { errorText, warningText } from "../../shared/error";
+import { errorText, outcomeText, warningText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type {
   FileDiffDto,
@@ -201,12 +201,12 @@ export function StagingView({
       try {
         const outcome = await ipc.executeWrite({ kind, paths });
         if (outcome.status === "failed" || outcome.status === "rejected") {
-          setError([outcome.message, outcome.stderr].filter(Boolean).join("\n\n"));
+          setError([outcomeText(outcome), outcome.stderr].filter(Boolean).join("\n\n"));
           return;
         }
         setChecked({});
         const next = await load(true);
-        await onMutatedRef.current(outcome.message);
+        await onMutatedRef.current(outcomeText(outcome));
         if (next) {
           const target: Side = side === "unstaged" ? "staged" : "unstaged";
           const list = target === "staged" ? next.staged : next.unstaged;

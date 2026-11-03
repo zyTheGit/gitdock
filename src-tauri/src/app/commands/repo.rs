@@ -33,13 +33,14 @@ pub async fn open_repository(
         let dir = PathBuf::from(path);
         let canonical = std::fs::canonicalize(&dir).map_err(|e| {
             UserVisibleError::new(ErrorCode::RepositoryNotFound, "仓库目录不存在或不可访问")
+                .with_key("errors.repoDirNotFound")
                 .with_detail(e.to_string())
         })?;
         if !canonical.is_dir() {
-            return Err(UserVisibleError::new(
-                ErrorCode::InvalidArgument,
-                "请选择仓库目录",
-            ));
+            return Err(
+                UserVisibleError::new(ErrorCode::InvalidArgument, "请选择仓库目录")
+                    .with_key("errors.repoDirectoryRequired"),
+            );
         }
         let open_path = PathBuf::from(crate::app::config::strip_verbatim(&canonical));
         let read = GitReadModule::open(&open_path, Some(state.paths.index_cache_dir.clone()))?;

@@ -77,12 +77,15 @@ fn map_transport_error(err: ureq::Error) -> UserVisibleError {
     match err {
         ureq::Error::StatusCode(code) => {
             UserVisibleError::new(ErrorCode::Io, format!("版本信息接口返回状态 {code}"))
+                .with_key("errors.updateUnexpectedStatus")
+                .with_arg("code", code.to_string())
                 .with_detail(
                     "本仓库未公开、还没有任何 Release，或本机 IP 触发了 GitHub 匿名访问限额"
                         .to_string(),
                 )
         }
         other => UserVisibleError::new(ErrorCode::Io, "无法获取最新版本信息")
+            .with_key("errors.updateFetchFailed")
             .with_detail(other.to_string()),
     }
 }
@@ -90,7 +93,9 @@ fn map_transport_error(err: ureq::Error) -> UserVisibleError {
 /// 纯解析：与网络无关，便于用固定 JSON 覆盖各版本比较分支。
 fn parse_release(body: &str, current_version: &str) -> Result<UpdateCheckDto> {
     let release: ReleasePayload = serde_json::from_str(body).map_err(|err| {
-        UserVisibleError::new(ErrorCode::Internal, "版本信息格式异常").with_detail(err.to_string())
+        UserVisibleError::new(ErrorCode::Internal, "版本信息格式异常")
+            .with_key("errors.updateFormatInvalid")
+            .with_detail(err.to_string())
     })?;
     if !is_pinned_release_page(&release.html_url) {
         return Err(off_repo_error());
@@ -109,7 +114,9 @@ fn parse_release(body: &str, current_version: &str) -> Result<UpdateCheckDto> {
 /// 标签允许 `v0.2.0` 与 `0.2.0` 两种写法；其余一律拒绝，不做模糊比较。
 fn parse_version(value: &str) -> Result<Version> {
     Version::parse(value.trim().trim_start_matches('v')).map_err(|err| {
-        UserVisibleError::new(ErrorCode::Internal, "版本号无法解析").with_detail(err.to_string())
+        UserVisibleError::new(ErrorCode::Internal, "版本号无法解析")
+            .with_key("errors.updateVersionParseFailed")
+            .with_detail(err.to_string())
     })
 }
 
@@ -129,6 +136,7 @@ fn is_pinned_release_page(url: &str) -> bool {
 
 fn off_repo_error() -> UserVisibleError {
     UserVisibleError::new(ErrorCode::Internal, "下载地址不属于本仓库的发布页")
+        .with_key("errors.updateUrlNotInRepo")
 }
 
 /// command 层复用：界面回传 URL 时同样在 Rust 侧校验，不依赖前端判断。

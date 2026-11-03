@@ -353,14 +353,17 @@ fn leaf_matching(path: &str, needle: &str) -> Option<String> {
         .then(|| path.to_owned())
 }
 
+fn tree_entry_error(err: impl std::fmt::Display) -> UserVisibleError {
+    UserVisibleError::new(ErrorCode::Internal, "读取树条目失败")
+        .with_key("errors.readTreeEntryFailed")
+        .with_detail(err.to_string())
+}
+
 fn entries_of(tree: Option<&gix::Tree<'_>>) -> Result<BTreeMap<String, EntryInfo>> {
     let mut map = BTreeMap::new();
     if let Some(tree) = tree {
         for entry in tree.iter() {
-            let entry = entry.map_err(|e| {
-                UserVisibleError::new(ErrorCode::Internal, "读取树条目失败")
-                    .with_detail(e.to_string())
-            })?;
+            let entry = entry.map_err(tree_entry_error)?;
             map.insert(
                 lossy(entry.filename().as_ref()),
                 EntryInfo {
@@ -449,7 +452,9 @@ pub(crate) fn diff_file(
         return Err(UserVisibleError::new(
             ErrorCode::FileNotFound,
             format!("提交中没有文件 {path}"),
-        ));
+        )
+        .with_key("errors.readFileNotInCommit")
+        .with_arg("path", path));
     }
     let (old_mode, old_oid) = old_entry
         .map(|(mode, oid)| (Some(mode), Some(oid)))
@@ -575,10 +580,7 @@ fn lookup_path(
     for (index, part) in parts.iter().enumerate() {
         let mut found = None;
         for entry in current.iter() {
-            let entry = entry.map_err(|e| {
-                UserVisibleError::new(ErrorCode::Internal, "读取树条目失败")
-                    .with_detail(e.to_string())
-            })?;
+            let entry = entry.map_err(tree_entry_error)?;
             if lossy(entry.filename().as_ref()) == *part {
                 found = Some((entry.mode(), oid_from_gix(entry.oid())));
                 break;

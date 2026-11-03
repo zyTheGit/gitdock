@@ -32,7 +32,9 @@ type Shared = Arc<AppState>;
 
 /// 把阻塞工作移出异步 runtime 线程，command 的异步壳统一经由这里执行。
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
-    tauri::async_runtime::spawn_blocking(f)
-        .await
-        .map_err(|e| UserVisibleError::internal(format!("后台任务异常：{e}")))?
+    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| {
+        UserVisibleError::internal(format!("后台任务异常：{e}"))
+            .with_key("errors.backgroundTaskFailed")
+            .with_arg("error", e.to_string())
+    })?
 }

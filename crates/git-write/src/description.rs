@@ -12,7 +12,9 @@ impl GitWriteModule {
             return Err(UserVisibleError::new(
                 ErrorCode::BranchNotFound,
                 format!("本地分支 {branch} 不存在"),
-            ));
+            )
+            .with_key("errors.descriptionBranchMissing")
+            .with_arg("branch", branch));
         }
         let key = format!("branch.{branch}.description");
         let output = self.run(&["config", "--local", "--get", &key])?;
@@ -45,19 +47,23 @@ pub(crate) fn validate_branch_description(raw: &str) -> Result<()> {
         return Err(UserVisibleError::new(
             ErrorCode::InvalidArgument,
             "分支描述不能以 \"-\" 开头，该值会被 Git 当作选项解析",
-        ));
+        )
+        .with_key("errors.descriptionLeadingDash"));
     }
     if value.chars().any(char::is_control) {
         return Err(UserVisibleError::new(
             ErrorCode::InvalidArgument,
             "分支描述不能包含换行或控制字符",
-        ));
+        )
+        .with_key("errors.descriptionControlChars"));
     }
     if value.chars().count() > MAX_BRANCH_DESCRIPTION_CHARS {
         return Err(UserVisibleError::new(
             ErrorCode::InvalidArgument,
             format!("分支描述长度需小于 {MAX_BRANCH_DESCRIPTION_CHARS} 个字符"),
-        ));
+        )
+        .with_key("errors.descriptionTooLong")
+        .with_arg("max", MAX_BRANCH_DESCRIPTION_CHARS.to_string()));
     }
     Ok(())
 }

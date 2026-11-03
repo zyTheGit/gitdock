@@ -102,7 +102,7 @@ impl TerminalRegistry {
         };
         master
             .resize(size(cols, rows))
-            .map_err(|e| internal("调整终端尺寸失败", e))
+            .map_err(|e| internal("调整终端尺寸失败", e).with_key("errors.terminalResizeFailed"))
     }
 
     pub fn close(&self, id: u64) {
@@ -161,6 +161,7 @@ fn powershell_path() -> Result<PathBuf> {
             ErrorCode::ExternalToolFailed,
             "未找到 PowerShell：缺少 SystemRoot 环境变量",
         )
+        .with_key("errors.terminalPowershellNotFound")
     })?;
     Ok(PathBuf::from(system_root).join(r"System32\WindowsPowerShell\v1.0\powershell.exe"))
 }
@@ -191,6 +192,7 @@ pub fn open(
                     ErrorCode::ExternalToolFailed,
                     "未找到 LazyGit，可在设置中填写可执行文件路径",
                 )
+                .with_key("errors.terminalLazygitNotFound")
             })?;
             (path.to_string_lossy().into_owned(), Vec::<String>::new())
         }
@@ -215,13 +217,15 @@ pub fn open(
             return Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
                 format!("不支持的终端模式：{other}"),
-            ))
+            )
+            .with_key("errors.terminalModeUnsupported")
+            .with_arg("mode", other))
         }
     };
 
     let pair = native_pty_system()
         .openpty(size(cols, rows))
-        .map_err(|e| internal("创建伪终端失败", e))?;
+        .map_err(|e| internal("创建伪终端失败", e).with_key("errors.terminalPtyCreateFailed"))?;
     let mut command = CommandBuilder::new(program);
     command.cwd(&repo);
     for arg in args {
@@ -239,11 +243,11 @@ pub fn open(
     let mut reader = pair
         .master
         .try_clone_reader()
-        .map_err(|e| internal("读取终端输出失败", e))?;
+        .map_err(|e| internal("读取终端输出失败", e).with_key("errors.terminalReadFailed"))?;
     let writer = pair
         .master
         .take_writer()
-        .map_err(|e| internal("打开终端输入失败", e))?;
+        .map_err(|e| internal("打开终端输入失败", e).with_key("errors.terminalInputOpenFailed"))?;
     let master = pair.master;
 
     let child = Arc::new(Mutex::new(child));
@@ -321,6 +325,7 @@ pub fn open(
 pub fn write(state: &AppState, id: u64, data: &str) -> Result<()> {
     let bytes = BASE64.decode(data).map_err(|e| {
         UserVisibleError::new(ErrorCode::InvalidArgument, "终端输入格式无效")
+            .with_key("errors.terminalInputInvalid")
             .with_detail(e.to_string())
     })?;
     state.terminals.with_writer(id, |writer| {
@@ -348,12 +353,17 @@ fn size(cols: u16, rows: u16) -> PtySize {
 }
 
 fn start_error(mode: &str, err: impl std::fmt::Display) -> UserVisibleError {
-    let message = if mode == "lazygit" {
-        "启动 LazyGit 失败，请检查安装与路径配置"
+    let (message, key) = if mode == "lazygit" {
+        (
+            "启动 LazyGit 失败，请检查安装与路径配置",
+            "errors.terminalStartLazygitFailed",
+        )
     } else {
-        "启动 Shell 失败"
+        ("启动 Shell 失败", "errors.terminalStartShellFailed")
     };
-    UserVisibleError::new(ErrorCode::ExternalToolFailed, message).with_detail(err.to_string())
+    UserVisibleError::new(ErrorCode::ExternalToolFailed, message)
+        .with_key(key)
+        .with_detail(err.to_string())
 }
 
 fn internal(message: &str, err: impl std::fmt::Display) -> UserVisibleError {

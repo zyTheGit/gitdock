@@ -59,16 +59,17 @@ pub fn build_args(
         return Err(UserVisibleError::new(
             ErrorCode::InvalidArgument,
             "外部工具参数模板引号未闭合",
-        ));
+        )
+        .with_key("errors.externalTemplateUnclosedQuote"));
     }
     if started {
         args.push(substitute(&current, local, remote)?);
     }
     if args.is_empty() {
-        return Err(UserVisibleError::new(
-            ErrorCode::InvalidArgument,
-            "外部工具参数模板为空",
-        ));
+        return Err(
+            UserVisibleError::new(ErrorCode::InvalidArgument, "外部工具参数模板为空")
+                .with_key("errors.externalTemplateEmpty"),
+        );
     }
     Ok(args)
 }
@@ -81,7 +82,8 @@ fn substitute(token: &str, local: &str, remote: &str) -> Result<String, UserVisi
             Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
                 "模板变量 $LOCAL / $REMOTE 必须独占一个参数",
-            ))
+            )
+            .with_key("errors.externalVariableNotStandalone"))
         }
         other => Ok(other.to_owned()),
     }
@@ -96,6 +98,7 @@ pub fn prepare_dir(root: &Path, _path: &str) -> Result<PathBuf, UserVisibleError
     let dir = root.join(format!("{nanos}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).map_err(|e| {
         UserVisibleError::new(ErrorCode::Io, "创建外部 diff 临时目录失败")
+            .with_key("errors.externalTempDirCreateFailed")
             .with_detail(e.to_string())
     })?;
     Ok(dir)
@@ -193,6 +196,8 @@ pub fn launch(
             ErrorCode::ExternalToolFailed,
             format!("启动外部工具失败：{}", tool.name),
         )
+        .with_key("errors.externalLaunchFailed")
+        .with_arg("name", tool.name.as_str())
         .with_detail(e.to_string())
     })?;
     // 临时目录即两个参数文件所在目录；等待外部工具退出后再删除，
@@ -229,6 +234,7 @@ pub fn open_url(url: &str) -> Result<(), UserVisibleError> {
     hide_console(&mut command);
     command.spawn().map(|_| ()).map_err(|e| {
         UserVisibleError::new(ErrorCode::ExternalToolFailed, "打开默认浏览器失败")
+            .with_key("errors.externalBrowserOpenFailed")
             .with_detail(e.to_string())
     })
 }

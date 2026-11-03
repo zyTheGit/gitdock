@@ -66,6 +66,7 @@ impl GitReadModule {
     pub fn open(path: &Path, cache_dir: Option<PathBuf>) -> Result<Self> {
         let repo = gix::discover(path).map_err(|e| {
             UserVisibleError::new(ErrorCode::NotARepository, "无法打开 Git 仓库")
+                .with_key("errors.readRepositoryOpenFailed")
                 .with_detail(e.to_string())
         })?;
         let object_format = match repo.object_hash() {
@@ -77,6 +78,7 @@ impl GitReadModule {
                     ErrorCode::UnsupportedObjectFormat,
                     "仓库使用了暂不支持的哈希算法",
                 )
+                .with_key("errors.readUnsupportedHashAlgorithm")
                 .with_detail(format!("object hash: {other:?}")));
             }
         };
@@ -113,6 +115,7 @@ impl GitReadModule {
     pub(crate) fn repo(&self) -> Result<gix::Repository> {
         gix::open(&self.requested_path).map_err(|e| {
             UserVisibleError::new(ErrorCode::RepositoryNotFound, "仓库已不可用")
+                .with_key("errors.readRepositoryUnavailable")
                 .with_detail(e.to_string())
         })
     }
@@ -243,7 +246,9 @@ impl GitReadModule {
 }
 
 fn gix_error(err: impl std::fmt::Display) -> UserVisibleError {
-    UserVisibleError::new(ErrorCode::Internal, "读取 Git 数据失败").with_detail(err.to_string())
+    UserVisibleError::new(ErrorCode::Internal, "读取 Git 数据失败")
+        .with_key("errors.readGitDataFailed")
+        .with_detail(err.to_string())
 }
 
 pub(crate) fn tree_oid_of_commit(repo: &gix::Repository, oid: &Oid) -> Result<Oid> {

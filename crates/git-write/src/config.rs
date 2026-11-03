@@ -119,6 +119,7 @@ impl GitWriteModule {
         if scope == ConfigScope::Repo {
             let _guard = self.write_lock.try_lock().ok_or_else(|| {
                 UserVisibleError::new(ErrorCode::Internal, "已有写操作正在进行，请稍后再试")
+                    .with_key("errors.configSaveBusy")
             })?;
             save_with_home(scope, &home, repo, entries)
         } else {
@@ -145,13 +146,15 @@ fn save_with_home(
     for entry in entries {
         let key = canonical_key(&entry.key).ok_or_else(|| {
             UserVisibleError::new(ErrorCode::InvalidArgument, "不支持读写该 Git 配置项")
+                .with_key("errors.configKeyUnsupported")
+                .with_arg("key", entry.key.clone())
                 .with_detail(entry.key.clone())
         })?;
         let value = validate_value(key, &entry.value)?;
         if value.is_empty() {
             if explicit.remove(key).is_some() {
                 let output = run_git(cwd, home, &["config", scope.flag(), "--unset-all", key])?;
-                ensure_success(&output, "删除配置项失败")?;
+                ensure_success(&output, "删除配置项失败", "errors.configUnsetFailed")?;
             }
         } else {
             let output = run_git(
@@ -159,7 +162,7 @@ fn save_with_home(
                 home,
                 &["config", scope.flag(), "--replace-all", key, &value],
             )?;
-            ensure_success(&output, "写入配置项失败")?;
+            ensure_success(&output, "写入配置项失败", "errors.configWriteFailed")?;
             explicit.insert(key, value);
         }
     }
@@ -169,7 +172,7 @@ fn save_with_home(
 fn read_with_home(home: &Path, repo: Option<&Path>) -> Result<GitConfigDto> {
     let cwd = repo.unwrap_or(home);
     let output = run_git(cwd, home, &["config", "--list", "--show-scope"])?;
-    ensure_success(&output, "读取 Git 配置失败")?;
+    ensure_success(&output, "读取 Git 配置失败", "errors.configReadFailed")?;
     let rows = parse_scoped_list(&lossy(&output.stdout));
     let entries = KNOWN_KEYS
         .iter()
@@ -230,6 +233,7 @@ fn scope_label(raw: &str) -> &'static str {
 fn require_repo(repo: Option<&Path>) -> Result<PathBuf> {
     repo.map(Path::to_path_buf).ok_or_else(|| {
         UserVisibleError::new(ErrorCode::NotARepository, "未打开仓库，无法读写项目级配置")
+            .with_key("errors.configRepoRequired")
     })
 }
 
@@ -245,7 +249,7 @@ fn scoped_values(
     scope: ConfigScope,
 ) -> Result<BTreeMap<&'static str, String>> {
     let output = run_git(cwd, home, &["config", "--list", "--show-scope"])?;
-    ensure_success(&output, "读取 Git 配置失败")?;
+    ensure_success(&output, "读取 Git 配置失败", "errors.configReadFailed")?;
     let rows = parse_scoped_list(&lossy(&output.stdout));
     Ok(KNOWN_KEYS
         .iter()
@@ -306,15 +310,17 @@ fn run_git(cwd: &Path, home: &Path, args: &[&str]) -> Result<Output> {
         .output()
         .map_err(|e| {
             UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
+                .with_key("errors.commandSpawnFailed")
                 .with_detail(e.to_string())
         })
 }
 
-fn ensure_success(output: &Output, message: &str) -> Result<()> {
+fn ensure_success(output: &Output, message: &str, key: &str) -> Result<()> {
     if output.status.success() {
         return Ok(());
     }
     Err(UserVisibleError::new(ErrorCode::GitCommandFailed, message)
+        .with_key(key)
         .with_detail(lossy(&output.stderr).trim().to_owned()))
 }
 
@@ -329,7 +335,10 @@ fn home_dir() -> Result<PathBuf> {
         .iter()
         .filter_map(|var| std::env::var_os(var).map(PathBuf::from))
         .find(|path| !path.as_os_str().is_empty())
-        .ok_or_else(|| UserVisibleError::new(ErrorCode::Io, "无法定位用户主目录"))
+        .ok_or_else(|| {
+            UserVisibleError::new(ErrorCode::Io, "无法定位用户主目录")
+                .with_key("errors.configHomeMissing")
+        })
 }
 
 /// 用户级配置文件位置只用于展示。Git 2.32 起可用 `git var` 查询，且可能一次报出多个文件

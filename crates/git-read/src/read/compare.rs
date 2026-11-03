@@ -137,10 +137,10 @@ impl GitReadModule {
         three_dot: bool,
     ) -> Result<FileSides> {
         if path.is_empty() || path.starts_with('/') || path.split('/').any(|part| part == "..") {
-            return Err(UserVisibleError::new(
-                ErrorCode::InvalidArgument,
-                "文件路径无效",
-            ));
+            return Err(
+                UserVisibleError::new(ErrorCode::InvalidArgument, "文件路径无效")
+                    .with_key("errors.readInvalidFilePath"),
+            );
         }
         let repo = self.repo()?;
         let right_commit = find_commit(&repo, right)?;
@@ -167,7 +167,9 @@ impl GitReadModule {
             return Err(UserVisibleError::new(
                 ErrorCode::FileNotFound,
                 format!("提交中没有文件 {path}"),
-            ));
+            )
+            .with_key("errors.readFileNotInCommit")
+            .with_arg("path", path));
         }
         Ok(FileSides {
             old: old.unwrap_or_default(),

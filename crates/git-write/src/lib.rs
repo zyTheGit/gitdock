@@ -27,6 +27,7 @@ impl GitWriteModule {
     pub fn new(root: &Path) -> Result<Self> {
         let root = std::fs::canonicalize(root).map_err(|e| {
             UserVisibleError::new(ErrorCode::RepositoryNotFound, "仓库目录不存在或不可访问")
+                .with_key("errors.writeIoRepoRootUnavailable")
                 .with_detail(e.to_string())
         })?;
         Ok(Self {

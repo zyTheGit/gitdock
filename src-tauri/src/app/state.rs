@@ -42,16 +42,17 @@ impl AppState {
         let config_dir = handle
             .path()
             .app_config_dir()
-            .map_err(|e| internal("无法定位配置目录", e))?;
+            .map_err(|e| io("无法定位配置目录", "errors.appDirConfigLocateFailed", e))?;
         let log_dir = handle
             .path()
             .app_log_dir()
-            .map_err(|e| internal("无法定位日志目录", e))?;
+            .map_err(|e| io("无法定位日志目录", "errors.appDirLogLocateFailed", e))?;
         let cache_dir = handle
             .path()
             .app_cache_dir()
-            .map_err(|e| internal("无法定位缓存目录", e))?;
-        std::fs::create_dir_all(&config_dir).map_err(|e| internal("创建配置目录失败", e))?;
+            .map_err(|e| io("无法定位缓存目录", "errors.appDirCacheLocateFailed", e))?;
+        std::fs::create_dir_all(&config_dir)
+            .map_err(|e| io("创建配置目录失败", "errors.appDirConfigCreateFailed", e))?;
         let log_path = log_dir.join("gitdock.log");
         logging::init(&log_path);
         logging::info(&format!(
@@ -219,8 +220,16 @@ impl AppState {
 
 pub fn no_repository() -> UserVisibleError {
     UserVisibleError::new(ErrorCode::RepositoryNotFound, "尚未打开仓库")
+        .with_key("errors.repoNotOpen")
 }
 
 fn internal(message: &str, err: impl std::fmt::Display) -> UserVisibleError {
     UserVisibleError::new(ErrorCode::Internal, message).with_detail(err.to_string())
+}
+
+/// 启动期应用数据目录错误：用户会在启动失败弹窗中看到，按 `Io` 归类并标注 i18n key。
+fn io(message: &str, key: &str, err: impl std::fmt::Display) -> UserVisibleError {
+    UserVisibleError::new(ErrorCode::Io, message)
+        .with_key(key)
+        .with_detail(err.to_string())
 }

@@ -14,6 +14,7 @@ use crate::util::oid_from_id;
 
 fn stale_cursor() -> UserVisibleError {
     UserVisibleError::new(ErrorCode::CursorStale, "仓库状态已变化，请刷新后重新加载")
+        .with_key("errors.graphCursorStale")
 }
 
 impl GitReadModule {
@@ -39,10 +40,12 @@ impl GitReadModule {
                     return Err(UserVisibleError::new(
                         ErrorCode::CursorInvalid,
                         "分页游标与当前视图不匹配，请刷新图谱",
-                    ));
+                    )
+                    .with_key("errors.graphCursorViewMismatch"));
                 }
                 let after = Oid::new(data.after).map_err(|e| {
                     UserVisibleError::new(ErrorCode::CursorInvalid, "分页游标中的 OID 无效")
+                        .with_key("errors.graphCursorOidInvalid")
                         .with_detail(e.to_string())
                 })?;
                 index
@@ -69,6 +72,7 @@ impl GitReadModule {
         let index = self.build_index(&repo, scope, &view_key, generation)?;
         let position = index.position(oid).ok_or_else(|| {
             UserVisibleError::new(ErrorCode::Internal, "该提交不在当前图谱视图中")
+                .with_key("errors.graphCommitNotInView")
         })?;
         let half = limit / 2;
         let start = position.saturating_sub(half);
@@ -213,10 +217,11 @@ pub(super) fn scope_tips(repo: &gix::Repository, scope: &GraphScope) -> Result<V
                     }
                 }
             }
-            Err(UserVisibleError::new(
-                ErrorCode::RefNotFound,
-                format!("找不到引用 {name}"),
-            ))
+            Err(
+                UserVisibleError::new(ErrorCode::RefNotFound, format!("找不到引用 {name}"))
+                    .with_key("errors.graphRefNotFound")
+                    .with_arg("name", name.as_str()),
+            )
         }
     }
 }

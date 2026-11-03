@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { outcomeMessage } from "../features/write/messages";
-import { errorText } from "../shared/error";
+import { errorText, outcomeText } from "../shared/error";
 import { ipc } from "../shared/ipc";
 import type {
   AppInfoDto,
@@ -162,8 +162,9 @@ export function useWriteFlow({
         const showStderr =
           Boolean(outcome.stderr) &&
           (kind === "switch_branch" || kind === "continue_operation" || kind === "abort_operation");
-        setError(showStderr ? `${outcome.message}\n\n${outcome.stderr!.trim()}` : outcome.message);
-        setDiagnostic(outcome.stderr ?? outcome.message);
+        const headline = outcomeText(outcome);
+        setError(showStderr ? `${headline}\n\n${outcome.stderr!.trim()}` : headline);
+        setDiagnostic(outcome.stderr ?? headline);
       }
       if (outcome.status !== "rejected") {
         const [state, status] = await readSnapshot();

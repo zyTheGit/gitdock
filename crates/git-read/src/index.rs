@@ -99,10 +99,12 @@ pub fn build(
             gix::traverse::commit::simple::CommitTimeOrder::NewestFirst,
         ))
         .all()
-        .map_err(|e| internal("遍历提交失败", e))?;
+        .map_err(|e| internal("遍历提交失败", e).with_key("errors.readCommitWalkFailed"))?;
 
     for info in walk {
-        let info = info.map_err(|e| internal("读取提交遍历结果失败", e))?;
+        let info = info.map_err(|e| {
+            internal("读取提交遍历结果失败", e).with_key("errors.readWalkResultFailed")
+        })?;
         let oid = Oid::new(info.id.to_string()).expect("gix OID 长度合法");
         let parents = info
             .parent_ids
@@ -212,6 +214,7 @@ fn topo_order(nodes: &HashMap<Oid, IndexNode>) -> Vec<Oid> {
 pub fn to_gix_oid(oid: &Oid) -> Result<gix::hash::ObjectId> {
     gix::hash::ObjectId::from_hex(oid.as_str().as_bytes()).map_err(|e| {
         UserVisibleError::new(ErrorCode::Internal, "OID 无法转换为 gix 对象 ID")
+            .with_key("errors.readOidConvertFailed")
             .with_detail(e.to_string())
     })
 }

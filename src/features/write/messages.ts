@@ -1,4 +1,5 @@
 import { i18next } from "../../i18n";
+import { outcomeText } from "../../shared/error";
 import type { WriteKind, WriteOutcomeDto } from "../../shared/types";
 
 /** 跳过命令是 Git 字面量而非文案，双语一致，不进资源。 */
@@ -38,6 +39,10 @@ export function outcomeMessage(
   branch?: string,
   interruption?: "cherry_pick" | "revert",
 ): string {
+  // Rust 侧已带 i18n key（errors 域，含全部插值）时优先使用；
+  // 缺失翻译回落下方的 status 分支生成（write 域）。
+  const byKey = outcome.key ? outcomeText(outcome) : null;
+  if (byKey && byKey !== outcome.message) return byKey;
   switch (outcome.status) {
     case "succeeded":
       if (kind === "switch_branch") {

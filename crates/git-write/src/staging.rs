@@ -98,7 +98,9 @@ impl GitWriteModule {
             return Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
                 format!("路径无效：{path}"),
-            ));
+            )
+            .with_key("errors.stagingInvalidPath")
+            .with_arg("path", path));
         }
         let detail = self.status_detail()?;
         let entry = detail
@@ -110,19 +112,23 @@ impl GitWriteModule {
                     ErrorCode::FileNotFound,
                     format!("暂存区中没有文件 {path}，请刷新后重试"),
                 )
+                .with_key("errors.stagingFileMissing")
+                .with_arg("path", path)
             })?;
         if entry.conflicted {
             return Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
                 "冲突文件需要在终端解决，应用内不提供冲突 diff",
-            ));
+            )
+            .with_key("errors.stagingConflictedDiff"));
         }
         if entry.untracked {
             if staged {
                 return Err(UserVisibleError::new(
                     ErrorCode::InvalidArgument,
                     "未跟踪文件尚未暂存",
-                ));
+                )
+                .with_key("errors.stagingUntrackedNotStaged"));
             }
             return self.untracked_diff(entry);
         }
@@ -130,13 +136,17 @@ impl GitWriteModule {
             return Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
                 format!("{path} 没有已暂存改动"),
-            ));
+            )
+            .with_key("errors.stagingNoStagedChanges")
+            .with_arg("path", path));
         }
         if !staged && entry.worktree_code == '.' {
             return Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
                 format!("{path} 没有未暂存改动"),
-            ));
+            )
+            .with_key("errors.stagingNoUnstagedChanges")
+            .with_arg("path", path));
         }
         self.tracked_diff(entry, staged)
     }
@@ -150,6 +160,7 @@ impl GitWriteModule {
         if !output.status.success() {
             return Err(
                 UserVisibleError::new(ErrorCode::GitCommandFailed, "无法读取变更统计")
+                    .with_key("errors.stagingNumstatFailed")
                     .with_detail(text(&output.stderr)),
             );
         }
@@ -160,6 +171,8 @@ impl GitWriteModule {
         let full = self.root.join(&entry.path);
         let meta = std::fs::symlink_metadata(&full).map_err(|err| {
             UserVisibleError::new(ErrorCode::Io, format!("无法读取 {}", entry.path))
+                .with_key("errors.stagingReadFileFailed")
+                .with_arg("path", entry.path.clone())
                 .with_detail(err.to_string())
         })?;
         if meta.file_type().is_symlink() {
@@ -197,6 +210,7 @@ impl GitWriteModule {
                 ErrorCode::GitCommandFailed,
                 "无法生成未跟踪文件 diff",
             )
+            .with_key("errors.stagingUntrackedDiffFailed")
             .with_detail(text(&output.stderr)));
         }
         Ok(build_diff(
@@ -226,6 +240,7 @@ impl GitWriteModule {
         if !output.status.success() {
             return Err(
                 UserVisibleError::new(ErrorCode::GitCommandFailed, "无法生成文件 diff")
+                    .with_key("errors.stagingDiffFailed")
                     .with_detail(text(&output.stderr)),
             );
         }

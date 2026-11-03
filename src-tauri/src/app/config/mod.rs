@@ -144,13 +144,14 @@ pub fn save(dir: &Path, settings: &SettingsDto) -> Result<SettingsDto, UserVisib
         return Err(UserVisibleError::new(
             ErrorCode::InvalidArgument,
             "界面缩放比例需在 75% 与 200% 之间",
-        ));
+        )
+        .with_key("errors.settingFontScaleOutOfRange"));
     }
     if !language_valid(&next.language) {
-        return Err(UserVisibleError::new(
-            ErrorCode::InvalidArgument,
-            "不支持的语言",
-        ));
+        return Err(
+            UserVisibleError::new(ErrorCode::InvalidArgument, "不支持的语言")
+                .with_key("errors.settingLanguageUnsupported"),
+        );
     }
     validate(&next)?;
     std::fs::create_dir_all(dir).map_err(io_error)?;
@@ -158,7 +159,9 @@ pub fn save(dir: &Path, settings: &SettingsDto) -> Result<SettingsDto, UserVisib
     write_atomic(
         &path,
         &serde_json::to_vec_pretty(&next).map_err(|e| {
-            UserVisibleError::new(ErrorCode::Internal, "设置序列化失败").with_detail(e.to_string())
+            UserVisibleError::new(ErrorCode::Internal, "设置序列化失败")
+                .with_key("errors.settingSerializeFailed")
+                .with_detail(e.to_string())
         })?,
     )
     .map_err(io_error)?;
@@ -183,7 +186,9 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 }
 
 fn io_error(err: std::io::Error) -> UserVisibleError {
-    UserVisibleError::new(ErrorCode::Io, "读写应用配置失败").with_detail(err.to_string())
+    UserVisibleError::new(ErrorCode::Io, "读写应用配置失败")
+        .with_key("errors.settingReadWriteFailed")
+        .with_detail(err.to_string())
 }
 
 pub fn settings_path(dir: &Path) -> PathBuf {

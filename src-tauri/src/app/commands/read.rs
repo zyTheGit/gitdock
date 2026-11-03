@@ -173,6 +173,7 @@ pub async fn launch_external_diff(
             .cloned()
             .ok_or_else(|| {
                 UserVisibleError::new(ErrorCode::InvalidArgument, "外部工具不存在，请重新配置")
+                    .with_key("errors.externalToolNotFound")
             })?;
         let left = left.map(|value| parse_oid(&value)).transpose()?;
         let right = parse_oid(&right)?;
@@ -185,7 +186,8 @@ pub async fn launch_external_diff(
             return Err(UserVisibleError::new(
                 ErrorCode::ExternalToolFailed,
                 "文件超过 50MB，未交给外部工具",
-            ));
+            )
+            .with_key("errors.externalFileTooLarge"));
         }
         let dir = crate::app::external::prepare_dir(&state.paths.external_tmp_dir, &path)?;
         let name = crate::app::external::safe_file_name(&path);
@@ -194,6 +196,7 @@ pub async fn launch_external_diff(
         let write = |target: &std::path::Path, bytes: &[u8]| {
             std::fs::write(target, bytes).map_err(|e| {
                 UserVisibleError::new(ErrorCode::Io, "写入外部 diff 临时文件失败")
+                    .with_key("errors.externalTempFileWriteFailed")
                     .with_detail(e.to_string())
             })
         };
@@ -218,6 +221,8 @@ pub async fn cancel_search(state: State<'_, Shared>, search_id: String) -> Resul
 
 fn parse_oid(value: &str) -> Result<Oid> {
     Oid::new(value).map_err(|e| {
-        UserVisibleError::new(ErrorCode::InvalidArgument, "OID 格式无效").with_detail(e.to_string())
+        UserVisibleError::new(ErrorCode::InvalidArgument, "OID 格式无效")
+            .with_key("errors.oidFormatInvalid")
+            .with_detail(e.to_string())
     })
 }

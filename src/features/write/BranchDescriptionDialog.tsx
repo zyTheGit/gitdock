@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 import { useI18n } from "../../i18n";
-import { errorText, issueText } from "../../shared/error";
+import { errorText, issueText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
 import { useIpcResource } from "../../shared/useIpcResource";
@@ -60,10 +60,10 @@ export function BranchDescriptionDialog({
         description: text,
       });
       if (outcome.status === "succeeded") {
-        onSaved(outcome.message);
+        onSaved(outcomeText(outcome));
         return;
       }
-      setError(outcome.stderr?.trim() || outcome.message);
+      setError(outcome.stderr?.trim() || outcomeText(outcome));
     } catch (err) {
       setError(errorText(err));
     } finally {
