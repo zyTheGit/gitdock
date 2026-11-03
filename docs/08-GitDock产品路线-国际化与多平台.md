@@ -136,7 +136,7 @@ src-tauri app orchestration
 
 完成标准：两平台均有 CI release 构建，至少一个实机或原生 runner 安装验证；支持矩阵和已知限制由产品确认。
 
-> G2 进度（2026-11-03，分支 `spike/cross-platform`）：第 1、5 项完成——三路并行调查（Rust 侧 / 前端与打包 / CI 与依赖）汇总为 `docs/09-G2-跨平台差距清单.md`（A/B/C 分级、i18n 平台文案 14 key、CI 设计、验证清单、平台范围建议、约 5-8 人日工作量预估、go 倾向结论）；第 2 项 CI 矩阵已落地待推送验证（ci.yml 三平台 matrix + Linux apt 前置、release.yml build/publish 两段式 + 体积输出、tauri.conf.json 补 icon.icns 声明）。**未完成**：第 3 项逐项功能验证（需 CI 首跑 + 实机，Windows 开发环境无法执行）；第 4 项平台范围（macOS 架构/最低版本、Linux 包格式）为产品裁决点，差距清单第 7 节已给出推荐与替代方案，未确认前不宣称支持。macOS/Linux dev 构建尚未在实机执行。
+> G2 进度（2026-11-03，已合并 main，PR #2 / `f36ddd0`）：第 1、2、4、5 项完成——① 差距清单 `docs/09-G2-跨平台差距清单.md`（A/B/C 分级、i18n 平台文案 14 key、约 5-8 人日预估、go 倾向）；② **CI 三平台矩阵在 main 全绿**（verify job：windows-latest / ubuntu-22.04 / macos-latest 均跑完整 `npm run check`，含 Linux apt 前置；首跑曾暴露 2 处非 Windows unused import——CI 矩阵的实证价值，已修复）；release.yml 已多平台化（build matrix + publish 两段式）但未触发过；④ 平台范围已裁决（macOS Apple Silicon 优先 / Ubuntu 22.04 LTS x86_64 基线 / 包格式 G5 比选，docs/08 裁决点 1-3 均闭环）；⑤ 发行阻塞已记录（macOS 签名/公证归 G4、AppImage WebKitGTK 兼容归 G5）。**未完成**：第 3 项逐项功能验证（Git 读写/PTY/中文路径/监听等，docs/09 §6 清单，需实机或原生 runner 安装运行；「至少一个实机或原生 runner 安装验证」的完成标准未达——CI 编译测试通过 ≠ 安装验证）；macOS/Linux dev 构建与 GUI 运行未在实机执行。**不宣称 macOS/Linux 支持**（开发构建/CI 构建通过级别，docs/09 §6 验证后按 R3 四级标记推进）。
 
 ### G3：平台适配层与构建
 
