@@ -8,6 +8,7 @@
 //! 引用形式与 `lib.rs` `invoke_handler` 的注册单点保持不变。
 
 mod app;
+mod gitlog;
 mod read;
 mod repo;
 mod settings;
@@ -15,6 +16,7 @@ mod terminal;
 mod write;
 
 pub use self::app::*;
+pub use self::gitlog::*;
 pub use self::read::*;
 pub use self::repo::*;
 pub use self::settings::*;

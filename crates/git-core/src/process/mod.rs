@@ -1,4 +1,9 @@
-//! 子进程构造：GUI 进程启动控制台程序时统一隐藏控制台窗口。
+//! 子进程构造与统一执行 seam。
+//!
+//! `git_command` 系列负责 GUI 进程启动控制台程序时统一隐藏控制台窗口；
+//! `recorder` 在此之上提供带计时与执行日志的统一执行入口，供各调用方收敛。
+
+pub mod recorder;
 
 use std::process::Command;
 

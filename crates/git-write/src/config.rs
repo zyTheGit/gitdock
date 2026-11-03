@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Output;
 
-use git_core::{git_command, ErrorCode, Result, UserVisibleError};
+use git_core::{run_git_output, ErrorCode, Result, UserVisibleError};
 use serde::{Deserialize, Serialize};
 
 use self::values::{normalize, validate_value};
@@ -299,20 +299,25 @@ fn canonical_key(raw: &str) -> Option<&'static str> {
 
 /// Git 按 `HOME`（Windows 下退回 `USERPROFILE`）定位用户级配置。这里把 `HOME` 显式设为
 /// 与 `home_dir()` 一致的目录，读写目标才和界面展示的路径一致，测试也能指向沙箱目录。
-/// 与 command.rs 的 `run` / `run_readonly` 共用 `git_core::git_command` 底座，但二者
-/// 绑定模块根目录且不注入 `HOME`，故此处保留独立封装。
+/// 执行统一走 git-core 的 `run_git_output`（进入命令执行日志）；与 command.rs 的
+/// `run` / `run_readonly` 的差异在 cwd 与 `HOME` 注入，故保留独立封装。
 fn run_git(cwd: &Path, home: &Path, args: &[&str]) -> Result<Output> {
-    git_command()
-        .current_dir(cwd)
-        .args(args)
-        .env("HOME", home)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .output()
-        .map_err(|e| {
-            UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
-                .with_key("errors.commandSpawnFailed")
-                .with_detail(e.to_string())
-        })
+    // 统一 seam 的 envs 只接受 &str；主目录来自环境变量或测试沙箱路径，
+    // 非 UTF-8 时无法注入，按 IO 错误返回而不是静默丢弃 HOME。
+    let home = home.to_str().ok_or_else(|| {
+        UserVisibleError::new(ErrorCode::Io, "用户主目录路径无法解码为文本")
+            .with_detail(home.display().to_string())
+    })?;
+    run_git_output(
+        Some(cwd),
+        args,
+        &[("HOME", home), ("GIT_TERMINAL_PROMPT", "0")],
+    )
+    .map_err(|e| {
+        UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
+            .with_key("errors.commandSpawnFailed")
+            .with_detail(e.to_string())
+    })
 }
 
 fn ensure_success(output: &Output, message: &str, key: &str) -> Result<()> {

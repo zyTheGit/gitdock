@@ -5,6 +5,7 @@ import enCompare from "./locales/en/compare";
 import enDetail from "./locales/en/detail";
 import enDiff from "./locales/en/diff";
 import enErrors from "./locales/en/errors";
+import enGitlog from "./locales/en/gitlog";
 import enGraph from "./locales/en/graph";
 import enRepository from "./locales/en/repository";
 import enSearch from "./locales/en/search";
@@ -18,6 +19,7 @@ import zhCnCompare from "./locales/zh-CN/compare";
 import zhCnDetail from "./locales/zh-CN/detail";
 import zhCnDiff from "./locales/zh-CN/diff";
 import zhCnErrors from "./locales/zh-CN/errors";
+import zhCnGitlog from "./locales/zh-CN/gitlog";
 import zhCnGraph from "./locales/zh-CN/graph";
 import zhCnRepository from "./locales/zh-CN/repository";
 import zhCnSearch from "./locales/zh-CN/search";
@@ -47,6 +49,7 @@ export const MESSAGE_NAMESPACES = [
   "settings",
   "write",
   "errors",
+  "gitlog",
 ] as const;
 
 /** 把偏好（system 或具体语言）解析为实际语言：系统中文 → 简体中文，其余 → 英文。 */
@@ -98,6 +101,7 @@ export function initI18n(): void {
         settings: zhCnSettings,
         write: zhCnWrite,
         errors: zhCnErrors,
+        gitlog: zhCnGitlog,
       },
       en: {
         common: enCommon,
@@ -113,6 +117,7 @@ export function initI18n(): void {
         settings: enSettings,
         write: enWrite,
         errors: enErrors,
+        gitlog: enGitlog,
       },
     },
     lng: language,

@@ -1,7 +1,7 @@
 import { useI18n } from "../i18n";
 import type { AppInfoDto, RepoStateDto, SettingsDto } from "../shared/types";
 
-interface StatusBarProps {
+export interface StatusBarProps {
   busy: boolean;
   repo: RepoStateDto | null;
   info: AppInfoDto | null;
@@ -11,6 +11,7 @@ interface StatusBarProps {
   terminalRunning: boolean;
   terminalShortcut: string;
   updateVersion: string | null;
+  onOpenCommandLog: () => void;
   onToggleTerminal: () => void;
   onOpenUpdate: () => void;
 }
@@ -33,6 +34,27 @@ function TerminalIcon() {
   );
 }
 
+function CommandLogIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <path d="M3 6h.01" />
+      <path d="M3 12h.01" />
+      <path d="M3 18h.01" />
+    </svg>
+  );
+}
+
 export function StatusBar({
   busy,
   repo,
@@ -43,6 +65,7 @@ export function StatusBar({
   terminalRunning,
   terminalShortcut,
   updateVersion,
+  onOpenCommandLog,
   onToggleTerminal,
   onOpenUpdate,
 }: StatusBarProps) {
@@ -67,6 +90,14 @@ export function StatusBar({
             {t("shell.updateAvailable")}
           </button>
         )}
+        <button
+          className="gitlog-status-button"
+          onClick={onOpenCommandLog}
+          aria-label={t("gitlog.openButtonTitle")}
+          title={t("gitlog.openButtonTitle")}
+        >
+          <CommandLogIcon />
+        </button>
         {repo && (
           <button
             className={terminalOpen ? "terminal-status-button active" : "terminal-status-button"}

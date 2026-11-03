@@ -1,12 +1,10 @@
 //! 执行状态机：运行白名单命令并按退出码与操作态判定结果。
 
 use std::collections::BTreeMap;
-use std::io::Write;
-use std::process::Stdio;
 
 use git_core::{
-    git_command, lossy_text as text, ErrorCode, Result, UserVisibleError, WriteKind,
-    WriteOutcomeDto, WriteRequest, WriteStatus,
+    lossy_text as text, run_git_output, run_git_with_stdin, ErrorCode, Result, UserVisibleError,
+    WriteKind, WriteOutcomeDto, WriteRequest, WriteStatus,
 };
 
 use crate::command::interruption_command;
@@ -44,45 +42,24 @@ impl GitWriteModule {
         }
 
         let spec = self.command_for(request)?;
-        let mut command = git_command();
-        command
-            .current_dir(&self.root)
-            .args(&spec.args)
-            .env("GIT_EDITOR", "true")
-            .env("GIT_SEQUENCE_EDITOR", "true")
-            .env("GIT_TERMINAL_PROMPT", "0");
-        let output = if let Some(stdin) = spec.stdin {
-            command
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped());
-            let mut child = command.spawn().map_err(|e| {
-                UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
-                    .with_key("errors.commandSpawnFailed")
-                    .with_detail(e.to_string())
-            })?;
-            let write_result = child
-                .stdin
-                .take()
-                .map(|mut pipe| pipe.write_all(&stdin))
-                .unwrap_or(Ok(()));
-            if let Err(err) = write_result {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(UserVisibleError::new(
-                    ErrorCode::GitCommandFailed,
-                    "无法向 git 写入路径列表",
-                )
-                .with_key("errors.outcomeStdinWriteFailed")
-                .with_detail(err.to_string()));
-            }
-            child.wait_with_output().map_err(|e| {
-                UserVisibleError::new(ErrorCode::GitCommandFailed, "等待 git 命令结束失败")
+        let args = spec.args.iter().map(String::as_str).collect::<Vec<_>>();
+        // 环境注入：禁用交互式编辑器与终端提示（交互都在 GUI 内完成）；
+        // 执行统一走 git-core seam，成功/失败进入命令执行日志。
+        let envs = [
+            ("GIT_EDITOR", "true"),
+            ("GIT_SEQUENCE_EDITOR", "true"),
+            ("GIT_TERMINAL_PROMPT", "0"),
+        ];
+        let output = if let Some(stdin) = spec.stdin.as_deref() {
+            // stdin 路径的 spawn、管道写入（含写失败时 kill 回收）与等待统一在
+            // seam 内处理，这里只做错误包装。
+            run_git_with_stdin(Some(self.root.as_path()), &args, &envs, stdin).map_err(|e| {
+                UserVisibleError::new(ErrorCode::GitCommandFailed, "执行 git 命令失败")
                     .with_key("errors.outcomeWaitFailed")
                     .with_detail(e.to_string())
             })?
         } else {
-            command.output().map_err(|e| {
+            run_git_output(Some(self.root.as_path()), &args, &envs).map_err(|e| {
                 UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
                     .with_key("errors.commandSpawnFailed")
                     .with_detail(e.to_string())

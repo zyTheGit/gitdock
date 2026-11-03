@@ -117,6 +117,7 @@ pub fn run() {
             commands::read_branch_description,
             commands::read_git_config,
             commands::save_git_config,
+            commands::git_command_log,
         ])
         .run(tauri::generate_context!())
         .expect("启动 GitDock 失败");

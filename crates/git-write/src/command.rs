@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::Output;
 
 use git_core::{
-    detect_kinds, git_command, interruption_dto, lossy_text as text, ErrorCode, HeadDto,
+    detect_kinds, interruption_dto, lossy_text as text, run_git_output, ErrorCode, HeadDto,
     InterruptionDto, InterruptionKind, ParentOptionDto, Result, UserVisibleError, WriteKind,
     WriteRequest,
 };
@@ -319,33 +319,32 @@ impl GitWriteModule {
     }
 
     pub(crate) fn run(&self, args: &[&str]) -> Result<Output> {
-        git_command()
-            .current_dir(&self.root)
-            .args(args)
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .output()
-            .map_err(|e| {
-                UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
-                    .with_key("errors.commandSpawnFailed")
-                    .with_detail(e.to_string())
-            })
+        run_git_output(
+            Some(self.root.as_path()),
+            args,
+            &[("GIT_TERMINAL_PROMPT", "0")],
+        )
+        .map_err(|e| {
+            UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
+                .with_key("errors.commandSpawnFailed")
+                .with_detail(e.to_string())
+        })
     }
 
     /// `status` 默认会拿可选索引锁并创建/删除 index.lock，本应用监听到 .git 变化后
     /// 又触发刷新，形成「刷新 → status → 监听 → 刷新」的自激循环并冲掉当前页；
     /// 关掉可选锁后 status 不再写锁文件，工作区状态结果不变。
     pub(crate) fn run_readonly(&self, args: &[&str]) -> Result<Output> {
-        git_command()
-            .current_dir(&self.root)
-            .args(args)
-            .env("GIT_OPTIONAL_LOCKS", "0")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .output()
-            .map_err(|e| {
-                UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
-                    .with_key("errors.commandSpawnFailed")
-                    .with_detail(e.to_string())
-            })
+        run_git_output(
+            Some(self.root.as_path()),
+            args,
+            &[("GIT_OPTIONAL_LOCKS", "0"), ("GIT_TERMINAL_PROMPT", "0")],
+        )
+        .map_err(|e| {
+            UserVisibleError::new(ErrorCode::GitMissing, "无法启动 git 命令")
+                .with_key("errors.commandSpawnFailed")
+                .with_detail(e.to_string())
+        })
     }
 }
 

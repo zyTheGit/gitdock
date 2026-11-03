@@ -2,6 +2,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import type {
   AppInfoDto,
   BranchDescriptionDto,
+  CommandLogEntryDto,
   CommitBranchContextDto,
   CompareResultDto,
   CommitDetailDto,
@@ -114,4 +115,6 @@ export const ipc = {
   terminalResize: (id: number, cols: number, rows: number) =>
     call<void>("terminal_resize", { id, cols, rows }),
   terminalClose: (id: number) => call<void>("terminal_close", { id }),
+  /** git CLI 命令日志快照（内存环形缓冲的只读拷贝，新条目在后）。 */
+  gitCommandLog: () => call<CommandLogEntryDto[]>("git_command_log"),
 };

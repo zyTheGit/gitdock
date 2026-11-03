@@ -12,6 +12,7 @@ use tauri::{AppHandle, Manager};
 
 use super::config::{self, SettingsDto};
 use super::external;
+use super::gitlog;
 use super::logging;
 use super::terminal::TerminalRegistry;
 use super::watch::{self, RepositoryWatcher};
@@ -55,6 +56,9 @@ impl AppState {
             .map_err(|e| io("创建配置目录失败", "errors.appDirConfigCreateFailed", e))?;
         let log_path = log_dir.join("gitdock.log");
         logging::init(&log_path);
+        // 命令执行日志的 recorder 依赖应用日志已就绪，紧随其后注入；
+        // 全局槽只认首次注入，后续（含测试重复装配）不会重复生效。
+        gitlog::init();
         logging::info(&format!(
             "启动 GitDock {}（{}）",
             env!("CARGO_PKG_VERSION"),

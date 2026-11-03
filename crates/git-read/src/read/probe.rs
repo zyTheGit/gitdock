@@ -1,11 +1,11 @@
-use git_core::git_command;
+use git_core::run_git_output;
 
 use super::MINIMUM_GIT_VERSION;
 
 /// 探测系统 Git 版本与最低版本支持情况；供应用外壳展示能力。
 pub fn detect_git_version() -> (Option<String>, bool) {
-    let output = git_command().arg("--version").output();
-    let Ok(output) = output else {
+    // 版本探测也走统一执行 seam，进入命令执行日志。
+    let Ok(output) = run_git_output(None, &["--version"], &[]) else {
         return (None, false);
     };
     if !output.status.success() {
