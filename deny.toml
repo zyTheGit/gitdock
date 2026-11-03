@@ -38,7 +38,11 @@ allow = [
 version = 2
 # yanked 依赖告警而非硬失败：给升级留窗口期，RustSec 撤回标记常滞后于修复发布。
 yanked = "warn"
-ignore = []
+ignore = [
+    # proc-macro-error 仅“维护停滞”告警（无安全漏洞）；为 thiserror v1 等旧链传递依赖，
+    # 上游仍广泛使用，待直接依赖升级后自然消除。
+    "RUSTSEC-2024-0370",
+]
 
 [bans]
 # 重复版本仅输出信息供清理参考（lock 中 miniz_oxide/getrandom 已双版本），不作门禁。

@@ -1,7 +1,10 @@
 //! 默认 Shell 解析：三平台的程序路径与启动参数。
 
-use git_core::{ErrorCode, Result, UserVisibleError};
+use git_core::Result;
 use std::path::PathBuf;
+// 错误构造只在 Windows 分支（SystemRoot 缺失）；非 Windows 下无对应错误路径。
+#[cfg(windows)]
+use git_core::{ErrorCode, UserVisibleError};
 
 /// 解析后的默认 Shell：绝对路径 + 平台专属参数。
 pub(crate) struct ShellProgram {
