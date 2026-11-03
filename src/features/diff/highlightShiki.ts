@@ -12,18 +12,24 @@ const LANGS = {
   xml: () => import("shiki/langs/xml.mjs"),
   css: () => import("shiki/langs/css.mjs"),
   scss: () => import("shiki/langs/scss.mjs"),
+  less: () => import("shiki/langs/less.mjs"),
   md: () => import("shiki/langs/markdown.mjs"),
   rust: () => import("shiki/langs/rust.mjs"),
   python: () => import("shiki/langs/python.mjs"),
   java: () => import("shiki/langs/java.mjs"),
+  kotlin: () => import("shiki/langs/kotlin.mjs"),
   go: () => import("shiki/langs/go.mjs"),
   c: () => import("shiki/langs/c.mjs"),
   cpp: () => import("shiki/langs/cpp.mjs"),
+  csharp: () => import("shiki/langs/csharp.mjs"),
   sh: () => import("shiki/langs/shellscript.mjs"),
+  powershell: () => import("shiki/langs/powershell.mjs"),
   yaml: () => import("shiki/langs/yaml.mjs"),
   toml: () => import("shiki/langs/toml.mjs"),
   sql: () => import("shiki/langs/sql.mjs"),
   diff: () => import("shiki/langs/diff.mjs"),
+  vue: () => import("shiki/langs/vue.mjs"),
+  svelte: () => import("shiki/langs/svelte.mjs"),
 };
 
 const LANG_KEYS = new Set(Object.keys(LANGS));
@@ -41,34 +47,57 @@ const ALIASES: Record<string, string> = {
   xml: "xml",
   css: "css",
   scss: "scss",
-  less: "css",
+  less: "less",
   markdown: "md",
   md: "md",
   rust: "rust",
   python: "python",
   py: "python",
   java: "java",
+  kotlin: "kotlin",
+  kt: "kotlin",
+  kts: "kotlin",
   go: "go",
   c: "c",
   h: "c",
   cpp: "cpp",
   "c++": "cpp",
   hpp: "cpp",
+  csharp: "csharp",
+  cs: "csharp",
   shell: "sh",
   bash: "sh",
   sh: "sh",
   zsh: "sh",
+  powershell: "powershell",
+  ps1: "powershell",
   yaml: "yaml",
   yml: "yaml",
   toml: "toml",
   sql: "sql",
   diff: "diff",
   patch: "diff",
+  vue: "vue",
+  svelte: "svelte",
 };
 
 const THEME_NAMES = { light: "github-light", dark: "github-dark" } as const;
 export type SyntaxTheme = keyof typeof THEME_NAMES;
 export const MAX_HIGHLIGHT_LINES = 2000;
+
+/**
+ * vue / svelte 的 SFC 语法只在读到 `<script>` / `<style>` / `<template>`
+ * 标签时才进入对应子语法。diff hunk 往往只截取块内部的若干行（例如整段
+ * 都在 `<script>` 里），缺少外层标签时整段会被当成模板文本，所有 token
+ * 同色，看起来「没有高亮」。这里在片段缺少上下文时改用脚本/样式语法，
+ * 以真正识别出结构的语法为准。
+ */
+const SFC_LANGS = new Set(["vue", "svelte"]);
+const SFC_FALLBACK_LANGS = ["typescript", "css"] as const;
+/** 原语法已能识别出多种颜色时，认为片段上下文完整，不再尝试候选语法。 */
+const SFC_TRUST_SCORE = 3;
+/** 候选语法至少多识别出 2 种颜色才切换，避免把纯文本误判成代码。 */
+const SFC_SCORE_GAIN = 2;
 
 async function createHighlighter(): Promise<HighlighterCore> {
   const [core, engine, lightTheme, darkTheme, langs] = await Promise.all([
@@ -209,6 +238,45 @@ function cacheTokenizeResult(
   }
 }
 
+/** 统计 token 中不同颜色数：颜色越多说明语法识别出的结构越丰富。 */
+function distinctColorCount(tokens: ThemedToken[][]): number {
+  const colors = new Set<string>();
+  for (const line of tokens) {
+    for (const token of line) {
+      if (token.color) {
+        colors.add(token.color);
+      }
+    }
+  }
+  return colors.size;
+}
+
+/**
+ * 片段缺少 SFC 块上下文时挑选识别度最高的语法。原语法颜色数达到
+ * SFC_TRUST_SCORE 即视为上下文完整；否则在候选语法中取颜色最多者，
+ * 但收益不足 SFC_SCORE_GAIN 时仍保留原结果（纯文本不应被误判为代码）。
+ */
+function pickSfcFragmentTokens(
+  tokenize: (lang: string) => ThemedToken[][],
+  current: ThemedToken[][],
+): ThemedToken[][] {
+  const baseScore = distinctColorCount(current);
+  if (baseScore >= SFC_TRUST_SCORE) {
+    return current;
+  }
+  let best = current;
+  let bestScore = baseScore;
+  for (const candidate of SFC_FALLBACK_LANGS) {
+    const tokens = tokenize(candidate);
+    const score = distinctColorCount(tokens);
+    if (score > bestScore) {
+      best = tokens;
+      bestScore = score;
+    }
+  }
+  return bestScore >= baseScore + SFC_SCORE_GAIN ? best : current;
+}
+
 /**
  * 按行切分后高亮：shiki 逐行返回 token，行序与输入一致。失败时抛出，由调用方降级。
  *
@@ -227,7 +295,12 @@ export async function highlightLines(
     return assembled;
   }
   const highlighter = await getHighlighter();
-  const tokens = highlighter.codeToTokens(text, { lang, theme: THEME_NAMES[theme] }).tokens;
+  const tokenize = (id: string) =>
+    highlighter.codeToTokens(text, { lang: id, theme: THEME_NAMES[theme] }).tokens;
+  let tokens = tokenize(lang);
+  if (SFC_LANGS.has(lang)) {
+    tokens = pickSfcFragmentTokens(tokenize, tokens);
+  }
   cacheTokenizeResult(lines, tokens, lang, theme);
   return tokens;
 }

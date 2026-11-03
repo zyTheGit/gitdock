@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Diff, Hunk, parseDiff } from "react-diff-view";
 import "react-diff-view/style/index.css";
@@ -39,6 +39,8 @@ interface FileDiffViewProps {
   files?: DiffFileEntry[];
   activePath?: string;
   onSelectFile?: (path: string) => void;
+  /** 放大视图侧栏文件行的右键菜单；由调用方决定菜单内容与外部工具。 */
+  onFileContextMenu?: (event: MouseEvent<HTMLButtonElement>, path: string) => void;
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
   loading?: boolean;
@@ -49,6 +51,7 @@ export function FileDiffView({
   files,
   activePath,
   onSelectFile,
+  onFileContextMenu,
   expanded,
   onExpandedChange,
   loading,
@@ -255,7 +258,18 @@ export function FileDiffView({
                         <button
                           className={active ? "active" : ""}
                           onClick={() => onSelectFile?.(file.path)}
-                          title={file.path}
+                          onContextMenu={(event) => {
+                            if (!onFileContextMenu) {
+                              return;
+                            }
+                            event.preventDefault();
+                            onFileContextMenu(event, file.path);
+                          }}
+                          title={
+                            onFileContextMenu
+                              ? `${file.path}（右键可用外部工具对比）`
+                              : file.path
+                          }
                           aria-current={active ? "true" : undefined}
                         >
                           <span className={`file-status file-status-${file.status}`}>

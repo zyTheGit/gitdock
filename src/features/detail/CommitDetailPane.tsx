@@ -293,6 +293,10 @@ export function CommitDetailPane({
                     files={files}
                     activePath={filePath ?? undefined}
                     onSelectFile={setFilePath}
+                    onFileContextMenu={(event, path) => {
+                      setFilePath(path);
+                      setMenu({ x: event.clientX, y: event.clientY, path });
+                    }}
                     expanded={expandedDiff}
                     onExpandedChange={setExpandedDiff}
                     loading={fileDiff.loading}

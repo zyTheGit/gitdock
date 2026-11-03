@@ -15,6 +15,7 @@ pub fn language_for(path: &str) -> Option<String> {
         "html" | "htm" => "html",
         "css" => "css",
         "scss" => "scss",
+        "less" => "less",
         "py" => "python",
         "go" => "go",
         "java" => "java",

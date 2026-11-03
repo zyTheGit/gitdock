@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import { FileDiffView } from "../diff/FileDiffView";
 import type { ChangedFileDto, FileDiffDto } from "../../shared/types";
 
@@ -10,6 +11,7 @@ interface CompareDiffPaneProps {
   files: ChangedFileDto[];
   activePath: string | null;
   onSelectFile: (path: string) => void;
+  onFileContextMenu?: (event: MouseEvent<HTMLButtonElement>, path: string) => void;
   expanded: boolean;
   onExpandedChange: (value: boolean) => void;
 }
@@ -22,6 +24,7 @@ export function CompareDiffPane({
   files,
   activePath,
   onSelectFile,
+  onFileContextMenu,
   expanded,
   onExpandedChange,
 }: CompareDiffPaneProps) {
@@ -36,6 +39,7 @@ export function CompareDiffPane({
           files={files}
           activePath={activePath ?? undefined}
           onSelectFile={onSelectFile}
+          onFileContextMenu={onFileContextMenu}
           expanded={expanded}
           onExpandedChange={onExpandedChange}
           loading={loading}
