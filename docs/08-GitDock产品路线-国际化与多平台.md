@@ -126,6 +126,8 @@ src-tauri app orchestration
 
 完成标准：所有当前可见静态 UI 文案均可中英切换；动态 Git 原始内容不被翻译；设置重启后保持；没有缺失 key/回退到裸 key。
 
+> G1 状态（2026-11-03）：**已完成并合并 main**（`feature/g1-i18n` 全部提交经快进合并为 `0612d08`）。任务 1–10 全部交付：i18next + react-i18next（MIT）基础设施、前端 13 个消息域（common/shell/repository/graph/detail/diff/search/compare/staging/terminal/settings/write/errors）约 745 个 key、类型安全 key 与 zh/en 同构校验、语言跟随系统/设置覆盖/即时切换/持久化（`set_language` 命令）；Rust 全部用户文案载体（UserVisibleError/GateIssueDto/WarningDto/WriteOutcomeDto/GateReportDto.summary/FileDiffDto.note）采用「中文 message 兜底 + i18n key/args」渐进式契约，`GraphPageDto.scope`/`CommitDetailDto.baseline` 枚举驱动前端翻译；`scripts/check-i18n.mjs` 门禁进 `npm run check`；英文长文本/窄窗口/缩放布局人工 GUI 验收通过（2026-11-03 用户确认；验收中发现并修复 2 项：Git 配置 Reload 交互反馈、图谱范围标签中文直出）。已知权宜（详见 docs/05）：`gate_interrupted` 的 kinds/hint 中文 join（罕见场景）；FeedbackDialog Issue 模板语言待产品裁决。
+
 ### G2：跨平台准入 Spike
 
 1. 盘点 Windows 专属代码、依赖、命令行参数、Shell、文件监听、URL/文件对话框、配置目录与打包脚本。
