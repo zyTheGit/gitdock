@@ -90,6 +90,9 @@ const errors = {
   searchReadTreeFailed: "Failed to read commit tree",
   terminalResizeFailed: "Failed to resize terminal",
   terminalPowershellNotFound: "PowerShell not found: SystemRoot environment variable is missing",
+  terminalGitBashNotFound:
+    "Git Bash not found: make sure Git for Windows is installed, or switch back to the system default shell",
+  settingShellProfileUnsupported: "Unsupported terminal shell launcher",
   terminalLazygitNotFound: "LazyGit not found; set the executable path in Settings",
   terminalModeUnsupported: "Unsupported terminal mode: {{mode}}",
   terminalPtyCreateFailed: "Failed to create pseudo-terminal",

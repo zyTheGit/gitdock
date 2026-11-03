@@ -48,6 +48,11 @@ const settings = {
     "GitDock does not bundle LazyGit. When empty, it is looked up on PATH; once set, only that file is used, and a missing file is reported in the terminal panel. The terminal runs with the current user's privileges, inside the currently opened repository.",
   terminalLazygitLabel: "LazyGit executable",
   terminalLazygitPlaceholder: "Full path to the executable (e.g. lazygit)",
+  terminalShellProfileLabel: "Shell mode launcher",
+  terminalShellProfileDefault: "System default (PowerShell)",
+  terminalShellProfileGitBash: "Git Bash (bundled with Git for Windows)",
+  terminalShellProfileGitBashMissing:
+    "Git Bash was not detected: make sure Git for Windows is installed, or use the system default.",
 
   // External compare tools ($LOCAL / $REMOTE and command examples stay verbatim, rendered as code)
   toolsTitle: "External file compare tools",
