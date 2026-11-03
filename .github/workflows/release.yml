@@ -132,8 +132,21 @@ jobs:
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
             gh release upload "$TAG_NAME" "${assets[@]}" --clobber
           else
+            # 未签名安装包的平台说明（--generate-notes 的自动日志会追加在其后）：
+            # macOS DMG 未经签名/公证，Gatekeeper 会拦截直接打开；AppImage 在
+            # Ubuntu 22.04+ 需要 libfuse2。正式签名/公证属 G4（需 Apple
+            # Developer 账号），在此之前 Release 说明中必须给出绕过指引。
+            notes="$(printf '%s\n' \
+              '## macOS' \
+              '' \
+              'DMG 目前未签名、未公证：首次打开请右键 →「打开」确认两次，或执行 xattr -cr /Applications/GitDock.app 后再打开。签名与公证将在后续版本提供。' \
+              '' \
+              '## Linux' \
+              '' \
+              'AppImage 需要 FUSE 2：Ubuntu 22.04+ 请先 sudo apt install libfuse2；.deb 安装时会自动解析 WebKitGTK 依赖。')"
             gh release create "$TAG_NAME" "${assets[@]}" \
               --title "GitDock $TAG_NAME" \
+              --notes "$notes" \
               --generate-notes \
               "${prerelease[@]}"
           fi
