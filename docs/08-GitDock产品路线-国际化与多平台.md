@@ -136,6 +136,8 @@ src-tauri app orchestration
 
 完成标准：两平台均有 CI release 构建，至少一个实机或原生 runner 安装验证；支持矩阵和已知限制由产品确认。
 
+> G2 进度（2026-11-03，分支 `spike/cross-platform`）：第 1、5 项完成——三路并行调查（Rust 侧 / 前端与打包 / CI 与依赖）汇总为 `docs/09-G2-跨平台差距清单.md`（A/B/C 分级、i18n 平台文案 14 key、CI 设计、验证清单、平台范围建议、约 5-8 人日工作量预估、go 倾向结论）；第 2 项 CI 矩阵已落地待推送验证（ci.yml 三平台 matrix + Linux apt 前置、release.yml build/publish 两段式 + 体积输出、tauri.conf.json 补 icon.icns 声明）。**未完成**：第 3 项逐项功能验证（需 CI 首跑 + 实机，Windows 开发环境无法执行）；第 4 项平台范围（macOS 架构/最低版本、Linux 包格式）为产品裁决点，差距清单第 7 节已给出推荐与替代方案，未确认前不宣称支持。macOS/Linux dev 构建尚未在实机执行。
+
 ### G3：平台适配层与构建
 
 1. 建立 `PlatformAdapter` 内部 seam，并迁移 Shell 解析、URL opener、OS 环境、进程退出、路径处理。
@@ -185,9 +187,9 @@ G0 交接状态清理
 
 尚需在实现各阶段前确认：
 
-1. 中英文首发语言策略：推荐系统语言默认、设置可覆盖；英文建议作为兜底语言。
-2. macOS 是否首期同时支持 Apple Silicon + Intel；若 CI/维护成本过高，优先 Apple Silicon，Intel 延后。
-3. Linux 是否接受首期只正式支持 Ubuntu LTS x86_64 与单一包格式；推荐接受，其他发行版实验支持。
+1. ~~中英文首发语言策略~~ **已确认（2026-11-03）**：系统语言默认、设置可覆盖；缺失翻译时**中文兜底**（用户裁决，G1 已按此实现）。
+2. ~~macOS 是否首期同时支持 Apple Silicon + Intel~~ **已确认（2026-11-03）**：优先 Apple Silicon（aarch64），Intel 延后到 G4 评估（Rosetta 2 / universal2）。
+3. ~~Linux 是否接受首期只正式支持 Ubuntu LTS x86_64 与单一包格式~~ **已确认（2026-11-03）**：接受；基线 Ubuntu 22.04 LTS x86_64（glibc 2.35），CI 双格式产出（AppImage + deb）供 G5 实机比选后定主格式，其他发行版实验支持。
 4. Git 能力优先级：推荐提交/分支与标签/stash 优先于远程同步，再到 merge/rebase；根据实际用户工作流调整。
 5. 插件：推荐至少等跨平台与 Git 操作模块稳定后，再决定是否开放外部插件 API。
 

@@ -1,6 +1,9 @@
 name: Release
 
 # 仅由 tag 触发：日常 push 继续只跑 ci.yml 的校验，版本发布由打 tag 显式发起。
+# 三平台产物在 build 矩阵中各自构建并经 upload-artifact 中转，publish 统一发布，
+# 避免多平台 job 竞态争抢 release 创建。macOS/Linux 属准入 Spike 产物（未签名），
+# 不代表正式支持；正式范围以产品确认为准（见 docs/09 差距清单）。
 on:
   push:
     tags:
@@ -14,13 +17,41 @@ permissions:
   contents: write
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 只打 NSIS：targets 为 all 时 MSI 会再耗一遍构建，且 Release 里出现两套包。
+          - os: windows-latest
+            bundles: nsis
+          # Linux 双格式产出仅供 G5 比选主包格式，不构成支持承诺。
+          - os: ubuntu-22.04
+            bundles: appimage,deb
+          # macOS 取 Apple Silicon（macos-latest = arm64）；Intel 延后到 G4 评估。
+          - os: macos-latest
+            bundles: dmg
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     env:
       TAG_NAME: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+
+      # Tauri 2 Linux 前置 + 本项目特有的 libssl-dev（ureq native-tls → openssl-sys）。
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl wget file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            pkg-config
 
       - uses: actions/setup-node@v4
         with:
@@ -52,21 +83,44 @@ jobs:
           check src-tauri/tauri.conf.json "require('./src-tauri/tauri.conf.json').version"
           check "Cargo.toml [workspace.package]" "require('fs').readFileSync('Cargo.toml','utf8').match(/^version\s*=\s*\"([^\"]+)\"/m)?.[1] ?? ''"
 
-      # 只打 NSIS：targets 为 all 时 MSI 会再耗一遍构建，且 Release 里出现两套包。
       - name: Build installer
-        run: npm run tauri build -- --bundles nsis
+        run: npm run tauri build -- --bundles ${{ matrix.bundles }}
+
+      # 安装包在工作区根 target 下（Cargo workspace），不在 src-tauri/target；
+      # dmg 文件名带架构后缀（如 _aarch64），glob 用通配符覆盖。
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.os }}
+          if-no-files-found: error
+          path: |
+            target/release/bundle/nsis/*-setup.exe
+            target/release/bundle/appimage/*.AppImage
+            target/release/bundle/deb/*.deb
+            target/release/bundle/dmg/*.dmg
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      TAG_NAME: ${{ github.ref_name }}
+    steps:
+      - name: Download bundle artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: bundle-artifacts
+          merge-multiple: true
 
       # 重跑同一个 tag 时走 upload --clobber，不删除已发布的 Release。
-      # 安装包在工作区根 target 下（Cargo workspace），不在 src-tauri/target。
       - name: Publish release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           shopt -s nullglob
-          assets=(target/release/bundle/nsis/*-setup.exe)
+          assets=(bundle-artifacts/*-setup.exe bundle-artifacts/*.AppImage bundle-artifacts/*.deb bundle-artifacts/*.dmg)
           if [ ${#assets[@]} -eq 0 ]; then
-            echo "::error::未找到 NSIS 安装包"
+            echo "::error::未找到任何安装包"
             exit 1
           fi
 
@@ -84,9 +138,11 @@ jobs:
               "${prerelease[@]}"
           fi
 
+          # 产物清单带体积，满足发布检查表「打包大小」项的自动化记录。
           {
             echo "### GitDock $TAG_NAME"
             for asset in "${assets[@]}"; do
-              echo "- \`$(basename "$asset")\`"
+              size=$(stat -c '%s' "$asset" 2>/dev/null || stat -f '%z' "$asset")
+              echo "- \`$(basename "$asset")\`（$(( size / 1024 / 1024 )) MB）"
             done
           } >> "$GITHUB_STEP_SUMMARY"
