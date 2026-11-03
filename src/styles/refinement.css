@@ -155,11 +155,11 @@
 .settings-nav button:hover:not(:disabled) { background: var(--row-hover); color: var(--text); border-color: transparent; }
 .settings-nav button.active { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600; }
 .settings-nav-mark { width: 7px; height: 7px; flex: none; border: 1.5px solid currentColor; border-radius: 2px; opacity: .85; }
-.mark-外观 { border-radius: 50%; }
-.mark-终端 { width: 9px; height: 7px; border-radius: 2px; }
-.mark-对比工具 { transform: rotate(45deg); border-radius: 1px; }
-.mark-关于 { border-radius: 50%; }
-.mark-Git配置 { border-radius: 50% 2px 50% 2px; }
+.mark-appearance { border-radius: 50%; }
+.mark-terminal { width: 9px; height: 7px; border-radius: 2px; }
+.mark-tools { transform: rotate(45deg); border-radius: 1px; }
+.mark-about { border-radius: 50%; }
+.mark-git-config { border-radius: 50% 2px 50% 2px; }
 
 .settings-body {
   flex: 1;

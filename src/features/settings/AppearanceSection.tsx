@@ -1,0 +1,94 @@
+import { useState } from "react";
+import { Select } from "../../shared/Select";
+
+const MIN_SCALE = 0.75;
+const MAX_SCALE = 2;
+
+interface AppearanceSectionProps {
+  active: boolean;
+  fontScale: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onResetZoom: () => void;
+}
+
+export function AppearanceSection({
+  active,
+  fontScale,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+}: AppearanceSectionProps) {
+  const [theme, setTheme] = useState(() => localStorage.getItem("gitdock.theme") ?? "system");
+
+  return (
+    <section id="settings-appearance" hidden={!active}>
+      <h3>外观</h3>
+      <p className="muted settings-hint">
+        选择 GitDock 的配色方案；终端内容始终使用深色 ANSI 配色。
+      </p>
+      <label className="settings-theme-row">
+        <span>主题</span>
+        <Select
+          className="theme-select"
+          value={theme}
+          options={[
+            { value: "system", label: "跟随 Windows" },
+            { value: "light", label: "浅色" },
+            { value: "dark", label: "深色" },
+          ]}
+          onChange={(event) => {
+            const value = event.target.value;
+            setTheme(value);
+            if (value === "system") localStorage.removeItem("gitdock.theme");
+            else localStorage.setItem("gitdock.theme", value);
+            if (value === "system") document.documentElement.removeAttribute("data-theme");
+            else document.documentElement.dataset.theme = value;
+          }}
+        />
+      </label>
+      <div className="zoom-row">
+        <span>界面缩放</span>
+        <span className="zoom-controls">
+          <button
+            type="button"
+            className="zoom-button"
+            title="缩小"
+            aria-label="缩小界面"
+            onClick={onZoomOut}
+            disabled={fontScale <= MIN_SCALE}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" className="zoom-icon">
+              <path d="M3.5 8h9" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="zoom-value mono"
+            title="恢复 100%"
+            aria-label={`当前缩放 ${Math.round(fontScale * 100)}%，恢复 100%`}
+            onClick={onResetZoom}
+            disabled={fontScale === 1}
+          >
+            {Math.round(fontScale * 100)}%
+          </button>
+          <button
+            type="button"
+            className="zoom-button"
+            title="放大"
+            aria-label="放大界面"
+            onClick={onZoomIn}
+            disabled={fontScale >= MAX_SCALE}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" className="zoom-icon">
+              <path d="M8 3.5v9M3.5 8h9" />
+            </svg>
+          </button>
+        </span>
+      </div>
+      <p className="muted settings-hint">
+        缩放快捷键可在「快捷键」分区调整；调整立即生效并保存。
+      </p>
+    </section>
+  );
+}
