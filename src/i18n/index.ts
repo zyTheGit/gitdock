@@ -1,12 +1,50 @@
 import i18next from "i18next";
 import { initReactI18next, useTranslation } from "react-i18next";
 import enCommon from "./locales/en/common";
+import enCompare from "./locales/en/compare";
+import enDetail from "./locales/en/detail";
+import enDiff from "./locales/en/diff";
+import enGraph from "./locales/en/graph";
+import enRepository from "./locales/en/repository";
+import enSearch from "./locales/en/search";
+import enSettings from "./locales/en/settings";
+import enShell from "./locales/en/shell";
+import enStaging from "./locales/en/staging";
+import enTerminal from "./locales/en/terminal";
+import enWrite from "./locales/en/write";
 import zhCnCommon from "./locales/zh-CN/common";
+import zhCnCompare from "./locales/zh-CN/compare";
+import zhCnDetail from "./locales/zh-CN/detail";
+import zhCnDiff from "./locales/zh-CN/diff";
+import zhCnGraph from "./locales/zh-CN/graph";
+import zhCnRepository from "./locales/zh-CN/repository";
+import zhCnSearch from "./locales/zh-CN/search";
+import zhCnSettings from "./locales/zh-CN/settings";
+import zhCnShell from "./locales/zh-CN/shell";
+import zhCnStaging from "./locales/zh-CN/staging";
+import zhCnTerminal from "./locales/zh-CN/terminal";
+import zhCnWrite from "./locales/zh-CN/write";
 
 export type AppLanguage = "zh-CN" | "en";
 export type LanguagePreference = AppLanguage | "system";
 
 const LANGUAGE_STORAGE_KEY = "gitdock.language";
+
+/** 消息域清单：新域须同时建 locales/<lang>/<domain>.ts 并在此与 types.ts 注册。 */
+export const MESSAGE_NAMESPACES = [
+  "common",
+  "shell",
+  "repository",
+  "graph",
+  "detail",
+  "diff",
+  "search",
+  "compare",
+  "staging",
+  "terminal",
+  "settings",
+  "write",
+] as const;
 
 /** 把偏好（system 或具体语言）解析为实际语言：系统中文 → 简体中文，其余 → 英文。 */
 export function resolveLanguage(preference: string | null | undefined): AppLanguage {
@@ -43,13 +81,39 @@ export function initI18n(): void {
   const language = resolveLanguage(storedPreference());
   void i18next.use(initReactI18next).init({
     resources: {
-      "zh-CN": { common: zhCnCommon },
-      en: { common: enCommon },
+      "zh-CN": {
+        common: zhCnCommon,
+        shell: zhCnShell,
+        repository: zhCnRepository,
+        graph: zhCnGraph,
+        detail: zhCnDetail,
+        diff: zhCnDiff,
+        search: zhCnSearch,
+        compare: zhCnCompare,
+        staging: zhCnStaging,
+        terminal: zhCnTerminal,
+        settings: zhCnSettings,
+        write: zhCnWrite,
+      },
+      en: {
+        common: enCommon,
+        shell: enShell,
+        repository: enRepository,
+        graph: enGraph,
+        detail: enDetail,
+        diff: enDiff,
+        search: enSearch,
+        compare: enCompare,
+        staging: enStaging,
+        terminal: enTerminal,
+        settings: enSettings,
+        write: enWrite,
+      },
     },
     lng: language,
     fallbackLng: "zh-CN",
     defaultNS: "common",
-    ns: ["common"],
+    ns: MESSAGE_NAMESPACES,
     interpolation: { escapeValue: false },
     returnNull: false,
   });
@@ -65,7 +129,7 @@ export function currentLocale(): string {
   return currentLanguage() === "zh-CN" ? "zh-CN" : "en-US";
 }
 
-/** 统一翻译入口：组件内使用。工具模块等非 React 上下文用 i18next.t。 */
+/** 统一翻译入口：组件内使用，key 用「域.key」全限定形式。非 React 上下文用 i18next.t。 */
 export function useI18n() {
   const { t, i18n } = useTranslation();
   return { t, i18n, language: currentLanguage() };
