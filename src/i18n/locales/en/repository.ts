@@ -17,6 +17,10 @@ const repository = {
   removedFromRecent: "Removed from recent repositories",
   pickDialogTitle: "Choose a Git repository",
   watchError: "Failed to watch repository changes: {{error}}",
+  branchMenuEditDescription: "Edit description",
+  branchMenuCompareWithHead: "Compare with HEAD",
+  branchMenuSetBase: "Set as compare Base",
+  branchMenuSetCompare: "Set as compare Compare",
 } satisfies RepositoryMessages;
 
 export default repository;

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "../../i18n";
 import type {
   AppInfoDto,
   UpdateCheckDto,
@@ -29,6 +30,7 @@ export function AboutSection({
   onClearSkippedUpdate,
   onOpenFeedback,
 }: AboutSectionProps) {
+  const { t } = useI18n();
   const [updateNotice, setUpdateNotice] = useState<string | null>(null);
 
   const manualUpdateCheck = async () => {
@@ -45,20 +47,21 @@ export function AboutSection({
 
   return (
     <section id="settings-about" hidden={!active}>
-      <h3>关于</h3>
+      <h3>{t("settings.aboutTitle")}</h3>
       {info ? (
         <dl className="about-grid">
-          <dt>版本</dt>
+          <dt>{t("settings.aboutVersion")}</dt>
           <dd className="mono">{info.app_version}</dd>
-          <dt>平台</dt>
+          <dt>{t("settings.aboutPlatform")}</dt>
           <dd className="mono">{info.platform}</dd>
           <dt>Git</dt>
           <dd className="mono">
-            {info.git_version ?? "未检测到"}（最低 {info.minimum_git_version}）
+            {info.git_version ?? t("settings.aboutGitNotDetected")}
+            {t("settings.aboutGitMinimum", { version: info.minimum_git_version })}
           </dd>
         </dl>
       ) : (
-        <p className="muted">正在读取版本信息…</p>
+        <p className="muted">{t("settings.aboutLoading")}</p>
       )}
       <div
         className={`update-row${updateOffer ? " is-available" : ""}${
@@ -67,28 +70,33 @@ export function AboutSection({
       >
         <span className="update-row-status" role="status">
           {updateCheck.status === "checking" ? (
-            "检查中…"
+            t("settings.aboutChecking")
           ) : updateOffer ? (
             <>
-              发现新版本 <span className="mono">v{updateOffer.latest_version}</span>
+              {t("settings.aboutFoundVersion")}{" "}
+              <span className="mono">v{updateOffer.latest_version}</span>
               {updateOffer.published_at && (
-                <span className="update-row-note muted">发布于 {updateOffer.published_at}</span>
+                <span className="update-row-note muted">
+                  {t("settings.aboutPublishedAt", { date: updateOffer.published_at })}
+                </span>
               )}
             </>
           ) : updateCheck.status === "failed" ? (
-            "检查更新未成功"
+            t("settings.aboutCheckFailed")
           ) : updateCheck.result ? (
             updateCheck.result.available ? (
               <>
-                已跳过 <span className="mono">v{updateCheck.result.latest_version}</span>
+                {t("settings.aboutSkipped")}{" "}
+                <span className="mono">v{updateCheck.result.latest_version}</span>
               </>
             ) : (
               <>
-                已是最新版本 <span className="mono">v{updateCheck.result.latest_version}</span>
+                {t("settings.aboutUpToDate")}{" "}
+                <span className="mono">v{updateCheck.result.latest_version}</span>
               </>
             )
           ) : (
-            <span className="muted">尚未检查新版本。</span>
+            <span className="muted">{t("settings.aboutNotChecked")}</span>
           )}
         </span>
         {updateNotice && <span className="update-row-note muted">{updateNotice}</span>}
@@ -96,17 +104,17 @@ export function AboutSection({
           {updateOffer ? (
             <>
               <button type="button" className="link" onClick={onSkipUpdate}>
-                跳过此版本
+                {t("settings.aboutSkipVersion")}
               </button>
               <button type="button" className="primary" onClick={() => void openDownloadPage()}>
-                打开下载页
+                {t("settings.aboutOpenDownload")}
               </button>
             </>
           ) : (
             <>
               {updateCheck.skippedVersion && updateCheck.result?.available ? (
                 <button type="button" className="link" onClick={onClearSkippedUpdate}>
-                  撤销跳过
+                  {t("settings.aboutUndoSkip")}
                 </button>
               ) : null}
               <button
@@ -114,7 +122,9 @@ export function AboutSection({
                 onClick={() => void manualUpdateCheck()}
                 disabled={updateCheck.status === "checking"}
               >
-                {updateCheck.status === "failed" ? "重新检查" : "检查更新"}
+                {updateCheck.status === "failed"
+                  ? t("settings.aboutRecheck")
+                  : t("settings.aboutCheckUpdate")}
               </button>
             </>
           )}
@@ -122,12 +132,10 @@ export function AboutSection({
       </div>
       <div className="about-actions">
         <button type="button" onClick={onOpenFeedback} disabled={!info}>
-          提交 Issue…
+          {t("settings.aboutSubmitIssue")}
         </button>
       </div>
-      <p className="muted settings-hint">
-        反馈框只预填应用版本、操作系统与 Git 版本，不含日志或仓库路径；点击后由你在浏览器中检查并提交。
-      </p>
+      <p className="muted settings-hint">{t("settings.aboutFeedbackHint")}</p>
     </section>
   );
 }

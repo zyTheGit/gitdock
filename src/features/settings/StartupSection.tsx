@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n";
+
 interface StartupSectionProps {
   active: boolean;
   restore: boolean;
@@ -13,16 +15,17 @@ export function StartupSection({
   onRestoreChange,
   onWatchChange,
 }: StartupSectionProps) {
+  const { t } = useI18n();
   return (
     <section id="settings-startup" hidden={!active}>
-      <h3>启动</h3>
+      <h3>{t("settings.startupTitle")}</h3>
       <label className="settings-check">
         <input
           type="checkbox"
           checked={restore}
           onChange={(event) => onRestoreChange(event.target.checked)}
         />
-        启动时恢复上次打开的仓库
+        {t("settings.startupRestore")}
       </label>
       <label className="settings-check">
         <input
@@ -30,7 +33,7 @@ export function StartupSection({
           checked={watch}
           onChange={(event) => onWatchChange(event.target.checked)}
         />
-        监视 Git 目录变化并自动刷新（外部 commit、切换分支等）
+        {t("settings.startupWatch")}
       </label>
     </section>
   );

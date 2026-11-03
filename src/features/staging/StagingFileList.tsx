@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { STATUS_LABEL, STATUS_LETTER } from "../../shared/fileStatus";
+import { useI18n } from "../../i18n";
+import { STATUS_LETTER, statusLabelKey } from "../../shared/fileStatus";
 import type { StagingFileDto } from "../../shared/types";
 
 /** 暂存区列别：未暂存或已暂存。 */
@@ -20,23 +21,6 @@ function pathLabel(file: StagingFileDto): string {
     : file.path;
 }
 
-function fileMeta(file: StagingFileDto) {
-  if (file.untracked) {
-    return <span className="muted">未跟踪</span>;
-  }
-  if (file.gitlink) {
-    return <span className="muted">子模块</span>;
-  }
-  if (file.binary) {
-    return <span className="muted">二进制</span>;
-  }
-  return (
-    <>
-      <span className="diff-add">+{file.additions}</span>
-      <span className="diff-del">-{file.deletions}</span>
-    </>
-  );
-}
 
 interface StagingFileListProps {
   side: Side;
@@ -61,6 +45,7 @@ export function StagingFileList({
   onToggleCheck,
   onRowAction,
 }: StagingFileListProps) {
+  const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: files.length,
@@ -69,7 +54,25 @@ export function StagingFileList({
     overscan: LIST_OVERSCAN,
     getItemKey: (index) => files[index]?.path ?? index,
   });
-  const action = side === "unstaged" ? "暂存" : "取消暂存";
+  const action = side === "unstaged" ? t("staging.actionStage") : t("staging.actionUnstage");
+
+  const fileMeta = (file: StagingFileDto) => {
+    if (file.untracked) {
+      return <span className="muted">{t("staging.untracked")}</span>;
+    }
+    if (file.gitlink) {
+      return <span className="muted">{t("staging.submodule")}</span>;
+    }
+    if (file.binary) {
+      return <span className="muted">{t("staging.binary")}</span>;
+    }
+    return (
+      <>
+        <span className="diff-add">+{file.additions}</span>
+        <span className="diff-del">-{file.deletions}</span>
+      </>
+    );
+  };
 
   return (
     <div className="staging-list" ref={scrollRef}>
@@ -103,11 +106,11 @@ export function StagingFileList({
                   checked={Boolean(checked[sideKey(side, file.path)])}
                   onChange={() => onToggleCheck(side, file.path)}
                   onClick={(event) => event.stopPropagation()}
-                  aria-label={`选择 ${file.path}`}
+                  aria-label={t("staging.selectFile", { path: file.path })}
                 />
                 <span
                   className={`file-status file-status-${file.status}`}
-                  title={STATUS_LABEL[file.status]}
+                  title={t(statusLabelKey(file.status))}
                 >
                   {STATUS_LETTER[file.status]}
                 </span>

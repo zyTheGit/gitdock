@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import type { ExternalToolConfig } from "../../shared/types";
 
 interface ToolsSectionProps {
@@ -22,45 +23,50 @@ export function ToolsSection({
   onBrowse,
   onSetDefault,
 }: ToolsSectionProps) {
+  const { t } = useI18n();
   return (
     <section id="settings-tools" className="settings-tools" hidden={!active}>
-      <h3>外部文件对比工具</h3>
+      <h3>{t("settings.toolsTitle")}</h3>
       <p className="muted settings-hint">
-        参数模板中 <code>$LOCAL</code> / <code>$REMOTE</code> 必须各自独立成段；程序按参数数组启动，不经过 shell。
-        首次启动会按当前系统探测已安装的 VS Code / Beyond Compare / Zed，作为内置默认并选中第一项；
-        所有工具都可以修改或删除，新增工具无需改动程序代码。
+        {t("settings.toolsHintTemplateHead")}
+        <code>$LOCAL</code> / <code>$REMOTE</code>
+        {t("settings.toolsHintTemplateTail")}
+        {t("settings.toolsHintDetect")}
       </p>
       <p className="muted settings-hint">
-        示例：VS Code / Zed 用 <code>--diff $LOCAL $REMOTE</code>，Beyond Compare 用{" "}
-        <code>$LOCAL $REMOTE</code>；只传两个路径会打开两个独立文件而不是差异视图；未指定默认工具时使用列表第一项。
+        {t("settings.toolsHintExampleHead")}
+        <code>--diff $LOCAL $REMOTE</code>
+        {t("settings.toolsHintExampleMid")}
+        <code>$LOCAL $REMOTE</code>
+        {t("settings.toolsHintExampleTail")}
       </p>
-      {tools.length === 0 && <p className="muted">尚未配置外部工具。</p>}
+      {tools.length === 0 && <p className="muted">{t("settings.toolsEmpty")}</p>}
       <ul className="tool-list">
         {tools.map((tool, index) => (
           <li key={index}>
             <label>
-              名称
+              {t("settings.toolsNameLabel")}
               <input
                 value={tool.name}
-                placeholder="例如 Beyond Compare"
+                placeholder={t("settings.toolsNamePlaceholder")}
                 onChange={(event) => onUpdate(index, { name: event.target.value })}
               />
             </label>
             <label>
-              可执行文件
+              {t("settings.toolsExecutableLabel")}
               <span className="tool-path">
                 <input
                   value={tool.executable}
-                  placeholder="完整路径，例如 C:\Program Files\...\BCompare.exe"
+                  placeholder={t("settings.toolsExecutablePlaceholder")}
                   onChange={(event) => onUpdate(index, { executable: event.target.value })}
                 />
                 <button type="button" onClick={() => void onBrowse(index)}>
-                  浏览…
+                  {t("settings.browse")}
                 </button>
               </span>
             </label>
             <label>
-              参数模板
+              {t("settings.toolsArgsTemplateLabel")}
               <input
                 className="mono"
                 value={tool.args_template}
@@ -76,16 +82,16 @@ export function ToolsSection({
                   disabled={!tool.name.trim()}
                   onChange={() => onSetDefault(tool.name)}
                 />
-                设为默认对比工具
+                {t("settings.toolsSetDefault")}
               </label>
               <button className="link danger-text" onClick={() => onRemove(index)}>
-                删除
+                {t("settings.toolsRemove")}
               </button>
             </div>
           </li>
         ))}
       </ul>
-      <button onClick={onAdd}>添加工具</button>
+      <button onClick={onAdd}>{t("settings.toolsAdd")}</button>
     </section>
   );
 }

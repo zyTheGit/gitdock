@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { SETTINGS_SECTIONS, type SettingsSectionKey } from "./settingsSections";
 
 interface SettingsNavProps {
@@ -6,9 +7,10 @@ interface SettingsNavProps {
 }
 
 export function SettingsNav({ active, onChange }: SettingsNavProps) {
+  const { t } = useI18n();
   return (
-    <nav className="settings-nav" aria-label="设置分区">
-      {SETTINGS_SECTIONS.map(({ key, label }) => (
+    <nav className="settings-nav" aria-label={t("settings.navAria")}>
+      {SETTINGS_SECTIONS.map(({ key, labelKey }) => (
         <button
           key={key}
           className={active === key ? "active" : ""}
@@ -16,7 +18,7 @@ export function SettingsNav({ active, onChange }: SettingsNavProps) {
           onClick={() => onChange(key)}
         >
           <span className={`settings-nav-mark mark-${key}`} aria-hidden="true" />
-          {label}
+          {t(labelKey)}
         </button>
       ))}
     </nav>

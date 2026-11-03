@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "../../i18n";
 import { copyText } from "../../shared/clipboard";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
@@ -13,6 +14,8 @@ interface FeedbackDialogProps {
 
 /** 只预填应用版本、操作系统与 Git 版本；不含日志、仓库路径，提交动作由用户在浏览器完成。 */
 export function FeedbackDialog({ info, onClose, onError }: FeedbackDialogProps) {
+  const { t } = useI18n();
+  // Issue 标题与正文模板暂不迁移：发给 GitHub 的内容语言待产品裁决。
   const [title, setTitle] = useState(`[反馈] GitDock ${info.app_version}`);
   const [body, setBody] = useState(
     [
@@ -48,21 +51,18 @@ export function FeedbackDialog({ info, onClose, onError }: FeedbackDialogProps) 
   return (
     <Modal className="feedback-dialog">
       <header>
-        <h2>提交 Issue</h2>
-        <button className="detail-close" onClick={onClose} aria-label="关闭反馈">
+        <h2>{t("settings.feedbackTitle")}</h2>
+        <button className="detail-close" onClick={onClose} aria-label={t("settings.feedbackCloseAria")}>
           ×
         </button>
       </header>
-      <p className="muted settings-hint">
-        内容可以修改。GitDock 不会自动上传任何信息；点击下方按钮只会在默认浏览器中打开
-        GitHub 新建 Issue 页面，由你检查后自行提交。
-      </p>
+      <p className="muted settings-hint">{t("settings.feedbackHint")}</p>
       <label>
-        标题
+        {t("settings.feedbackTitleLabel")}
         <input value={title} maxLength={120} onChange={(event) => setTitle(event.target.value)} />
       </label>
       <label>
-        正文
+        {t("settings.feedbackBodyLabel")}
         <textarea
           rows={12}
           value={body}
@@ -72,11 +72,11 @@ export function FeedbackDialog({ info, onClose, onError }: FeedbackDialogProps) 
       </label>
       <div className="feedback-actions">
         <button type="button" onClick={() => void copy()}>
-          {copied ? "已复制" : "复制内容"}
+          {copied ? t("settings.feedbackCopied") : t("settings.feedbackCopy")}
         </button>
         <span className="spacer" />
         <button type="button" onClick={onClose}>
-          取消
+          {t("settings.cancel")}
         </button>
         <button
           className="primary"
@@ -84,7 +84,7 @@ export function FeedbackDialog({ info, onClose, onError }: FeedbackDialogProps) 
           onClick={() => void open()}
           disabled={opening || !title.trim()}
         >
-          {opening ? "打开中…" : "打开 GitHub 新建 Issue"}
+          {opening ? t("settings.feedbackOpening") : t("settings.feedbackOpenIssue")}
         </button>
       </div>
     </Modal>

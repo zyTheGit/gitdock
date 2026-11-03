@@ -30,19 +30,17 @@ export function AppearanceSection({
 
   return (
     <section id="settings-appearance" hidden={!active}>
-      <h3>外观</h3>
-      <p className="muted settings-hint">
-        选择 GitDock 的配色方案；终端内容始终使用深色 ANSI 配色。
-      </p>
+      <h3>{t("settings.appearanceTitle")}</h3>
+      <p className="muted settings-hint">{t("settings.appearanceHint")}</p>
       <label className="settings-theme-row">
-        <span>主题</span>
+        <span>{t("settings.themeLabel")}</span>
         <Select
           className="theme-select"
           value={theme}
           options={[
-            { value: "system", label: "跟随 Windows" },
-            { value: "light", label: "浅色" },
-            { value: "dark", label: "深色" },
+            { value: "system", label: t("settings.themeOptionSystem") },
+            { value: "light", label: t("settings.themeOptionLight") },
+            { value: "dark", label: t("settings.themeOptionDark") },
           ]}
           onChange={(event) => {
             const value = event.target.value;
@@ -69,13 +67,13 @@ export function AppearanceSection({
       </label>
       <p className="muted settings-hint">{t("languageHint")}</p>
       <div className="zoom-row">
-        <span>界面缩放</span>
+        <span>{t("settings.zoomLabel")}</span>
         <span className="zoom-controls">
           <button
             type="button"
             className="zoom-button"
-            title="缩小"
-            aria-label="缩小界面"
+            title={t("settings.zoomOut")}
+            aria-label={t("settings.zoomOutAria")}
             onClick={onZoomOut}
             disabled={fontScale <= MIN_SCALE}
           >
@@ -86,8 +84,8 @@ export function AppearanceSection({
           <button
             type="button"
             className="zoom-value mono"
-            title="恢复 100%"
-            aria-label={`当前缩放 ${Math.round(fontScale * 100)}%，恢复 100%`}
+            title={t("settings.zoomReset")}
+            aria-label={t("settings.zoomCurrent", { n: Math.round(fontScale * 100) })}
             onClick={onResetZoom}
             disabled={fontScale === 1}
           >
@@ -96,8 +94,8 @@ export function AppearanceSection({
           <button
             type="button"
             className="zoom-button"
-            title="放大"
-            aria-label="放大界面"
+            title={t("settings.zoomIn")}
+            aria-label={t("settings.zoomInAria")}
             onClick={onZoomIn}
             disabled={fontScale >= MAX_SCALE}
           >
@@ -107,9 +105,7 @@ export function AppearanceSection({
           </button>
         </span>
       </div>
-      <p className="muted settings-hint">
-        缩放快捷键可在「快捷键」分区调整；调整立即生效并保存。
-      </p>
+      <p className="muted settings-hint">{t("settings.zoomHint")}</p>
     </section>
   );
 }

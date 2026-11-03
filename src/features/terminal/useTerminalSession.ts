@@ -3,6 +3,7 @@ import { Channel } from "@tauri-apps/api/core";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
+import { i18next } from "../../i18n";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type { TerminalEvent } from "../../shared/types";
@@ -225,7 +226,9 @@ export function useTerminalSession({
           if (event.kind === "data") {
             term.write(base64ToBytes(event.data));
           } else {
-            term.write(`\r\n\x1b[90m[进程已退出，代码 ${event.code}]\x1b[0m\r\n`);
+            term.write(
+              `\r\n\x1b[90m${i18next.t("terminal.processExited", { code: event.code })}\x1b[0m\r\n`,
+            );
             sessionRef.current = null;
             setStatus("exited");
           }

@@ -1,3 +1,4 @@
+import { i18next } from "../../i18n";
 import type { MenuItem } from "../../shared/ContextMenu";
 import type { RefDto } from "../../shared/types";
 
@@ -25,16 +26,22 @@ export interface BranchMenuActions {
 export function branchMenuItems(branch: RefDto, actions: BranchMenuActions): MenuItem[] {
   return [
     {
-      label: "编辑描述",
+      label: i18next.t("repository.branchMenuEditDescription"),
       disabled: actions.descriptionDisabled,
       onSelect: () => actions.onEditDescription(branch.short_name),
     },
     {
-      label: "与 HEAD 对比",
+      label: i18next.t("repository.branchMenuCompareWithHead"),
       disabled: !actions.hasHead,
       onSelect: () => actions.onCompareWithHead(branch),
     },
-    { label: "设为对比 Base", onSelect: () => actions.onSetBase(branch) },
-    { label: "设为对比 Compare", onSelect: () => actions.onSetCompare(branch) },
+    {
+      label: i18next.t("repository.branchMenuSetBase"),
+      onSelect: () => actions.onSetBase(branch),
+    },
+    {
+      label: i18next.t("repository.branchMenuSetCompare"),
+      onSelect: () => actions.onSetCompare(branch),
+    },
   ];
 }

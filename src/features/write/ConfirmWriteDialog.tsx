@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { Modal } from "../../shared/Modal";
 import type { CommitSummaryDto, GateReportDto, WriteKind } from "../../shared/types";
 
@@ -5,39 +6,6 @@ type DialogKind = Extract<
   WriteKind,
   "cherry_pick" | "revert" | "switch_branch" | "continue_operation" | "abort_operation"
 >;
-
-const ACTION_LABEL: Record<DialogKind, string> = {
-  cherry_pick: "Cherry Pick",
-  revert: "Revert",
-  switch_branch: "切换分支",
-  continue_operation: "继续操作",
-  abort_operation: "中止操作",
-};
-
-const ACTION_HINT: Record<DialogKind, string> = {
-  cherry_pick: "将在当前 HEAD 上重放该提交；merge commit 需在下方选择基线父提交。",
-  revert: "将生成一个反向提交，提交说明由 Git 自动生成；merge commit 需在下方选择基线父提交。",
-  switch_branch:
-    "仅切换到已存在的本地分支（git switch --no-guess），不会创建分支或猜测远程分支；存在改动时不会自动 stash、reset 或 clean。",
-  continue_operation:
-    "将完成当前中断的操作。请先在终端解决全部冲突并 git add；若结果为空提交，Git 会失败并保留中断标记，此时需在终端执行 --skip 跳过本次操作（本应用不会自动跳过）。",
-  abort_operation: "将回到操作开始前的状态，已手工解决的冲突内容会丢失。",
-};
-
-const CONFIRM_LABEL: Partial<Record<DialogKind, string>> = {
-  continue_operation: "继续并完成操作",
-  abort_operation: "中止并丢弃冲突解决",
-};
-
-const DIALOG_TITLE: Partial<Record<DialogKind, string>> = {
-  continue_operation: "继续操作确认",
-  abort_operation: "中止操作确认",
-};
-
-const INTERRUPTION_LABEL: Record<"cherry_pick" | "revert", string> = {
-  cherry_pick: "Cherry Pick",
-  revert: "Revert",
-};
 
 interface ConfirmWriteDialogProps {
   kind: DialogKind;
@@ -72,15 +40,42 @@ export function ConfirmWriteDialog({
   onCancel,
   onConfirm,
 }: ConfirmWriteDialogProps) {
-  const label = ACTION_LABEL[kind];
+  const { t } = useI18n();
+  const actionLabel: Record<DialogKind, string> = {
+    cherry_pick: t("write.labelCherryPick"),
+    revert: t("write.labelRevert"),
+    switch_branch: t("write.labelSwitchBranch"),
+    continue_operation: t("write.labelContinueOperation"),
+    abort_operation: t("write.labelAbortOperation"),
+  };
+  const label = actionLabel[kind];
+  const actionHint: Record<DialogKind, string> = {
+    cherry_pick: t("write.actionHintCherryPick"),
+    revert: t("write.actionHintRevert"),
+    switch_branch: t("write.actionHintSwitchBranch"),
+    continue_operation: t("write.actionHintContinue"),
+    abort_operation: t("write.actionHintAbort"),
+  };
+  const confirmLabel: Partial<Record<DialogKind, string>> = {
+    continue_operation: t("write.confirmContinue"),
+    abort_operation: t("write.confirmAbort"),
+  };
+  const dialogTitle: Partial<Record<DialogKind, string>> = {
+    continue_operation: t("write.titleContinue"),
+    abort_operation: t("write.titleAbort"),
+  };
+  const interruptionLabel: Record<"cherry_pick" | "revert", string> = {
+    cherry_pick: t("write.labelCherryPick"),
+    revert: t("write.labelRevert"),
+  };
   const blocked = Boolean(gateError) || !gate?.ok || validating;
   const destructive = kind === "abort_operation";
 
   return (
     <Modal className="confirm-dialog">
       <header>
-        <h2>{DIALOG_TITLE[kind] ?? `${label} 确认`}</h2>
-        <button className="detail-close" onClick={onCancel} aria-label="关闭确认框">
+        <h2>{dialogTitle[kind] ?? t("write.titleConfirm", { label })}</h2>
+        <button className="detail-close" onClick={onCancel} aria-label={t("write.closeDialogAria")}>
           ×
         </button>
       </header>
@@ -88,8 +83,8 @@ export function ConfirmWriteDialog({
       <section>
         {interruption ? (
           <p className="confirm-target">
-            <span className="muted">中断的操作</span>
-            <span className="mono">{INTERRUPTION_LABEL[interruption]}</span>
+            <span className="muted">{t("write.interruptedOperation")}</span>
+            <span className="mono">{interruptionLabel[interruption]}</span>
           </p>
         ) : commit ? (
           <p className="confirm-target">
@@ -104,21 +99,21 @@ export function ConfirmWriteDialog({
           </p>
         )}
         <p className={destructive ? "danger-text confirm-hint" : "muted confirm-hint"}>
-          {ACTION_HINT[kind]}
+          {actionHint[kind]}
         </p>
       </section>
 
       <section className="gate-report">
-        <h3>写前检查</h3>
+        <h3>{t("write.gateTitle")}</h3>
         {gateError ? (
           <p className="danger-text">{gateError}</p>
         ) : !gate ? (
-          <p className="muted">正在检查工作区与仓库状态…</p>
+          <p className="muted">{t("write.gateChecking")}</p>
         ) : gate.ok ? (
           <p className="gate-ok">{gate.summary}</p>
         ) : (
           <>
-            <p className="danger-text">写前检查未通过：</p>
+            <p className="danger-text">{t("write.gateFailedPrefix")}</p>
             <ul className="gate-issues">
               {gate.issues.map((issue) => (
                 <li key={`${issue.code}:${issue.message}`}>{issue.message}</li>
@@ -126,7 +121,7 @@ export function ConfirmWriteDialog({
             </ul>
           </>
         )}
-        {validating && gate && <p className="muted">正在按当前选择重新检查…</p>}
+        {validating && gate && <p className="muted">{t("write.gateRechecking")}</p>}
         {gate?.warnings.map((warning) => (
           <p className="gate-warning" key={`${warning.code}:${warning.message}`}>
             {warning.message}
@@ -135,11 +130,12 @@ export function ConfirmWriteDialog({
         {gate && gate.affected_paths.length > 0 && (
           <div className="gate-affected">
             <p className="muted">
-              受影响文件（{gate.affected_total}）
               {gate.affected_total > gate.affected_paths.length
-                ? `，仅列出前 ${gate.affected_paths.length} 项`
-                : ""}
-              ：
+                ? t("write.affectedFilesTruncated", {
+                    n: gate.affected_total,
+                    m: gate.affected_paths.length,
+                  })
+                : t("write.affectedFiles", { n: gate.affected_total })}
             </p>
             <ul className="gate-paths">
               {gate.affected_paths.map((path) => (
@@ -153,7 +149,7 @@ export function ConfirmWriteDialog({
         {gate?.is_merge_commit &&
           (gate.parents.length > 0 ? (
             <fieldset className="mainline-picker">
-              <legend className="muted">以第几父提交为基线（-m N）</legend>
+              <legend className="muted">{t("write.mainlineLegend")}</legend>
               {gate.parents.map((parent, index) => {
                 const ordinal = index + 1;
                 return (
@@ -166,27 +162,29 @@ export function ConfirmWriteDialog({
                       disabled={busy}
                       onChange={() => onMainlineChange(ordinal)}
                     />
-                    <span>第 {ordinal} 父</span>
+                    <span>{t("write.mainlineParent", { n: ordinal })}</span>
                     <span className="mono">{parent.short_oid}</span>
                     <span className="confirm-summary" title={parent.summary}>
-                      {parent.summary || "（无提交说明）"}
+                      {parent.summary || t("write.parentNoSummary")}
                     </span>
                   </label>
                 );
               })}
-              <p className="muted">共 {gate.parents.length} 个父提交；改选后会自动重新检查。</p>
+              <p className="muted">{t("write.parentsSummary", { n: gate.parents.length })}</p>
             </fieldset>
           ) : (
-            <p className="muted">该提交是 merge commit，但未返回父提交列表，请在终端使用 -m 执行。</p>
+            <p className="muted">{t("write.mergeNoParents")}</p>
           ))}
       </section>
 
       <footer>
         <button onClick={onCancel} disabled={busy}>
-          取消
+          {t("write.cancel")}
         </button>
         <button className="primary" onClick={onConfirm} disabled={blocked || busy}>
-          {busy ? "执行中…" : (CONFIRM_LABEL[kind] ?? `执行 ${label}`)}
+          {busy
+            ? t("write.executing")
+            : (confirmLabel[kind] ?? t("write.confirmExecute", { label }))}
         </button>
       </footer>
     </Modal>

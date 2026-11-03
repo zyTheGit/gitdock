@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { useI18n } from "../../i18n";
 import { FileDiffView } from "../diff/FileDiffView";
 import { isEscConsumed, isEventInTerminal } from "../../shared/esc";
 import { errorText } from "../../shared/error";
@@ -37,6 +38,7 @@ export function StagingView({
   onOpenTerminal,
   onExit,
 }: StagingViewProps) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<StagingStatusDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -160,7 +162,7 @@ export function StagingView({
           unlisten = stop;
         }
       })
-      .catch((err) => setError(`监听仓库变更失败：${errorText(err)}`));
+      .catch((err) => setError(`${t("staging.watchFailedPrefix")}${errorText(err)}`));
     return () => {
       disposed = true;
       window.clearTimeout(timer);
@@ -255,7 +257,18 @@ export function StagingView({
       .filter((file) => checked[sideKey(side, file.path)])
       .map((file) => file.path);
     const allChecked = files.length > 0 && selectedPaths.length === files.length;
-    const action = side === "unstaged" ? "暂存" : "取消暂存";
+
+    const allLabel = side === "unstaged" ? t("staging.stageAll") : t("staging.unstageAll");
+    const selectAllLabel =
+      side === "unstaged" ? t("staging.selectAllUnstagedFiles") : t("staging.selectAllStagedFiles");
+    const selectedLabel =
+      side === "unstaged"
+        ? selectedPaths.length > 0
+          ? t("staging.stageSelectedCount", { n: selectedPaths.length })
+          : t("staging.stageSelected")
+        : selectedPaths.length > 0
+          ? t("staging.unstageSelectedCount", { n: selectedPaths.length })
+          : t("staging.unstageSelected");
     return (
       <section className="staging-group" aria-label={title}>
         <header className="staging-group-head">
@@ -265,7 +278,7 @@ export function StagingView({
               checked={allChecked}
               disabled={files.length === 0 || disabled}
               onChange={(event) => setGroup(side, files, event.target.checked)}
-              aria-label={`全选${title}文件`}
+              aria-label={selectAllLabel}
             />
             <strong>{title}</strong>
           </label>
@@ -275,19 +288,19 @@ export function StagingView({
               disabled={selectedPaths.length === 0 || disabled}
               onClick={() => void mutate(side, selectedPaths)}
             >
-              {action}所选{selectedPaths.length > 0 ? ` (${selectedPaths.length})` : ""}
+              {selectedLabel}
             </button>
             <button
               disabled={files.length === 0 || disabled}
               onClick={() => void mutate(side, files.map((file) => file.path))}
             >
-              全部{action}
+              {allLabel}
             </button>
           </div>
         </header>
         {files.length === 0 ? (
           <p className="staging-empty muted">
-            {side === "staged" ? "没有已暂存的改动" : "没有未暂存的改动"}
+            {side === "staged" ? t("staging.emptyStaged") : t("staging.emptyUnstaged")}
           </p>
         ) : (
           <StagingFileList
@@ -307,32 +320,35 @@ export function StagingView({
 
   const headLabel = status
     ? status.head.kind === "branch"
-      ? status.head.branch ?? "分支"
+      ? status.head.branch ?? t("staging.branchFallback")
       : status.head.kind === "detached"
         ? "detached HEAD"
-        : "未出生分支"
+        : t("staging.unbornBranch")
     : "";
 
   return (
-    <section className="staging-view" aria-label="暂存区">
+    <section className="staging-view" aria-label={t("staging.viewLabel")}>
       <header className="staging-head">
         <div className="staging-head-title">
-          <strong>暂存区</strong>
+          <strong>{t("staging.title")}</strong>
           <span className="tag">{headLabel}</span>
-          {status?.unborn && <span className="muted">尚无提交</span>}
+          {status?.unborn && <span className="muted">{t("staging.noCommitsYet")}</span>}
           {status?.detached && <span className="muted">detached</span>}
         </div>
         <div className="staging-head-actions">
           {status && (
             <span className="staging-counts muted">
-              已暂存 {status.staged.length} · 未暂存 {status.unstaged.length}
-              {status.conflicted_files.length > 0
-                ? ` · 冲突 ${status.conflicted_files.length}`
-                : ""}
+              {[
+                t("staging.countStaged", { n: status.staged.length }),
+                t("staging.countUnstaged", { n: status.unstaged.length }),
+                ...(status.conflicted_files.length > 0
+                  ? [t("staging.countConflicted", { n: status.conflicted_files.length })]
+                  : []),
+              ].join(" · ")}
             </span>
           )}
           <button onClick={() => void load()} disabled={loading || busy}>
-            {loading ? "读取中…" : "刷新"}
+            {loading ? t("staging.loading") : t("staging.refresh")}
           </button>
         </div>
       </header>
@@ -341,7 +357,7 @@ export function StagingView({
         <div className="banner danger compact" role="alert">
           <span className="banner-text">{error}</span>
           <button className="link" onClick={() => setError(null)}>
-            关闭
+            {t("staging.close")}
           </button>
         </div>
       )}
@@ -354,21 +370,21 @@ export function StagingView({
 
       {status?.is_bare ? (
         <div className="placeholder">
-          <p className="muted">bare 仓库没有工作区，无法查看暂存状态。</p>
+          <p className="muted">{t("staging.bareRepoHint")}</p>
         </div>
       ) : loading && !status ? (
         <div className="placeholder">
-          <p className="muted">读取暂存状态…</p>
+          <p className="muted">{t("staging.loadingStatus")}</p>
         </div>
       ) : status ? (
         <div className="staging-body">
           <div className="staging-lists">
-            {renderGroup("unstaged", "未暂存", status.unstaged)}
-            {renderGroup("staged", "已暂存", status.staged)}
+            {renderGroup("unstaged", t("staging.groupUnstaged"), status.unstaged)}
+            {renderGroup("staged", t("staging.groupStaged"), status.staged)}
             {status.conflicted_files.length > 0 && (
-              <section className="staging-group staging-conflicts" aria-label="冲突文件">
+              <section className="staging-group staging-conflicts" aria-label={t("staging.conflictFiles")}>
                 <header className="staging-group-head">
-                  <strong>冲突文件</strong>
+                  <strong>{t("staging.conflictFiles")}</strong>
                   <span className="muted">{status.conflicted_files.length}</span>
                 </header>
                 <ul className="staging-list">
@@ -381,10 +397,8 @@ export function StagingView({
                     </li>
                   ))}
                 </ul>
-                <p className="staging-conflict-hint muted">
-                  先解决冲突并 git add，再回到暂存区继续；也可在终端中完成。
-                </p>
-                <button onClick={onOpenTerminal}>打开终端处理冲突</button>
+                <p className="staging-conflict-hint muted">{t("staging.conflictHint")}</p>
+                <button onClick={onOpenTerminal}>{t("staging.openTerminalForConflicts")}</button>
               </section>
             )}
           </div>
@@ -400,7 +414,7 @@ export function StagingView({
             ) : (
               <div className="placeholder">
                 <p className="muted">
-                  {diffLoading ? "正在读取 diff…" : "选择一个文件查看 staged/unstaged diff"}
+                  {diffLoading ? t("staging.readingDiff") : t("staging.diffPlaceholder")}
                 </p>
               </div>
             )}
@@ -408,7 +422,7 @@ export function StagingView({
         </div>
       ) : (
         <div className="placeholder">
-          <p className="muted">暂存状态不可用</p>
+          <p className="muted">{t("staging.statusUnavailable")}</p>
         </div>
       )}
     </section>

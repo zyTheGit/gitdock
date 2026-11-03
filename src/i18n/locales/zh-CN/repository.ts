@@ -17,6 +17,10 @@ const repository = {
   removedFromRecent: "已从最近仓库移除",
   pickDialogTitle: "选择 Git 仓库",
   watchError: "监听仓库变更失败：{{error}}",
+  branchMenuEditDescription: "编辑描述",
+  branchMenuCompareWithHead: "与 HEAD 对比",
+  branchMenuSetBase: "设为对比 Base",
+  branchMenuSetCompare: "设为对比 Compare",
 } as const;
 
 export default repository;

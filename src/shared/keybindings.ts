@@ -16,19 +16,31 @@ export const BINDABLE_ACTIONS: readonly BindableAction[] = [
   "zoom.reset",
 ];
 
-export const ACTION_LABELS: Record<BindableAction, string> = {
-  "terminal.toggle": "展开 / 收起终端",
-  "zoom.in": "界面放大一档",
-  "zoom.out": "界面缩小一档",
-  "zoom.reset": "界面恢复 100%",
-};
-
 export const DEFAULT_BINDINGS: Record<BindableAction, string> = {
   "terminal.toggle": "Ctrl+`",
   "zoom.in": "Ctrl+=",
   "zoom.out": "Ctrl+-",
   "zoom.reset": "Ctrl+0",
 };
+
+/**
+ * 拒绝原因的结构化描述：本模块不产出任何语言文案，界面据此翻译。
+ * `keyName` 是触发组合的主键名（原文展示）；`clashAction` 是冲突的动作，
+ * 由界面翻译动作名后插值。
+ */
+export interface BindingRejection {
+  key:
+    | "settings.keybindRejectNoModifier"
+    | "settings.keybindRejectShift"
+    | "settings.keybindRejectCtrlAlt"
+    | "settings.keybindRejectAltReserved"
+    | "settings.keybindRejectCtrlLetter"
+    | "settings.keybindRejectUnsupported"
+    | "settings.keybindRejectUnrecognized"
+    | "settings.keybindRejectClash";
+  keyName?: string;
+  clashAction?: BindableAction;
+}
 
 const STORAGE_KEY = "gitdock.keybindings";
 
@@ -175,19 +187,19 @@ const CTRL_ALLOWED = new Set([
 
 const RESERVED_ALT = new Set(["F4", "Tab", "Esc", "Space", "Home", "End"]);
 
-/** 返回拒绝原因；`null` 表示该组合可用。 */
-export function rejectionReason(combo: Combo): string | null {
+/** 返回结构化拒绝原因；`null` 表示该组合可用。 */
+export function rejectionReason(combo: Combo): BindingRejection | null {
   if (!combo.ctrl && !combo.alt) {
-    return "至少要包含 Ctrl 或 Alt。";
+    return { key: "settings.keybindRejectNoModifier" };
   }
   if (combo.shift) {
-    return "不支持含 Shift 的组合：WebView2 的开发者工具与多数系统快捷键都占用它。";
+    return { key: "settings.keybindRejectShift" };
   }
   if (combo.ctrl && combo.alt) {
-    return "Ctrl+Alt 组合被 Windows 输入法占用。";
+    return { key: "settings.keybindRejectCtrlAlt" };
   }
   if (combo.alt && !combo.ctrl && RESERVED_ALT.has(combo.key)) {
-    return `Alt+${combo.key} 由系统保留。`;
+    return { key: "settings.keybindRejectAltReserved", keyName: combo.key };
   }
   if (combo.ctrl) {
     if (/^F([1-9]|1[0-2])$/.test(combo.key)) {
@@ -197,9 +209,9 @@ export function rejectionReason(combo: Combo): string | null {
       return null;
     }
     if (/^[a-z]$/.test(combo.key)) {
-      return "Ctrl+字母 保留给复制、粘贴、查找等系统行为。";
+      return { key: "settings.keybindRejectCtrlLetter" };
     }
-    return `不支持的组合 Ctrl+${combo.key}。`;
+    return { key: "settings.keybindRejectUnsupported", keyName: combo.key };
   }
   return null;
 }
@@ -299,11 +311,11 @@ export function isCapturing(): boolean {
   return capturing;
 }
 
-/** 写入一个组合；返回拒绝原因，`null` 表示成功。 */
-export function setBinding(action: BindableAction, spec: string): string | null {
+/** 写入一个组合；返回结构化拒绝原因，`null` 表示成功。 */
+export function setBinding(action: BindableAction, spec: string): BindingRejection | null {
   const combo = parseSpec(spec);
   if (!combo) {
-    return "无法识别该组合。";
+    return { key: "settings.keybindRejectUnrecognized" };
   }
   const reason = rejectionReason(combo);
   if (reason) {
@@ -314,7 +326,7 @@ export function setBinding(action: BindableAction, spec: string): string | null 
     (other) => other !== action && bindings[other] === canonical,
   );
   if (clash) {
-    return `与「${ACTION_LABELS[clash]}」用了同一个组合。`;
+    return { key: "settings.keybindRejectClash", clashAction: clash };
   }
   bindings = { ...bindings, [action]: canonical };
   persist();

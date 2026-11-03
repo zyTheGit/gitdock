@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { LanguagePreference } from "../../i18n";
+import { useI18n, type LanguagePreference } from "../../i18n";
 import { Modal } from "../../shared/Modal";
 import type {
   AppInfoDto,
@@ -61,6 +61,7 @@ export function SettingsDialog({
   onSaved,
   onError,
 }: SettingsDialogProps) {
+  const { t } = useI18n();
   const [activeSection, setActiveSection] = useState<SettingsSectionKey>("startup");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   // Git 配置要读真实配置文件，首次进入该分区才发起读取；之后保留编辑内容。
@@ -83,10 +84,10 @@ export function SettingsDialog({
       <Modal className="settings-dialog">
         <header>
           <div className="settings-heading">
-            <h2>设置</h2>
-            <span className="muted">配置 GitDock 的行为与工具</span>
+            <h2>{t("settings.title")}</h2>
+            <span className="muted">{t("settings.subtitle")}</span>
           </div>
-          <button className="detail-close" onClick={onClose} aria-label="关闭设置">
+          <button className="detail-close" onClick={onClose} aria-label={t("settings.closeAria")}>
             ×
           </button>
         </header>
@@ -138,7 +139,7 @@ export function SettingsDialog({
               className="settings-git-config"
               hidden={activeSection !== "git-config"}
             >
-              <h3>Git 配置</h3>
+              <h3>{t("settings.gitConfigTitle")}</h3>
               {gitConfigOpened && <GitConfigSection onError={onError} />}
             </section>
 
@@ -156,9 +157,9 @@ export function SettingsDialog({
           </div>
         </div>
         <footer>
-          <button onClick={onClose}>取消</button>
+          <button onClick={onClose}>{t("settings.cancel")}</button>
           <button className="primary" onClick={() => void save()} disabled={draft.saving}>
-            {draft.saving ? "保存中…" : "保存"}
+            {draft.saving ? t("settings.saving") : t("settings.save")}
           </button>
         </footer>
       </Modal>

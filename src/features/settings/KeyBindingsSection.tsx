@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { useI18n, tLoose } from "../../i18n";
+import type settingsZh from "../../i18n/locales/zh-CN/settings";
 import {
-  ACTION_LABELS,
   BINDABLE_ACTIONS,
   DEFAULT_BINDINGS,
   comboFromEvent,
@@ -12,19 +13,51 @@ import {
   setCapturing,
   useBindings,
   type BindableAction,
+  type BindingRejection,
 } from "../../shared/keybindings";
 import { Kbd } from "../../shared/Kbd";
 
-/** 界面里写死的键位说明，与 fixedShortcuts 一一对应，不支持改键。 */
-const FIXED_SHORTCUTS: { keys: string[]; text: string }[] = [
-  { keys: ["Esc"], text: "逐层退出：取消待替换的槽位 → 退出搜索 → 退出对比 → 清空双槽；也用于收起放大的 diff、关闭菜单与仓库切换器" },
-  { keys: ["Ctrl", "Shift", "Enter"], text: "终端整窗放大 / 还原（只在终端面板内生效）" },
-  { keys: ["↑", "↓"], text: "仓库切换器、搜索建议里移动高亮；拖拽分隔条时调整栏宽，按住 Shift 步长更大" },
-  { keys: ["Enter"], text: "确认仓库切换器 / 搜索输入框里的高亮项" },
-  { keys: ["Ctrl", "点击"], text: "把提交放进对比双槽，第二次点击换到另一个槽位" },
+/** settings 域消息 key（带命名空间前缀）：映射表字段用它收窄，t() 才能编译期校验。 */
+type SettingsKey = `settings.${keyof typeof settingsZh}`;
+
+/** 结构化拒绝原因 → 当前语言的完整句子。 */
+function formatRejection(
+  t: ReturnType<typeof useI18n>["t"],
+  rejection: BindingRejection,
+): string {
+  if (rejection.clashAction) {
+    return tLoose(rejection.key, { action: t(ACTION_LABEL_KEYS[rejection.clashAction]) });
+  }
+  if (rejection.keyName) {
+    return tLoose(rejection.key, { key: rejection.keyName });
+  }
+  return t(rejection.key);
+}
+
+/** 界面里写死的键位说明，与 fixedShortcuts 一一对应，不支持改键；textKey 存 i18n key。 */
+const FIXED_SHORTCUTS: { keys: string[]; textKey: SettingsKey }[] = [
+  { keys: ["Esc"], textKey: "settings.fixedEsc" },
+  { keys: ["Ctrl", "Shift", "Enter"], textKey: "settings.fixedTerminalZoom" },
+  { keys: ["↑", "↓"], textKey: "settings.fixedArrows" },
+  { keys: ["Enter"], textKey: "settings.fixedEnter" },
+  { keys: ["Ctrl", "点击"], textKey: "settings.fixedCtrlClick" },
 ];
 
+/** 可改键动作的展示名 key；shared 的 ACTION_LABELS 供其内部消息使用，界面渲染走 i18n。 */
+const ACTION_LABEL_KEYS: Record<BindableAction, SettingsKey> = {
+  "terminal.toggle": "settings.actionTerminalToggle",
+  "zoom.in": "settings.actionZoomIn",
+  "zoom.out": "settings.actionZoomOut",
+  "zoom.reset": "settings.actionZoomReset",
+};
+
+/** 键位符号里需要翻译的词；Esc / Ctrl / ↑ / Enter 等其余符号保持原文。 */
+const KBD_LABEL_KEYS: Record<string, SettingsKey> = {
+  点击: "settings.keybindKeyClick",
+};
+
 export function KeyBindingsSection() {
+  const { t } = useI18n();
   const bindings = useBindings();
   const [capturing, setCapturingAction] = useState<BindableAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -48,16 +81,16 @@ export function KeyBindingsSection() {
       const spec = formatCombo(combo);
       const reason = rejectionReason(combo) ?? setBinding(capturing, spec);
       if (reason) {
-        setMessage(reason);
+        setMessage(formatRejection(t, reason));
         return;
       }
-      setMessage(`「${ACTION_LABELS[capturing]}」已改为 ${spec}。`);
+      setMessage(t("settings.keybindChangedMessage", { action: t(ACTION_LABEL_KEYS[capturing]), spec }));
       setCapturingAction(null);
     };
     // 捕获阶段：先于全局派发与任何控件的按键处理拿到这次按键。
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [capturing]);
+  }, [capturing, t]);
 
   // 卸载（关闭设置）时录制状态必须归还，否则全局快捷键永久失灵。
   useEffect(() => () => setCapturing(false), []);
@@ -68,18 +101,23 @@ export function KeyBindingsSection() {
 
   return (
     <>
-      <h3>快捷键</h3>
+      <h3>{t("settings.keybindTitle")}</h3>
       <p className="muted settings-hint">
-        点击「修改」后按下新组合即生效，只保存在本机。
-        <kbd>Esc</kbd> 与控件内的 <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> 承担固定的退出与导航语义，不支持改键。
+        {t("settings.keybindHintEditable")}
+        <kbd>Esc</kbd>
+        {t("settings.keybindHintKbdMid")}
+        <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd>
+        {t("settings.keybindHintKbdTail")}
       </p>
       <ul className="keybinding-list">
         {BINDABLE_ACTIONS.map((action) => (
           <li key={action} className={capturing === action ? "is-capturing" : undefined}>
-            <span className="keybinding-action">{ACTION_LABELS[action]}</span>
+            <span className="keybinding-action">{t(ACTION_LABEL_KEYS[action])}</span>
             <span className="keybinding-keys">
               <Kbd spec={bindings[action]} />
-              {capturing === action && <span className="muted">按下新组合…</span>}
+              {capturing === action && (
+                <span className="muted">{t("settings.keybindCapturing")}</span>
+              )}
             </span>
             <span className="keybinding-actions">
               <button
@@ -90,7 +128,7 @@ export function KeyBindingsSection() {
                   setCapturingAction(capturing === action ? null : action);
                 }}
               >
-                {capturing === action ? "取消" : "修改"}
+                {capturing === action ? t("settings.cancel") : t("settings.keybindModify")}
               </button>
               {bindings[action] !== DEFAULT_BINDINGS[action] && (
                 <button
@@ -98,11 +136,13 @@ export function KeyBindingsSection() {
                   className="link"
                   onClick={() => {
                     resetBinding(action);
-                    setMessage(`「${ACTION_LABELS[action]}」已恢复默认。`);
+                    setMessage(
+                      t("settings.keybindResetMessage", { action: t(ACTION_LABEL_KEYS[action]) }),
+                    );
                     setCapturingAction(null);
                   }}
                 >
-                  恢复默认
+                  {t("settings.keybindResetOne")}
                 </button>
               )}
             </span>
@@ -117,25 +157,25 @@ export function KeyBindingsSection() {
             className="link"
             onClick={() => {
               resetAllBindings();
-              setMessage("全部快捷键已恢复默认。");
+              setMessage(t("settings.keybindResetAllMessage"));
               setCapturingAction(null);
             }}
           >
-            全部恢复默认
+            {t("settings.keybindResetAll")}
           </button>
         )}
       </div>
 
-      <h4 className="keybinding-subtitle">固定键位</h4>
+      <h4 className="keybinding-subtitle">{t("settings.keybindFixedTitle")}</h4>
       <ul className="keybinding-fixed">
         {FIXED_SHORTCUTS.map((shortcut) => (
-          <li key={shortcut.text}>
+          <li key={shortcut.textKey}>
             <span className="keybinding-keys">
               {shortcut.keys.map((key) => (
-                <kbd key={key}>{key}</kbd>
+                <kbd key={key}>{KBD_LABEL_KEYS[key] ? t(KBD_LABEL_KEYS[key]) : key}</kbd>
               ))}
             </span>
-            <span className="muted">{shortcut.text}</span>
+            <span className="muted">{t(shortcut.textKey)}</span>
           </li>
         ))}
       </ul>

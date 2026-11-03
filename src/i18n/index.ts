@@ -139,4 +139,21 @@ export function useI18n() {
   return { t, i18n, language: currentLanguage() };
 }
 
+type LooseTranslate = (
+  key: string,
+  options?: Record<string, string | number | undefined>,
+) => string;
+
+/**
+ * 联合 key 各分支插值变量不同时的宽松入口：i18next 的编译期插值校验
+ * 不接受这种组合（例如按运行时状态在 4 个模板间选择），此入口跳过该
+ * 校验；key 与插值仍受运行时资源约束，缺失时回落中文兜底。
+ */
+export function tLoose(
+  key: string,
+  options?: Record<string, string | number | undefined>,
+): string {
+  return (i18next.t as LooseTranslate)(key, options);
+}
+
 export { i18next };

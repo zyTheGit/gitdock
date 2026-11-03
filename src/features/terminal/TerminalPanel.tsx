@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { isEscConsumed } from "../../shared/esc";
+import { useI18n } from "../../i18n";
 import { useTerminalSession } from "./useTerminalSession";
 import "../../styles/terminal.css";
 
@@ -40,6 +41,7 @@ export function TerminalPanel({
   onRunningChange,
   onRepoChanged,
 }: TerminalPanelProps) {
+  const { t } = useI18n();
   const [height, setHeight] = useState(readHeight);
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -120,16 +122,16 @@ export function TerminalPanel({
         className="terminal-resizer"
         role="separator"
         aria-orientation="horizontal"
-        title="拖动调整终端高度"
+        title={t("terminal.resizeHint")}
         onPointerDown={startResize}
       />
       <header className="terminal-header">
         <div className="terminal-title">
-          <strong>终端</strong>
+          <strong>{t("terminal.title")}</strong>
           <span className="terminal-path" title={repoPath}>
             {repoPath}
           </span>
-          <span className="terminal-permission">以当前用户权限运行</span>
+          <span className="terminal-permission">{t("terminal.permissionNote")}</span>
         </div>
         <div className="terminal-actions">
           {restartable ? (
@@ -140,33 +142,33 @@ export function TerminalPanel({
                 disabled={lazygitMissing}
                 title={
                   lazygitMissing
-                    ? "未找到 LazyGit，请先安装或在设置中配置路径"
-                    : "在当前仓库启动 LazyGit"
+                    ? t("terminal.lazygitMissingTitle")
+                    : t("terminal.launchLazygitTitle")
                 }
               >
-                启动 LazyGit
+                {t("terminal.launchLazygit")}
               </button>
               <button className="terminal-launch-button secondary" onClick={() => start("shell")}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v14H4z" /><path d="m7 9 3 3-3 3m6 0h4" /></svg>
-                <span>启动 Shell</span>
+                <span>{t("terminal.launchShell")}</span>
               </button>
             </>
           ) : (
             <button onClick={end} disabled={status === "starting"}>
-              结束进程
+              {t("terminal.endProcess")}
             </button>
           )}
-          <button className="terminal-fullscreen-button" onClick={() => setFullscreen((current) => !current)} title={fullscreen ? "还原终端（Ctrl+Shift+Enter）" : "全屏终端（Ctrl+Shift+Enter）"}>
+          <button className="terminal-fullscreen-button" onClick={() => setFullscreen((current) => !current)} title={fullscreen ? t("terminal.restoreFullscreen") : t("terminal.enterFullscreen")}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               {fullscreen ? <path d="M8 3v5H3m13-5v5h5M3 16h5v5m13-5h-5v5" /> : <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />}
             </svg>
-            <span>{fullscreen ? "还原" : "全屏"}</span>
+            <span>{fullscreen ? t("terminal.restore") : t("terminal.fullscreen")}</span>
           </button>
           <button
             className="terminal-icon-button"
             onClick={onCollapse}
-            aria-label="收起终端"
-            title={`收起面板；终端进程继续运行，可用 ${terminalShortcut} 恢复`}
+            aria-label={t("terminal.collapseLabel")}
+            title={t("terminal.collapseTitle", { shortcut: terminalShortcut })}
           >
             <svg
               viewBox="0 0 24 24"
@@ -184,10 +186,11 @@ export function TerminalPanel({
       </header>
       {lazygitMissing && restartable && (
         <div className="terminal-notice">
-          未找到 LazyGit：可运行 <code>winget install JesseDuffield.lazygit</code> 安装，或在设置中填写
-          可执行文件路径；Shell 不受影响。
+          {t("terminal.lazygitNoticePrefix")}
+          <code>winget install JesseDuffield.lazygit</code>
+          {t("terminal.lazygitNoticeSuffix")}
           <button className="link" onClick={onOpenSettings}>
-            打开设置
+            {t("terminal.openSettings")}
           </button>
         </div>
       )}

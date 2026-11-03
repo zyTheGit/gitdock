@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n";
+
 interface TerminalSectionProps {
   active: boolean;
   lazygitPath: string;
@@ -11,23 +13,21 @@ export function TerminalSection({
   onLazygitPathChange,
   onBrowse,
 }: TerminalSectionProps) {
+  const { t } = useI18n();
   return (
     <section id="settings-terminal" hidden={!active}>
-      <h3>终端</h3>
-      <p className="muted settings-hint">
-        GitDock 不捆绑 LazyGit。留空时从 PATH 查找；填写后只使用该文件，找不到会在终端面板提示。
-        终端以当前用户权限、在当前打开的仓库目录中运行。
-      </p>
+      <h3>{t("settings.terminalTitle")}</h3>
+      <p className="muted settings-hint">{t("settings.terminalHint")}</p>
       <label className="settings-field">
-        <span className="settings-field-label">LazyGit 可执行文件</span>
+        <span className="settings-field-label">{t("settings.terminalLazygitLabel")}</span>
         <span className="tool-path">
           <input
             value={lazygitPath}
-            placeholder="留空则从 PATH 查找 LazyGit，例如 C:\Users\me\scoop\shims\lazygit.exe"
+            placeholder={t("settings.terminalLazygitPlaceholder")}
             onChange={(event) => onLazygitPathChange(event.target.value)}
           />
           <button type="button" onClick={() => void onBrowse()}>
-            浏览…
+            {t("settings.browse")}
           </button>
         </span>
       </label>

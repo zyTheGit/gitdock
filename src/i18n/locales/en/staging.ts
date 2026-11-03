@@ -1,6 +1,45 @@
 import type { StagingMessages } from "../zh-CN/staging";
 
 /** staging 域英文资源；用 satisfies 保证与 zh-CN 的 key 结构同构。 */
-const staging = {} satisfies StagingMessages;
+const staging = {
+  title: "Staging",
+  viewLabel: "Staging area",
+  groupUnstaged: "Unstaged",
+  groupStaged: "Staged",
+  emptyUnstaged: "No unstaged changes",
+  emptyStaged: "No staged changes",
+  actionStage: "Stage",
+  actionUnstage: "Unstage",
+  stageSelected: "Stage selected",
+  stageSelectedCount: "Stage selected ({{n}})",
+  unstageSelected: "Unstage selected",
+  unstageSelectedCount: "Unstage selected ({{n}})",
+  stageAll: "Stage all",
+  unstageAll: "Unstage all",
+  selectAllUnstagedFiles: "Select all unstaged files",
+  selectAllStagedFiles: "Select all staged files",
+  countStaged: "Staged {{n}}",
+  countUnstaged: "Unstaged {{n}}",
+  countConflicted: "Conflicts {{n}}",
+  loading: "Loading…",
+  refresh: "Refresh",
+  close: "Close",
+  branchFallback: "branch",
+  unbornBranch: "unborn branch",
+  noCommitsYet: "No commits yet",
+  bareRepoHint: "A bare repository has no working tree; staging status is unavailable.",
+  loadingStatus: "Loading staging status…",
+  statusUnavailable: "Staging status unavailable",
+  conflictFiles: "Conflicted files",
+  conflictHint: "Resolve conflicts and run git add, then return to staging; you can also finish in the terminal.",
+  openTerminalForConflicts: "Open terminal to resolve conflicts",
+  readingDiff: "Reading diff…",
+  diffPlaceholder: "Select a file to view its staged/unstaged diff",
+  watchFailedPrefix: "Failed to watch repository changes: ",
+  untracked: "untracked",
+  submodule: "submodule",
+  binary: "binary",
+  selectFile: "Select {{path}}",
+} satisfies StagingMessages;
 
 export default staging;

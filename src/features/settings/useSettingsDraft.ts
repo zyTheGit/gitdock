@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { i18next } from "../../i18n";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type { ExternalToolConfig, SettingsDto } from "../../shared/types";
@@ -54,7 +55,7 @@ export function useSettingsDraft(
       const selected = await openDialog({
         multiple: false,
         directory: false,
-        title: "选择对比工具可执行文件",
+        title: i18next.t("settings.draftSelectToolTitle"),
       });
       if (typeof selected === "string") {
         update(index, { executable: selected });
@@ -69,7 +70,7 @@ export function useSettingsDraft(
       const selected = await openDialog({
         multiple: false,
         directory: false,
-        title: "选择 LazyGit 可执行文件",
+        title: i18next.t("settings.draftSelectLazygitTitle"),
       });
       if (typeof selected === "string") {
         setLazygitPath(selected);
