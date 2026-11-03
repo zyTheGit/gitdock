@@ -149,6 +149,8 @@ src-tauri app orchestration
 
 完成标准：三平台 CI 通过；各平台 adapter 有对应测试；无平台私有逻辑泄漏到 React 或 Git 领域 crate。
 
+> G3 进度（2026-11-03，分支 `feature/platform-adapter`，提交 `bbd8ba4`/`cdea6f0`）：第 1 项完成——ADR-0005 落地 `src-tauri/src/app/platform/`（shell/url/paths/tools 按 cfg 分派纯函数），四个消费文件（terminal/external/config.tools/config.recent）OS 专属细节收敛至 platform 模块、业务文件 cfg 清零；差距清单 A 级 4 项中 3 项修复（Shell 跨平台 A-1、工具探测 A-2、路径比较 A-3），A-4（Unix 进程组回收）经 ADR 决策延后至实机验证（G4/G5）。第 2 项：三平台 CI 矩阵 main 已全绿（G2 成果延续），领域 crate 零 OS 分支维持。第 3 项：配置目录/文件监听/Git 发现/PTY 经调查确认为平台中立（C 级），终端 Shell 能力差异已由 platform::shell 补齐。第 4 项：三平台 CI + rust-cache 缓存就绪，release artifact 归档（upload-artifact 两段式）就绪，**许可证/供应链检查本轮新增**（deny.toml + ci.yml licenses job，cargo-deny-action licenses+advisories；notify 的 CC0-1.0 显式允许）——licenses job 待推送后 CI 首跑验证。前端配套：`src/shared/platform.ts`（AppInfoDto 注入）、TerminalPanel metaKey 全屏键与 LazyGit 安装指引三平台化、i18n 平台文案 14 项处理、**快捷键 ⌘ 完整支持（ADR-0006 显示层映射方案：存储规范不变，macOS 监听并入 ctrl、显示 ⌘）**。**G3 剩余**：licenses job CI 首跑验证（随分支推送）；macOS/Linux 运行时行为（Shell/⌘/探测/显示）属 G4/G5 实机验收项——CI 编译与测试通过不代表运行时验证完成。
+
 ### G4：macOS 公开支持
 
 1. 验证 Apple Silicon，评估 Intel 发行需求；确认最低 macOS 版本。
