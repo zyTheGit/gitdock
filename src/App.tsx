@@ -7,6 +7,8 @@ import { useCommitMenus, type BranchMenuState, type RowMenuState } from "./app/u
 import { useGlobalEsc, type ViewMode } from "./app/useGlobalEsc";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
 import { useFontScale } from "./app/useFontScale";
+import { useAppLanguage } from "./i18n/useAppLanguage";
+import { toLanguagePreference } from "./i18n";
 
 import { useRepositorySession } from "./app/useRepositorySession";
 import {
@@ -80,6 +82,7 @@ export default function App() {
   const { repo, info, settings, workspace, busy, error, diagnostic, toast, graph } = session;
   const { setSettings, setError, setDiagnostic, setToast } = session;
   const zoom = useFontScale({ settings, setSettings, onError: setError });
+  const language = useAppLanguage(settings, setSettings, setError);
 
   const panes = usePaneWidths();
   const updateState = useUpdateCheck();
@@ -574,6 +577,8 @@ export default function App() {
       {settingsOpen && settings && (
         <SettingsDialog
           settings={settings}
+          language={toLanguagePreference(settings.language)}
+          onLanguageChange={language.changeLanguage}
           info={info}
           fontScale={zoom.fontScale}
           updateCheck={updateState}

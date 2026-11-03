@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n, type LanguagePreference } from "../../i18n";
 import { Select } from "../../shared/Select";
 
 const MIN_SCALE = 0.75;
@@ -7,6 +8,9 @@ const MAX_SCALE = 2;
 interface AppearanceSectionProps {
   active: boolean;
   fontScale: number;
+  /** 语言切换即时生效（写 settings.json 独立命令），不走设置草稿的「保存」。 */
+  language: LanguagePreference;
+  onLanguageChange: (preference: LanguagePreference) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetZoom: () => void;
@@ -15,10 +19,13 @@ interface AppearanceSectionProps {
 export function AppearanceSection({
   active,
   fontScale,
+  language,
+  onLanguageChange,
   onZoomIn,
   onZoomOut,
   onResetZoom,
 }: AppearanceSectionProps) {
+  const { t } = useI18n();
   const [theme, setTheme] = useState(() => localStorage.getItem("gitdock.theme") ?? "system");
 
   return (
@@ -47,6 +54,20 @@ export function AppearanceSection({
           }}
         />
       </label>
+      <label className="settings-theme-row">
+        <span>{t("language")}</span>
+        <Select
+          className="theme-select"
+          value={language}
+          options={[
+            { value: "system", label: t("languageOptionSystem") },
+            { value: "zh-CN", label: t("languageOptionZhCn") },
+            { value: "en", label: t("languageOptionEn") },
+          ]}
+          onChange={(event) => onLanguageChange(event.target.value as LanguagePreference)}
+        />
+      </label>
+      <p className="muted settings-hint">{t("languageHint")}</p>
       <div className="zoom-row">
         <span>界面缩放</span>
         <span className="zoom-controls">

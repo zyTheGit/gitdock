@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { LanguagePreference } from "../../i18n";
 import { Modal } from "../../shared/Modal";
 import type {
   AppInfoDto,
@@ -21,6 +22,9 @@ import { useSettingsDraft } from "./useSettingsDraft";
 
 interface SettingsDialogProps {
   settings: SettingsDto;
+  /** 当前语言偏好；语言切换即时生效，不经过草稿「保存」。 */
+  language: LanguagePreference;
+  onLanguageChange: (preference: LanguagePreference) => void;
   info: AppInfoDto | null;
   fontScale: number;
   /** 更新检查状态与「关于」分区动作：App 持有 useUpdateCheck 单例后经 props 注入。 */
@@ -40,6 +44,8 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({
   settings,
+  language,
+  onLanguageChange,
   info,
   fontScale,
   updateCheck,
@@ -98,6 +104,8 @@ export function SettingsDialog({
             <AppearanceSection
               active={activeSection === "appearance"}
               fontScale={fontScale}
+              language={language}
+              onLanguageChange={onLanguageChange}
               onZoomIn={onZoomIn}
               onZoomOut={onZoomOut}
               onResetZoom={onResetZoom}

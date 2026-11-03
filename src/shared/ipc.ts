@@ -59,6 +59,7 @@ export const ipc = {
   openReleasePage: (url: string) => call<void>("open_release_page", { url }),
   loadSettings: () => call<SettingsDto>("load_settings"),
   saveSettings: (settings: SettingsDto) => call<SettingsDto>("save_settings", { settings }),
+  setLanguage: (language: string | null) => call<SettingsDto>("set_language", { language }),
   rememberRepository: (path: string) => call<SettingsDto>("remember_repository", { path }),
   forgetRecentRepository: (path: string) =>
     call<SettingsDto>("forget_recent_repository", { path }),

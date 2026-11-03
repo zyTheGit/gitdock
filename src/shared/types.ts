@@ -365,6 +365,8 @@ export interface SettingsDto {
   window_height?: number;
   /** 界面缩放比例，1.0 为 100%；后端正反校验 0.75–2.0。 */
   font_scale: number;
+  /** 界面语言覆盖；空值跟随系统（"zh-CN" | "en"）。只经 set_language 命令修改。 */
+  language?: string | null;
 }
 
 /** Git 配置作用域：用户级（`--global`）或当前仓库（`--local`）。保存只写所选层。 */

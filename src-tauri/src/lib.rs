@@ -89,6 +89,7 @@ pub fn run() {
             commands::terminal_close,
             commands::load_settings,
             commands::save_settings,
+            commands::set_language,
             commands::remember_repository,
             commands::forget_recent_repository,
             commands::startup_repository,

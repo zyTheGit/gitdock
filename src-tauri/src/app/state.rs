@@ -96,6 +96,13 @@ impl AppState {
         Ok(saved)
     }
 
+    /// 语言覆盖独立保存：语言切换即时生效，不经过设置弹窗的整体「保存」。
+    pub fn set_language(&self, language: Option<String>) -> Result<SettingsDto> {
+        let mut next = self.settings()?;
+        next.language = language;
+        self.save_settings(next)
+    }
+
     pub fn remember_repository(&self, path: &Path) -> Result<SettingsDto> {
         let current = self.settings()?;
         let saved = config::remember(&self.paths.config_dir, &current, path)?;

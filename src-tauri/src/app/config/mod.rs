@@ -41,6 +41,19 @@ pub struct SettingsDto {
     /// 界面缩放比例；1.0 为 100%。旧配置缺省时按 100% 处理。
     #[serde(default = "default_font_scale")]
     pub font_scale: f64,
+    /// 界面语言覆盖；None 时跟随系统语言。合法取值见 `SUPPORTED_LANGUAGES`。
+    /// 只能经 `set_language` 命令修改：语言切换即时生效，不走设置草稿的「保存」。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+}
+
+/// 支持的语言。首期仅简体中文与英文。
+pub const SUPPORTED_LANGUAGES: &[&str] = &["zh-CN", "en"];
+
+fn language_valid(value: &Option<String>) -> bool {
+    value
+        .as_deref()
+        .is_none_or(|lang| SUPPORTED_LANGUAGES.contains(&lang))
 }
 
 impl Default for SettingsDto {
@@ -57,6 +70,7 @@ impl Default for SettingsDto {
             window_width: None,
             window_height: None,
             font_scale: default_font_scale(),
+            language: None,
         }
     }
 }
@@ -90,6 +104,10 @@ pub fn load(dir: &Path) -> SettingsDto {
             // 手改配置可能越界；读取时回落到 100%，避免把界面缩到不可用。
             if !font_scale_in_range(settings.font_scale) {
                 settings.font_scale = default_font_scale();
+            }
+            // 手改配置可能写入不支持的语言；读取时回落到跟随系统。
+            if !language_valid(&settings.language) {
+                settings.language = None;
             }
             settings
         }
@@ -126,6 +144,12 @@ pub fn save(dir: &Path, settings: &SettingsDto) -> Result<SettingsDto, UserVisib
         return Err(UserVisibleError::new(
             ErrorCode::InvalidArgument,
             "界面缩放比例需在 75% 与 200% 之间",
+        ));
+    }
+    if !language_valid(&next.language) {
+        return Err(UserVisibleError::new(
+            ErrorCode::InvalidArgument,
+            "不支持的语言",
         ));
     }
     validate(&next)?;
@@ -220,6 +244,51 @@ mod tests {
         )
         .expect("写入越界设置失败");
         assert_eq!(load(dir.path()).font_scale, 1.0);
+    }
+
+    #[test]
+    fn missing_language_defaults_to_system() {
+        let dir = temp_dir();
+        std::fs::write(
+            settings_path(dir.path()),
+            br#"{"schema_version":1,"recent_repositories":[],"external_tools":[],"restore_last_repository":true}"#,
+        )
+        .expect("写入旧版设置失败");
+        assert_eq!(load(dir.path()).language, None);
+    }
+
+    #[test]
+    fn language_roundtrips_when_saved() {
+        let dir = temp_dir();
+        let settings = SettingsDto {
+            language: Some("en".to_string()),
+            ..Default::default()
+        };
+        let saved = save(dir.path(), &settings).expect("保存设置失败");
+        assert_eq!(saved.language.as_deref(), Some("en"));
+        assert_eq!(load(dir.path()).language.as_deref(), Some("en"));
+    }
+
+    #[test]
+    fn invalid_language_falls_back_to_system_on_load() {
+        let dir = temp_dir();
+        std::fs::write(
+            settings_path(dir.path()),
+            br#"{"schema_version":1,"recent_repositories":[],"external_tools":[],"restore_last_repository":true,"language":"fr"}"#,
+        )
+        .expect("写入无效语言失败");
+        assert_eq!(load(dir.path()).language, None);
+    }
+
+    #[test]
+    fn invalid_language_is_rejected_on_save() {
+        let dir = temp_dir();
+        let settings = SettingsDto {
+            language: Some("fr".to_string()),
+            ..Default::default()
+        };
+        let err = save(dir.path(), &settings).expect_err("应拒绝不支持的语言");
+        assert_eq!(err.code, ErrorCode::InvalidArgument);
     }
 
     #[test]
