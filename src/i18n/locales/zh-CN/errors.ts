@@ -163,6 +163,17 @@ const errors = {
   oidFormatInvalid: "OID 格式无效",
   paginationCursorInvalid: "分页游标无效，请刷新图谱",
 
+  // ---- diff 降级说明 FileDiffDto.note（note_code）----
+  diffTooLarge: "文件超过 2MB，未生成文本差异",
+  diffBinary: "二进制文件，无法显示文本差异",
+  diffTruncatedLines: "差异超过 {{lines}} 行，仅显示前 {{lines}} 行",
+  diffEncodingFallback: "文件不是合法 UTF-8，已按有损方式解码显示",
+  diffGitlink: "子模块（gitlink）变更，仅显示对象 ID",
+  stagingSymlink: "未跟踪的符号链接，不展开链接目标内容",
+  stagingNotRegularFile: "该路径不是普通文件，无法显示 diff",
+  stagingGitlink: "子模块（gitlink）变更，请在终端查看",
+  stagingNoTextDiff: "没有可显示的文本差异",
+
   // ---- 写前 Gate：GateIssueDto（code 已统一 gate_ 前缀）----
   gateBareRepository: "bare 仓库不提供写操作，请使用工作区仓库或命令行",
   gateInterrupted: "存在未完成的 Git 操作：{{kinds}}；{{hint}}",

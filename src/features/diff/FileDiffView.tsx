@@ -3,6 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Diff, Hunk, parseDiff } from "react-diff-view";
 import "react-diff-view/style/index.css";
 import type { FileDiffDto, FileStatus } from "../../shared/types";
+import { noteText } from "../../shared/error";
 import { statusLabelKey } from "../../shared/fileStatus";
 import { consumeEsc, isEventInTerminal } from "../../shared/esc";
 import { Select } from "../../shared/Select";
@@ -338,7 +339,7 @@ export function FileDiffView({
                 diff.truncated ||
                 diff.gitlink ||
                 diff.encoding_fallback
-              ) && <div className="banner info compact">{diff.note}</div>}
+              ) && <div className="banner info compact">{noteText(diff)}</div>}
             {diff.binary && (
               <div className="banner info compact">{t("diff.binaryFile")}</div>
             )}

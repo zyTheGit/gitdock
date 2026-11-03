@@ -487,10 +487,12 @@ pub(crate) fn diff_file(
         deletions: 0,
         language: language_for(path),
         note: None,
+        note_code: None,
+        note_args: None,
     };
 
     if gitlink {
-        dto.note = Some("子模块（gitlink）变更，仅显示对象 ID".to_owned());
+        dto.set_note("diff_gitlink", "子模块（gitlink）变更，仅显示对象 ID");
         return Ok(dto);
     }
 
@@ -500,7 +502,7 @@ pub(crate) fn diff_file(
         || new_bytes.as_ref().map(|b| b.len()).unwrap_or(0) > MAX_DIFF_BYTES
     {
         dto.too_large = true;
-        dto.note = Some(too_large_note());
+        dto.set_note("diff_too_large", too_large_note());
         return Ok(dto);
     }
 
@@ -517,7 +519,7 @@ pub(crate) fn diff_file(
             .map(|t| t.encoding_fallback)
             .unwrap_or(false);
     if dto.binary {
-        dto.note = Some(binary_note());
+        dto.set_note("diff_binary", binary_note());
         return Ok(dto);
     }
 

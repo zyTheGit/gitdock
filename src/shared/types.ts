@@ -167,6 +167,10 @@ export interface FileDiffDto {
   deletions: number;
   language?: string;
   note?: string;
+  /** 降级类型（errors 域 code）；本地化优先使用，缺失翻译回落 note。 */
+  note_code?: string | null;
+  /** 降级说明插值参数。 */
+  note_args?: Record<string, string> | null;
 }
 
 export interface CompareResultDto {

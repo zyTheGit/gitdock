@@ -302,6 +302,35 @@ pub struct FileDiffDto {
     pub language: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// note 对应的降级类型（errors 域 code）；前端按 code+args 本地化，缺失翻译回落 note。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note_code: Option<String>,
+    /// note 插值参数。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note_args: Option<std::collections::BTreeMap<String, String>>,
+}
+
+impl FileDiffDto {
+    /// 设置降级说明：中文 note 兜底 + 结构化 code，前端按语言渲染。
+    pub fn set_note(&mut self, code: &str, message: impl Into<String>) {
+        self.note = Some(message.into());
+        self.note_code = Some(code.to_owned());
+        self.note_args = None;
+    }
+
+    /// 带单个插值参数的降级说明。
+    pub fn set_note_arg(
+        &mut self,
+        code: &str,
+        key: &str,
+        value: impl Into<String>,
+        message: impl Into<String>,
+    ) {
+        self.note = Some(message.into());
+        self.note_code = Some(code.to_owned());
+        let args = self.note_args.get_or_insert_with(Default::default);
+        args.insert(key.to_owned(), value.into());
+    }
 }
 
 /* ------------------------------ 对比 ------------------------------ */

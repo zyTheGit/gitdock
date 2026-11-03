@@ -44,12 +44,17 @@ pub fn apply_patch_limit(dto: &mut FileDiffDto, patch: String) {
             .join("\n");
         dto.patch = Some(truncated);
         dto.truncated = true;
-        dto.note = Some(truncated_note(MAX_PATCH_LINES));
+        dto.set_note_arg(
+            "diff_truncated_lines",
+            "lines",
+            MAX_PATCH_LINES.to_string(),
+            truncated_note(MAX_PATCH_LINES),
+        );
     } else {
         dto.patch = Some(patch);
     }
     if dto.encoding_fallback {
-        dto.note = Some(encoding_fallback_note());
+        dto.set_note("diff_encoding_fallback", encoding_fallback_note());
     }
 }
 
@@ -76,6 +81,8 @@ mod tests {
             deletions: 0,
             language: None,
             note: None,
+            note_code: None,
+            note_args: None,
         }
     }
 

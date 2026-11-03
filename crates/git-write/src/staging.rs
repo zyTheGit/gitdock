@@ -179,6 +179,7 @@ impl GitWriteModule {
             return Ok(note_diff(
                 &entry.path,
                 FileStatus::Added,
+                "staging_symlink",
                 "未跟踪的符号链接，不展开链接目标内容",
             ));
         }
@@ -186,11 +187,17 @@ impl GitWriteModule {
             return Ok(note_diff(
                 &entry.path,
                 FileStatus::Added,
+                "staging_not_regular_file",
                 "该路径不是普通文件，无法显示 diff",
             ));
         }
         if meta.len() > MAX_DIFF_BYTES as u64 {
-            let mut dto = note_diff(&entry.path, FileStatus::Added, &too_large_note());
+            let mut dto = note_diff(
+                &entry.path,
+                FileStatus::Added,
+                "diff_too_large",
+                &too_large_note(),
+            );
             dto.too_large = true;
             return Ok(dto);
         }
@@ -361,25 +368,27 @@ fn build_diff(
         deletions,
         language: language_for(path),
         note: None,
+        note_code: None,
+        note_args: None,
     };
     if binary {
-        dto.note = Some(binary_note());
+        dto.set_note("diff_binary", binary_note());
         return dto;
     }
     if gitlink {
-        dto.note = Some("子模块（gitlink）变更，请在终端查看".into());
+        dto.set_note("staging_gitlink", "子模块（gitlink）变更，请在终端查看");
         return dto;
     }
     if patch_text.trim().is_empty() {
-        dto.note = Some("没有可显示的文本差异".into());
+        dto.set_note("staging_no_text_diff", "没有可显示的文本差异");
         return dto;
     }
     apply_patch_limit(&mut dto, patch_text);
     dto
 }
 
-fn note_diff(path: &str, status: FileStatus, note: &str) -> FileDiffDto {
-    FileDiffDto {
+fn note_diff(path: &str, status: FileStatus, code: &str, note: &str) -> FileDiffDto {
+    let mut dto = FileDiffDto {
         generation: 0,
         path: path.to_owned(),
         old_path: None,
@@ -395,8 +404,12 @@ fn note_diff(path: &str, status: FileStatus, note: &str) -> FileDiffDto {
         additions: 0,
         deletions: 0,
         language: language_for(path),
-        note: Some(note.to_owned()),
-    }
+        note: None,
+        note_code: None,
+        note_args: None,
+    };
+    dto.set_note(code, note);
+    dto
 }
 
 fn patch_stats(patch: &str) -> (u32, u32) {

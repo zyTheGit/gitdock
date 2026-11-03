@@ -1,6 +1,7 @@
 import { i18next } from "../i18n";
 import { CommandError } from "./ipc";
 import type {
+  FileDiffDto,
   GateIssueDto,
   GateReportDto,
   InterruptionKind,
@@ -71,6 +72,15 @@ export function outcomeText(outcome: WriteOutcomeDto): string {
     if (translated !== outcome.key) return translated;
   }
   return outcome.message;
+}
+
+/** diff 降级说明 → 本地化文本；note_code+args 优先，缺失翻译回落 note。 */
+export function noteText(diff: FileDiffDto): string {
+  if (diff.note_code) {
+    const translated = byCode(diff.note_code, diff.note_args, diff.note ?? "");
+    if (diff.note && translated !== diff.note) return translated;
+  }
+  return diff.note ?? "";
 }
 
 const KIND_KEYS: Record<InterruptionKind, string> = {
