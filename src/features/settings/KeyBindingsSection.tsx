@@ -30,7 +30,12 @@ function formatRejection(
     return tLoose(rejection.key, { action: t(ACTION_LABEL_KEYS[rejection.clashAction]) });
   }
   if (rejection.keyName) {
-    return tLoose(rejection.key, { key: rejection.keyName });
+    // Unsupported 的前缀修饰键按平台显示 ⌘/Ctrl（ADR-0006）；AltReserved 的 Alt 保持原文。
+    const options =
+      rejection.key === "settings.keybindRejectUnsupported"
+        ? { key: rejection.keyName, modifier: primaryModifierLabel() }
+        : { key: rejection.keyName };
+    return tLoose(rejection.key, options);
   }
   return t(rejection.key);
 }
@@ -173,7 +178,13 @@ export function KeyBindingsSection() {
           <li key={shortcut.textKey}>
             <span className="keybinding-keys">
               {shortcut.keys.map((key) => (
-                <kbd key={key}>{KBD_LABEL_KEYS[key] ? t(KBD_LABEL_KEYS[key]) : key}</kbd>
+                <kbd key={key}>
+                  {key === "Ctrl" && primaryModifierLabel() !== "Ctrl"
+                    ? primaryModifierLabel()
+                    : KBD_LABEL_KEYS[key]
+                      ? t(KBD_LABEL_KEYS[key])
+                      : key}
+                </kbd>
               ))}
             </span>
             <span className="muted">

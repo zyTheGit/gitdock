@@ -83,7 +83,7 @@ const settings = {
   keybindFixedTitle: "Fixed keys",
   keybindKeyClick: "Click",
   keybindRejectNoModifier:
-    "Must include Ctrl or Alt. On macOS, ⌘ combos are planned but not available yet.",
+    "Must include Ctrl or Alt. On macOS, ⌘ is equivalent to Ctrl and can be used directly.",
   keybindRejectShift:
     "Shift combos are not supported: browser devtools and most system shortcuts rely on them.",
   keybindRejectCtrlAltWin: "Ctrl+Alt combos are reserved by Windows input methods.",
@@ -92,7 +92,7 @@ const settings = {
   keybindRejectAltReserved: "Alt+{{key}} is reserved by the system.",
   keybindRejectCtrlLetter:
     "Ctrl/Cmd+letter combos are reserved for common shortcuts such as copy, paste and find.",
-  keybindRejectUnsupported: "Unsupported combo Ctrl+{{key}}.",
+  keybindRejectUnsupported: "Unsupported combo {{modifier}}+{{key}}.",
   keybindRejectUnrecognized: "Could not recognize this combo.",
   keybindRejectClash: "Already used by \"{{action}}\".",
   actionTerminalToggle: "Toggle terminal",

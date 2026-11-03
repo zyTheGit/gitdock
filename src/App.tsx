@@ -40,7 +40,7 @@ import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
 import { ContextMenu } from "./shared/ContextMenu";
 
 import { PaneSplitter } from "./shared/PaneSplitter";
-import { useBindings, useKeybindings } from "./shared/keybindings";
+import { displaySpec, useBindings, useKeybindings } from "./shared/keybindings";
 import { copyText } from "./shared/clipboard";
 import { errorText } from "./shared/error";
 import { ipc } from "./shared/ipc";
@@ -310,7 +310,7 @@ export default function App() {
         localBranchCount={localBranches.length}
         terminalOpen={terminalOpen}
         terminalRunning={terminalRunning}
-        terminalShortcut={bindings["terminal.toggle"]}
+        terminalShortcut={displaySpec(bindings["terminal.toggle"])}
         onOpenRepo={(path) => void session.open(path)}
         onForgetRepo={(path) => void session.forget(path)}
         onPickRepo={() => void session.pick()}
@@ -476,7 +476,7 @@ export default function App() {
           repoPath={repo.path}
           visible={terminalOpen}
           lazygitConfig={settings?.lazygit_path ?? ""}
-          terminalShortcut={bindings["terminal.toggle"]}
+          terminalShortcut={displaySpec(bindings["terminal.toggle"])}
           onCollapse={() => setTerminalOpen(false)}
           onOpenSettings={() => setSettingsOpen(true)}
           onRunningChange={handleTerminalRunning}
@@ -492,7 +492,7 @@ export default function App() {
         fontScale={zoom.fontScale}
         terminalOpen={terminalOpen}
         terminalRunning={terminalRunning}
-        terminalShortcut={bindings["terminal.toggle"]}
+        terminalShortcut={displaySpec(bindings["terminal.toggle"])}
         updateVersion={updateVersion}
         onToggleTerminal={toggleTerminal}
         onOpenUpdate={openUpdatePage}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { currentPlatform } from "./platform";
+import { currentPlatform, primaryModifierLabel } from "./platform";
 
 /**
  * 可改键的动作集合。
@@ -118,15 +118,24 @@ export function formatCombo(combo: Combo): string {
     .join("+");
 }
 
-/** 拆成修饰键 + 主键，供界面逐个渲染 `<kbd>`。 */
+/**
+ * 拆成修饰键 + 主键，供界面逐个渲染 `<kbd>`。macOS 上 Ctrl 键名显示为 ⌘
+ * （ADR-0006 显示层映射；存储规范仍为 Ctrl）。
+ */
 export function splitCombo(spec: string): string[] {
   const combo = parseSpec(spec);
   if (!combo) {
     return [spec];
   }
-  return [combo.ctrl && "Ctrl", combo.alt && "Alt", combo.shift && "Shift", combo.key]
+  const ctrlLabel = combo.ctrl && currentPlatform() === "macos" ? primaryModifierLabel() : "Ctrl";
+  return [combo.ctrl && ctrlLabel, combo.alt && "Alt", combo.shift && "Shift", combo.key]
     .filter(Boolean)
     .map(String);
+}
+
+/** 整串组合键文本（供 t() 插值）；macOS 上 Ctrl 前缀显示为 ⌘。 */
+export function displaySpec(spec: string): string {
+  return splitCombo(spec).join("+");
 }
 
 export function comboFromEvent(event: KeyboardEvent): Combo | null {
@@ -137,17 +146,22 @@ export function comboFromEvent(event: KeyboardEvent): Combo | null {
   if (!key) {
     return null;
   }
-  return { ctrl: event.ctrlKey, alt: event.altKey, shift: event.shiftKey, key };
+  // macOS 上 ⌘ 与物理 Ctrl 录入/命中同一绑定（ADR-0006 监听层映射）；
+  // 非 macOS 的 Meta 不并入，保留给窗口管理等系统行为。
+  const ctrl =
+    event.ctrlKey || (currentPlatform() === "macos" && event.metaKey);
+  return { ctrl, alt: event.altKey, shift: event.shiftKey, key };
 }
 
 /**
  * 匹配规则比录入规则宽松：绑定本身不含 Shift（校验会拒绝），因此
  * `Ctrl+Shift+=` 也算命中——这是改动前就有的行为，不能回退。
+ * macOS 上 ⌘ 组合经 comboFromEvent 并入 ctrl 后参与匹配。
  */
 export function matchesBinding(spec: string, event: KeyboardEvent): boolean {
   const combo = parseSpec(spec);
   const actual = comboFromEvent(event);
-  if (!combo || !actual || event.metaKey) {
+  if (!combo || !actual) {
     return false;
   }
   if (combo.shift && !actual.shift) {
@@ -385,7 +399,7 @@ export function useKeybindings(handlers: ActionHandlers) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isCapturing() || event.metaKey) {
+      if (isCapturing()) {
         return;
       }
       for (const action of BINDABLE_ACTIONS) {
