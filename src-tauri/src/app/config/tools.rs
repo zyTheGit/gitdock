@@ -1,5 +1,7 @@
 //! 外部对比工具：配置结构、内置探测与保存前校验。
 
+// PathBuf 只在 Windows 探测分支使用；非 Windows 下避免 unused import。
+#[cfg(windows)]
 use std::path::PathBuf;
 
 use git_core::{ErrorCode, UserVisibleError};

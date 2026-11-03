@@ -197,7 +197,10 @@ pub fn settings_path(dir: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::tools::{detected_tools, seed_tools};
+    // detected_tools 只被 Windows 专属测试引用；非 Windows 下避免 unused import。
+    #[cfg(windows)]
+    use super::tools::detected_tools;
+    use super::tools::seed_tools;
     use super::*;
 
     fn temp_dir() -> tempfile::TempDir {
