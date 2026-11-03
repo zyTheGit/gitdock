@@ -8,6 +8,8 @@ const skipBuild = process.argv.includes('--skip-build')
 const steps = [
   // 版本号有四处声明 + Cargo.lock，任一遗漏只会在打包后才暴露，这里最便宜就先挡住。
   { name: '版本号一致性', command: 'node', args: ['scripts/version.mjs', '--check'] },
+  // i18n 门禁：zh/en 资源同构、使用的 key 必须定义、硬编码中文扫描。
+  { name: 'i18n 完整性', command: 'node', args: ['scripts/check-i18n.mjs'] },
   // npm 在 Windows 下是 .cmd，须经 shell 执行；参数静态，不涉及用户输入。
   ...(skipBuild
     ? []
