@@ -160,6 +160,8 @@ src-tauri app orchestration
 
 完成标准：签名/公证安装包完成全新安装与升级验收，用户无需命令行绕过安全提示即可启动。
 
+> G4 进度（2026-11-03，分支 `feature/g4-macos-prep`，本地准备阶段）：已落地的本地可逆准备——① `tauri.conf.json` 新增 `bundle.macOS.minimumSystemVersion: "10.15"`（WKWebView API 基线；未经实机验证的声明性取值，G4 实测后冻结）；② release.yml 的 Release 说明自动附加未签名平台指引（macOS Gatekeeper 右键打开/`xattr -cr`、Linux AppImage 需 libfuse2）——G4 第 2 项「首次启动提示」的发布渠道部分。**G4 前置条件（均未满足）**：① 多平台 release.yml 构建链路从未运行（需授权 bump + prerelease tag 首跑验证，同时满足 G2 安装级验证）；② Apple Developer Program 账号与 Developer ID Application 证书（签名/公证必需，$99/年，用户资源）；③ macOS 实机（Apple Silicon 已裁决优先）执行第 3 项逐项验收。**在 ①③ 完成前 macOS 保持「CI 构建通过」级，不宣称支持。**
+
 ### G5：Linux 首发支持
 
 1. 以 Ubuntu LTS x86_64 为目标基线，选择 AppImage 或 deb 作为首发格式。
