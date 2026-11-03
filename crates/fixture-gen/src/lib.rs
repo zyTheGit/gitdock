@@ -75,6 +75,9 @@ pub fn generate_all(root: &Path) -> Result<FixtureSet> {
     let root = root.as_path();
     std::fs::create_dir_all(root)
         .map_err(|e| FixtureError(format!("创建夹具目录失败 {}: {e}", root.display())))?;
+    // 上次中断或缓存恢复可能留下半成品：clone/tag 会因目标已存在而失败，
+    // 只清理已知夹具名，保留调用方的锁与完成标记。
+    reset_fixture_dirs(root)?;
     let empty_config = root.join("gitconfig-empty");
     std::fs::write(&empty_config, b"")
         .map_err(|e| FixtureError(format!("写入空 gitconfig 失败: {e}")))?;
@@ -109,6 +112,38 @@ pub fn generate_all(root: &Path) -> Result<FixtureSet> {
     Ok(FixtureSet {
         root: root.to_owned(),
     })
+}
+
+/// `generate_all` 会创建的目录；重跑前逐个删除，避免 tag/clone 撞到旧结果。
+const FIXTURE_DIRS: [&str; 11] = [
+    "linear",
+    "forked",
+    "conflict",
+    "empty-pick",
+    "hook-reject",
+    "dirty",
+    "worktree-main",
+    "worktree-linked",
+    "shallow",
+    "bare",
+    "sha256",
+];
+
+fn reset_fixture_dirs(root: &Path) -> Result<()> {
+    for name in FIXTURE_DIRS {
+        let path = root.join(name);
+        match std::fs::remove_dir_all(&path) {
+            Ok(()) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => {
+                return Err(FixtureError(format!(
+                    "清理旧夹具目录失败 {}: {err}",
+                    path.display()
+                )))
+            }
+        }
+    }
+    Ok(())
 }
 
 /// 生成用于性能测试的线性仓库（fast-import）。返回实际提交数。
