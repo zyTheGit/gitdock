@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorText } from "../../shared/error";
+import { scopeKey } from "../../shared/graphScope";
 import { ipc } from "../../shared/ipc";
 import type { GraphScope } from "../../shared/types";
 import { appendPage, EMPTY_GRAPH_VIEW, startView, type GraphView } from "./model";
 
 const PAGE_LIMIT = 200;
-
-export function scopeKey(scope: GraphScope): string {
-  return scope.kind === "branch" ? `branch:${scope.value}` : scope.kind;
-}
 
 export interface GraphLoader {
   view: GraphView;

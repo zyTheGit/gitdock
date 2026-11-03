@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { FileDiffView } from "../detail/FileDiffView";
-import { STATUS_LABEL, STATUS_LETTER } from "../../shared/fileStatus";
+import { FileDiffView } from "../diff/FileDiffView";
+import { isEscConsumed, isEventInTerminal } from "../../shared/esc";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type {
@@ -11,8 +11,7 @@ import type {
   StagingFileDto,
   StagingStatusDto,
 } from "../../shared/types";
-
-type Side = "staged" | "unstaged";
+import { StagingFileList, sideKey, type Side } from "./StagingFileList";
 
 interface Selection {
   path: string;
@@ -29,31 +28,6 @@ interface StagingViewProps {
   onExit: () => void;
 }
 
-const sideKey = (side: Side, path: string) => `${side}:${path}`;
-
-function pathLabel(file: StagingFileDto): string {
-  return file.old_path && file.old_path !== file.path
-    ? `${file.old_path} → ${file.path}`
-    : file.path;
-}
-
-function fileMeta(file: StagingFileDto) {
-  if (file.untracked) {
-    return <span className="muted">未跟踪</span>;
-  }
-  if (file.gitlink) {
-    return <span className="muted">子模块</span>;
-  }
-  if (file.binary) {
-    return <span className="muted">二进制</span>;
-  }
-  return (
-    <>
-      <span className="diff-add">+{file.additions}</span>
-      <span className="diff-del">-{file.deletions}</span>
-    </>
-  );
-}
 
 export function StagingView({
   repo,
@@ -194,23 +168,24 @@ export function StagingView({
     };
   }, [repo.path, load]);
 
-  // 放大 diff 时 Esc 由 FileDiffView 自己处理；否则退出暂存区视图。
+  // Esc 退出暂存区视图；放大 diff 已在捕获阶段消费的 Esc，以及终端聚焦时的
+  // Esc 归终端程序，均让路。监听常驻、经 ref 读回调，无需按 expanded 重装。
   useEffect(() => {
-    if (expanded) {
-      return;
-    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") {
         return;
       }
-      if ((event.target as HTMLElement | null)?.closest(".terminal-panel")) {
+      if (isEscConsumed(event)) {
+        return;
+      }
+      if (isEventInTerminal(event)) {
         return;
       }
       onExitRef.current();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [expanded]);
+  }, []);
 
   const mutate = useCallback(
     async (side: Side, paths: string[]) => {
@@ -315,48 +290,16 @@ export function StagingView({
             {side === "staged" ? "没有已暂存的改动" : "没有未暂存的改动"}
           </p>
         ) : (
-          <ul className="staging-list">
-            {files.map((file) => {
-              const active = selection?.path === file.path && selection.side === side;
-              return (
-                <li key={`${side}:${file.path}`}>
-                  <div
-                    className={active ? "staging-row active" : "staging-row"}
-                    onClick={() => void select(file, side)}
-                  >
-                    <input
-                      className="staging-check"
-                      type="checkbox"
-                      checked={Boolean(checked[sideKey(side, file.path)])}
-                      onChange={() => toggle(side, file.path)}
-                      onClick={(event) => event.stopPropagation()}
-                      aria-label={`选择 ${file.path}`}
-                    />
-                    <span
-                      className={`file-status file-status-${file.status}`}
-                      title={STATUS_LABEL[file.status]}
-                    >
-                      {STATUS_LETTER[file.status]}
-                    </span>
-                    <span className="staging-path mono" title={pathLabel(file)}>
-                      {pathLabel(file)}
-                    </span>
-                    <span className="staging-stats">{fileMeta(file)}</span>
-                    <button
-                      className="staging-row-action"
-                      disabled={disabled}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void mutate(side, [file.path]);
-                      }}
-                    >
-                      {action}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <StagingFileList
+            side={side}
+            files={files}
+            activePath={selection?.side === side ? selection.path : null}
+            checked={checked}
+            disabled={disabled}
+            onSelect={(file, fileSide) => void select(file, fileSide)}
+            onToggleCheck={toggle}
+            onRowAction={(fileSide, path) => void mutate(fileSide, [path])}
+          />
         )}
       </section>
     );

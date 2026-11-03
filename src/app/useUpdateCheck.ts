@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { ipc } from "../shared/ipc";
-import type { UpdateCheckDto } from "../shared/types";
+import type { UpdateCheckDto, UpdateCheckOutcome, UpdateCheckState } from "../shared/types";
 
 // 检查节流与「跳过此版本」放在 localStorage：settings.json 的保存会连带重写工具
 // 配置，一次后台网络检查不该产生那种副作用。
@@ -8,18 +8,6 @@ const LAST_CHECKED_KEY = "gitdock.update.lastCheckedAt";
 const SKIPPED_VERSION_KEY = "gitdock.update.skippedVersion";
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-export type UpdateCheckStatus = "idle" | "checking" | "settled" | "failed";
-
-export interface UpdateCheckState {
-  status: UpdateCheckStatus;
-  result: UpdateCheckDto | null;
-  skippedVersion: string | null;
-}
-
-export type UpdateCheckOutcome =
-  | { kind: "checked"; result: UpdateCheckDto }
-  | { kind: "throttled" }
-  | { kind: "failed"; message: string };
 
 let state: UpdateCheckState = {
   status: "idle",

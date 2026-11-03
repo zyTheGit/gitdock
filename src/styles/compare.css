@@ -350,6 +350,15 @@
   white-space: nowrap;
 }
 
+/* 对比提交列表虚拟化：外层 .compare-commit-list 仍是滚动容器（max-height 200px），
+   inner 撑起总高度、行绝对定位。 */
+.compare-commit-inner {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* 对比视图：文件头固定，diff 本体自己滚动；并排时两栏各滚各的，与放大视图一致。 */
 .compare-columns .detail-diff {
   display: flex;

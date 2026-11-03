@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import { STATUS_LETTER } from "../../shared/fileStatus";
 import { formatDate, shortOid } from "../../shared/format";
@@ -8,8 +9,13 @@ import type {
   FileDiffDto,
   RepoStateDto,
 } from "../../shared/types";
-import { FileDiffView } from "./FileDiffView";
+import { FileDiffView } from "../diff/FileDiffView";
 import { useBranchesContaining, useCommitDetail, useFileDiff } from "./useCommitDetail";
+
+// 文件行高度初值（12px 文本 + 上下 padding 与边框）；文本行高随字体而定，
+// 首帧后由 measureElement 按实际渲染高度修正。
+const FILE_ROW_ESTIMATE = 26;
+const FILE_LIST_OVERSCAN = 12;
 
 function RefBadges({ commit }: { commit: CommitSummaryDto }) {
   if (commit.refs.length === 0) {
@@ -95,6 +101,17 @@ export function CommitDetailPane({
   const files = detail.data?.files ?? [];
   const shownDiff = fileDiff.data ?? (expandedDiff ? lastDiff : null);
   const baseOid = detail.data?.parents[0] ?? null;
+
+  const fileScrollRef = useRef<HTMLDivElement>(null);
+  // 变更文件列表虚拟化：大合并提交数千文件时只渲染可视行。
+  const fileVirtualizer = useVirtualizer({
+    count: files.length,
+    getScrollElement: () => fileScrollRef.current,
+    estimateSize: () => FILE_ROW_ESTIMATE,
+    overscan: FILE_LIST_OVERSCAN,
+    getItemKey: (index) => files[index]?.path ?? index,
+  });
+
   const menuItems: MenuItem[] =
     tools.length === 0
       ? [{ label: "尚未配置外部工具", disabled: true, onSelect: () => undefined }]
@@ -204,41 +221,63 @@ export function CommitDetailPane({
                 {files.length === 0 ? (
                   <p className="muted">此提交没有文件变更。</p>
                 ) : (
-                  <ul className="file-list">
-                    {files.map((file) => (
-                      <li key={file.path}>
-                        <button
-                          className={
-                            filePath === file.path ? "file-row active" : "file-row"
-                          }
-                          onClick={() => setFilePath(file.path)}
-                          onContextMenu={(event) => {
-                            event.preventDefault();
-                            setFilePath(file.path);
-                            setMenu({ x: event.clientX, y: event.clientY, path: file.path });
-                          }}
-                          title={`${file.path}（右键可用外部工具对比）`}
-                        >
-                          <span className={`file-status file-status-${file.status}`}>
-                            {STATUS_LETTER[file.status]}
-                          </span>
-                          <span className="file-path">{file.path}</span>
-                          <span className="file-stats">
-                            {file.gitlink ? (
-                              <span className="muted">gitlink</span>
-                            ) : file.binary ? (
-                              <span className="muted">bin</span>
-                            ) : (
-                              <>
-                                <span className="diff-add">+{file.additions}</span>
-                                <span className="diff-del">-{file.deletions}</span>
-                              </>
-                            )}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="file-list" ref={fileScrollRef}>
+                    <ul
+                      className="file-list-inner"
+                      style={{ height: fileVirtualizer.getTotalSize() }}
+                    >
+                      {fileVirtualizer.getVirtualItems().map((item) => {
+                        const file = files[item.index];
+                        if (!file) {
+                          return null;
+                        }
+                        return (
+                          <li
+                            key={item.key}
+                            data-index={item.index}
+                            ref={(node) => fileVirtualizer.measureElement(node)}
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              width: "100%",
+                              transform: `translateY(${item.start}px)`,
+                            }}
+                          >
+                            <button
+                              className={
+                                filePath === file.path ? "file-row active" : "file-row"
+                              }
+                              onClick={() => setFilePath(file.path)}
+                              onContextMenu={(event) => {
+                                event.preventDefault();
+                                setFilePath(file.path);
+                                setMenu({ x: event.clientX, y: event.clientY, path: file.path });
+                              }}
+                              title={`${file.path}（右键可用外部工具对比）`}
+                            >
+                              <span className={`file-status file-status-${file.status}`}>
+                                {STATUS_LETTER[file.status]}
+                              </span>
+                              <span className="file-path">{file.path}</span>
+                              <span className="file-stats">
+                                {file.gitlink ? (
+                                  <span className="muted">gitlink</span>
+                                ) : file.binary ? (
+                                  <span className="muted">bin</span>
+                                ) : (
+                                  <>
+                                    <span className="diff-add">+{file.additions}</span>
+                                    <span className="diff-del">-{file.deletions}</span>
+                                  </>
+                                )}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 )}
               </div>
 

@@ -367,3 +367,37 @@
   flex: 1;
   min-height: 0;
 }
+/* 文件列表虚拟化：外层 .file-list 仍是滚动容器，inner 撑起总高度、行绝对定位。 */
+.file-list-inner {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 放大视图侧栏文件列表虚拟化：滚动容器与撑高行容器。
+   以下选择器带 .expanded-files 前缀以覆盖 diff.css 中 ul 的 padding/overflow
+   与 li 的 margin 间距（间距改由行的 padding-bottom 提供，计入测量高度）。 */
+.expanded-files-scroll {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+}
+
+.expanded-files .expanded-files-inner {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  list-style: none;
+}
+
+.expanded-files .expanded-files-inner li {
+  padding-bottom: 2px;
+}
+
+.expanded-files .expanded-files-inner li + li {
+  margin-top: 0;
+}

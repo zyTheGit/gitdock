@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
+import { useIpcResource } from "../../shared/useIpcResource";
 import type { GateReportDto } from "../../shared/types";
 
 interface BranchDescriptionDialogProps {
@@ -16,38 +17,23 @@ export function BranchDescriptionDialog({
   onCancel,
   onSaved,
 }: BranchDescriptionDialogProps) {
+  const { data, loading, error: loadError } = useIpcResource(
+    [branch],
+    () => ipc.readBranchDescription(branch),
+  );
   const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
   const [shared, setShared] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [gate, setGate] = useState<GateReportDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    ipc
-      .readBranchDescription(branch)
-      .then((dto) => {
-        if (!cancelled) {
-          setText(dto.description);
-          setShared(dto.shared_across_worktrees);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setLoadError(errorText(err));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [branch]);
+  // 读取结果到达后回填编辑器；layoutEffect 让回填与数据帧同批渲染，避免先闪一帧空输入框。
+  useLayoutEffect(() => {
+    if (data) {
+      setText(data.description);
+      setShared(data.shared_across_worktrees);
+    }
+  }, [data]);
 
   const save = async () => {
     if (saving || loading || loadError) {

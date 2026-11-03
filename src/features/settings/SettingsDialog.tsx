@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import {
-  clearSkippedUpdate,
-  openAvailableUpdate,
-  pendingUpdate,
-  runUpdateCheck,
-  skipAvailableUpdate,
-  useUpdateCheck,
-} from "../../app/useUpdateCheck";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
 import { Select } from "../../shared/Select";
-import type { AppInfoDto, ExternalToolConfig, SettingsDto } from "../../shared/types";
+import type {
+  AppInfoDto,
+  ExternalToolConfig,
+  SettingsDto,
+  UpdateCheckDto,
+  UpdateCheckOutcome,
+  UpdateCheckState,
+} from "../../shared/types";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { GitConfigSection } from "./GitConfigSection";
 import { KeyBindingsSection } from "./KeyBindingsSection";
@@ -21,6 +20,13 @@ interface SettingsDialogProps {
   settings: SettingsDto;
   info: AppInfoDto | null;
   fontScale: number;
+  /** 更新检查状态与「关于」分区动作：App 持有 useUpdateCheck 单例后经 props 注入。 */
+  updateCheck: UpdateCheckState;
+  updateOffer: UpdateCheckDto | null;
+  onCheckUpdate: () => Promise<UpdateCheckOutcome>;
+  onOpenDownloadPage: () => Promise<UpdateCheckOutcome>;
+  onSkipUpdate: () => void;
+  onClearSkippedUpdate: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetZoom: () => void;
@@ -38,6 +44,12 @@ export function SettingsDialog({
   settings,
   info,
   fontScale,
+  updateCheck,
+  updateOffer,
+  onCheckUpdate,
+  onOpenDownloadPage,
+  onSkipUpdate,
+  onClearSkippedUpdate,
   onZoomIn,
   onZoomOut,
   onResetZoom,
@@ -60,9 +72,7 @@ export function SettingsDialog({
   // Git 配置要读真实配置文件，首次进入该分区才发起读取；之后保留编辑内容。
   const [gitConfigOpened, setGitConfigOpened] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("gitdock.theme") ?? "system");
-  const updateCheck = useUpdateCheck();
   const [updateNotice, setUpdateNotice] = useState<string | null>(null);
-  const updateOffer = pendingUpdate(updateCheck);
 
   useEffect(() => {
     if (activeSection === "Git配置") setGitConfigOpened(true);
@@ -70,13 +80,13 @@ export function SettingsDialog({
 
   const manualUpdateCheck = async () => {
     setUpdateNotice(null);
-    const outcome = await runUpdateCheck(true);
+    const outcome = await onCheckUpdate();
     if (outcome.kind === "failed") setUpdateNotice(outcome.message);
   };
 
   const openDownloadPage = async () => {
     setUpdateNotice(null);
-    const outcome = await openAvailableUpdate();
+    const outcome = await onOpenDownloadPage();
     if (outcome.kind === "failed") setUpdateNotice(outcome.message);
   };
 
@@ -413,7 +423,7 @@ export function SettingsDialog({
             <span className="update-row-actions">
               {updateOffer ? (
                 <>
-                  <button type="button" className="link" onClick={() => skipAvailableUpdate()}>
+                  <button type="button" className="link" onClick={onSkipUpdate}>
                     跳过此版本
                   </button>
                   <button type="button" className="primary" onClick={() => void openDownloadPage()}>
@@ -423,7 +433,7 @@ export function SettingsDialog({
               ) : (
                 <>
                   {updateCheck.skippedVersion && updateCheck.result?.available ? (
-                    <button type="button" className="link" onClick={clearSkippedUpdate}>
+                    <button type="button" className="link" onClick={onClearSkippedUpdate}>
                       撤销跳过
                     </button>
                   ) : null}

@@ -136,3 +136,11 @@
   flex: none;
   text-align: center;
 }
+/* 搜索结果虚拟化：外层 .search-results 仍是滚动容器，
+   inner 撑起总高度、行绝对定位。 */
+.search-results-inner {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

@@ -90,7 +90,7 @@
   border: 1px solid transparent;
   background: transparent;
   padding: 5px 8px;
-  color: var(--fg);
+  color: var(--text);
 }
 
 .branch-item:hover:not(:disabled) {

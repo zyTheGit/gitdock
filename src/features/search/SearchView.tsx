@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CommitSummaryDto, RepoStateDto, SearchField } from "../../shared/types";
 import { buildSuggestions, type Suggestion } from "./suggestions";
 import type { SearchLoader } from "./useSearch";
@@ -9,6 +10,11 @@ const FIELD_LABEL: Record<SearchField, string> = {
   author: "作者",
   path: "路径",
 };
+
+// 结果行高度初值（12px 文本 + 上下 padding）；文本行高随字体而定，
+// 首帧后由 measureElement 按实际渲染高度修正。
+const RESULT_ROW_ESTIMATE = 32;
+const RESULT_LIST_OVERSCAN = 12;
 
 const dateFormat = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
@@ -46,6 +52,16 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
   const [suggestOpen, setSuggestOpen] = useState(true);
 
   const suggestions = useMemo(() => buildSuggestions(input, commits), [input, commits]);
+
+  const resultsScrollRef = useRef<HTMLDivElement>(null);
+  // 搜索结果虚拟化：无限追加数千条命中时只渲染可视行；「加载更多」按钮在列表外，不受影响。
+  const resultsVirtualizer = useVirtualizer({
+    count: search.results.length,
+    getScrollElement: () => resultsScrollRef.current,
+    estimateSize: () => RESULT_ROW_ESTIMATE,
+    overscan: RESULT_LIST_OVERSCAN,
+    getItemKey: (index) => search.results[index]?.commit.oid ?? index,
+  });
 
   useEffect(() => {
     setActive(-1);
@@ -185,35 +201,57 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
         )}
 
         {search.results.length > 0 && (
-          <ul className="search-results">
-            {search.results.map((match) => (
-              <li key={match.commit.oid}>
-                <button
-                  onClick={() => onLocateCommit(match.commit.oid)}
-                  title={`${match.commit.oid} · 在主图谱中定位`}
-                >
-                  <span className="search-summary">{match.commit.summary || "（无提交说明）"}</span>
-                  <span className="search-fields">
-                    {match.fields.map((field) => (
-                      <span className="tag" key={field}>
-                        {FIELD_LABEL[field]}
+          <div className="search-results" ref={resultsScrollRef}>
+            <ul
+              className="search-results-inner"
+              style={{ height: resultsVirtualizer.getTotalSize() }}
+            >
+              {resultsVirtualizer.getVirtualItems().map((item) => {
+                const match = search.results[item.index];
+                if (!match) {
+                  return null;
+                }
+                return (
+                  <li
+                    key={item.key}
+                    data-index={item.index}
+                    ref={(node) => resultsVirtualizer.measureElement(node)}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${item.start}px)`,
+                    }}
+                  >
+                    <button
+                      onClick={() => onLocateCommit(match.commit.oid)}
+                      title={`${match.commit.oid} · 在主图谱中定位`}
+                    >
+                      <span className="search-summary">{match.commit.summary || "（无提交说明）"}</span>
+                      <span className="search-fields">
+                        {match.fields.map((field) => (
+                          <span className="tag" key={field}>
+                            {FIELD_LABEL[field]}
+                          </span>
+                        ))}
                       </span>
-                    ))}
-                  </span>
-                  {match.matched_path && (
-                    <span className="search-path mono" title={match.matched_path}>
-                      {match.matched_path}
-                    </span>
-                  )}
-                  <span className="search-author">{match.commit.author_name}</span>
-                  <span className="search-date muted">
-                    {dateFormat.format(new Date(match.commit.authored_at * 1000))}
-                  </span>
-                  <span className="mono muted">{match.commit.short_oid}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                      {match.matched_path && (
+                        <span className="search-path mono" title={match.matched_path}>
+                          {match.matched_path}
+                        </span>
+                      )}
+                      <span className="search-author">{match.commit.author_name}</span>
+                      <span className="search-date muted">
+                        {dateFormat.format(new Date(match.commit.authored_at * 1000))}
+                      </span>
+                      <span className="mono muted">{match.commit.short_oid}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
 
         {search.hasMore && (

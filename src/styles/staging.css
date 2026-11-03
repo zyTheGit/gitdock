@@ -185,6 +185,15 @@
   font-size: 11px;
 }
 
+/* 暂存列表虚拟化：外层 .staging-list 仍是滚动容器（max-height 32vh），
+   inner 撑起总高度、行绝对定位。 */
+.staging-list-inner {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .staging-diff {
   flex: 1;
   min-width: 0;

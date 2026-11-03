@@ -1,15 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Channel } from "@tauri-apps/api/core";
-import { FitAddon } from "@xterm/addon-fit";
-import { Terminal as XTerm } from "@xterm/xterm";
-import "@xterm/xterm/css/xterm.css";
-import { errorText } from "../../shared/error";
-import { ipc } from "../../shared/ipc";
-import type { TerminalEvent } from "../../shared/types";
+import { isEscConsumed } from "../../shared/esc";
+import { useTerminalSession } from "./useTerminalSession";
 import "../../styles/terminal.css";
-
-type TerminalMode = "lazygit" | "shell";
-type Status = "idle" | "starting" | "running" | "exited" | "failed";
 
 const HEIGHT_KEY = "gitdock.terminal.height";
 const MIN_HEIGHT = 140;
@@ -17,23 +9,6 @@ const MIN_HEIGHT = 140;
 function readHeight(): number {
   const stored = Number(localStorage.getItem(HEIGHT_KEY));
   return Number.isFinite(stored) && stored >= MIN_HEIGHT ? stored : 280;
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary);
-}
-
-function base64ToBytes(text: string): Uint8Array {
-  const binary = atob(text);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
 }
 
 interface TerminalPanelProps {
@@ -50,8 +25,10 @@ interface TerminalPanelProps {
 }
 
 /**
- * 底部终端：xterm.js 只负责渲染与按键，PTY 与子进程全部由 Rust 侧管理。
- * 收起面板只隐藏视图，进程继续运行；结束进程是独立动作。
+ * 底部终端的装配组件：容器、拖拽把手、工具条按钮与全屏/Esc 的 UI 分支；
+ * xterm 实例与 PTY 会话生命周期（open/write/resize/close）见 useTerminalSession。
+ * xterm.js 只负责渲染与按键，PTY 与子进程全部由 Rust 侧管理；收起面板只隐藏
+ * 视图，进程继续运行；结束进程是独立动作。
  */
 export function TerminalPanel({
   repoPath,
@@ -64,115 +41,36 @@ export function TerminalPanel({
   onRepoChanged,
 }: TerminalPanelProps) {
   const [height, setHeight] = useState(readHeight);
-  const [mode, setMode] = useState<TerminalMode | null>(null);
-  const [status, setStatus] = useState<Status>("idle");
-  const [message, setMessage] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
-  const [lazygitPath, setLazygitPath] = useState<string | null | undefined>(undefined);
-  const hostRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<XTerm | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
-  const sessionRef = useRef<number | null>(null);
-  const repoRef = useRef(repoPath);
-  const statusRef = useRef<Status>("idle");
-  const modeRef = useRef<TerminalMode | null>(null);
 
-  useEffect(() => {
-    localStorage.setItem(HEIGHT_KEY, String(height));
-  }, [height]);
+  const { hostRef, mode, status, message, lazygitPath, start, end, focus } = useTerminalSession({
+    repoPath,
+    visible,
+    lazygitConfig,
+    onRunningChange,
+    onRepoChanged,
+  });
 
-  useEffect(() => {
-    statusRef.current = status;
-  }, [status]);
+  // 高度落盘与面板宽度同一策略：拖动中只进内存，抬手/取消时写一次，卸载兜底。
+  const heightRef = useRef(height);
+  const heightDirtyRef = useRef(false);
 
-  useEffect(() => {
-    modeRef.current = mode;
-  }, [mode]);
-
-  useEffect(() => {
-    let disposed = false;
-    setLazygitPath(undefined);
-    void ipc
-      .terminalCapabilities()
-      .then((capabilities) => {
-        if (!disposed) {
-          setLazygitPath(capabilities.lazygit_path ?? null);
-        }
-      })
-      .catch(() => {
-        if (!disposed) {
-          setLazygitPath(null);
-        }
-      });
-    return () => {
-      disposed = true;
-    };
-  }, [lazygitConfig]);
-
-  useEffect(() => {
-    onRunningChange(status === "starting" || status === "running");
-  }, [status, onRunningChange]);
-
-  const fit = useCallback(() => {
-    const host = hostRef.current;
-    if (!host || host.clientWidth === 0 || host.clientHeight === 0) {
+  const persistHeight = useCallback(() => {
+    if (!heightDirtyRef.current) {
       return;
     }
-    fitRef.current?.fit();
+    heightDirtyRef.current = false;
+    localStorage.setItem(HEIGHT_KEY, String(heightRef.current));
   }, []);
 
-  const stop = useCallback(() => {
-    const id = sessionRef.current;
-    sessionRef.current = null;
-    if (id !== null) {
-      void ipc.terminalClose(id).catch(() => undefined);
-    }
-    termRef.current?.dispose();
-    termRef.current = null;
-    fitRef.current = null;
-  }, []);
-
-  // 卸载（切仓库/关窗口）才结束进程；收起面板不会触发这里。
-  useEffect(() => stop, [stop]);
-  useEffect(() => () => onRunningChange(false), [onRunningChange]);
-
-  // 面板不按仓库路径重新挂载；切仓库时 Rust 已结束旧会话，这里清空视图并提示。
-  useEffect(() => {
-    if (repoRef.current === repoPath) {
-      return;
-    }
-    const wasRunning =
-      modeRef.current !== null ||
-      statusRef.current === "starting" ||
-      statusRef.current === "running";
-    repoRef.current = repoPath;
-    stop();
-    hostRef.current?.replaceChildren();
-    setMode(null);
-    setStatus("idle");
-    setMessage(null);
-    onRunningChange(false);
-    if (wasRunning) {
-      onRepoChanged();
-    }
-  }, [repoPath, stop, onRunningChange, onRepoChanged]);
-
-  // 重新显示时隐藏期间尺寸为 0，必须重新 fit 并恢复焦点。
-  useEffect(() => {
-    if (!visible) {
-      return;
-    }
-    const frame = requestAnimationFrame(() => {
-      fit();
-      termRef.current?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [visible, fit]);
+  // 卸载兜底：拖拽中途切视图/关窗口也保住最新高度。
+  useEffect(() => persistHeight, [persistHeight]);
 
   useEffect(() => {
     if (!visible) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && fullscreen) {
+      // 放大 diff 已消费的 Esc 不再还原终端全屏，一次按键只退出一层。
+      if (event.key === "Escape" && fullscreen && !isEscConsumed(event)) {
         setFullscreen(false);
       }
       if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "enter") {
@@ -188,119 +86,29 @@ export function TerminalPanel({
     if (!visible) setFullscreen(false);
   }, [visible]);
 
-  const start = useCallback(
-    (nextMode: TerminalMode) => {
-      const host = hostRef.current;
-      if (!host) {
-        return;
-      }
-      stop();
-      setMode(nextMode);
-      setStatus("starting");
-      setMessage(null);
-      host.replaceChildren();
-
-      const term = new XTerm({
-        fontFamily: '"Cascadia Mono", Consolas, "Courier New", monospace',
-        fontSize: 13,
-        cursorBlink: true,
-        scrollback: 5000,
-      });
-      const fitAddon = new FitAddon();
-      term.loadAddon(fitAddon);
-      term.open(host);
-      termRef.current = term;
-      fitRef.current = fitAddon;
-
-      const isCurrent = () => termRef.current === term;
-
-      term.onData((data) => {
-        const id = sessionRef.current;
-        if (id === null || !isCurrent()) {
-          return;
-        }
-        void ipc
-          .terminalWrite(id, bytesToBase64(new TextEncoder().encode(data)))
-          .catch((err) => setMessage(errorText(err)));
-      });
-      term.onResize(({ cols, rows }) => {
-        const id = sessionRef.current;
-        if (id !== null) {
-          void ipc.terminalResize(id, cols, rows).catch(() => undefined);
-        }
-      });
-
-      requestAnimationFrame(() => {
-        if (!isCurrent()) {
-          return;
-        }
-        fit();
-        const channel = new Channel<TerminalEvent>();
-        channel.onmessage = (event) => {
-          if (!isCurrent()) {
-            return;
-          }
-          if (event.kind === "data") {
-            term.write(base64ToBytes(event.data));
-          } else {
-            term.write(`\r\n\x1b[90m[进程已退出，代码 ${event.code}]\x1b[0m\r\n`);
-            sessionRef.current = null;
-            setStatus("exited");
-          }
-        };
-        ipc
-          .terminalOpen(nextMode, term.cols, term.rows, channel)
-          .then((id) => {
-            if (!isCurrent()) {
-              void ipc.terminalClose(id).catch(() => undefined);
-              return;
-            }
-            sessionRef.current = id;
-            setStatus("running");
-            term.focus();
-          })
-          .catch((err) => {
-            setMessage(errorText(err));
-            setStatus("failed");
-          });
-      });
-    },
-    [fit, stop],
-  );
-
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) {
-      return;
-    }
-    const observer = new ResizeObserver(() => fit());
-    observer.observe(host);
-    return () => observer.disconnect();
-  }, [fit]);
-
-  const end = () => {
-    stop();
-    setMode(null);
-    setStatus("idle");
-  };
-
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const startY = event.clientY;
     const startHeight = height;
+    // 拖动中只 setState 保持跟手，最新高度记进 ref，抬手/取消时统一落盘。
     const onMove = (move: PointerEvent) => {
       const next = Math.min(
         Math.max(startHeight + (startY - move.clientY), MIN_HEIGHT),
         Math.max(window.innerHeight - 240, MIN_HEIGHT),
       );
+      heightRef.current = next;
+      heightDirtyRef.current = true;
       setHeight(next);
     };
-    const onUp = () => {
+    const finish = () => {
       window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      persistHeight();
     };
     window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
   };
 
   const restartable = mode === null || status === "exited" || status === "failed";
@@ -387,7 +195,7 @@ export function TerminalPanel({
       <div
         className="terminal-body"
         ref={hostRef}
-        onMouseDown={() => termRef.current?.focus()}
+        onMouseDown={() => focus()}
       />
     </section>
   );

@@ -3,15 +3,17 @@ import type { RowLayoutDto } from "../../shared/types";
 const LANE_WIDTH = 14;
 const EDGE_PAD = 8;
 
+// 泳道配色走 tokens.css 的主题变量（深浅色各自定义）；
+// SVG presentation attribute 解析不了 var()，颜色需经 style 属性下发。
 const LANE_COLORS = [
-  "#6ea8fe",
-  "#f0a35e",
-  "#71c78e",
-  "#d98adf",
-  "#e0c14f",
-  "#6fd3d8",
-  "#e07f9a",
-  "#9d9df0",
+  "var(--graph-lane-1)",
+  "var(--graph-lane-2)",
+  "var(--graph-lane-3)",
+  "var(--graph-lane-4)",
+  "var(--graph-lane-5)",
+  "var(--graph-lane-6)",
+  "var(--graph-lane-7)",
+  "var(--graph-lane-8)",
 ];
 
 export function laneColor(lane: number): string {
@@ -55,7 +57,7 @@ export function GraphCell({ layout, laneCount, height }: GraphCellProps) {
           y1={0}
           x2={nodeX}
           y2={nodeY}
-          stroke={laneColor(layout.lane)}
+          style={{ stroke: laneColor(layout.lane) }}
           strokeWidth={2}
           strokeLinecap="round"
         />
@@ -67,7 +69,7 @@ export function GraphCell({ layout, laneCount, height }: GraphCellProps) {
           y1={0}
           x2={x(lane)}
           y2={height}
-          stroke={laneColor(lane)}
+          style={{ stroke: laneColor(lane) }}
           strokeWidth={2}
         />
       ))}
@@ -76,7 +78,7 @@ export function GraphCell({ layout, laneCount, height }: GraphCellProps) {
           key={`converge-${lane}`}
           d={`M ${x(lane)} 0 C ${x(lane)} ${nodeY}, ${nodeX} ${nodeY * 0.4}, ${nodeX} ${nodeY}`}
           fill="none"
-          stroke={laneColor(lane)}
+          style={{ stroke: laneColor(lane) }}
           strokeWidth={2}
         />
       ))}
@@ -87,7 +89,7 @@ export function GraphCell({ layout, laneCount, height }: GraphCellProps) {
             height - height * 0.3
           }, ${x(edge.lane)} ${height}`}
           fill="none"
-          stroke={laneColor(edge.lane)}
+          style={{ stroke: laneColor(edge.lane) }}
           strokeWidth={2}
           strokeLinecap="round"
           strokeDasharray={edge.pending ? "3 3" : undefined}
@@ -98,8 +100,7 @@ export function GraphCell({ layout, laneCount, height }: GraphCellProps) {
         cx={nodeX}
         cy={nodeY}
         r={layout.parents.length > 1 ? 4.5 : 4}
-        fill={laneColor(layout.lane)}
-        stroke="#16181d"
+        style={{ fill: laneColor(layout.lane), stroke: "var(--graph-lane-edge)" }}
         strokeWidth={1.5}
       />
     </svg>

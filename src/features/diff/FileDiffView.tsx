@@ -1,15 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Diff, Hunk, parseDiff } from "react-diff-view";
 import "react-diff-view/style/index.css";
 import type { FileDiffDto, FileStatus } from "../../shared/types";
 import { STATUS_LABEL } from "../../shared/fileStatus";
+import { consumeEsc, isEventInTerminal } from "../../shared/esc";
 import { Select } from "../../shared/Select";
+import { useIpcResource } from "../../shared/useIpcResource";
 import { useResolvedTheme } from "../../shared/theme";
 import { buildDiffTokens } from "./highlight";
 import { SplitDiffPanes } from "./SplitDiffPanes";
 
 const DIFF_WRAP_KEY = "git-graph.diff-wrap";
 const DIFF_FILES_OPEN_KEY = "git-graph.diff-files-open";
+
+// 侧栏文件行高度初值（12px 文本 + 上下 padding + 2px 行间距）；文本行高随字体
+// 而定，首帧后由 measureElement 按实际渲染高度（含行间距 padding）修正。
+const EXPANDED_ROW_ESTIMATE = 28;
+const EXPANDED_LIST_OVERSCAN = 12;
 
 function storedWrap(): boolean {
   return localStorage.getItem(DIFF_WRAP_KEY) === "1";
@@ -48,7 +56,7 @@ export function FileDiffView({
   const [viewType, setViewType] = useState<"split" | "unified">("split");
   const [wrap, setWrap] = useState(storedWrap);
   const [filesOpen, setFilesOpen] = useState(storedFilesOpen);
-  const [tokens, setTokens] = useState<Awaited<ReturnType<typeof buildDiffTokens>> | null>(null);
+
   const theme = useResolvedTheme();
 
   useEffect(() => {
@@ -59,17 +67,26 @@ export function FileDiffView({
     localStorage.setItem(DIFF_FILES_OPEN_KEY, filesOpen ? "1" : "0");
   }, [filesOpen]);
 
+  // 放大视图吃掉一次 Esc：捕获阶段先于所有冒泡层的全局监听执行，在事件上
+  // 打「已消费」标记让 App / 暂存区等外层让路，只收起本层；不用
+  // stopPropagation，避免连右键菜单等同样监听 Esc 的浮层一起吞掉。
   useEffect(() => {
     if (!expanded) {
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onExpandedChange(false);
+      if (event.key !== "Escape") {
+        return;
       }
+      // 终端聚焦时 Esc 归终端程序，本层同样让路。
+      if (isEventInTerminal(event)) {
+        return;
+      }
+      consumeEsc(event);
+      onExpandedChange(false);
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [expanded, onExpandedChange]);
 
   const parsed = useMemo(() => {
@@ -80,21 +97,12 @@ export function FileDiffView({
     return files.find((file) => file.hunks.length > 0) ?? null;
   }, [diff.patch]);
 
-  useEffect(() => {
-    setTokens(null);
-    if (!parsed) {
-      return;
-    }
-    let cancelled = false;
-    void buildDiffTokens(parsed.hunks, diff.language, theme).then((result) => {
-      if (!cancelled) {
-        setTokens(result);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [parsed, diff.language, theme]);
+  // 语法高亮 token 异步构建：高亮失败时静默退回行内标记，不进错误态。
+  const tokens = useIpcResource(
+    [parsed, diff.language, theme],
+    () => buildDiffTokens(parsed!.hunks, diff.language, theme),
+    { enabled: parsed !== null },
+  ).data;
 
   const pathLabel = diff.old_path && diff.old_path !== diff.path
     ? `${diff.old_path} → ${diff.path}`
@@ -105,6 +113,17 @@ export function FileDiffView({
   const switchable = !expanded && fileEntries.length > 1 && Boolean(onSelectFile);
   const listFiles = expanded && fileEntries.length > 0 && Boolean(onSelectFile);
   const showSidebar = listFiles && filesOpen;
+
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  // 放大视图侧栏文件列表虚拟化：侧栏收起时 ref 置空，重新展开后自然重新测量。
+  const sidebarVirtualizer = useVirtualizer({
+    count: fileEntries.length,
+    getScrollElement: () => sidebarScrollRef.current,
+    estimateSize: () => EXPANDED_ROW_ESTIMATE,
+    overscan: EXPANDED_LIST_OVERSCAN,
+    getItemKey: (index) => fileEntries[index]?.path ?? index,
+  });
+
   // 并排且不换行时一律自绘两栏：左右各自横向滚动，不再让整个 diff 一起横滚。
   const paneMode = viewType === "split" && !wrap;
 
@@ -209,30 +228,50 @@ export function FileDiffView({
                 <span>变更文件</span>
                 <span className="muted">{fileEntries.length}</span>
               </div>
-              <ul>
-                {fileEntries.map((file) => {
-                  const active = file.path === (activePath ?? diff.path);
-                  return (
-                    <li key={file.path}>
-                      <button
-                        className={active ? "active" : ""}
-                        onClick={() => onSelectFile?.(file.path)}
-                        title={file.path}
-                        aria-current={active ? "true" : undefined}
+              <div className="expanded-files-scroll" ref={sidebarScrollRef}>
+                <ul
+                  className="expanded-files-inner"
+                  style={{ height: sidebarVirtualizer.getTotalSize() }}
+                >
+                  {sidebarVirtualizer.getVirtualItems().map((item) => {
+                    const file = fileEntries[item.index];
+                    if (!file) {
+                      return null;
+                    }
+                    const active = file.path === (activePath ?? diff.path);
+                    return (
+                      <li
+                        key={item.key}
+                        data-index={item.index}
+                        ref={(node) => sidebarVirtualizer.measureElement(node)}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          transform: `translateY(${item.start}px)`,
+                        }}
                       >
-                        <span className={`file-status file-status-${file.status}`}>
-                          {STATUS_LABEL[file.status]}
-                        </span>
-                        <span className="file-path">{file.path}</span>
-                        <span className="file-stats">
-                          <span className="diff-add">+{file.additions}</span>
-                          <span className="diff-del">-{file.deletions}</span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+                        <button
+                          className={active ? "active" : ""}
+                          onClick={() => onSelectFile?.(file.path)}
+                          title={file.path}
+                          aria-current={active ? "true" : undefined}
+                        >
+                          <span className={`file-status file-status-${file.status}`}>
+                            {STATUS_LABEL[file.status]}
+                          </span>
+                          <span className="file-path">{file.path}</span>
+                          <span className="file-stats">
+                            <span className="diff-add">+{file.additions}</span>
+                            <span className="diff-del">-{file.deletions}</span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             </aside>
           )}
 

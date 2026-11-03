@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CommitSummaryDto } from "../../shared/types";
 import { CommitHoverCard } from "./CommitHoverCard";
@@ -87,6 +87,88 @@ export function GraphList({
     }
   }, [items, view.hasMore, view.rows.length, loadingMore, onLoadMore]);
 
+  // oid → 提交对象：事件委托时按行上的 data-oid 反查行数据。
+  const commitsByOid = useMemo(() => {
+    const map = new Map<string, CommitSummaryDto | undefined>();
+    for (const row of view.rows) {
+      const oid = row.commit?.oid ?? row.layout.oid;
+      if (!map.has(oid)) {
+        map.set(oid, row.commit);
+      }
+    }
+    return map;
+  }, [view.rows]);
+
+  // 行交互全部委托到列表容器一次挂接，行组件不再携带回调 props，
+  // GraphRow 靠 memo 浅比较即可阻断无关状态（toast、悬浮卡等）引发的全行重渲染。
+  const hoveredOidRef = useRef<string | null>(null);
+
+  const handleListClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const oid = (event.target as Element).closest("[data-oid]")?.getAttribute("data-oid");
+      if (!oid) {
+        return;
+      }
+      const commit = commitsByOid.get(oid);
+      cancelHover();
+      // Ctrl / Cmd + 点击填对比槽；普通点击打开详情。
+      if ((event.ctrlKey || event.metaKey) && commit && onCtrlSelect) {
+        event.preventDefault();
+        onCtrlSelect(commit);
+        return;
+      }
+      onSelect(oid);
+    },
+    [commitsByOid, cancelHover, onCtrlSelect, onSelect],
+  );
+
+  const handleListContextMenu = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const oid = (event.target as Element).closest("[data-oid]")?.getAttribute("data-oid");
+      if (!oid) {
+        return;
+      }
+      const commit = commitsByOid.get(oid);
+      cancelHover();
+      if (commit && onContextMenu) {
+        event.preventDefault();
+        onContextMenu(event, commit);
+      }
+    },
+    [commitsByOid, cancelHover, onContextMenu],
+  );
+
+  // mouseenter / mouseleave 不冒泡，用容器级 mouseover 模拟换行语义：
+  // 按 data-oid 判断是否进入新行，换行时先复刻旧行 mouseleave（关卡、作废旧请求），
+  // 再对新行 queueHover；同一行内子元素间移动不重复触发。
+  const handleListMouseOver = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const oid =
+        (event.target as Element).closest("[data-oid]")?.getAttribute("data-oid") ?? null;
+      if (oid === hoveredOidRef.current) {
+        return;
+      }
+      hoveredOidRef.current = oid;
+      cancelHover();
+      const commit = oid ? commitsByOid.get(oid) : undefined;
+      if (commit) {
+        queueHover(event, commit);
+      }
+    },
+    [commitsByOid, cancelHover, queueHover],
+  );
+
+  const handleListMouseLeave = useCallback(() => {
+    hoveredOidRef.current = null;
+    cancelHover();
+  }, [cancelHover]);
+
+  // 滚动会销毁并重建行 DOM，顺带清掉悬浮行追踪，让鼠标再次移动时能重新触发。
+  const handleListScroll = useCallback(() => {
+    hoveredOidRef.current = null;
+    cancelHover();
+  }, [cancelHover]);
+
   if (loading && view.rows.length === 0) {
     return <div className="graph-empty muted">正在读取提交…</div>;
   }
@@ -95,7 +177,15 @@ export function GraphList({
   }
 
   return (
-    <div className="graph-list" ref={scrollRef} onScroll={cancelHover}>
+    <div
+      className="graph-list"
+      ref={scrollRef}
+      onClick={handleListClick}
+      onContextMenu={handleListContextMenu}
+      onMouseOver={handleListMouseOver}
+      onMouseLeave={handleListMouseLeave}
+      onScroll={handleListScroll}
+    >
       <div className="graph-list-inner" style={{ height: virtualizer.getTotalSize() }}>
         {items.map((item) => {
           const row = view.rows[item.index];
@@ -115,29 +205,6 @@ export function GraphList({
               height={ROW_HEIGHT}
               selected={selectedOid === oid}
               located={focusedOid === oid}
-              onRowClick={(event) => {
-                cancelHover();
-                // Ctrl / Cmd + 点击填对比槽；普通点击打开详情。
-                if ((event.ctrlKey || event.metaKey) && commit && onCtrlSelect) {
-                  event.preventDefault();
-                  onCtrlSelect(commit);
-                  return;
-                }
-                onSelect(oid);
-              }}
-              onRowContextMenu={(event) => {
-                cancelHover();
-                if (commit && onContextMenu) {
-                  event.preventDefault();
-                  onContextMenu(event, commit);
-                }
-              }}
-              onRowMouseEnter={(event) => {
-                if (commit) {
-                  queueHover(event, commit);
-                }
-              }}
-              onRowMouseLeave={cancelHover}
             />
           );
         })}

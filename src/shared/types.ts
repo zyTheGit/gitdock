@@ -418,6 +418,21 @@ export interface UpdateCheckDto {
   published_at?: string | null;
 }
 
+/** 前端更新检查的状态机快照：App 与设置对话框的「关于」分区共用。 */
+export type UpdateCheckStatus = "idle" | "checking" | "settled" | "failed";
+
+export interface UpdateCheckState {
+  status: UpdateCheckStatus;
+  result: UpdateCheckDto | null;
+  skippedVersion: string | null;
+}
+
+/** 手动检查 / 打开下载页的返回：调用方据 kind 决定是否提示失败。 */
+export type UpdateCheckOutcome =
+  | { kind: "checked"; result: UpdateCheckDto }
+  | { kind: "throttled" }
+  | { kind: "failed"; message: string };
+
 export interface UserVisibleError {
   code: string;
   message: string;

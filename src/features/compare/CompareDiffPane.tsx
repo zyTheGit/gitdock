@@ -1,4 +1,4 @@
-import { FileDiffView } from "../detail/FileDiffView";
+import { FileDiffView } from "../diff/FileDiffView";
 import type { ChangedFileDto, FileDiffDto } from "../../shared/types";
 
 interface CompareDiffPaneProps {

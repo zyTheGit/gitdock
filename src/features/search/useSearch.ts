@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorText } from "../../shared/error";
+import { scopeKey } from "../../shared/graphScope";
 import { ipc } from "../../shared/ipc";
 import type { GraphScope, SearchMatchDto } from "../../shared/types";
-import { scopeKey } from "../graph/useGraph";
 
 export interface SearchLoader {
   results: SearchMatchDto[];

@@ -2,27 +2,31 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } fr
 import { Banners } from "./app/Banners";
 import { RepositorySidebar } from "./app/RepositorySidebar";
 import { StatusBar } from "./app/StatusBar";
-import { WorkspaceBadge } from "./app/WorkspaceBadge";
+import { TopBar } from "./app/TopBar";
+import { useCommitMenus, type BranchMenuState, type RowMenuState } from "./app/useCommitMenus";
+import { useGlobalEsc, type ViewMode } from "./app/useGlobalEsc";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
 import { useFontScale } from "./app/useFontScale";
-import { useBindings, useKeybindings } from "./app/keybindings";
+
 import { useRepositorySession } from "./app/useRepositorySession";
 import {
+  clearSkippedUpdate,
   openAvailableUpdate,
   pendingUpdate,
   runUpdateCheck,
+  skipAvailableUpdate,
   useUpdateCheck,
 } from "./app/useUpdateCheck";
 import { useWriteFlow } from "./app/useWriteFlow";
 import { BranchCompareDialog } from "./features/compare/BranchCompareDialog";
 import { CompareBar } from "./features/compare/CompareBar";
 import { CompareView } from "./features/compare/CompareView";
-import { commitSlot, useCompareResult, useCompareSlots } from "./features/compare/useCompare";
+import { useCompareResult, useCompareSlots } from "./features/compare/useCompare";
 import { CommitDetailPane } from "./features/detail/CommitDetailPane";
 import { GraphPane } from "./features/graph/GraphPane";
-import { commitMenuItems, rowMenuItems, type CommitMenuActions } from "./features/graph/menus";
-import { branchMenuItems, branchSlot } from "./features/repository/branchMenus";
-import { RepositorySwitcher } from "./features/repository/RepositorySwitcher";
+import { commitMenuItems } from "./features/graph/menus";
+import { branchSlot } from "./features/repository/branchMenus";
+
 import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
@@ -31,25 +35,14 @@ import { TerminalPanel } from "./features/terminal/TerminalPanel";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
 import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
 import { ContextMenu } from "./shared/ContextMenu";
+
 import { PaneSplitter } from "./shared/PaneSplitter";
+import { useBindings, useKeybindings } from "./shared/keybindings";
 import { copyText } from "./shared/clipboard";
 import { errorText } from "./shared/error";
 import { ipc } from "./shared/ipc";
-import type { CommitSummaryDto, GraphScope, RefDto } from "./shared/types";
+import type { CommitSummaryDto, GraphScope } from "./shared/types";
 
-type ViewMode = "graph" | "compare" | "search" | "staging";
-
-function ActionIcon({ name }: { name: "search" | "stage" | "compare" | "terminal" | "settings" | "refresh" }) {
-  const paths: Record<typeof name, React.ReactNode> = {
-    search: <><circle cx="10.8" cy="10.8" r="6.3" /><path d="m16 16 4.2 4.2" /></>,
-    stage: <><path d="M12 3v12m-5-5 5 5 5-5" /><path d="M4 16v4h16v-4" /></>,
-    compare: <><path d="M7 4v16m10-16v16" /><path d="M4 8h6m4 8h6" /><circle cx="7" cy="8" r="2" /><circle cx="17" cy="16" r="2" /></>,
-    terminal: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="m7 9 3 3-3 3m6 0h4" /></>,
-    settings: <><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" /><path d="M19 12h2m-18 0h2m7-7v2m0 10v2m4.95-12.95-1.4 1.4m-7.1 7.1-1.4 1.4m0-11.3 1.4 1.4m7.1 7.1 1.4 1.4" /></>,
-    refresh: <><path d="M20 7v5h-5M4 17v-5h5" /><path d="M5.5 9a7 7 0 0 1 12-2L20 12M4 12l2.5 5a7 7 0 0 0 12-2" /></>,
-  };
-  return <svg className="topbar-action-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
-}
 
 export default function App() {
   const [scope, setScope] = useState<GraphScope>({ kind: "head" });
@@ -65,16 +58,8 @@ export default function App() {
   const [terminalMounted, setTerminalMounted] = useState(false);
   const [terminalRunning, setTerminalRunning] = useState(false);
   const [branchCompareOpen, setBranchCompareOpen] = useState(false);
-  const [rowMenu, setRowMenu] = useState<{
-    x: number;
-    y: number;
-    commit: CommitSummaryDto;
-  } | null>(null);
-  const [branchMenu, setBranchMenu] = useState<{
-    x: number;
-    y: number;
-    branch: RefDto;
-  } | null>(null);
+  const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null);
+  const [branchMenu, setBranchMenu] = useState<BranchMenuState | null>(null);
   const [descriptionBranch, setDescriptionBranch] = useState<string | null>(null);
   const [stagingBusy, setStagingBusy] = useState(false);
   const writeBusyRef = useRef(false);
@@ -215,39 +200,8 @@ export default function App() {
     [setError],
   );
 
-  // Esc：优先取消待替换选择，其次退出搜索/对比，最后清空双槽。
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      // 终端内的 Esc 属于终端程序（例如关闭 LazyGit 弹层），不触发界面退出逻辑。
-      if ((event.target as HTMLElement | null)?.closest(".terminal-panel")) {
-        return;
-      }
-      // 暂存区自行处理 Esc（先收起放大 diff，再退出视图）。
-      if (mode === "staging") {
-        return;
-      }
-      if (slots.pending) {
-        slots.resolvePending(null);
-        return;
-      }
-      if (mode === "search") {
-        closeSearch();
-        return;
-      }
-      if (mode === "compare") {
-        setMode("graph");
-        return;
-      }
-      if (slots.base || slots.compare) {
-        slots.clearAll();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeSearch, mode, slots]);
+  // 全局 Esc 分层退出（放大 diff 已消费的按键让路），细节见 useGlobalEsc。
+  useGlobalEsc({ closeSearch, mode, slots, setMode });
 
   // 全局快捷键：终端开合与界面缩放，键位可在设置「快捷键」分区改。
   // 在捕获阶段派发，终端里的按键也由窗口层接管，避免误发给 Shell。
@@ -301,54 +255,31 @@ export default function App() {
     [repo?.path, session.readSnapshot, session.applySnapshot, graph.reload, setToast, setError],
   );
 
-  const commitActions: CommitMenuActions = {
-    writeDisabled: write.disabled,
-    onCopyHash: (oid) => void copyText(oid),
-    onCopyMessage: (oid) => void copyDescription(oid),
-    onCherryPick: (commit) => void write.start("cherry_pick", { commit }),
-    onRevert: (commit) => void write.start("revert", { commit }),
-  };
-
-  const activeRowMenuItems = rowMenu
-    ? rowMenuItems(rowMenu.commit, {
-        ...commitActions,
-        onSetBase: (commit) => slots.setSide("base", commitSlot(commit)),
-        onSetCompare: (commit) => slots.setSide("compare", commitSlot(commit)),
-        onOpenDetail: (commit) => {
-          setSelectedOid(commit.oid);
-          setMode("graph");
-        },
-      })
-    : [];
-
   const localBranches = repo
     ? repo.refs.filter((ref) => ref.kind === "local_branch")
     : [];
 
-  const compareWithHead = (branch: RefDto) => {
-    if (repo?.head.oid && !slots.base) {
-      slots.setSide("base", {
-        oid: repo.head.oid,
-        label: repo.head.kind === "branch" ? repo.head.branch ?? "HEAD" : "detached HEAD",
-      });
-    }
-    slots.setSide("compare", branchSlot(branch));
-  };
-
-  const activeBranchMenuItems = branchMenu
-    ? branchMenuItems(branchMenu.branch, {
-        descriptionDisabled,
-        hasHead: Boolean(repo?.head.oid),
-        onEditDescription: (shortName) => {
-          setError(null);
-          setDiagnostic(null);
-          setDescriptionBranch(shortName);
-        },
-        onCompareWithHead: compareWithHead,
-        onSetBase: (branch) => slots.setSide("base", branchSlot(branch)),
-        onSetCompare: (branch) => slots.setSide("compare", branchSlot(branch)),
-      })
-    : [];
+  // 右键菜单条目组装（提交行/分支共享写与对比动作），细节见 useCommitMenus。
+  const { commitActions, activeRowMenuItems, activeBranchMenuItems } = useCommitMenus({
+    rowMenu,
+    branchMenu,
+    repo,
+    slots,
+    writeDisabled: write.disabled,
+    descriptionDisabled,
+    onCopyMessage: copyDescription,
+    onCherryPick: (commit) => void write.start("cherry_pick", { commit }),
+    onRevert: (commit) => void write.start("revert", { commit }),
+    onEditDescription: (shortName) => {
+      setError(null);
+      setDiagnostic(null);
+      setDescriptionBranch(shortName);
+    },
+    onSelectCommit: (oid) => {
+      setSelectedOid(oid);
+      setMode("graph");
+    },
+  });
 
   const headLabel = repo
     ? repo.head.kind === "branch"
@@ -362,74 +293,27 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="topbar">
-        <RepositorySwitcher
-          currentPath={repo?.path ?? null}
-          recent={settings?.recent_repositories ?? []}
-          busy={busy}
-          onOpen={(path) => void session.open(path)}
-          onForget={(path) => void session.forget(path)}
-          onPick={() => void session.pick()}
-        />
-        {repo && workspace && <WorkspaceBadge workspace={workspace} />}
-        <div className="topbar-actions">
-          {repo && (
-            <>
-              <button
-                className={mode === "search" ? "active" : ""}
-                onClick={() => (mode === "search" ? closeSearch() : setMode("search"))}
-                title="按说明、作者、路径或 hash 搜索提交；Esc 关闭"
-              >
-                <ActionIcon name="search" /><span>搜索</span>
-              </button>
-              <button
-                className={mode === "staging" ? "active" : ""}
-                onClick={() => setMode(mode === "staging" ? "graph" : "staging")}
-                title="查看工作区改动，分别暂存或取消暂存文件；Esc 退出"
-              >
-                <ActionIcon name="stage" /><span>暂存区</span>
-              </button>
-              <button
-                className={mode === "compare" ? "active" : ""}
-                onClick={() => {
-                  if (compareReady) {
-                    setMode("compare");
-                  } else {
-                    setBranchCompareOpen(true);
-                  }
-                }}
-                disabled={!compareReady && localBranches.length < 2}
-                title={
-                  compareReady
-                    ? "查看对比结果"
-                    : "选择两个分支对比，或用 Ctrl+点击提交选择 Base / Compare"
-                }
-              >
-                <ActionIcon name="compare" /><span>对比</span>
-              </button>
-              <button
-                className={terminalOpen ? "active" : ""}
-                aria-pressed={terminalOpen}
-                title={
-                  terminalRunning
-                    ? `终端进程运行中；收起不会结束进程（${bindings["terminal.toggle"]}）`
-                    : `打开终端（${bindings["terminal.toggle"]}）`
-                }
-                onClick={() => {
-                  setTerminalMounted(true);
-                  setTerminalOpen((open) => !open);
-                }}
-              >
-                <ActionIcon name="terminal" /><span>终端{terminalRunning ? " ·" : ""}</span>
-              </button>
-            </>
-          )}
-          <button onClick={() => setSettingsOpen(true)}><ActionIcon name="settings" /><span>设置</span></button>
-          <button onClick={() => void session.refresh()} disabled={busy || !repo}>
-            <ActionIcon name="refresh" /><span>{busy ? "刷新中…" : "刷新"}</span>
-          </button>
-        </div>
-      </header>
+      <TopBar
+        repo={repo}
+        workspace={workspace}
+        recent={settings?.recent_repositories ?? []}
+        busy={busy}
+        mode={mode}
+        compareReady={compareReady}
+        localBranchCount={localBranches.length}
+        terminalOpen={terminalOpen}
+        terminalRunning={terminalRunning}
+        terminalShortcut={bindings["terminal.toggle"]}
+        onOpenRepo={(path) => void session.open(path)}
+        onForgetRepo={(path) => void session.forget(path)}
+        onPickRepo={() => void session.pick()}
+        onRefresh={() => void session.refresh()}
+        closeSearch={closeSearch}
+        setMode={setMode}
+        onOpenBranchCompare={() => setBranchCompareOpen(true)}
+        onToggleTerminal={toggleTerminal}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       <div className="layout">
         <RepositorySidebar
@@ -692,6 +576,12 @@ export default function App() {
           settings={settings}
           info={info}
           fontScale={zoom.fontScale}
+          updateCheck={updateState}
+          updateOffer={pendingUpdate(updateState)}
+          onCheckUpdate={() => runUpdateCheck(true)}
+          onOpenDownloadPage={openAvailableUpdate}
+          onSkipUpdate={skipAvailableUpdate}
+          onClearSkippedUpdate={clearSkippedUpdate}
           onZoomIn={zoom.zoomIn}
           onZoomOut={zoom.zoomOut}
           onResetZoom={zoom.resetZoom}

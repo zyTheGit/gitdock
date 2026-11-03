@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const SIDEBAR_WIDTH = { min: 200, max: 520, reset: 280 } as const;
 // 默认宽度以“图谱不出现横向滚动条”为准，再宽会挤压中间提交列表。
@@ -43,18 +43,89 @@ export function usePaneWidths() {
   const [preferredDetailWidth, setPreferredDetailWidth] = useState(storedDetailWidth);
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
 
-  useEffect(() => {
-    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
-  }, [sidebarWidth]);
+  // 宽度落盘走“拖动中只进内存，抬手/卸载统一冲刷”：
+  // 拖动中仅 setState 保证实时视觉反馈，localStorage 只在 pointerup 等低频时机写一次。
+  const sidebarRef = useRef(sidebarWidth);
+  const detailRef = useRef(preferredDetailWidth);
+  const dirtyRef = useRef({ sidebar: false, detail: false });
+  const pointerDownRef = useRef(false);
 
-  useEffect(() => {
-    localStorage.setItem(DETAIL_WIDTH_KEY, String(preferredDetailWidth));
-  }, [preferredDetailWidth]);
+  const flush = useCallback(() => {
+    if (dirtyRef.current.sidebar) {
+      dirtyRef.current.sidebar = false;
+      localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarRef.current));
+    }
+    if (dirtyRef.current.detail) {
+      dirtyRef.current.detail = false;
+      localStorage.setItem(DETAIL_WIDTH_KEY, String(detailRef.current));
+    }
+  }, []);
 
+  const commitSidebar = useCallback(
+    (next: number) => {
+      sidebarRef.current = next;
+      dirtyRef.current.sidebar = true;
+      setSidebarWidth(next);
+      // 键盘微调、双击复位等非拖拽来源没有后续 pointerup，直接落盘保持原有语义。
+      if (!pointerDownRef.current) {
+        flush();
+      }
+    },
+    [flush],
+  );
+
+  const commitDetail = useCallback(
+    (next: number) => {
+      detailRef.current = next;
+      dirtyRef.current.detail = true;
+      setPreferredDetailWidth(next);
+      if (!pointerDownRef.current) {
+        flush();
+      }
+    },
+    [flush],
+  );
+
+  // 指针按下期间视为潜在拖拽：期间宽度变化只进内存，抬手或取消时一次性落盘。
   useEffect(() => {
-    const onResize = () => setViewportWidth(window.innerWidth);
+    const onPointerDown = () => {
+      pointerDownRef.current = true;
+    };
+    const onPointerEnd = () => {
+      pointerDownRef.current = false;
+      flush();
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointerup", onPointerEnd);
+    window.addEventListener("pointercancel", onPointerEnd);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onPointerEnd);
+      window.removeEventListener("pointercancel", onPointerEnd);
+      // 卸载兜底：拖拽中途切视图也保住未落盘的最新宽度。
+      flush();
+    };
+  }, [flush]);
+
+  // resize 用 rAF 合帧：回调里读最新视口宽度，连续 resize 只触发一次重渲染。
+  useEffect(() => {
+    let frame: number | null = null;
+    const onResize = () => {
+      if (frame !== null) {
+        return;
+      }
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        setViewportWidth(window.innerWidth);
+      });
+    };
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+    };
   }, []);
 
   const detailMax = Math.max(
@@ -65,9 +136,9 @@ export function usePaneWidths() {
 
   return {
     sidebarWidth,
-    setSidebarWidth,
+    setSidebarWidth: commitSidebar,
     detailWidth,
-    setDetailWidth: setPreferredDetailWidth,
+    setDetailWidth: commitDetail,
     detailMax,
   };
 }

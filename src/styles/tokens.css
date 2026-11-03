@@ -33,6 +33,17 @@
   --danger-border: rgba(224, 108, 117, 0.6);
   --remote-border: #4a5568;
   --remote-text: #b6c0d0;
+
+  /* 图谱泳道配色：8 色循环 + 节点描边，深色背景下取亮色系。 */
+  --graph-lane-1: #6ea8fe;
+  --graph-lane-2: #f0a35e;
+  --graph-lane-3: #71c78e;
+  --graph-lane-4: #d98adf;
+  --graph-lane-5: #e0c14f;
+  --graph-lane-6: #6fd3d8;
+  --graph-lane-7: #e07f9a;
+  --graph-lane-8: #9d9df0;
+  --graph-lane-edge: #16181d;
   --diff-bg: #1b1e24;
   --diff-text: #d7dae0;
   --diff-selection-bg: #35507a;
@@ -92,6 +103,17 @@
     --danger-border: rgba(198, 40, 40, 0.45);
     --remote-border: #c5cbd6;
     --remote-text: #4a5568;
+
+    /* 图谱泳道配色：浅色背景下降为深色系，连线对比度 ≥3:1 且 8 色彼此可区分。 */
+    --graph-lane-1: #1a5bb8;
+    --graph-lane-2: #ad5a10;
+    --graph-lane-3: #1e7a3c;
+    --graph-lane-4: #93389e;
+    --graph-lane-5: #806500;
+    --graph-lane-6: #0e7a80;
+    --graph-lane-7: #b83a5e;
+    --graph-lane-8: #5a5ac8;
+    --graph-lane-edge: #5a6070;
     --diff-bg: #ffffff;
     --diff-text: #24292f;
     --diff-selection-bg: #cfe0ff;
@@ -138,6 +160,17 @@
   --danger-border: rgba(198, 40, 40, 0.45);
   --remote-border: #c5cbd6;
   --remote-text: #4a5568;
+
+  /* 图谱泳道配色：浅色背景下降为深色系，连线对比度 ≥3:1 且 8 色彼此可区分。 */
+  --graph-lane-1: #1a5bb8;
+  --graph-lane-2: #ad5a10;
+  --graph-lane-3: #1e7a3c;
+  --graph-lane-4: #93389e;
+  --graph-lane-5: #806500;
+  --graph-lane-6: #0e7a80;
+  --graph-lane-7: #b83a5e;
+  --graph-lane-8: #5a5ac8;
+  --graph-lane-edge: #5a6070;
   --diff-bg: #ffffff;
   --diff-text: #24292f;
   --diff-selection-bg: #cfe0ff;

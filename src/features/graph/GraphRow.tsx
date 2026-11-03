@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import { memo } from "react";
 import { formatDate } from "../../shared/format";
 import type { CommitSummaryDto, RefBadgeDto, RowLayoutDto } from "../../shared/types";
 import { GraphCell } from "./GraphCell";
@@ -20,13 +20,14 @@ export interface GraphRowProps {
   height: number;
   selected: boolean;
   located: boolean;
-  onRowClick: (event: MouseEvent) => void;
-  onRowContextMenu: (event: MouseEvent) => void;
-  onRowMouseEnter: (event: MouseEvent) => void;
-  onRowMouseLeave: () => void;
 }
 
-export function GraphRow({
+/**
+ * 图谱行：点击、右键、悬浮等行交互已委托到 GraphList 容器（按 data-oid 反查），
+ * props 只剩纯数据，且引用在追加页时保持稳定（旧行对象复用，见 model.ts），
+ * 因此 memo 默认浅比较即可阻断 toast、悬浮卡等无关状态引发的全行重渲染。
+ */
+export const GraphRow = memo(function GraphRow({
   oid,
   commit,
   layout,
@@ -35,10 +36,6 @@ export function GraphRow({
   height,
   selected,
   located,
-  onRowClick,
-  onRowContextMenu,
-  onRowMouseEnter,
-  onRowMouseLeave,
 }: GraphRowProps) {
   const classes = ["graph-row"];
   if (selected) {
@@ -50,11 +47,8 @@ export function GraphRow({
   return (
     <div
       className={classes.join(" ")}
+      data-oid={oid}
       style={{ transform: `translateY(${start}px)`, height }}
-      onClick={onRowClick}
-      onContextMenu={onRowContextMenu}
-      onMouseEnter={onRowMouseEnter}
-      onMouseLeave={onRowMouseLeave}
     >
       <GraphCell layout={layout} laneCount={laneCount} height={height} />
       <div className="graph-row-summary">
@@ -74,4 +68,4 @@ export function GraphRow({
       <span className="graph-row-oid mono">{commit?.short_oid ?? oid.slice(0, 7)}</span>
     </div>
   );
-}
+});

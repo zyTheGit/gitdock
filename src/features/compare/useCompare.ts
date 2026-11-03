@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorText } from "../../shared/error";
 import { CommandError, ipc } from "../../shared/ipc";
+import { useIpcResource } from "../../shared/useIpcResource";
 import type {
   CommitSummaryDto,
   CompareResultDto,
@@ -202,40 +203,13 @@ export function useCompareFileDiff(
   generation: number,
   twoDot: boolean,
 ): { data: FileDiffDto | null; loading: boolean; error: string | null } {
-  const [data, setData] = useState<FileDiffDto | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setData(null);
-    setError(null);
-    if (!base || !compare || !path) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    ipc
-      .compareFileDiff(base.oid, compare.oid, path, twoDot)
-      .then((diff) => {
-        if (!cancelled && diff.generation === generation) {
-          setData(diff);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(errorText(err));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [base?.oid, compare?.oid, path, generation, twoDot]);
-
-  return { data, loading, error };
+  // 与 useCompareResult 不同：这里无需防抖、generation 失败静默丢弃，走统一骨架。
+  return useIpcResource(
+    [base?.oid, compare?.oid, path, twoDot],
+    () => ipc.compareFileDiff(base!.oid, compare!.oid, path!, twoDot),
+    {
+      enabled: base !== null && compare !== null && path !== null,
+      expectedGeneration: generation,
+    },
+  );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
+import { useIpcResource } from "../../shared/useIpcResource";
 import type { CommitDetailDto, FileDiffDto } from "../../shared/types";
 
 export interface DetailLoader<T> {
@@ -14,42 +14,11 @@ export function useCommitDetail(
   oid: string | null,
   generation: number,
 ): DetailLoader<CommitDetailDto> {
-  const [data, setData] = useState<CommitDetailDto | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setData(null);
-    setError(null);
-    if (!oid) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    ipc
-      .readCommit(oid)
-      .then((detail) => {
-        if (!cancelled && detail.generation === generation) {
-          setData(detail);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(errorText(err));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [oid, generation]);
-
-  return { data, loading, error };
+  return useIpcResource(
+    [oid],
+    () => ipc.readCommit(oid!),
+    { enabled: oid !== null, expectedGeneration: generation },
+  );
 }
 
 export function useBranchesContaining(oid: string | null, generation: number): string[] {
@@ -84,40 +53,9 @@ export function useFileDiff(
   path: string | null,
   generation: number,
 ): DetailLoader<FileDiffDto> {
-  const [data, setData] = useState<FileDiffDto | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setData(null);
-    setError(null);
-    if (!oid || !path) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    ipc
-      .readFileDiff(oid, path)
-      .then((diff) => {
-        if (!cancelled && diff.generation === generation) {
-          setData(diff);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(errorText(err));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [oid, path, generation]);
-
-  return { data, loading, error };
+  return useIpcResource(
+    [oid, path],
+    () => ipc.readFileDiff(oid!, path!),
+    { enabled: oid !== null && path !== null, expectedGeneration: generation },
+  );
 }

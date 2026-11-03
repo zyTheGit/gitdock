@@ -12,7 +12,7 @@ import {
   setCapturing,
   useBindings,
   type BindableAction,
-} from "../../app/keybindings";
+} from "../../shared/keybindings";
 import { Kbd } from "../../shared/Kbd";
 
 /** 界面里写死的键位说明，与 fixedShortcuts 一一对应，不支持改键。 */
