@@ -427,6 +427,29 @@ export interface AppInfoDto {
   platform: string;
 }
 
+/**
+ * GitDock 代执行的 git CLI 命令日志条目（只读快照，内存环形缓冲）。
+ * 应用级诊断数据，不走 generation/RefreshCoordinator。
+ */
+export interface CommandLogEntryDto {
+  /** 单调递增序号；同一次运行内唯一。 */
+  id: number;
+  /** 启动时间（Unix 毫秒）。 */
+  started_at_ms: number;
+  /** 执行耗时（毫秒）。 */
+  duration_ms: number;
+  /** 工作目录（GitDock 上下文，非用户输入）。 */
+  cwd: string;
+  /** git 子命令与参数（不含程序名 git 本身）。 */
+  args: string[];
+  /** 退出码；null 表示进程启动失败（无退出码可谈）。 */
+  exit_code: number | null;
+  /** stderr 头部截断（约 512 字节，lossy 解码）；null = 无输出。 */
+  stderr_head: string | null;
+  /** 成功 = 启动且退出码为 0。 */
+  success: boolean;
+}
+
 /** 版本检查结果：由 Rust 侧访问 GitHub Releases 得到，前端只读不拼地址。 */
 export interface UpdateCheckDto {
   current_version: string;

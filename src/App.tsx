@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { AppMenus } from "./app/AppMenus";
 import { Banners } from "./app/Banners";
 import { RepositorySidebar } from "./app/RepositorySidebar";
-import { StatusBar } from "./app/StatusBar";
+import { StatusBar, type StatusBarProps } from "./app/StatusBar";
 import { TopBar } from "./app/TopBar";
 import { WelcomePane } from "./app/WelcomePane";
 import { useCommitMenus, type BranchMenuState, type RowMenuState } from "./app/useCommitMenus";
@@ -26,6 +27,7 @@ import { CompareBar } from "./features/compare/CompareBar";
 import { CompareView } from "./features/compare/CompareView";
 import { useCompareResult, useCompareSlots } from "./features/compare/useCompare";
 import { CommitDetailPane } from "./features/detail/CommitDetailPane";
+import { CommandLogDialog } from "./features/gitlog/CommandLogDialog";
 import { GraphPane } from "./features/graph/GraphPane";
 import { commitMenuItems } from "./features/graph/menus";
 import { branchSlot } from "./features/repository/branchMenus";
@@ -37,7 +39,7 @@ import { StagingView } from "./features/staging/StagingView";
 import { TerminalPanel } from "./features/terminal/TerminalPanel";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
 import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
-import { ContextMenu } from "./shared/ContextMenu";
+
 
 import { PaneSplitter } from "./shared/PaneSplitter";
 import { displaySpec, useBindings, useKeybindings } from "./shared/keybindings";
@@ -62,6 +64,7 @@ export default function App() {
   const [terminalMounted, setTerminalMounted] = useState(false);
   const [terminalRunning, setTerminalRunning] = useState(false);
   const [branchCompareOpen, setBranchCompareOpen] = useState(false);
+  const [commandLogOpen, setCommandLogOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null);
   const [branchMenu, setBranchMenu] = useState<BranchMenuState | null>(null);
   const [descriptionBranch, setDescriptionBranch] = useState<string | null>(null);
@@ -298,6 +301,22 @@ export default function App() {
 
   const compareReady = Boolean(slots.base && slots.compare);
 
+  // 状态栏 props 集中组装：右侧入口（更新/命令日志/终端）逐项罗列，挂载处整体展开。
+  const statusBarProps: StatusBarProps = {
+    busy,
+    repo,
+    info,
+    settings,
+    fontScale: zoom.fontScale,
+    terminalOpen,
+    terminalRunning,
+    terminalShortcut: displaySpec(bindings["terminal.toggle"]),
+    updateVersion,
+    onToggleTerminal: toggleTerminal,
+    onOpenUpdate: openUpdatePage,
+    onOpenCommandLog: () => setCommandLogOpen(true),
+  };
+
   return (
     <div className="app">
       <TopBar
@@ -484,19 +503,7 @@ export default function App() {
         />
       )}
 
-      <StatusBar
-        busy={busy}
-        repo={repo}
-        info={info}
-        settings={settings}
-        fontScale={zoom.fontScale}
-        terminalOpen={terminalOpen}
-        terminalRunning={terminalRunning}
-        terminalShortcut={displaySpec(bindings["terminal.toggle"])}
-        updateVersion={updateVersion}
-        onToggleTerminal={toggleTerminal}
-        onOpenUpdate={openUpdatePage}
-      />
+      <StatusBar {...statusBarProps} />
 
       {mode === "search" && repo && (
         <SearchView
@@ -508,23 +515,14 @@ export default function App() {
         />
       )}
 
-      {rowMenu && (
-        <ContextMenu
-          x={rowMenu.x}
-          y={rowMenu.y}
-          items={activeRowMenuItems}
-          onClose={() => setRowMenu(null)}
-        />
-      )}
-
-      {branchMenu && (
-        <ContextMenu
-          x={branchMenu.x}
-          y={branchMenu.y}
-          items={activeBranchMenuItems}
-          onClose={() => setBranchMenu(null)}
-        />
-      )}
+      <AppMenus
+        rowMenu={rowMenu}
+        branchMenu={branchMenu}
+        rowItems={activeRowMenuItems}
+        branchItems={activeBranchMenuItems}
+        onRowClose={() => setRowMenu(null)}
+        onBranchClose={() => setBranchMenu(null)}
+      />
 
       {descriptionBranch && (
         <BranchDescriptionDialog
@@ -589,6 +587,8 @@ export default function App() {
           onError={setError}
         />
       )}
+
+      {commandLogOpen && <CommandLogDialog onClose={() => setCommandLogOpen(false)} />}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 //! 领域模型、DTO 与跨模块契约。
 //!
 //! 本 crate 不了解 gix 或仓库文件布局，只定义稳定的数据形状、不变量、
-//! 各层共用的子进程启动辅助（`process`）、中断态探测内核（`interruption`）
+//! 各层共用的子进程启动与统一执行 seam（`process`）、中断态探测内核（`interruption`）
 //! 与 diff 降级阈值/文案（`diff_limit`）。
 
 pub mod cursor;
@@ -27,4 +27,7 @@ pub use interruption::{
 };
 pub use language::language_for;
 pub use oid::{ObjectFormat, Oid, OidError};
+pub use process::recorder::{
+    run_git_output, run_git_with_stdin, set_recorder, CommandLogEntry, CommandRecorder,
+};
 pub use process::{git_command, hide_console, lossy_text};

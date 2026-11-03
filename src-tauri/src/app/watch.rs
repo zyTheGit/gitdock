@@ -10,7 +10,7 @@ use std::sync::{Arc, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use git_core::{git_command, interruption::is_marker};
+use git_core::{interruption::is_marker, run_git_output};
 use notify::{RecursiveMode, Watcher};
 use refresh::RefreshReason;
 use serde::Serialize;
@@ -158,12 +158,9 @@ fn git_dirs(repo: &Path) -> Vec<PathBuf> {
 }
 
 fn rev_parse_dir(repo: &Path, arg: &str) -> Option<PathBuf> {
-    let output = git_command()
-        .arg("-C")
-        .arg(repo)
-        .args(["rev-parse", arg])
-        .output()
-        .ok()?;
+    // 统一执行 seam：监听目录解析也进入命令执行日志；
+    // 以仓库目录为 cwd 等价于原 `git -C <repo> rev-parse <arg>`。
+    let output = run_git_output(Some(repo), &["rev-parse", arg], &[]).ok()?;
     if !output.status.success() {
         return None;
     }
