@@ -221,22 +221,9 @@ pub fn launch(
 }
 
 /// 用默认浏览器打开 URL；URL 必须由后端按固定模板构造，不接受前端任意协议。
+/// 平台 opener 差异收敛在 platform 层（ADR-0005）。
 pub fn open_url(url: &str) -> Result<(), UserVisibleError> {
-    #[cfg(windows)]
-    let (program, args): (&str, Vec<&str>) =
-        ("rundll32.exe", vec!["url.dll,FileProtocolHandler", url]);
-    #[cfg(target_os = "macos")]
-    let (program, args): (&str, Vec<&str>) = ("open", vec![url]);
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let (program, args): (&str, Vec<&str>) = ("xdg-open", vec![url]);
-    let mut command = std::process::Command::new(program);
-    command.args(args);
-    hide_console(&mut command);
-    command.spawn().map(|_| ()).map_err(|e| {
-        UserVisibleError::new(ErrorCode::ExternalToolFailed, "打开默认浏览器失败")
-            .with_key("errors.externalBrowserOpenFailed")
-            .with_detail(e.to_string())
-    })
+    super::platform::open_url(url)
 }
 
 #[cfg(test)]

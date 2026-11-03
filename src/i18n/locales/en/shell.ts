@@ -18,7 +18,7 @@ const shell = {
   stagingButtonTitle: "Review workspace changes and stage or unstage files individually; Esc to exit",
   compare: "Compare",
   compareReadyTitle: "View compare results",
-  compareButtonTitle: "Pick two branches to compare, or Ctrl+click commits to select Base / Compare",
+  compareButtonTitle: "Pick two branches to compare, or {{modifier}}+click commits to select Base / Compare",
   terminal: "Terminal",
   openTerminalTitle: "Open terminal ({{shortcut}})",
   terminalRunningTitle: "Terminal process running; collapsing won't end it ({{shortcut}})",

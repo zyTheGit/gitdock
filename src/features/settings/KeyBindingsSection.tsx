@@ -16,6 +16,7 @@ import {
   type BindingRejection,
 } from "../../shared/keybindings";
 import { Kbd } from "../../shared/Kbd";
+import { primaryModifierLabel } from "../../shared/platform";
 
 /** settings 域消息 key（带命名空间前缀）：映射表字段用它收窄，t() 才能编译期校验。 */
 type SettingsKey = `settings.${keyof typeof settingsZh}`;
@@ -175,7 +176,9 @@ export function KeyBindingsSection() {
                 <kbd key={key}>{KBD_LABEL_KEYS[key] ? t(KBD_LABEL_KEYS[key]) : key}</kbd>
               ))}
             </span>
-            <span className="muted">{t(shortcut.textKey)}</span>
+            <span className="muted">
+              {tLoose(shortcut.textKey, { modifier: primaryModifierLabel() })}
+            </span>
           </li>
         ))}
       </ul>

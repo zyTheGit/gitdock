@@ -3,6 +3,7 @@ import { Banners } from "./app/Banners";
 import { RepositorySidebar } from "./app/RepositorySidebar";
 import { StatusBar } from "./app/StatusBar";
 import { TopBar } from "./app/TopBar";
+import { WelcomePane } from "./app/WelcomePane";
 import { useCommitMenus, type BranchMenuState, type RowMenuState } from "./app/useCommitMenus";
 import { useGlobalEsc, type ViewMode } from "./app/useGlobalEsc";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
@@ -43,6 +44,7 @@ import { useBindings, useKeybindings } from "./shared/keybindings";
 import { copyText } from "./shared/clipboard";
 import { errorText } from "./shared/error";
 import { ipc } from "./shared/ipc";
+import { initPlatform } from "./shared/platform";
 import type { CommitSummaryDto, GraphScope } from "./shared/types";
 
 export default function App() {
@@ -152,6 +154,10 @@ export default function App() {
   );
   const tools = settings?.external_tools ?? [];
 
+  useEffect(() => {
+    if (info) initPlatform(info.platform);
+  }, [info]);
+
   // 更新检查要等启动数据（appInfo + settings）落地、且首次仓库加载收尾后再补发一次：
   // 它是一次外网请求，既不能推迟 uiReady 开窗，也不该与恢复仓库抢 IPC。
   // 24 小时节流由 useUpdateCheck 内部负责，这里只保证一个会话内只发起一次。
@@ -258,9 +264,7 @@ export default function App() {
     [repo?.path, session.readSnapshot, session.applySnapshot, graph.reload, setToast, setError],
   );
 
-  const localBranches = repo
-    ? repo.refs.filter((ref) => ref.kind === "local_branch")
-    : [];
+  const localBranches = repo ? repo.refs.filter((ref) => ref.kind === "local_branch") : [];
 
   // 右键菜单条目组装（提交行/分支共享写与对比动作），细节见 useCommitMenus。
   const { commitActions, activeRowMenuItems, activeBranchMenuItems } = useCommitMenus({
@@ -462,13 +466,7 @@ export default function App() {
               </>
             )
           ) : (
-            <section className="welcome">
-              <h1>{t("shell.welcomeTitle")}</h1>
-              <p>{t("shell.welcomeBody")}</p>
-              <button className="primary large" onClick={() => void session.pick()} disabled={busy}>
-                {t("shell.chooseRepoDirectory")}
-              </button>
-            </section>
+            <WelcomePane busy={busy} onPick={() => void session.pick()} />
           )}
         </main>
       </div>
@@ -553,11 +551,7 @@ export default function App() {
         />
       )}
 
-      {toast && (
-        <div className="toast" role="status">
-          {toast}
-        </div>
-      )}
+      {toast && <div className="toast" role="status">{toast}</div>}
 
       {branchCompareOpen && repo && localBranches.length >= 2 && (
         <BranchCompareDialog

@@ -1,9 +1,5 @@
 //! 外部对比工具：配置结构、内置探测与保存前校验。
 
-// PathBuf 只在 Windows 探测分支使用；非 Windows 下避免 unused import。
-#[cfg(windows)]
-use std::path::PathBuf;
-
 use git_core::{ErrorCode, UserVisibleError};
 use serde::{Deserialize, Serialize};
 
@@ -29,63 +25,27 @@ pub(super) fn seed_tools(settings: &mut SettingsDto, tools: Vec<ExternalToolConf
     settings.external_tools = tools;
 }
 
-/// 按当前系统探测常见对比工具；只检查已知安装路径，不启动任何进程。
+/// 按当前系统探测常见对比工具；路径探测收敛在 platform 层（ADR-0005），
+/// 本函数只负责把 GitDock 语义的参数模板绑定到探测结果上。
 pub(super) fn detected_tools() -> Vec<ExternalToolConfig> {
-    #[cfg(not(windows))]
-    {
-        Vec::new()
-    }
-    #[cfg(windows)]
-    {
-        use std::env;
-        let mut tools: Vec<ExternalToolConfig> = Vec::new();
-        let mut add = |name: &str, exe: PathBuf, args: &str| {
-            // 同一工具可能同时存在于用户目录与 Program Files，按名称去重。
-            if tools.iter().any(|tool| tool.name == name) {
-                return;
-            }
-            if exe.is_file() {
-                tools.push(ExternalToolConfig {
-                    name: name.to_owned(),
-                    executable: exe.display().to_string(),
-                    args_template: args.to_owned(),
-                });
-            }
-        };
-        if let Some(local) = env::var_os("LOCALAPPDATA") {
-            let base = PathBuf::from(local);
-            add(
-                "VS Code",
-                base.join("Programs")
-                    .join("Microsoft VS Code")
-                    .join("Code.exe"),
-                "--diff $LOCAL $REMOTE",
-            );
-            add(
-                "Zed",
-                base.join("Programs")
-                    .join("Zed")
-                    .join("bin")
-                    .join("zed.exe"),
-                "--diff $LOCAL $REMOTE",
-            );
-        }
-        for key in ["ProgramFiles", "ProgramFiles(x86)"] {
-            if let Some(dir) = env::var_os(key) {
-                let base = PathBuf::from(dir);
-                add(
-                    "VS Code",
-                    base.join("Microsoft VS Code").join("Code.exe"),
-                    "--diff $LOCAL $REMOTE",
-                );
-                add(
-                    "Beyond Compare",
-                    base.join("Beyond Compare 4").join("BCompare.exe"),
-                    "$LOCAL $REMOTE",
-                );
-            }
-        }
-        tools
+    crate::app::platform::detect_tools()
+        .into_iter()
+        .map(|tool| ExternalToolConfig {
+            name: tool.name.to_owned(),
+            executable: tool.path.display().to_string(),
+            args_template: args_template_for(tool.name).to_owned(),
+        })
+        .collect()
+}
+
+/// 探测命中工具的参数模板（GitDock 语义，非平台语义）：`--diff` 是
+/// VS Code / Zed 的命令行语义，Beyond Compare 直接接两个文件。
+/// platform 层新增探测工具时须在此补充分支；未知名字退回裸模板兜底。
+fn args_template_for(name: &str) -> &'static str {
+    match name {
+        "VS Code" | "Zed" => "--diff $LOCAL $REMOTE",
+        "Beyond Compare" => "$LOCAL $REMOTE",
+        _ => "$LOCAL $REMOTE",
     }
 }
 

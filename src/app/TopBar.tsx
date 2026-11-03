@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useI18n } from "../i18n";
+import { primaryModifierLabel } from "../shared/platform";
 import { RepositorySwitcher } from "../features/repository/RepositorySwitcher";
 import { WorkspaceBadge } from "./WorkspaceBadge";
 import type { RecentRepository, RepoStateDto, WorkspaceStatusDto } from "../shared/types";
@@ -100,11 +101,11 @@ export function TopBar({
                 }
               }}
               disabled={!compareReady && localBranchCount < 2}
-              title={
-                compareReady
-                  ? t("shell.compareReadyTitle")
-                  : t("shell.compareButtonTitle")
-              }
+                title={
+                  compareReady
+                    ? t("shell.compareReadyTitle")
+                    : t("shell.compareButtonTitle", { modifier: primaryModifierLabel() })
+                }
             >
               <ActionIcon name="compare" /><span>{t("shell.compare")}</span>
             </button>

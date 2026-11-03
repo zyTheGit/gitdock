@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { isEscConsumed } from "../../shared/esc";
+import { currentPlatform, primaryModifierLabel } from "../../shared/platform";
 import { useI18n } from "../../i18n";
 import { useTerminalSession } from "./useTerminalSession";
 import "../../styles/terminal.css";
@@ -75,7 +76,7 @@ export function TerminalPanel({
       if (event.key === "Escape" && fullscreen && !isEscConsumed(event)) {
         setFullscreen(false);
       }
-      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "enter") {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "enter") {
         event.preventDefault();
         setFullscreen((current) => !current);
       }
@@ -115,6 +116,16 @@ export function TerminalPanel({
 
   const restartable = mode === null || status === "exited" || status === "failed";
   const lazygitMissing = lazygitPath === null;
+  const modifier = primaryModifierLabel();
+  const installCmd =
+    currentPlatform() === "windows"
+      ? t("terminal.lazygitInstallWindows")
+      : currentPlatform() === "macos"
+        ? t("terminal.lazygitInstallMac")
+        : t("terminal.lazygitInstallLinux");
+  const fullscreenTitle = fullscreen
+    ? t("terminal.restoreFullscreen", { modifier })
+    : t("terminal.enterFullscreen", { modifier });
 
   return (
     <section className={fullscreen ? "terminal-panel fullscreen" : "terminal-panel"} style={fullscreen ? undefined : { height }} hidden={!visible}>
@@ -158,7 +169,7 @@ export function TerminalPanel({
               {t("terminal.endProcess")}
             </button>
           )}
-          <button className="terminal-fullscreen-button" onClick={() => setFullscreen((current) => !current)} title={fullscreen ? t("terminal.restoreFullscreen") : t("terminal.enterFullscreen")}>
+          <button className="terminal-fullscreen-button" onClick={() => setFullscreen((current) => !current)} title={fullscreenTitle}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               {fullscreen ? <path d="M8 3v5H3m13-5v5h5M3 16h5v5m13-5h-5v5" /> : <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />}
             </svg>
@@ -187,7 +198,7 @@ export function TerminalPanel({
       {lazygitMissing && restartable && (
         <div className="terminal-notice">
           {t("terminal.lazygitNoticePrefix")}
-          <code>winget install JesseDuffield.lazygit</code>
+          <code>{installCmd}</code>
           {t("terminal.lazygitNoticeSuffix")}
           <button className="link" onClick={onOpenSettings}>
             {t("terminal.openSettings")}

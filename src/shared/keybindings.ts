@@ -1,4 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
+import { currentPlatform } from "./platform";
 
 /**
  * 可改键的动作集合。
@@ -32,7 +33,9 @@ export interface BindingRejection {
   key:
     | "settings.keybindRejectNoModifier"
     | "settings.keybindRejectShift"
-    | "settings.keybindRejectCtrlAlt"
+    | "settings.keybindRejectCtrlAltWin"
+    | "settings.keybindRejectCtrlAltMac"
+    | "settings.keybindRejectCtrlAltLinux"
     | "settings.keybindRejectAltReserved"
     | "settings.keybindRejectCtrlLetter"
     | "settings.keybindRejectUnsupported"
@@ -187,6 +190,21 @@ const CTRL_ALLOWED = new Set([
 
 const RESERVED_ALT = new Set(["F4", "Tab", "Esc", "Space", "Home", "End"]);
 
+/**
+ * Ctrl+Alt 的拒绝理由按平台选择：Windows 输入法占用、macOS 特殊字符输入、
+ * Linux 多数布局的 AltGr。平台在启动时确定，运行期不变。
+ */
+function ctrlAltRejectKey(): BindingRejection["key"] {
+  switch (currentPlatform()) {
+    case "macos":
+      return "settings.keybindRejectCtrlAltMac";
+    case "linux":
+      return "settings.keybindRejectCtrlAltLinux";
+    default:
+      return "settings.keybindRejectCtrlAltWin";
+  }
+}
+
 /** 返回结构化拒绝原因；`null` 表示该组合可用。 */
 export function rejectionReason(combo: Combo): BindingRejection | null {
   if (!combo.ctrl && !combo.alt) {
@@ -196,7 +214,7 @@ export function rejectionReason(combo: Combo): BindingRejection | null {
     return { key: "settings.keybindRejectShift" };
   }
   if (combo.ctrl && combo.alt) {
-    return { key: "settings.keybindRejectCtrlAlt" };
+    return { key: ctrlAltRejectKey() };
   }
   if (combo.alt && !combo.ctrl && RESERVED_ALT.has(combo.key)) {
     return { key: "settings.keybindRejectAltReserved", keyName: combo.key };
