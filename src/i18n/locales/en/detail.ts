@@ -4,6 +4,10 @@ import type { DetailMessages } from "../zh-CN/detail";
 const detail = {
   commitDetails: "Commit details",
   closeAria: "Close details",
+  baselineRoot: "Root commit: compared against the empty tree",
+  baselineFirstParent: "Compared against the first parent",
+  baselineMerge:
+    "Merge commit: compared against the first parent; differences introduced by other merged branches are not expanded",
   loading: "Loading commit details…",
   commitMessage: "Commit message",
   parents: "Parents",

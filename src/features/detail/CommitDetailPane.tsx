@@ -208,7 +208,13 @@ export function CommitDetailPane({
                     : "baseline-note muted"
                 }
               >
-                {detail.data.baseline_note}
+                {
+                  detail.data.baseline === "root"
+                    ? t("detail.baselineRoot")
+                    : detail.data.baseline === "merge_first_parent"
+                      ? t("detail.baselineMerge")
+                      : t("detail.baselineFirstParent")
+                }
               </div>
 
               {detail.data.warnings.map((warning) => (

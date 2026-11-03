@@ -4,6 +4,9 @@ import type { MessageShape } from "../messages";
 const detail = {
   commitDetails: "提交详情",
   closeAria: "关闭详情",
+  baselineRoot: "根提交：与空树比较",
+  baselineFirstParent: "与第一父提交比较",
+  baselineMerge: "合并提交：与第一父提交比较，不展开合并引入的其他分支差异",
   loading: "正在读取提交详情…",
   commitMessage: "提交说明",
   parents: "父提交",
