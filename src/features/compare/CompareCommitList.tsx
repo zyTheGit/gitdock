@@ -6,6 +6,7 @@ import {
   type PointerEvent,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useI18n } from "../../i18n";
 import { formatDate } from "../../shared/format";
 import type { CommitSummaryDto } from "../../shared/types";
 
@@ -30,6 +31,7 @@ export function CompareCommitList({
   onOpen,
   onContextMenu,
 }: CompareCommitListProps) {
+  const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startY: number; startHeight: number } | null>(null);
@@ -99,12 +101,12 @@ export function CompareCommitList({
         className={dragging ? "compare-commits-resizer dragging" : "compare-commits-resizer"}
         role="separator"
         aria-orientation="horizontal"
-        aria-label="调整提交列表高度"
+        aria-label={t("compare.resizeHandle")}
         aria-valuenow={height}
         aria-valuemin={MIN_HEIGHT}
         aria-valuemax={maxHeight()}
         tabIndex={0}
-        title="拖动调整提交列表高度，双击恢复默认"
+        title={t("compare.resizeHint")}
         onPointerDown={startResize}
         onPointerMove={resize}
         onPointerUp={finishResize}
@@ -113,11 +115,12 @@ export function CompareCommitList({
         onDoubleClick={() => setHeight(clampHeight(DEFAULT_HEIGHT))}
       />
       <h3>
-        Compare 引入的提交（{commits.length}
-        {truncated ? "+" : ""}）
+        {truncated
+          ? t("compare.commitsIntroducedTruncated", { n: commits.length })
+          : t("compare.commitsIntroduced", { n: commits.length })}
       </h3>
       {commits.length === 0 ? (
-        <p className="muted">Compare 没有相对共同祖先的新提交。</p>
+        <p className="muted">{t("compare.noNewCommits")}</p>
       ) : (
         <div className="compare-commit-list" ref={scrollRef}>
           <ul

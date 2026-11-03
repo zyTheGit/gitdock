@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import type { AppInfoDto, RepoStateDto, SettingsDto } from "../shared/types";
 
 interface StatusBarProps {
@@ -45,36 +46,37 @@ export function StatusBar({
   onToggleTerminal,
   onOpenUpdate,
 }: StatusBarProps) {
+  const { t } = useI18n();
   return (
     <footer className="statusbar">
-      <span>{busy ? "处理中…" : repo ? "就绪" : "未打开仓库"}</span>
+      <span>{busy ? t("shell.busy") : repo ? t("shell.ready") : t("shell.noRepository")}</span>
       <span className="statusbar-right">
         <span className="mono">
-          {info ? `git ${info.git_version ?? "未知"} · ${info.platform}` : ""}
-          {repo && settings ? ` · ${settings.watch_enabled ? "监听已开启" : "监听已关闭"}` : ""}
-          {` · 缩放 ${Math.round(fontScale * 100)}%`}
+          {info ? `git ${info.git_version ?? t("shell.unknown")} · ${info.platform}` : ""}
+          {repo && settings ? ` · ${settings.watch_enabled ? t("shell.watchEnabled") : t("shell.watchDisabled")}` : ""}
+          {` · ${t("shell.zoomLevel", { n: Math.round(fontScale * 100) })}`}
         </span>
         {updateVersion && (
           <button
             className="update-status-chip"
             onClick={onOpenUpdate}
-            aria-label={`发现新版本 v${updateVersion}，点击查看下载页`}
-            title={`发现新版本 v${updateVersion}，点击查看下载页`}
+            aria-label={t("shell.updateAvailableTitle", { version: updateVersion })}
+            title={t("shell.updateAvailableTitle", { version: updateVersion })}
           >
             <span className="update-status-dot" aria-hidden="true" />
-            更新
+            {t("shell.updateAvailable")}
           </button>
         )}
         {repo && (
           <button
             className={terminalOpen ? "terminal-status-button active" : "terminal-status-button"}
             onClick={onToggleTerminal}
-            aria-label={terminalOpen ? "收起终端" : "打开终端"}
+            aria-label={terminalOpen ? t("shell.collapseTerminal") : t("shell.openTerminal")}
             aria-pressed={terminalOpen}
             title={
               terminalOpen
-                ? `收起终端（${terminalShortcut}）；进程继续运行`
-                : `打开终端（${terminalShortcut}）`
+                ? t("shell.collapseTerminalTitle", { shortcut: terminalShortcut })
+                : t("shell.openTerminalTitle", { shortcut: terminalShortcut })
             }
           >
             <TerminalIcon />

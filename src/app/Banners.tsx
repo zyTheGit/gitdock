@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import type { AppInfoDto, InterruptionKind, RepoStateDto } from "../shared/types";
 
 export type InterruptionActionKind = "continue_operation" | "abort_operation";
@@ -33,6 +34,7 @@ export function Banners({
   onInterruptionAction,
   onCopyDiagnostic,
 }: BannersProps) {
+  const { t } = useI18n();
   const single = repo ? singleInterruption(repo.interruption.kinds) : null;
 
   return (
@@ -41,7 +43,11 @@ export function Banners({
         <div className="banner warning">
           <strong>{repo.interruption.message}</strong>
           {repo.interruption.files.length > 0 && (
-            <span>未完成文件：{repo.interruption.files.join("、")}</span>
+            <span>
+              {t("shell.interruptionFiles", {
+                files: repo.interruption.files.join(t("shell.fileListSeparator")),
+              })}
+            </span>
           )}
           {repo.interruption.terminal_hint && <code>{repo.interruption.terminal_hint}</code>}
           {single && (
@@ -50,21 +56,19 @@ export function Banners({
                 onClick={() => onInterruptionAction("continue_operation", single)}
                 disabled={interruptionDisabled}
               >
-                继续
+                {t("shell.interruptionContinue")}
               </button>
               <button
                 className="danger-text"
                 onClick={() => onInterruptionAction("abort_operation", single)}
                 disabled={interruptionDisabled}
               >
-                中止…
+                {t("shell.interruptionAbort")}
               </button>
             </div>
           )}
           <span className="muted">
-            {single
-              ? "本应用不会自动执行 --abort / --quit / --skip；继续或中止只在手动点击并确认后执行，其他写操作在中断态解除前保持禁用。"
-              : "本应用不会自动执行 --abort / --quit / --skip；写操作在中断态解除前保持禁用，批量序列、merge 与 rebase 中断请在终端收尾。"}
+            {single ? t("shell.interruptionHintSingle") : t("shell.interruptionHintGeneral")}
           </span>
         </div>
       ) : null}
@@ -77,7 +81,10 @@ export function Banners({
 
       {info && !info.git_version_supported && (
         <div className="banner danger">
-          系统 Git 版本 {info.git_version ?? "未知"} 低于最低要求 {info.minimum_git_version}，写操作将不可用。
+          {t("shell.gitVersionTooLow", {
+            current: info.git_version ?? t("shell.unknown"),
+            minimum: info.minimum_git_version,
+          })}
         </div>
       )}
 
@@ -86,7 +93,7 @@ export function Banners({
           <span className="banner-text">{error}</span>
           {diagnostic && (
             <button className="link" onClick={onCopyDiagnostic}>
-              复制诊断
+              {t("shell.copyDiagnostic")}
             </button>
           )}
         </div>

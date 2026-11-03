@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { i18next, useI18n } from "../i18n";
 import { useGraph, type GraphLoader } from "../features/graph/useGraph";
 import { errorText } from "../shared/error";
 import { ipc } from "../shared/ipc";
@@ -50,6 +51,7 @@ export function useRepositorySession({
   onOpened,
   writeBusyRef,
 }: RepositorySessionOptions): RepositorySession {
+  const { t } = useI18n();
   const [info, setInfo] = useState<AppInfoDto | null>(null);
   const [settings, setSettings] = useState<SettingsDto | null>(null);
   const [repo, setRepo] = useState<RepoStateDto | null>(null);
@@ -134,22 +136,26 @@ export function useRepositorySession({
   const forget = useCallback(async (path: string) => {
     try {
       setSettings(await ipc.forgetRecentRepository(path));
-      setToast("已从最近仓库移除");
+      setToast(t("repository.removedFromRecent"));
     } catch (err) {
       setError(errorText(err));
     }
-  }, []);
+  }, [t]);
 
   const pick = useCallback(async () => {
     try {
-      const selected = await openDialog({ directory: true, multiple: false, title: "选择 Git 仓库" });
+      const selected = await openDialog({
+        directory: true,
+        multiple: false,
+        title: t("repository.pickDialogTitle"),
+      });
       if (typeof selected === "string") {
         await open(selected);
       }
     } catch (err) {
       setError(errorText(err));
     }
-  }, [open]);
+  }, [open, t]);
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -206,7 +212,7 @@ export function useRepositorySession({
           unlisten = stop;
         }
       })
-      .catch((err) => setError(`监听仓库变更失败：${errorText(err)}`));
+      .catch((err) => setError(i18next.t("repository.watchError", { error: errorText(err) })));
     return () => {
       disposed = true;
       window.clearTimeout(timer);

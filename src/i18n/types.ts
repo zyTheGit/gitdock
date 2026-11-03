@@ -17,6 +17,8 @@ import type zhCnWrite from "./locales/zh-CN/write";
 declare module "i18next" {
   interface CustomTypeOptions {
     defaultNS: "common";
+    /** 命名空间分隔符用「.」：t("graph.keyName") 全限定形式。 */
+    nsSeparator: ".";
     resources: {
       common: typeof zhCnCommon;
       shell: typeof zhCnShell;

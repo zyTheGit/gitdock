@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useI18n } from "../../i18n";
 import type { CommitSummaryDto, ExternalToolConfig, FileDiffDto } from "../../shared/types";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import { Select } from "../../shared/Select";
@@ -42,6 +43,7 @@ export function CompareView({
   onExternalDiff,
   onBack,
 }: CompareViewProps) {
+  const { t } = useI18n();
   const result = loader.result;
   const files = result?.files ?? [];
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -104,9 +106,9 @@ export function CompareView({
 
   const menuItems: MenuItem[] =
     tools.length === 0
-      ? [{ label: "尚未配置外部工具", disabled: true, onSelect: () => undefined }]
+      ? [{ label: t("compare.noExternalTool"), disabled: true, onSelect: () => undefined }]
       : tools.map((tool, index) => ({
-          label: `用 ${tool.name} 打开`,
+          label: t("compare.openWithTool", { name: tool.name }),
           onSelect: () => {
             if (menu) {
               onExternalDiff(index, menu.path);
@@ -127,25 +129,21 @@ export function CompareView({
         onBack={onBack}
       />
 
-      {loader.loading && <p className="muted">正在计算三点对比…</p>}
+      {loader.loading && <p className="muted">{t("compare.computing")}</p>}
       {loader.error && <div className="banner danger">{loader.error}</div>}
       {result?.mode === "two_dot_fallback" && (
-        <div className="banner warning">
-          两个引用没有共同祖先（shallow / orphan 仓库），已降级为两端快照对比。
-        </div>
+        <div className="banner warning">{t("compare.noCommonAncestor")}</div>
       )}
       {sameTip && (
         <div className="banner info compact">
-          Base 与 Compare 指向同一提交（<span className="mono">{base.oid.slice(0, 8)}</span>
-          ），没有可显示的差异。
+          {t("compare.sameCommitTip", { oid: base.oid.slice(0, 8) })}
         </div>
       )}
       {emptyHint && (
         <div className="banner info compact">
-          三点 diff 为空：Compare 相对共同祖先没有引入文件改动（例如 Compare 是 Base 的祖先，
-          或两端工作树内容一致）。
+          {t("compare.emptyThreeDot")}
           <button className="link" onClick={() => onTwoDotChange(true)}>
-            切换到两点快照查看两端完整差异
+            {t("compare.switchToTwoDot")}
           </button>
         </div>
       )}
@@ -159,26 +157,26 @@ export function CompareView({
         <>
           <div className="compare-filter">
             <label>
-              路径过滤
+              {t("compare.pathFilter")}
               <input
                 value={pathFilter}
-                placeholder="例如 src/ 或 README.md"
+                placeholder={t("compare.pathFilterPlaceholder")}
                 onChange={(event) => onPathFilterChange(event.target.value)}
               />
             </label>
             {pathFilter && (
               <button className="link" onClick={() => onPathFilterChange("")}>
-                清除
+                {t("compare.clearFilter")}
               </button>
             )}
-            <span className="muted">变更文件 {files.length} 个</span>
+            <span className="muted">{t("compare.changedFilesCount", { n: files.length })}</span>
             {tools.length > 0 && (
               <span className="compare-tools">
                 <Select
                   compact
                   value={safeToolIndex}
                   onChange={(event) => setToolIndex(Number(event.target.value))}
-                  aria-label="选择外部对比工具"
+                  aria-label={t("compare.selectTool")}
                   options={tools.map((tool, index) => ({ value: index, label: tool.name }))}
                 />
                 <button
@@ -189,7 +187,9 @@ export function CompareView({
                     }
                   }}
                 >
-                  用 {activeTool?.name ?? "外部工具"} 打开当前文件
+                  {t("compare.openCurrentFile", {
+                    name: activeTool?.name ?? t("compare.externalToolFallback"),
+                  })}
                 </button>
               </span>
             )}

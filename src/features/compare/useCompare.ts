@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { i18next } from "../../i18n";
 import { errorText } from "../../shared/error";
 import { CommandError, ipc } from "../../shared/ipc";
 import { useIpcResource } from "../../shared/useIpcResource";
@@ -165,7 +166,7 @@ export function useCompareResult(
             return;
           }
           if (next.generation !== generation) {
-            setError("仓库状态已变化，请刷新后重试对比");
+            setError(i18next.t("compare.repoChanged"));
             return;
           }
           setResult(next);
@@ -178,7 +179,7 @@ export function useCompareResult(
           setInvalidRef(REF_ERRORS.has(code));
           setError(
             REF_ERRORS.has(code)
-              ? "引用已无法解析，请重新选择 Base / Compare"
+              ? i18next.t("compare.refUnresolved")
               : errorText(err),
           );
         })

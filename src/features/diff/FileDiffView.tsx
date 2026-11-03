@@ -3,11 +3,12 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Diff, Hunk, parseDiff } from "react-diff-view";
 import "react-diff-view/style/index.css";
 import type { FileDiffDto, FileStatus } from "../../shared/types";
-import { STATUS_LABEL } from "../../shared/fileStatus";
+import { statusLabelKey } from "../../shared/fileStatus";
 import { consumeEsc, isEventInTerminal } from "../../shared/esc";
 import { Select } from "../../shared/Select";
 import { useIpcResource } from "../../shared/useIpcResource";
 import { useResolvedTheme } from "../../shared/theme";
+import { useI18n } from "../../i18n";
 import { buildDiffTokens } from "./highlight";
 import { SplitDiffPanes } from "./SplitDiffPanes";
 
@@ -56,6 +57,7 @@ export function FileDiffView({
   onExpandedChange,
   loading,
 }: FileDiffViewProps) {
+  const { t } = useI18n();
   const [viewType, setViewType] = useState<"split" | "unified">("split");
   const [wrap, setWrap] = useState(storedWrap);
   const [filesOpen, setFilesOpen] = useState(storedFilesOpen);
@@ -135,16 +137,18 @@ export function FileDiffView({
       {expanded && <div className="file-diff-backdrop" onClick={() => onExpandedChange(false)} />}
       <section
         className={expanded ? "file-diff expanded" : "file-diff"}
-        aria-label={expanded ? "文件 diff 放大视图" : undefined}
+        aria-label={expanded ? t("diff.expandedViewLabel") : undefined}
       >
         <header className="file-diff-header">
           <div className="file-diff-title">
-            <span className={`file-status file-status-${diff.status}`}>{STATUS_LABEL[diff.status]}</span>
+            <span className={`file-status file-status-${diff.status}`}>
+              {t(statusLabelKey(diff.status))}
+            </span>
             <span className="file-diff-path mono" title={pathLabel}>
               {pathLabel}
             </span>
             <span className="file-diff-stats">
-              {loading && <span className="muted">读取中…</span>}
+              {loading && <span className="muted">{t("diff.loading")}</span>}
               <span className="diff-add">+{diff.additions}</span>
               <span className="diff-del">-{diff.deletions}</span>
               {diff.language && <span className="muted diff-language">{diff.language}</span>}
@@ -156,8 +160,8 @@ export function FileDiffView({
                 className={filesOpen ? "diff-icon-button with-count active" : "diff-icon-button with-count"}
                 onClick={() => setFilesOpen((current) => !current)}
                 aria-pressed={filesOpen}
-                title={filesOpen ? "收起变更文件列表" : "展开变更文件列表"}
-                aria-label={filesOpen ? "收起变更文件列表" : "展开变更文件列表"}
+                title={filesOpen ? t("diff.collapseFileList") : t("diff.expandFileList")}
+                aria-label={filesOpen ? t("diff.collapseFileList") : t("diff.expandFileList")}
               >
                 <svg viewBox="0 0 16 16" aria-hidden="true">
                   <path d="M6 4.5h7M6 8h7M6 11.5h7" />
@@ -167,12 +171,12 @@ export function FileDiffView({
               </button>
             )}
             {parsed && (
-              <div className="view-toggle" role="group" aria-label="diff 视图模式">
+              <div className="view-toggle" role="group" aria-label={t("diff.viewMode")}>
                 <button
                   className={viewType === "split" ? "active" : ""}
                   onClick={() => setViewType("split")}
-                  title="并排显示"
-                  aria-label="并排显示"
+                  title={t("diff.splitView")}
+                  aria-label={t("diff.splitView")}
                   aria-pressed={viewType === "split"}
                 >
                   <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -183,8 +187,8 @@ export function FileDiffView({
                 <button
                   className={viewType === "unified" ? "active" : ""}
                   onClick={() => setViewType("unified")}
-                  title="统一显示"
-                  aria-label="统一显示"
+                  title={t("diff.unifiedView")}
+                  aria-label={t("diff.unifiedView")}
                   aria-pressed={viewType === "unified"}
                 >
                   <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -198,8 +202,8 @@ export function FileDiffView({
               className={wrap ? "diff-icon-button active" : "diff-icon-button"}
               onClick={() => setWrap((current) => !current)}
               aria-pressed={wrap}
-              title="长行自动换行，避免横向滚动"
-              aria-label="长行自动换行"
+              title={t("diff.wrapTitle")}
+              aria-label={t("diff.wrap")}
             >
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M3 5h10M3 8h7a2 2 0 0 1 0 4H7" />
@@ -210,8 +214,8 @@ export function FileDiffView({
               className={expanded ? "diff-icon-button active" : "diff-icon-button"}
               onClick={() => onExpandedChange(!expanded)}
               aria-pressed={expanded}
-              title={expanded ? "还原（Esc）" : "放大到整个窗口查看 diff"}
-              aria-label={expanded ? "还原 diff 视图" : "放大 diff 视图"}
+              title={expanded ? t("diff.restoreHint") : t("diff.expandHint")}
+              aria-label={expanded ? t("diff.restoreView") : t("diff.expandView")}
             >
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 {expanded ? (
@@ -226,9 +230,9 @@ export function FileDiffView({
 
         <div className="file-diff-body">
           {showSidebar && (
-            <aside className="expanded-files" aria-label="变更文件列表">
+            <aside className="expanded-files" aria-label={t("diff.changedFileList")}>
               <div className="expanded-files-head">
-                <span>变更文件</span>
+                <span>{t("diff.changedFiles")}</span>
                 <span className="muted">{fileEntries.length}</span>
               </div>
               <div className="expanded-files-scroll" ref={sidebarScrollRef}>
@@ -267,13 +271,13 @@ export function FileDiffView({
                           }}
                           title={
                             onFileContextMenu
-                              ? `${file.path}（右键可用外部工具对比）`
+                              ? t("diff.fileContextMenuHint", { path: file.path })
                               : file.path
                           }
                           aria-current={active ? "true" : undefined}
                         >
                           <span className={`file-status file-status-${file.status}`}>
-                            {STATUS_LABEL[file.status]}
+                            {t(statusLabelKey(file.status))}
                           </span>
                           <span className="file-path">{file.path}</span>
                           <span className="file-stats">
@@ -295,8 +299,8 @@ export function FileDiffView({
                 <button
                   disabled={currentIndex <= 0}
                   onClick={() => onSelectFile?.(fileEntries[currentIndex - 1].path)}
-                  title="上一个文件"
-                  aria-label="上一个文件"
+                  title={t("diff.previousFile")}
+                  aria-label={t("diff.previousFile")}
                 >
                   ‹
                 </button>
@@ -305,18 +309,22 @@ export function FileDiffView({
                   compact
                   value={activePath ?? diff.path}
                   onChange={(event) => onSelectFile?.(event.target.value)}
-                  aria-label="切换对比文件"
+                  aria-label={t("diff.switchFile")}
                   title={activePath ?? diff.path}
                   options={fileEntries.map((file, index) => ({
                     value: file.path,
-                    label: `${index + 1}/${fileEntries.length} · ${file.path}`,
+                    label: t("diff.filePickerLabel", {
+                      index: index + 1,
+                      total: fileEntries.length,
+                      path: file.path,
+                    }),
                   }))}
                 />
                 <button
                   disabled={currentIndex < 0 || currentIndex >= fileEntries.length - 1}
                   onClick={() => onSelectFile?.(fileEntries[currentIndex + 1].path)}
-                  title="下一个文件"
-                  aria-label="下一个文件"
+                  title={t("diff.nextFile")}
+                  aria-label={t("diff.nextFile")}
                 >
                   ›
                 </button>
@@ -332,23 +340,23 @@ export function FileDiffView({
                 diff.encoding_fallback
               ) && <div className="banner info compact">{diff.note}</div>}
             {diff.binary && (
-              <div className="banner info compact">二进制文件，不显示文本 diff。</div>
+              <div className="banner info compact">{t("diff.binaryFile")}</div>
             )}
             {diff.too_large && (
-              <div className="banner warning compact">文件过大，仅显示变更统计，不加载内容。</div>
+              <div className="banner warning compact">{t("diff.tooLarge")}</div>
             )}
             {diff.truncated && (
-              <div className="banner warning compact">diff 过长，已截断为前若干行。</div>
+              <div className="banner warning compact">{t("diff.truncated")}</div>
             )}
             {diff.encoding_fallback && (
-              <div className="banner info compact">文件包含非 UTF-8 字节，已按替换字符显示。</div>
+              <div className="banner info compact">{t("diff.encodingFallback")}</div>
             )}
             {diff.gitlink && (
               <div className="banner info compact">
-                子模块指针变更：
-                <code>{(diff.gitlink_old ?? "（空）").slice(0, 12)}</code> →{" "}
-                <code>{(diff.gitlink_new ?? "（空）").slice(0, 12)}</code>
-                （不展开子模块内部 diff）
+                {t("diff.gitlinkChanged")}
+                <code>{(diff.gitlink_old ?? t("diff.gitlinkEmpty")).slice(0, 12)}</code> →{" "}
+                <code>{(diff.gitlink_new ?? t("diff.gitlinkEmpty")).slice(0, 12)}</code>
+                {t("diff.gitlinkNoExpand")}
               </div>
             )}
 
@@ -369,14 +377,12 @@ export function FileDiffView({
                   </div>
                 )}
                 {parsed.hunks.length > 0 && !tokens?.highlighted && diff.language && (
-                  <p className="diff-note muted">
-                    未启用语法高亮（语言不在支持列表或变更行数过多），已保留行内差异标记。
-                  </p>
+                  <p className="diff-note muted">{t("diff.noHighlight")}</p>
                 )}
               </>
             ) : (
               !diff.binary && !diff.gitlink && !diff.too_large && (
-                <p className="muted">该文件没有可显示的文本差异。</p>
+                <p className="muted">{t("diff.noTextDiff")}</p>
               )
             )}
           </div>

@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { useI18n } from "../../i18n";
 import { formatDate } from "../../shared/format";
 import type { CommitSummaryDto, RefBadgeDto, RowLayoutDto } from "../../shared/types";
 import { GraphCell } from "./GraphCell";
@@ -37,6 +38,7 @@ export const GraphRow = memo(function GraphRow({
   selected,
   located,
 }: GraphRowProps) {
+  const { t } = useI18n();
   const classes = ["graph-row"];
   if (selected) {
     classes.push("selected");
@@ -52,7 +54,7 @@ export const GraphRow = memo(function GraphRow({
     >
       <GraphCell layout={layout} laneCount={laneCount} height={height} />
       <div className="graph-row-summary">
-        <span className="commit-summary">{commit?.summary || "（无提交说明）"}</span>
+        <span className="commit-summary">{commit?.summary || t("graph.noSummary")}</span>
         {commit?.refs.map((badge) => (
           <span className="ref-group" key={`${badge.kind}:${badge.name}`}>
             <span className={badgeClass(badge)}>

@@ -1,26 +1,39 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { currentLocale, useI18n } from "../../i18n";
 import type { CommitSummaryDto, RepoStateDto, SearchField } from "../../shared/types";
 import { buildSuggestions, type Suggestion } from "./suggestions";
 import type { SearchLoader } from "./useSearch";
 
-const FIELD_LABEL: Record<SearchField, string> = {
-  message: "信息",
-  hash: "哈希",
-  author: "作者",
-  path: "路径",
-};
+// 提交搜索命中域 → 文案 key；渲染处用 t(FIELD_LABEL_KEY[field])。
+const FIELD_LABEL_KEY = {
+  message: "search.fieldMessage",
+  hash: "search.fieldHash",
+  author: "search.fieldAuthor",
+  path: "search.fieldPath",
+} as const satisfies Record<SearchField, string>;
 
 // 结果行高度初值（12px 文本 + 上下 padding）；文本行高随字体而定，
 // 首帧后由 measureElement 按实际渲染高度修正。
 const RESULT_ROW_ESTIMATE = 32;
 const RESULT_LIST_OVERSCAN = 12;
 
-const dateFormat = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+// 结果行日期只含年月日（区别于 format.ts 的日期时间），按当前语言缓存 formatter。
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function resultDateFormatter(): Intl.DateTimeFormat {
+  const locale = currentLocale();
+  let cached = dateFormatters.get(locale);
+  if (!cached) {
+    cached = new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    dateFormatters.set(locale, cached);
+  }
+  return cached;
+}
 
 function highlight(text: string, needle: string) {
   const trimmed = needle.trim();
@@ -47,6 +60,7 @@ interface SearchViewProps {
 }
 
 export function SearchView({ repo, search, commits, onLocateCommit, onClose }: SearchViewProps) {
+  const { t } = useI18n();
   const [input, setInput] = useState(search.text);
   const [active, setActive] = useState(-1);
   const [suggestOpen, setSuggestOpen] = useState(true);
@@ -115,14 +129,14 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
     }
   };
 
-  const repoName = repo.path.split(/[\\/]/).filter(Boolean).pop();
+  const repoName = repo.path.split(/[\\/]/).filter(Boolean).pop() ?? "";
 
   return (
     <div className="modal-backdrop search-backdrop" role="dialog" aria-modal="true">
       <div className="search-dialog">
         <header>
-          <h2>搜索提交</h2>
-          <button className="detail-close" onClick={onClose} aria-label="关闭搜索">
+          <h2>{t("search.dialogTitle")}</h2>
+          <button className="detail-close" onClick={onClose} aria-label={t("search.closeSearch")}>
             ×
           </button>
         </header>
@@ -132,7 +146,7 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
             <input
               autoFocus
               value={input}
-              placeholder="搜索信息 / 至少 7 位 hash / 作者 / 路径"
+              placeholder={t("search.placeholder")}
               role="combobox"
               aria-expanded={suggestOpen && suggestions.length > 0}
               aria-autocomplete="list"
@@ -171,33 +185,38 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
             onClick={() => runSearch(input)}
             disabled={search.loading || !input.trim()}
           >
-            {search.loading ? "搜索中…" : "搜索"}
+            {search.loading ? t("search.searching") : t("search.searchButton")}
           </button>
           {(search.loading || search.hasMore) && (
             <button onClick={search.cancel} disabled={search.canceled}>
-              取消
+              {t("search.cancel")}
             </button>
           )}
         </div>
 
         <p className="muted search-scope">
-          搜索范围：{repoName} · 当前视图 ref 范围 · 文件路径按“改动中出现”匹配
-          {search.results.length > 0 ? ` · 已返回 ${search.results.length} 条` : ""}
+          {search.results.length > 0
+            ? t("search.scopeWithResults", { repo: repoName, n: search.results.length })
+            : t("search.scopeHint", { repo: repoName })}
         </p>
 
         {search.error && <div className="banner danger">{search.error}</div>}
         {search.canceled && (
-          <div className="banner info">搜索已取消；已有结果保留，不再继续追加。</div>
+          <div className="banner info">{t("search.canceled")}</div>
         )}
 
         {!search.text && !search.loading && (
           <p className="muted">
-            输入关键词后回车搜索；<kbd>↑</kbd> <kbd>↓</kbd> 选择候选，
-            <kbd>Esc</kbd> 关闭。候选来自当前已加载提交的作者与说明。
+            {t("search.hintEnter")}
+            <kbd>↑</kbd> <kbd>↓</kbd>
+            {t("search.hintPick")}
+            <kbd>Esc</kbd>
+            {t("search.hintClose")}
+            {t("search.hintSource")}
           </p>
         )}
         {search.results.length === 0 && !search.loading && search.text && !search.canceled && (
-          <p className="muted">没有匹配的提交。hash 前缀至少 7 位。</p>
+          <p className="muted">{t("search.noResults")}</p>
         )}
 
         {search.results.length > 0 && (
@@ -226,13 +245,15 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
                   >
                     <button
                       onClick={() => onLocateCommit(match.commit.oid)}
-                      title={`${match.commit.oid} · 在主图谱中定位`}
+                      title={t("search.locateInGraph", { oid: match.commit.oid })}
                     >
-                      <span className="search-summary">{match.commit.summary || "（无提交说明）"}</span>
+                      <span className="search-summary">
+                        {match.commit.summary || t("search.noSummary")}
+                      </span>
                       <span className="search-fields">
                         {match.fields.map((field) => (
                           <span className="tag" key={field}>
-                            {FIELD_LABEL[field]}
+                            {t(FIELD_LABEL_KEY[field])}
                           </span>
                         ))}
                       </span>
@@ -243,7 +264,7 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
                       )}
                       <span className="search-author">{match.commit.author_name}</span>
                       <span className="search-date muted">
-                        {dateFormat.format(new Date(match.commit.authored_at * 1000))}
+                        {resultDateFormatter().format(new Date(match.commit.authored_at * 1000))}
                       </span>
                       <span className="mono muted">{match.commit.short_oid}</span>
                     </button>
@@ -257,7 +278,7 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
         {search.hasMore && (
           <div className="search-more">
             <button onClick={search.loadMore} disabled={search.loadingMore}>
-              {search.loadingMore ? "加载中…" : "加载更多结果"}
+              {search.loadingMore ? t("search.loadingMore") : t("search.loadMore")}
             </button>
           </div>
         )}

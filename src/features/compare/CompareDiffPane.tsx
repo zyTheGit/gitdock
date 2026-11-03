@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { useI18n } from "../../i18n";
 import { FileDiffView } from "../diff/FileDiffView";
 import type { ChangedFileDto, FileDiffDto } from "../../shared/types";
 
@@ -28,9 +29,10 @@ export function CompareDiffPane({
   expanded,
   onExpandedChange,
 }: CompareDiffPaneProps) {
+  const { t } = useI18n();
   return (
     <div className="detail-diff">
-      {loading && !expanded && <p className="muted">正在读取文件 diff…</p>}
+      {loading && !expanded && <p className="muted">{t("compare.loadingDiff")}</p>}
       {error && <div className="banner danger">{error}</div>}
       {diff && (
         <FileDiffView
@@ -46,7 +48,7 @@ export function CompareDiffPane({
         />
       )}
       {!loading && !diff && !error && files.length > 0 && (
-        <p className="muted">选择左侧文件查看 diff。</p>
+        <p className="muted">{t("compare.selectFileHint")}</p>
       )}
     </div>
   );

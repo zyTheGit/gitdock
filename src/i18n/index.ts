@@ -114,6 +114,10 @@ export function initI18n(): void {
     fallbackLng: "zh-CN",
     defaultNS: "common",
     ns: MESSAGE_NAMESPACES,
+    // 「域.key」全限定形式：ns 用点分隔；资源 key 为扁平小驼峰（不含点），
+    // keySeparator 保持点号只为兼容默认嵌套行为，实际不产生歧义。
+    nsSeparator: ".",
+    keySeparator: ".",
     interpolation: { escapeValue: false },
     returnNull: false,
   });
@@ -131,7 +135,7 @@ export function currentLocale(): string {
 
 /** 统一翻译入口：组件内使用，key 用「域.key」全限定形式。非 React 上下文用 i18next.t。 */
 export function useI18n() {
-  const { t, i18n } = useTranslation();
+  const { t, i18n } = useTranslation(MESSAGE_NAMESPACES);
   return { t, i18n, language: currentLanguage() };
 }
 

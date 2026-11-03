@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useI18n } from "../../i18n";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import { STATUS_LETTER } from "../../shared/fileStatus";
 import { formatDate, shortOid } from "../../shared/format";
@@ -62,6 +63,7 @@ export function CommitDetailPane({
   onBranchJump,
   onExternalDiff,
 }: CommitDetailPaneProps) {
+  const { t } = useI18n();
   const detail = useCommitDetail(oid, repo.generation);
   const branches = useBranchesContaining(oid, repo.generation);
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -114,9 +116,9 @@ export function CommitDetailPane({
 
   const menuItems: MenuItem[] =
     tools.length === 0
-      ? [{ label: "尚未配置外部工具", disabled: true, onSelect: () => undefined }]
+      ? [{ label: t("detail.noExternalTool"), disabled: true, onSelect: () => undefined }]
       : tools.map((tool, index) => ({
-          label: `用 ${tool.name} 打开`,
+          label: t("detail.openWithTool", { name: tool.name }),
           onSelect: () => {
             if (menu) {
               onExternalDiff(index, menu.path, baseOid);
@@ -125,18 +127,18 @@ export function CommitDetailPane({
         }));
 
   return (
-    <aside className="detail-pane" aria-label="提交详情" style={{ width }}>
+    <aside className="detail-pane" aria-label={t("detail.commitDetails")} style={{ width }}>
       <header className="detail-header">
         <div className="detail-title-row">
           <div>
-            <h2 className="detail-summary">{commit?.summary || "提交详情"}</h2>
+            <h2 className="detail-summary">{commit?.summary || t("detail.commitDetails")}</h2>
             {commit && (
               <div className="detail-sub mono" title={commit.oid}>
                 {commit.oid}
               </div>
             )}
           </div>
-          <button className="detail-close" onClick={onClose} aria-label="关闭详情">
+          <button className="detail-close" onClick={onClose} aria-label={t("detail.closeAria")}>
             ×
           </button>
         </div>
@@ -151,7 +153,7 @@ export function CommitDetailPane({
       </header>
 
       <div className="detail-scroll">
-        {detail.loading && <p className="muted">正在读取提交详情…</p>}
+        {detail.loading && <p className="muted">{t("detail.loading")}</p>}
         {detail.error && <div className="banner danger">{detail.error}</div>}
 
         {detail.data && (
@@ -159,14 +161,14 @@ export function CommitDetailPane({
             {/* 说明与元信息合成一块：过长时只有这一块滚动，diff 区始终占满剩余高度。 */}
             <div className="detail-info">
               <details className="commit-message-block" open>
-                <summary>提交说明</summary>
+                <summary>{t("detail.commitMessage")}</summary>
                 <pre className="commit-message">{detail.data.message.trimEnd()}</pre>
               </details>
 
               <div className="detail-facts">
-                <span className="muted">父提交</span>
+                <span className="muted">{t("detail.parents")}</span>
                 {detail.data.parents.length === 0 ? (
-                  <span>（根提交）</span>
+                  <span>{t("detail.rootCommit")}</span>
                 ) : (
                   <span className="parent-list">
                     {detail.data.parents.map((parent) => (
@@ -179,9 +181,9 @@ export function CommitDetailPane({
               </div>
 
               <div className="detail-facts">
-                <span className="muted">所在分支</span>
+                <span className="muted">{t("detail.containingBranches")}</span>
                 {branches.length === 0 ? (
-                  <span className="muted">（无本地分支包含此提交）</span>
+                  <span className="muted">{t("detail.noContainingBranches")}</span>
                 ) : (
                   <span className="branch-list">
                     {branches.map((branch) => (
@@ -189,7 +191,7 @@ export function CommitDetailPane({
                         key={branch}
                         className="branch-chip"
                         onClick={() => onBranchJump(branch)}
-                        title={`切换到 ${branch} 的图谱视图`}
+                        title={t("detail.branchJumpTitle", { branch })}
                       >
                         {branch}
                       </button>
@@ -217,9 +219,9 @@ export function CommitDetailPane({
 
             <div className="detail-columns">
               <div className="detail-files">
-                <h3>变更文件（{files.length}）</h3>
+                <h3>{t("detail.changedFiles", { n: files.length })}</h3>
                 {files.length === 0 ? (
-                  <p className="muted">此提交没有文件变更。</p>
+                  <p className="muted">{t("detail.noFileChanges")}</p>
                 ) : (
                   <div className="file-list" ref={fileScrollRef}>
                     <ul
@@ -254,7 +256,7 @@ export function CommitDetailPane({
                                 setFilePath(file.path);
                                 setMenu({ x: event.clientX, y: event.clientY, path: file.path });
                               }}
-                              title={`${file.path}（右键可用外部工具对比）`}
+                              title={t("detail.fileRowTitle", { path: file.path })}
                             >
                               <span className={`file-status file-status-${file.status}`}>
                                 {STATUS_LETTER[file.status]}
@@ -283,7 +285,7 @@ export function CommitDetailPane({
 
               <div className="detail-diff">
                 {fileDiff.loading && !expandedDiff && (
-                  <p className="muted">正在读取文件 diff…</p>
+                  <p className="muted">{t("detail.fileDiffLoading")}</p>
                 )}
                 {fileDiff.error && <div className="banner danger">{fileDiff.error}</div>}
                 {shownDiff && (
@@ -303,7 +305,7 @@ export function CommitDetailPane({
                   />
                 )}
                 {!fileDiff.loading && !shownDiff && !fileDiff.error && files.length > 0 && (
-                  <p className="muted">选择左侧文件查看 diff。</p>
+                  <p className="muted">{t("detail.selectFileHint")}</p>
                 )}
               </div>
             </div>

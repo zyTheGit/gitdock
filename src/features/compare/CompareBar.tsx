@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n";
 import { shortOid } from "../../shared/format";
 import { Modal } from "../../shared/Modal";
 import type { RepoStateDto } from "../../shared/types";
@@ -25,11 +26,12 @@ function Slot({
   invalid: boolean;
   onClear: () => void;
 }) {
+  const { t } = useI18n();
   if (!slot) {
     return (
       <div className="compare-slot empty">
         <span className="compare-slot-title">{title}</span>
-        <span className="muted">未选择</span>
+        <span className="muted">{t("compare.slotUnselected")}</span>
       </div>
     );
   }
@@ -40,7 +42,11 @@ function Slot({
         {slot.label}
       </span>
       <span className="compare-slot-oid mono">{shortOid(slot.oid)}</span>
-      <button className="compare-slot-clear" onClick={onClear} aria-label={`清空 ${title}`}>
+      <button
+        className="compare-slot-clear"
+        onClick={onClear}
+        aria-label={t("compare.clearSlot", { title })}
+      >
         ×
       </button>
     </div>
@@ -58,42 +64,48 @@ export function CompareBar({
   onSwap,
   onResolvePending,
 }: CompareBarProps) {
+  const { t } = useI18n();
   return (
-    <div className="compare-bar" aria-label="对比选择">
-      <Slot title="Base" slot={base} invalid={invalidRef} onClear={() => onClear("base")} />
+    <div className="compare-bar" aria-label={t("compare.barLabel")}>
+      <Slot
+        title={t("compare.slotBase")}
+        slot={base}
+        invalid={invalidRef}
+        onClear={() => onClear("base")}
+      />
       <button
         className="compare-swap"
         onClick={onSwap}
         disabled={!base || !compare}
-        title="交换 Base 与 Compare"
+        title={t("compare.swapSides")}
       >
         ⇄
       </button>
       <Slot
-        title="Compare"
+        title={t("compare.slotCompare")}
         slot={compare}
         invalid={invalidRef}
         onClear={() => onClear("compare")}
       />
       <div className="compare-hint muted">
-        {compare
-          ? "Compare 相对 Base 共同祖先的改动 · Ctrl+点击可替换"
-          : "Ctrl+点击提交填入 Compare，或用「对比分支…」按分支选择"}
+        {compare ? t("compare.hintActive") : t("compare.hintIdle")}
         <span className="mono compare-head">HEAD {repo.head.oid ? shortOid(repo.head.oid) : "—"}</span>
       </div>
 
       {pending && (
         <Modal className="compare-modal">
-          <h3>替换哪一侧？</h3>
+          <h3>{t("compare.replaceWhichSide")}</h3>
           <p className="muted">
-            新选择 <strong>{pending.label}</strong>（<span className="mono">{shortOid(pending.oid)}</span>）
+            {t("compare.newSelection", { label: pending.label, oid: shortOid(pending.oid) })}
           </p>
           <div className="compare-modal-actions">
             <button className="primary" onClick={() => onResolvePending("base")}>
-              替换 Base
+              {t("compare.replaceBase")}
             </button>
-            <button onClick={() => onResolvePending("compare")}>替换 Compare</button>
-            <button onClick={() => onResolvePending(null)}>取消</button>
+            <button onClick={() => onResolvePending("compare")}>
+              {t("compare.replaceCompare")}
+            </button>
+            <button onClick={() => onResolvePending(null)}>{t("compare.cancel")}</button>
           </div>
         </Modal>
       )}

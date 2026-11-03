@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { i18next } from "../../i18n";
 import { errorText } from "../../shared/error";
 import { scopeKey } from "../../shared/graphScope";
 import { ipc } from "../../shared/ipc";
@@ -81,7 +82,7 @@ export function useSearch(repoGeneration: number, scope: GraphScope): SearchLoad
           return;
         }
         if (page.generation !== generationRef.current) {
-          setError("仓库状态已变化，请重新搜索");
+          setError(i18next.t("search.repoChanged"));
           setHasMore(false);
           return;
         }
@@ -119,7 +120,7 @@ export function useSearch(repoGeneration: number, scope: GraphScope): SearchLoad
           return;
         }
         if (page.generation !== generationRef.current) {
-          setError("仓库状态已变化，请重新搜索");
+          setError(i18next.t("search.repoChanged"));
           setHasMore(false);
           return;
         }

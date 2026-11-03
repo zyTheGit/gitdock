@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useI18n } from "../../i18n";
 import type { RecentRepository } from "../../shared/types";
 
 interface RepositorySwitcherProps {
@@ -34,6 +35,7 @@ export function RepositorySwitcher({
   onForget,
   onPick,
 }: RepositorySwitcherProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -59,10 +61,10 @@ export function RepositorySwitcher({
         current: false,
       }));
     return [
-      { title: "当前窗口", entries: current },
-      { title: "最近仓库", entries: others },
+      { title: t("repository.groupCurrent"), entries: current },
+      { title: t("repository.groupRecent"), entries: others },
     ].filter((group) => group.entries.length > 0);
-  }, [currentPath, recent, query]);
+  }, [currentPath, recent, query, t]);
 
   const entries = useMemo(() => groups.flatMap((group) => group.entries), [groups]);
 
@@ -130,7 +132,7 @@ export function RepositorySwitcher({
         className="repo-switch-button"
         aria-haspopup="menu"
         aria-expanded={open}
-        title={currentPath ?? "切换或打开仓库"}
+        title={currentPath ?? t("repository.switchRepoTitle")}
         onClick={() => (open ? close() : setOpen(true))}
       >
         <span className="brand-mark">⎇</span>
@@ -138,11 +140,11 @@ export function RepositorySwitcher({
         <span className="repo-switch-caret">▾</span>
       </button>
       {open && (
-        <div className="repo-menu" role="menu" aria-label="切换仓库">
+        <div className="repo-menu" role="menu" aria-label={t("repository.switchRepoMenu")}>
           <input
             className="repo-search"
             autoFocus
-            placeholder="搜索仓库名或路径…"
+            placeholder={t("repository.searchPlaceholder")}
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -153,10 +155,10 @@ export function RepositorySwitcher({
             {groups.length === 0 ? (
               <p className="repo-menu-empty">
                 {query.trim()
-                  ? "没有匹配的仓库"
+                  ? t("repository.noMatches")
                   : currentPath
-                    ? "最近仓库已清空，可从下方“打开本地仓库…”重新添加"
-                    : "尚未打开过仓库，可从下方“打开本地仓库…”开始"}
+                    ? t("repository.recentCleared")
+                    : t("repository.neverOpened")}
               </p>
             ) : (
               groups.map((group) => (
@@ -187,8 +189,8 @@ export function RepositorySwitcher({
                         {!entry.current && (
                           <button
                             className="repo-menu-remove"
-                            title="从最近仓库移除（不删除本地仓库）"
-                            aria-label={`从最近仓库移除 ${entry.name}`}
+                            title={t("repository.removeRecentTitle")}
+                            aria-label={t("repository.removeRecentAria", { name: entry.name })}
                             disabled={busy}
                             onClick={() => {
                               // 删除后高亮停在同一位置，由下一条仓库接替，避免跳到列表末尾。
@@ -214,10 +216,10 @@ export function RepositorySwitcher({
                 onPick();
               }}
             >
-              打开本地仓库…
+              {t("repository.openLocalRepo")}
             </button>
             {entries.length > 0 && (
-              <p className="repo-menu-hint">↑↓ 选择 · Enter 打开 · Esc 关闭</p>
+              <p className="repo-menu-hint">{t("repository.menuHint")}</p>
             )}
           </div>
         </div>

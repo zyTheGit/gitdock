@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "../../i18n";
 import { Modal } from "../../shared/Modal";
 import { Select } from "../../shared/Select";
 import type { RefDto } from "../../shared/types";
@@ -32,6 +33,7 @@ export function BranchCompareDialog({
   onCancel,
   onConfirm,
 }: BranchCompareDialogProps) {
+  const { t } = useI18n();
   const [baseName, setBaseName] = useState(() => pickName(branches, initialBase ?? headBranch));
   const [compareName, setCompareName] = useState(() =>
     pickName(branches, initialCompare, baseName || undefined),
@@ -42,21 +44,23 @@ export function BranchCompareDialog({
   const same = baseName === compareName;
   const options = branches.map((branch) => ({
     value: branch.short_name,
-    label: branch.is_head ? `${branch.short_name}（当前）` : branch.short_name,
+    label: branch.is_head
+      ? t("compare.currentBranchOption", { branch: branch.short_name })
+      : branch.short_name,
   }));
 
   return (
     <Modal className="confirm-dialog branch-compare-dialog">
       <header>
-        <h2>对比分支</h2>
-        <button className="detail-close" onClick={onCancel} aria-label="关闭分支对比">
+        <h2>{t("compare.dialogTitle")}</h2>
+        <button className="detail-close" onClick={onCancel} aria-label={t("compare.closeDialog")}>
           ×
         </button>
       </header>
 
       <section>
         <label className="branch-compare-field">
-          Base（基准）
+          {t("compare.fieldBase")}
           <Select
             block
             value={baseName}
@@ -65,7 +69,7 @@ export function BranchCompareDialog({
           />
         </label>
         <label className="branch-compare-field">
-          Compare（对比）
+          {t("compare.fieldCompare")}
           <Select
             block
             value={compareName}
@@ -73,17 +77,15 @@ export function BranchCompareDialog({
             onChange={(event) => setCompareName(event.target.value)}
           />
         </label>
-        <p className="muted confirm-hint">
-          默认按三点 diff 比较（Base 与 Compare 的共同祖先 → Compare），可在对比视图切换为两点快照。
-        </p>
-        {same && <p className="danger-text">Base 与 Compare 不能是同一分支。</p>}
+        <p className="muted confirm-hint">{t("compare.modeHint")}</p>
+        {same && <p className="danger-text">{t("compare.sameBranchError")}</p>}
         {base && compare && !same && base.commit_oid === compare.commit_oid && (
-          <p className="muted confirm-hint">两个分支当前指向同一提交，对比结果将为空。</p>
+          <p className="muted confirm-hint">{t("compare.sameCommitHint")}</p>
         )}
       </section>
 
       <footer>
-        <button onClick={onCancel}>取消</button>
+        <button onClick={onCancel}>{t("compare.cancel")}</button>
         <button
           className="primary"
           disabled={!base || !compare || same}
@@ -93,7 +95,7 @@ export function BranchCompareDialog({
             }
           }}
         >
-          开始对比
+          {t("compare.startCompare")}
         </button>
       </footer>
     </Modal>

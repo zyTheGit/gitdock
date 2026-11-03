@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useI18n } from "../../i18n";
 import type { CommitSummaryDto } from "../../shared/types";
 import { CommitHoverCard } from "./CommitHoverCard";
 import { GraphRow } from "./GraphRow";
@@ -35,6 +36,7 @@ export function GraphList({
   onContextMenu,
   onLoadMore,
 }: GraphListProps) {
+  const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   const { hover, queueHover, cancelHover } = useCommitHover(view.viewKey);
 
@@ -170,10 +172,10 @@ export function GraphList({
   }, [cancelHover]);
 
   if (loading && view.rows.length === 0) {
-    return <div className="graph-empty muted">正在读取提交…</div>;
+    return <div className="graph-empty muted">{t("graph.loadingCommits")}</div>;
   }
   if (!loading && view.rows.length === 0) {
-    return <div className="graph-empty muted">当前视图没有可显示的提交。</div>;
+    return <div className="graph-empty muted">{t("graph.noCommits")}</div>;
   }
 
   return (
@@ -209,7 +211,7 @@ export function GraphList({
           );
         })}
       </div>
-      {loadingMore && <div className="graph-loading muted">加载更多…</div>}
+      {loadingMore && <div className="graph-loading muted">{t("graph.loadingMore")}</div>}
       {hover && (
         <CommitHoverCard
           commit={hover.commit}

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useI18n } from "../i18n";
 import { RepositorySwitcher } from "../features/repository/RepositorySwitcher";
 import { WorkspaceBadge } from "./WorkspaceBadge";
 import type { RecentRepository, RepoStateDto, WorkspaceStatusDto } from "../shared/types";
@@ -60,6 +61,7 @@ export function TopBar({
   onToggleTerminal,
   onOpenSettings,
 }: TopBarProps) {
+  const { t } = useI18n();
   return (
     <header className="topbar">
       <RepositorySwitcher
@@ -77,16 +79,16 @@ export function TopBar({
             <button
               className={mode === "search" ? "active" : ""}
               onClick={() => (mode === "search" ? closeSearch() : setMode("search"))}
-              title="按说明、作者、路径或 hash 搜索提交；Esc 关闭"
+              title={t("shell.searchButtonTitle")}
             >
-              <ActionIcon name="search" /><span>搜索</span>
+              <ActionIcon name="search" /><span>{t("shell.search")}</span>
             </button>
             <button
               className={mode === "staging" ? "active" : ""}
               onClick={() => setMode(mode === "staging" ? "graph" : "staging")}
-              title="查看工作区改动，分别暂存或取消暂存文件；Esc 退出"
+              title={t("shell.stagingButtonTitle")}
             >
-              <ActionIcon name="stage" /><span>暂存区</span>
+              <ActionIcon name="stage" /><span>{t("shell.staging")}</span>
             </button>
             <button
               className={mode === "compare" ? "active" : ""}
@@ -100,29 +102,29 @@ export function TopBar({
               disabled={!compareReady && localBranchCount < 2}
               title={
                 compareReady
-                  ? "查看对比结果"
-                  : "选择两个分支对比，或用 Ctrl+点击提交选择 Base / Compare"
+                  ? t("shell.compareReadyTitle")
+                  : t("shell.compareButtonTitle")
               }
             >
-              <ActionIcon name="compare" /><span>对比</span>
+              <ActionIcon name="compare" /><span>{t("shell.compare")}</span>
             </button>
             <button
               className={terminalOpen ? "active" : ""}
               aria-pressed={terminalOpen}
               title={
                 terminalRunning
-                  ? `终端进程运行中；收起不会结束进程（${terminalShortcut}）`
-                  : `打开终端（${terminalShortcut}）`
+                  ? t("shell.terminalRunningTitle", { shortcut: terminalShortcut })
+                  : t("shell.openTerminalTitle", { shortcut: terminalShortcut })
               }
               onClick={onToggleTerminal}
             >
-              <ActionIcon name="terminal" /><span>终端{terminalRunning ? " ·" : ""}</span>
+              <ActionIcon name="terminal" /><span>{t("shell.terminal")}{terminalRunning ? " ·" : ""}</span>
             </button>
           </>
         )}
-        <button onClick={onOpenSettings}><ActionIcon name="settings" /><span>设置</span></button>
+        <button onClick={onOpenSettings}><ActionIcon name="settings" /><span>{t("shell.settings")}</span></button>
         <button onClick={onRefresh} disabled={busy || !repo}>
-          <ActionIcon name="refresh" /><span>{busy ? "刷新中…" : "刷新"}</span>
+          <ActionIcon name="refresh" /><span>{busy ? t("shell.refreshing") : t("shell.refresh")}</span>
         </button>
       </div>
     </header>

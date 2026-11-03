@@ -8,7 +8,7 @@ import { useGlobalEsc, type ViewMode } from "./app/useGlobalEsc";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
 import { useFontScale } from "./app/useFontScale";
 import { useAppLanguage } from "./i18n/useAppLanguage";
-import { toLanguagePreference } from "./i18n";
+import { toLanguagePreference, useI18n } from "./i18n";
 
 import { useRepositorySession } from "./app/useRepositorySession";
 import {
@@ -45,8 +45,8 @@ import { errorText } from "./shared/error";
 import { ipc } from "./shared/ipc";
 import type { CommitSummaryDto, GraphScope } from "./shared/types";
 
-
 export default function App() {
+  const { t } = useI18n();
   const [scope, setScope] = useState<GraphScope>({ kind: "head" });
   const [selectedOid, setSelectedOid] = useState<string | null>(null);
   // 搜索定位请求：seq 递增，保证同一提交再次定位时也会重新滚动一次。
@@ -117,8 +117,8 @@ export default function App() {
   // 切仓库时 Rust 已结束旧会话；收起面板并提示，避免误以为旧终端仍在。
   const handleTerminalRepoChanged = useCallback(() => {
     setTerminalOpen(false);
-    setToast("已结束原仓库的终端进程");
-  }, [setToast]);
+    setToast(t("shell.terminalProcessEnded"));
+  }, [setToast, t]);
 
   const generation = repo?.generation ?? 0;
   const slots = useCompareSlots(repo);
@@ -182,13 +182,13 @@ export default function App() {
       setError(null);
       try {
         await ipc.launchExternalDiff(toolIndex, left, right, path, threeDot);
-        const name = settings?.external_tools[toolIndex]?.name ?? "外部工具";
-        setToast(`已调用 ${name} 打开对比文件`);
+        const name = settings?.external_tools[toolIndex]?.name ?? t("shell.externalToolFallback");
+        setToast(t("shell.externalDiffLaunched", { name }));
       } catch (err) {
         setError(errorText(err));
       }
     },
-    [settings, setError, setToast],
+    [settings, setError, setToast, t],
   );
 
   const copyDescription = useCallback(
@@ -286,10 +286,10 @@ export default function App() {
 
   const headLabel = repo
     ? repo.head.kind === "branch"
-      ? repo.head.branch ?? "分支"
+      ? repo.head.branch ?? t("shell.headBranchFallback")
       : repo.head.kind === "detached"
         ? "detached HEAD"
-        : "未出生分支"
+        : t("shell.unbornBranch")
     : "";
 
   const compareReady = Boolean(slots.base && slots.compare);
@@ -332,7 +332,7 @@ export default function App() {
           }}
         />
         <PaneSplitter
-          label="调整左侧栏宽度"
+          label={t("shell.sidebarResizeLabel")}
           width={panes.sidebarWidth}
           min={SIDEBAR_WIDTH.min}
           max={SIDEBAR_WIDTH.max}
@@ -433,7 +433,7 @@ export default function App() {
                   {selectedOid && (
                     <>
                       <PaneSplitter
-                        label="调整详情面板宽度"
+                        label={t("shell.detailResizeLabel")}
                         width={panes.detailWidth}
                         min={DETAIL_WIDTH.min}
                         max={panes.detailMax}
@@ -463,10 +463,10 @@ export default function App() {
             )
           ) : (
             <section className="welcome">
-              <h1>打开一个本地 Git 仓库</h1>
-              <p>支持普通仓库、linked worktree 与 bare 仓库（只读）。MVP 单窗口单仓库。</p>
+              <h1>{t("shell.welcomeTitle")}</h1>
+              <p>{t("shell.welcomeBody")}</p>
               <button className="primary large" onClick={() => void session.pick()} disabled={busy}>
-                选择仓库目录
+                {t("shell.chooseRepoDirectory")}
               </button>
             </section>
           )}

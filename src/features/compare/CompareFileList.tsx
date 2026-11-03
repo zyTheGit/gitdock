@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { useI18n } from "../../i18n";
 import { STATUS_LETTER } from "../../shared/fileStatus";
 import type { ChangedFileDto } from "../../shared/types";
 
@@ -15,11 +16,12 @@ export function CompareFileList({
   onSelect,
   onContextMenu,
 }: CompareFileListProps) {
+  const { t } = useI18n();
   return (
     <div className="detail-files">
-      <h3>变更文件（{files.length}）</h3>
+      <h3>{t("compare.changedFiles", { n: files.length })}</h3>
       {files.length === 0 ? (
-        <p className="muted">此范围没有文件变更。</p>
+        <p className="muted">{t("compare.noFileChanges")}</p>
       ) : (
         <ul className="file-list compare-file-list">
           {files.map((file) => (

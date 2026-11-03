@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { useI18n } from "../../i18n";
 import type { CommitSummaryDto, RepoStateDto, GraphScope } from "../../shared/types";
 import { Select } from "../../shared/Select";
 import { GraphList } from "./GraphList";
@@ -29,6 +30,7 @@ export function GraphPane({
   onCtrlSelect,
   onContextMenu,
 }: GraphPaneProps) {
+  const { t } = useI18n();
   const localBranches = repo.refs.filter((ref) => ref.kind === "local_branch");
   const { view, loading, loadingMore, error } = graph;
 
@@ -40,23 +42,23 @@ export function GraphPane({
             className={scope.kind === "head" ? "active" : ""}
             onClick={() => onScopeChange({ kind: "head" })}
           >
-            当前分支相关
+            {t("graph.scopeHead")}
           </button>
           <button
             className={scope.kind === "all" ? "active" : ""}
             onClick={() => onScopeChange({ kind: "all" })}
           >
-            全量
+            {t("graph.scopeAll")}
           </button>
         </div>
 
         <Select
           className="branch-filter"
           compact
-          aria-label="按本地分支过滤图谱"
+          aria-label={t("graph.branchFilterAria")}
           value={scope.kind === "branch" ? scope.value : ""}
           options={[
-            { value: "", label: "分支过滤…" },
+            { value: "", label: t("graph.branchFilterPlaceholder") },
             ...localBranches.map((ref) => ({ value: ref.short_name, label: ref.short_name })),
           ]}
           onChange={(event) => {
@@ -67,7 +69,9 @@ export function GraphPane({
 
         <span className="graph-view-label">{view.viewLabel || "—"}</span>
         <span className="graph-count muted">
-          {view.rows.length} 条{view.hasMore ? " · 可继续加载" : " · 已全部加载"}
+          {view.hasMore
+            ? t("graph.rowCountMore", { n: view.rows.length })
+            : t("graph.rowCountAll", { n: view.rows.length })}
           {view.generation ? ` · generation ${view.generation}` : ""}
         </span>
       </div>

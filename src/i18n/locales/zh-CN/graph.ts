@@ -1,7 +1,49 @@
 import type { MessageShape } from "../messages";
 
 /** graph 域：提交图谱（泳道列表/悬浮卡/右键菜单/范围切换）。 */
-const graph = {} as const;
+const graph = {
+  scopeHead: "当前分支相关",
+  scopeAll: "全量",
+  branchFilterAria: "按本地分支过滤图谱",
+  branchFilterPlaceholder: "分支过滤…",
+  rowCountMore: "{{n}} 条 · 可继续加载",
+  rowCountAll: "{{n}} 条 · 已全部加载",
+  loadingCommits: "正在读取提交…",
+  noCommits: "当前视图没有可显示的提交。",
+  loadingMore: "加载更多…",
+  noSummary: "（无提交说明）",
+  hoverTitle: "提交 {{oid}}",
+  fieldBranches: "分支",
+  fieldTags: "标签",
+  fieldParents: "父提交",
+  rootCommit: "无（根提交）",
+  fieldAuthor: "作者",
+  fieldCommittedAt: "提交时间",
+  fieldAuthoredAt: "作者时间",
+  contextLoading: "正在统计所属分支与差异…",
+  ownedBranches: "所属分支",
+  noLocalBranches: "无本地分支",
+  ownedBranchesTruncated: "{{branches}} 等 {{n}} 个",
+  notOnCurrentBranch: "该提交不在当前分支 {{branch}}",
+  gapRelativeLabel: "相对 {{branch}}",
+  gapLocalBranches: "本地分支",
+  gapCounts: "当前分支缺少 {{n}} · 该分支缺少 {{m}}",
+  gapCurrentMissingList: "缺少：{{commits}}",
+  gapBranchMissingList: "该分支缺少：{{commits}}",
+  gapsOmitted: "另有 {{n}} 个分支未参与统计",
+  hoverHint: "点击行查看详情与文件改动",
+  noSummaryShort: "（无说明）",
+  refHeadMark: "{{name}}（HEAD）",
+  branchCurrentMark: "{{name}}（当前）",
+  listSeparator: "、",
+  menuCopyFullHash: "复制完整哈希",
+  menuCopyMessage: "复制提交说明",
+  menuCherryPick: "Cherry Pick 此提交",
+  menuRevert: "Revert 此提交",
+  menuSetBase: "设为 Base",
+  menuSetCompare: "设为 Compare",
+  menuOpenDetail: "查看详情",
+} as const;
 
 export default graph;
 /** 资源形状（string 化），供 en 资源 satisfies 校验同构。 */
