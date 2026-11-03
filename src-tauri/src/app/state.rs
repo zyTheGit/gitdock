@@ -11,6 +11,7 @@ use refresh::{RefreshCoordinator, RefreshReason};
 use tauri::{AppHandle, Manager};
 
 use super::config::{self, SettingsDto};
+use super::external;
 use super::logging;
 use super::terminal::TerminalRegistry;
 use super::watch::{self, RepositoryWatcher};
@@ -59,6 +60,10 @@ impl AppState {
             config_dir.display()
         ));
         let settings = config::load(&config_dir);
+        let external_tmp_dir = cache_dir.join("external-diff");
+        // 启动即清空上次会话残留的外部 diff 临时目录：
+        // 既控制缓存体积，也缩短工作副本内容在磁盘上的残留时间。
+        external::cleanup_root(&external_tmp_dir);
         Ok(Self {
             session: RwLock::new(None),
             settings: Mutex::new(settings),
@@ -69,7 +74,7 @@ impl AppState {
                 config_dir,
                 log_path,
                 index_cache_dir: cache_dir.join("graph-index"),
-                external_tmp_dir: cache_dir.join("external-diff"),
+                external_tmp_dir,
             },
         })
     }

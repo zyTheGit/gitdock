@@ -46,7 +46,7 @@ WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222 \
 
 release exe 无控制台，直接 `Command::new("git")` 会让 Windows 默认终端接管子进程控制台，单次耗时约 3.1 s：
 
-- `app_info`（`git --version`）、`GitReadModule::open`、`inspect_interruption`（每个标记一次 `rev-parse --git-path`）、监听器（两次 `rev-parse`）叠加后，**冷启动打开仓库延迟约 30 s**。
+- `app_info`（`git --version`）、`GitReadModule::open`、`inspect_interruption`（一次 `rev-parse --absolute-git-dir` 定位后逐标记检查文件；早期版本为每个标记一次 `rev-parse --git-path`）、监听器（两次 `rev-parse`）叠加后，**冷启动打开仓库延迟约 30 s**。
 - 最小复现：GUI 子系统程序中无标志 spawn `git --version` ≈ 3110 ms；加 `CREATE_NO_WINDOW` 后 ≈ 28 ms。
 - 修复：`git-read` 的版本探测、`git-write` 的 `execute` / `run`、`watch.rs` 的 `rev-parse` 统一使用 `creation_flags(0x0800_0000)`。
 - 修复后实测：启动到打开仓库 < 1 s（日志同秒），监听启动 +1 s。

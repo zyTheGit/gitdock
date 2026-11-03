@@ -2,6 +2,8 @@
 
 use git_core::{ErrorCode, Oid, Result, UserVisibleError};
 
+pub(crate) use git_core::lossy_text as lossy;
+
 pub(crate) fn gix_oid(oid: &Oid) -> Result<gix::hash::ObjectId> {
     gix::hash::ObjectId::from_hex(oid.as_str().as_bytes()).map_err(|e| {
         UserVisibleError::new(ErrorCode::InvalidArgument, "OID 无效").with_detail(e.to_string())
@@ -110,8 +112,4 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> String {
         })
         .collect();
     String::from_utf16_lossy(&units)
-}
-
-pub(crate) fn lossy(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes).into_owned()
 }

@@ -22,3 +22,7 @@ pub fn git_command() -> Command {
     hide_console(&mut command);
     command
 }
+/// 将子进程输出等原始字节按 UTF-8 有损解码为 String；非法字节替换为 U+FFFD。
+pub fn lossy_text(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).into_owned()
+}

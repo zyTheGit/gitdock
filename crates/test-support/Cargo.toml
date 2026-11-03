@@ -6,3 +6,5 @@ license.workspace = true
 
 [dependencies]
 fixture-gen = { path = "../fixture-gen" }
+git-core.workspace = true
+tempfile.workspace = true

@@ -1,50 +1,11 @@
 //! GitWriteModule 公开接口的行为验证：Gate、状态机与 CLI 结果判定。
 
-use std::path::Path;
 use std::process::Command;
 
 use git_core::{FileStatus, InterruptionKind, Oid, WriteKind, WriteRequest, WriteStatus};
 use git_write::GitWriteModule;
 use tempfile::TempDir;
-
-fn git(dir: &Path, args: &[&str]) -> String {
-    let output = Command::new("git")
-        .current_dir(dir)
-        .args(args)
-        .output()
-        .expect("启动 git");
-    assert!(
-        output.status.success(),
-        "git {args:?} 失败：{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8_lossy(&output.stdout).into_owned()
-}
-
-fn write(path: &Path, name: &str, content: &str) {
-    let target = path.join(name);
-    if let Some(parent) = target.parent() {
-        std::fs::create_dir_all(parent).expect("创建目录");
-    }
-    std::fs::write(target, content).expect("写文件");
-}
-
-fn commit(dir: &Path, name: &str, content: &str, message: &str) -> String {
-    write(dir, name, content);
-    git(dir, &["add", "-A"]);
-    git(dir, &["commit", "-m", message]);
-    git(dir, &["rev-parse", "HEAD"]).trim().to_owned()
-}
-
-fn init_repo() -> TempDir {
-    let temp = TempDir::new().expect("临时目录");
-    let dir = temp.path();
-    git(dir, &["init", "-b", "main"]);
-    git(dir, &["config", "user.name", "测试用户"]);
-    git(dir, &["config", "user.email", "test@example.com"]);
-    git(dir, &["config", "commit.gpgSign", "false"]);
-    temp
-}
+use test_support::{commit, git_ok, init_temp_repo, write};
 
 fn base_request(kind: WriteKind) -> WriteRequest {
     WriteRequest {
@@ -95,38 +56,38 @@ fn staging_request(kind: WriteKind, paths: &[&str]) -> WriteRequest {
 }
 
 fn conflict_repo() -> (TempDir, String) {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "conflict.txt", "a\nb\nc\n", "base");
-    git(dir, &["switch", "-c", "feature"]);
+    git_ok(dir, &["switch", "-c", "feature"]);
     let feature = commit(dir, "conflict.txt", "a\nfeature\nc\n", "feature 修改同一行");
-    git(dir, &["switch", "main"]);
+    git_ok(dir, &["switch", "main"]);
     commit(dir, "conflict.txt", "a\nmain\nc\n", "main 修改同一行");
     (temp, feature)
 }
 
 /// 构造 main + feature 的无冲突 merge commit；返回 (临时目录, merge, 第 1 父, 第 2 父)。
 fn merge_repo() -> (TempDir, String, String, String) {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "base.txt", "base\n", "base");
-    git(dir, &["switch", "-c", "feature"]);
+    git_ok(dir, &["switch", "-c", "feature"]);
     let feature_tip = commit(dir, "feature.txt", "feature\n", "feature 分支");
-    git(dir, &["switch", "main"]);
+    git_ok(dir, &["switch", "main"]);
     let main_tip = commit(dir, "main.txt", "main\n", "main 分支");
-    git(dir, &["merge", "--no-ff", "-m", "merge feature", "feature"]);
-    let merge = git(dir, &["rev-parse", "HEAD"]).trim().to_owned();
+    git_ok(dir, &["merge", "--no-ff", "-m", "merge feature", "feature"]);
+    let merge = git_ok(dir, &["rev-parse", "HEAD"]).trim().to_owned();
     (temp, merge, main_tip, feature_tip)
 }
 
 #[test]
 fn gate_rejects_untracked_and_allows_clean() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     let target = commit(dir, "a.txt", "one\n", "c1");
     let module = GitWriteModule::new(dir).expect("打开写模块");
 
-    write(dir, "untracked.txt", "u\n");
+    write(&dir.join("untracked.txt"), "u\n");
     let report = module
         .validate(&request(WriteKind::CherryPick, Some(&target), None, None))
         .expect("Gate");
@@ -199,7 +160,7 @@ fn gate_rejects_invalid_or_inapplicable_mainline() {
         );
     }
 
-    let temp2 = init_repo();
+    let temp2 = init_temp_repo();
     let dir2 = temp2.path();
     let target = commit(dir2, "a.txt", "one\n", "c1");
     commit(dir2, "a.txt", "two\n", "c2");
@@ -239,25 +200,25 @@ fn gate_lists_merge_parents_in_mainline_order() {
 fn cherry_pick_merge_commit_with_mainline_succeeds() {
     let (temp, merge, _, _) = merge_repo();
     let dir = temp.path();
-    git(dir, &["switch", "-c", "probe", "HEAD~1"]);
-    let before = git(dir, &["rev-parse", "HEAD"]).trim().to_owned();
+    git_ok(dir, &["switch", "-c", "probe", "HEAD~1"]);
+    let before = git_ok(dir, &["rev-parse", "HEAD"]).trim().to_owned();
     let module = GitWriteModule::new(dir).expect("打开写模块");
 
     let outcome = module
         .execute(&pick_request(WriteKind::CherryPick, &merge, Some(1)))
         .expect("执行");
     assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
-    assert_ne!(git(dir, &["rev-parse", "HEAD"]).trim(), before);
+    assert_ne!(git_ok(dir, &["rev-parse", "HEAD"]).trim(), before);
     assert!(dir.join("feature.txt").exists());
 }
 
 #[test]
 fn gate_rejects_detached_head() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     let target = commit(dir, "a.txt", "one\n", "c1");
     commit(dir, "a.txt", "two\n", "c2");
-    git(dir, &["checkout", "--detach", "HEAD~1"]);
+    git_ok(dir, &["checkout", "--detach", "HEAD~1"]);
 
     let module = GitWriteModule::new(dir).expect("打开写模块");
     let report = module
@@ -272,12 +233,12 @@ fn gate_rejects_detached_head() {
 
 #[test]
 fn cherry_pick_success_updates_head() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "a.txt", "base\n", "base");
-    git(dir, &["switch", "-c", "feature"]);
+    git_ok(dir, &["switch", "-c", "feature"]);
     let feature = commit(dir, "b.txt", "feature\n", "feature");
-    git(dir, &["switch", "main"]);
+    git_ok(dir, &["switch", "main"]);
 
     let module = GitWriteModule::new(dir).expect("打开写模块");
     let outcome = module
@@ -285,7 +246,7 @@ fn cherry_pick_success_updates_head() {
         .expect("执行");
     assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
     assert_eq!(
-        git(dir, &["rev-parse", "HEAD"]).trim(),
+        git_ok(dir, &["rev-parse", "HEAD"]).trim(),
         outcome.head_oid.expect("head").as_str()
     );
     assert!(dir.join("b.txt").exists());
@@ -326,7 +287,7 @@ fn cherry_pick_conflict_is_reported_without_abort() {
 
 #[test]
 fn continue_gate_requires_matching_interruption() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     let target = commit(dir, "a.txt", "one\n", "c1");
     commit(dir, "a.txt", "two\n", "c2");
@@ -512,7 +473,7 @@ fn continue_gate_rejects_unresolved_conflicts_without_running_git() {
         .execute(&request(WriteKind::CherryPick, Some(&feature), None, None))
         .expect("执行");
     assert_eq!(outcome.status, WriteStatus::Conflicted, "{outcome:?}");
-    let head_before = git(dir, &["rev-parse", "HEAD"]).trim().to_owned();
+    let head_before = git_ok(dir, &["rev-parse", "HEAD"]).trim().to_owned();
 
     let report = module
         .validate(&operation_request(
@@ -530,7 +491,7 @@ fn continue_gate_rejects_unresolved_conflicts_without_running_git() {
 
     // Gate 不得执行任何收尾命令：标记仍在、HEAD 未变。
     assert!(dir.join(".git").join("CHERRY_PICK_HEAD").exists());
-    assert_eq!(git(dir, &["rev-parse", "HEAD"]).trim(), head_before);
+    assert_eq!(git_ok(dir, &["rev-parse", "HEAD"]).trim(), head_before);
 }
 
 #[test]
@@ -542,10 +503,10 @@ fn continue_after_resolving_conflict_completes_pick() {
         .execute(&request(WriteKind::CherryPick, Some(&feature), None, None))
         .expect("执行");
     assert_eq!(outcome.status, WriteStatus::Conflicted, "{outcome:?}");
-    let head_before = git(dir, &["rev-parse", "HEAD"]).trim().to_owned();
+    let head_before = git_ok(dir, &["rev-parse", "HEAD"]).trim().to_owned();
 
-    write(dir, "conflict.txt", "a\nresolved\nc\n");
-    git(dir, &["add", "conflict.txt"]);
+    write(&dir.join("conflict.txt"), "a\nresolved\nc\n");
+    git_ok(dir, &["add", "conflict.txt"]);
 
     let report = module
         .validate(&operation_request(
@@ -563,9 +524,9 @@ fn continue_after_resolving_conflict_completes_pick() {
         .expect("执行");
     assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
     assert!(!dir.join(".git").join("CHERRY_PICK_HEAD").exists());
-    assert_ne!(git(dir, &["rev-parse", "HEAD"]).trim(), head_before);
+    assert_ne!(git_ok(dir, &["rev-parse", "HEAD"]).trim(), head_before);
     assert_eq!(
-        git(dir, &["log", "-1", "--format=%s"]).trim(),
+        git_ok(dir, &["log", "-1", "--format=%s"]).trim(),
         "feature 修改同一行"
     );
     assert_eq!(
@@ -579,7 +540,7 @@ fn continue_after_resolving_conflict_completes_pick() {
 fn abort_after_conflict_restores_pre_pick_state() {
     let (temp, feature) = conflict_repo();
     let dir = temp.path();
-    let pre_head = git(dir, &["rev-parse", "HEAD"]).trim().to_owned();
+    let pre_head = git_ok(dir, &["rev-parse", "HEAD"]).trim().to_owned();
     let pre_content = std::fs::read_to_string(dir.join("conflict.txt")).expect("读取文件");
     let module = GitWriteModule::new(dir).expect("打开写模块");
     let outcome = module
@@ -604,7 +565,7 @@ fn abort_after_conflict_restores_pre_pick_state() {
         .expect("执行");
     assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
     assert!(!dir.join(".git").join("CHERRY_PICK_HEAD").exists());
-    assert_eq!(git(dir, &["rev-parse", "HEAD"]).trim(), pre_head);
+    assert_eq!(git_ok(dir, &["rev-parse", "HEAD"]).trim(), pre_head);
     let content = std::fs::read_to_string(dir.join("conflict.txt")).expect("读取文件");
     // Windows 上 checkout 会按 autocrlf 改写行尾，比较前统一换行符。
     assert_eq!(
@@ -612,7 +573,7 @@ fn abort_after_conflict_restores_pre_pick_state() {
         pre_content.replace("\r\n", "\n")
     );
     assert!(!content.contains("<<<<<<<"), "{content}");
-    assert_eq!(git(dir, &["status", "--porcelain=v2"]).trim(), "");
+    assert_eq!(git_ok(dir, &["status", "--porcelain=v2"]).trim(), "");
     assert!(!module.inspect_interruption().expect("探测中断").is_active());
 }
 
@@ -625,11 +586,11 @@ fn continue_empty_result_fails_with_skip_hint() {
         .execute(&request(WriteKind::CherryPick, Some(&feature), None, None))
         .expect("执行");
     assert_eq!(outcome.status, WriteStatus::Conflicted, "{outcome:?}");
-    let head_before = git(dir, &["rev-parse", "HEAD"]).trim().to_owned();
+    let head_before = git_ok(dir, &["rev-parse", "HEAD"]).trim().to_owned();
 
     // 解决为与 HEAD 完全相同的内容：继续后 Git 判定为空提交。
-    write(dir, "conflict.txt", "a\nmain\nc\n");
-    git(dir, &["add", "conflict.txt"]);
+    write(&dir.join("conflict.txt"), "a\nmain\nc\n");
+    git_ok(dir, &["add", "conflict.txt"]);
 
     let outcome = module
         .execute(&operation_request(
@@ -650,17 +611,17 @@ fn continue_empty_result_fails_with_skip_hint() {
         outcome.message
     );
     // 绝不自动 skip：HEAD 保持不变。
-    assert_eq!(git(dir, &["rev-parse", "HEAD"]).trim(), head_before);
+    assert_eq!(git_ok(dir, &["rev-parse", "HEAD"]).trim(), head_before);
 }
 
 #[test]
 fn staging_status_separates_staged_and_unstaged() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "a.txt", "one\n", "c1");
-    write(dir, "a.txt", "two\n");
-    write(dir, "b.txt", "new\n");
-    git(dir, &["add", "b.txt"]);
+    write(&dir.join("a.txt"), "two\n");
+    write(&dir.join("b.txt"), "new\n");
+    git_ok(dir, &["add", "b.txt"]);
 
     let module = GitWriteModule::new(dir).expect("打开写模块");
     let status = module.staging_status().expect("暂存区状态");
@@ -683,10 +644,10 @@ fn staging_status_separates_staged_and_unstaged() {
 
 #[test]
 fn stage_and_unstage_round_trip_preserves_content() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "a.txt", "base\n", "base");
-    write(dir, "u.txt", "hello\n");
+    write(&dir.join("u.txt"), "hello\n");
     let module = GitWriteModule::new(dir).expect("打开写模块");
 
     let outcome = module
@@ -719,11 +680,11 @@ fn stage_and_unstage_round_trip_preserves_content() {
 
 #[test]
 fn batch_stage_handles_deletion_and_new_file() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "a.txt", "one\n", "c1");
     std::fs::remove_file(dir.join("a.txt")).expect("删除工作区文件");
-    write(dir, "new.txt", "new\n");
+    write(&dir.join("new.txt"), "new\n");
     let module = GitWriteModule::new(dir).expect("打开写模块");
 
     let outcome = module
@@ -746,10 +707,10 @@ fn batch_stage_handles_deletion_and_new_file() {
 
 #[test]
 fn staged_rename_diff_uses_old_and_new_paths() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "old.txt", "same\ncontent\n", "base");
-    git(dir, &["mv", "old.txt", "new.txt"]);
+    git_ok(dir, &["mv", "old.txt", "new.txt"]);
     let module = GitWriteModule::new(dir).expect("打开写模块");
 
     let status = module.staging_status().expect("暂存区状态");
@@ -770,10 +731,10 @@ fn staged_rename_diff_uses_old_and_new_paths() {
 
 #[test]
 fn unstage_on_unborn_head_keeps_untracked_file() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
-    write(dir, "first.txt", "first\n");
-    git(dir, &["add", "first.txt"]);
+    write(&dir.join("first.txt"), "first\n");
+    git_ok(dir, &["add", "first.txt"]);
     let module = GitWriteModule::new(dir).expect("打开写模块");
 
     let status = module.staging_status().expect("暂存区状态");
@@ -794,7 +755,7 @@ fn unstage_on_unborn_head_keeps_untracked_file() {
 
 #[test]
 fn staging_rejects_invalid_and_unknown_paths() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "a.txt", "one\n", "c1");
     let module = GitWriteModule::new(dir).expect("打开写模块");
@@ -836,11 +797,11 @@ fn conflicted_files_are_listed_and_excluded_from_groups() {
 
 #[test]
 fn empty_pick_cleans_own_marker() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "base.txt", "base\n", "base");
     let same = commit(dir, "same.txt", "same\n", "加入 same.txt");
-    git(dir, &["switch", "-c", "target", "HEAD~1"]);
+    git_ok(dir, &["switch", "-c", "target", "HEAD~1"]);
     commit(dir, "same.txt", "same\n", "target 也有 same.txt");
 
     let module = GitWriteModule::new(dir).expect("打开写模块");
@@ -857,10 +818,10 @@ fn empty_pick_cleans_own_marker() {
 
 #[test]
 fn switch_requires_existing_local_branch() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "a.txt", "base\n", "base");
-    git(dir, &["branch", "topic"]);
+    git_ok(dir, &["branch", "topic"]);
     let module = GitWriteModule::new(dir).expect("打开写模块");
 
     let missing = module
@@ -890,14 +851,14 @@ fn switch_requires_existing_local_branch() {
         .expect("执行");
     assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
     assert_eq!(
-        git(dir, &["symbolic-ref", "--short", "HEAD"]).trim(),
+        git_ok(dir, &["symbolic-ref", "--short", "HEAD"]).trim(),
         "topic"
     );
 }
 
 #[test]
 fn branch_description_roundtrip_uses_local_config() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "a.txt", "base\n", "base");
     let module = GitWriteModule::new(dir).expect("打开写模块");
@@ -915,7 +876,7 @@ fn branch_description_roundtrip_uses_local_config() {
     let read = module.read_branch_description("main").expect("读取描述");
     assert_eq!(read.description, "主线说明");
     assert_eq!(
-        git(
+        git_ok(
             dir,
             &["config", "--local", "--get", "branch.main.description"]
         )
@@ -944,12 +905,12 @@ fn branch_description_roundtrip_uses_local_config() {
 
 #[test]
 fn switch_rejects_worktree_occupied_branch() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "a.txt", "base\n", "base");
-    git(dir, &["branch", "occupied"]);
+    git_ok(dir, &["branch", "occupied"]);
     let linked = temp.path().join("linked");
-    git(
+    git_ok(
         dir,
         &[
             "worktree",
@@ -977,14 +938,14 @@ fn switch_rejects_worktree_occupied_branch() {
 
 #[test]
 fn switch_carries_dirty_changes_with_warning() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "tracked.txt", "base\n", "base");
-    git(dir, &["branch", "topic"]);
-    write(dir, "staged.txt", "staged\n");
-    git(dir, &["add", "staged.txt"]);
-    write(dir, "tracked.txt", "base\nlocal\n");
-    write(dir, "new.txt", "new\n");
+    git_ok(dir, &["branch", "topic"]);
+    write(&dir.join("staged.txt"), "staged\n");
+    git_ok(dir, &["add", "staged.txt"]);
+    write(&dir.join("tracked.txt"), "base\nlocal\n");
+    write(&dir.join("new.txt"), "new\n");
 
     let module = GitWriteModule::new(dir).expect("打开写模块");
     let request = request(WriteKind::SwitchBranch, None, Some("topic"), None);
@@ -1009,14 +970,14 @@ fn switch_carries_dirty_changes_with_warning() {
         outcome.message
     );
     assert_eq!(
-        git(dir, &["symbolic-ref", "--short", "HEAD"]).trim(),
+        git_ok(dir, &["symbolic-ref", "--short", "HEAD"]).trim(),
         "topic"
     );
     assert_eq!(
         std::fs::read_to_string(dir.join("tracked.txt")).expect("读取文件"),
         "base\nlocal\n"
     );
-    let status = git(dir, &["status", "--porcelain=v2"]);
+    let status = git_ok(dir, &["status", "--porcelain=v2"]);
     assert!(status.contains("1 A. "), "{status}");
     assert!(status.contains("1 .M "), "{status}");
     assert!(status.contains("? new.txt"), "{status}");
@@ -1024,13 +985,13 @@ fn switch_carries_dirty_changes_with_warning() {
 
 #[test]
 fn switch_overwrite_failure_preserves_dirty_changes() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "shared.txt", "base\n", "base");
-    git(dir, &["switch", "-c", "topic"]);
+    git_ok(dir, &["switch", "-c", "topic"]);
     commit(dir, "shared.txt", "topic\n", "topic 修改");
-    git(dir, &["switch", "main"]);
-    write(dir, "shared.txt", "local\n");
+    git_ok(dir, &["switch", "main"]);
+    write(&dir.join("shared.txt"), "local\n");
 
     let module = GitWriteModule::new(dir).expect("打开写模块");
     let request = request(WriteKind::SwitchBranch, None, Some("topic"), None);
@@ -1050,24 +1011,24 @@ fn switch_overwrite_failure_preserves_dirty_changes() {
         outcome.stderr
     );
     assert_eq!(
-        git(dir, &["symbolic-ref", "--short", "HEAD"]).trim(),
+        git_ok(dir, &["symbolic-ref", "--short", "HEAD"]).trim(),
         "main"
     );
     assert_eq!(
         std::fs::read_to_string(dir.join("shared.txt")).expect("读取文件"),
         "local\n"
     );
-    assert!(git(dir, &["status", "--porcelain=v2"]).contains("1 .M "));
+    assert!(git_ok(dir, &["status", "--porcelain=v2"]).contains("1 .M "));
 }
 
 #[test]
 fn switch_rejects_unmerged_index_without_operation_marker() {
-    let temp = init_repo();
+    let temp = init_temp_repo();
     let dir = temp.path();
     commit(dir, "f.txt", "a\nb\nc\n", "base");
-    git(dir, &["switch", "-c", "topic"]);
+    git_ok(dir, &["switch", "-c", "topic"]);
     commit(dir, "f.txt", "a\ntopic\nc\n", "topic 修改");
-    git(dir, &["switch", "main"]);
+    git_ok(dir, &["switch", "main"]);
     commit(dir, "f.txt", "a\nmain\nc\n", "main 修改");
     let merge = Command::new("git")
         .current_dir(dir)
@@ -1087,4 +1048,107 @@ fn switch_rejects_unmerged_index_without_operation_marker() {
         .issues
         .iter()
         .any(|issue| issue.code == "conflicted_index"));
+}
+#[test]
+fn valid_description_is_written_after_gate_validation() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    commit(dir, "a.txt", "base\n", "base");
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+    let request = request(
+        WriteKind::SetBranchDescription,
+        None,
+        Some("main"),
+        Some("集成与发布主线"),
+    );
+
+    let report = module.validate(&request).expect("Gate");
+    assert!(report.ok, "{:?}", report.issues);
+    let outcome = module.execute(&request).expect("写入描述");
+    assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
+    assert_eq!(
+        module
+            .read_branch_description("main")
+            .expect("读取描述")
+            .description,
+        "集成与发布主线"
+    );
+}
+
+#[test]
+fn rejects_description_starting_with_dash() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    commit(dir, "a.txt", "base\n", "base");
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+    let request = request(
+        WriteKind::SetBranchDescription,
+        None,
+        Some("main"),
+        Some("--list"),
+    );
+
+    let error = module.validate(&request).expect_err("以 - 开头应被拒绝");
+    assert!(
+        error.message.contains("选项"),
+        "错误消息应提示选项注入风险：{}",
+        error.message
+    );
+    let error = module.execute(&request).expect_err("执行同样应被拒绝");
+    assert!(error.message.contains("选项"), "{}", error.message);
+    // 值未被写入本地配置。
+    assert_eq!(
+        module
+            .read_branch_description("main")
+            .expect("读取描述")
+            .description,
+        ""
+    );
+}
+
+#[test]
+fn rejects_description_with_control_characters() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    commit(dir, "a.txt", "base\n", "base");
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+    let request = request(
+        WriteKind::SetBranchDescription,
+        None,
+        Some("main"),
+        Some("第一行\n第二行"),
+    );
+
+    let error = module.validate(&request).expect_err("含换行应被拒绝");
+    assert!(
+        error.message.contains("控制字符"),
+        "错误消息应说明控制字符限制：{}",
+        error.message
+    );
+    let error = module.execute(&request).expect_err("执行同样应被拒绝");
+    assert!(error.message.contains("控制字符"), "{}", error.message);
+}
+
+#[test]
+fn rejects_overlong_description() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    commit(dir, "a.txt", "base\n", "base");
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+    let overlong = "长".repeat(201);
+    let request = request(
+        WriteKind::SetBranchDescription,
+        None,
+        Some("main"),
+        Some(&overlong),
+    );
+
+    let error = module.validate(&request).expect_err("超长描述应被拒绝");
+    assert!(
+        error.message.contains("200"),
+        "错误消息应包含长度上限：{}",
+        error.message
+    );
+    let error = module.execute(&request).expect_err("执行同样应被拒绝");
+    assert!(error.message.contains("200"), "{}", error.message);
 }

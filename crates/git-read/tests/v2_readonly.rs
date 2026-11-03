@@ -15,38 +15,12 @@ use git_core::{
     ObjectFormat, Oid, RefKind,
 };
 use git_read::GitReadModule;
-use test_support::{fixtures, git_ok, read_oid};
+use test_support::{copy_dir, fixtures, git_ok, oid_of, read_oid, temp_dir};
 
 /* ------------------------------ 工具 ------------------------------ */
 
 fn module(path: &Path) -> GitReadModule {
     GitReadModule::open(path, None).expect("打开夹具仓库")
-}
-
-fn oid_of(text: &str) -> Oid {
-    Oid::new(text).expect("合法 OID")
-}
-
-fn temp_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("git-graph-v2-{}-{}", name, std::process::id()));
-    if dir.exists() {
-        std::fs::remove_dir_all(&dir).expect("清理旧临时目录");
-    }
-    std::fs::create_dir_all(&dir).expect("创建临时目录");
-    dir
-}
-
-fn copy_dir(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).expect("创建目标目录");
-    for entry in std::fs::read_dir(from).expect("读取源目录") {
-        let entry = entry.expect("目录项");
-        let target = to.join(entry.file_name());
-        if entry.file_type().expect("文件类型").is_dir() {
-            copy_dir(&entry.path(), &target);
-        } else {
-            std::fs::copy(entry.path(), &target).expect("复制文件");
-        }
-    }
 }
 
 /// 断言 OID 长度与仓库对象格式一致，绝不假设固定 40 位。
@@ -429,7 +403,7 @@ fn cursor_from_other_view_is_invalid_not_stale() {
 #[test]
 fn old_cursor_is_stale_after_ref_changes() {
     let set = fixtures();
-    let dir = temp_dir("generation");
+    let dir = temp_dir("git-graph-v2-generation");
     let repo = dir.join("forked");
     copy_dir(&set.forked(), &repo);
 
@@ -504,7 +478,7 @@ fn old_cursor_is_stale_after_ref_changes() {
 #[test]
 fn repository_is_not_mutated_by_reads() {
     let set = fixtures();
-    let dir = temp_dir("readonly");
+    let dir = temp_dir("git-graph-v2-readonly");
     let repo = dir.join("forked");
     copy_dir(&set.forked(), &repo);
 
@@ -845,7 +819,7 @@ fn timed_open_and_first_page(path: &Path, cache: Option<PathBuf>) -> (f64, usize
 
 #[test]
 fn perf_200_row_first_page_and_cached_index() {
-    let dir = temp_dir("perf");
+    let dir = temp_dir("git-graph-v2-perf");
     let repo = dir.join("perf");
     build_linear_repo(&repo, 200);
 

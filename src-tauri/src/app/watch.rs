@@ -10,7 +10,7 @@ use std::sync::{Arc, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use git_core::git_command;
+use git_core::{git_command, interruption::is_marker};
 use notify::{RecursiveMode, Watcher};
 use refresh::RefreshReason;
 use serde::Serialize;
@@ -193,18 +193,16 @@ fn is_relevant(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
         return false;
     };
-    const FILES: [&str; 9] = [
+    // 仓库元数据 + 全部中断标记（与 git-core 的 MARKERS 保持同步，含 rebase/sequencer）。
+    const FILES: [&str; 6] = [
         "HEAD",
         "index",
         "packed-refs",
         "config",
         "shallow",
-        "CHERRY_PICK_HEAD",
-        "REVERT_HEAD",
-        "MERGE_HEAD",
         "ORIG_HEAD",
     ];
-    if FILES.contains(&name) || name == "index.lock" {
+    if FILES.contains(&name) || is_marker(name) {
         return true;
     }
     path.components()

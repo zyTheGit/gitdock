@@ -16,8 +16,8 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use git_core::{
-    ErrorCode, InterruptionKind, ObjectFormat, Oid, RepoStateDto, Result, UserVisibleError,
-    WarningDto,
+    interruption_dto, ErrorCode, ObjectFormat, Oid, RepoStateDto, Result, UserVisibleError,
+    WarningDto, MARKERS,
 };
 use graph_layout::GraphLayoutModule;
 use parking_lot::Mutex;
@@ -27,24 +27,12 @@ use crate::index;
 use crate::util::{find_commit, gix_oid, lossy, oid_from_gix, oid_from_id};
 
 pub use probe::detect_git_version;
-use probe::detect_interruption;
 
 pub(crate) use refs::{commit_summary, read_head, read_refs, RefBadges};
 
 pub const DEFAULT_PAGE_LIMIT: usize = 200;
 pub const MAX_PAGE_LIMIT: usize = 500;
 pub const MINIMUM_GIT_VERSION: &str = "2.30.0";
-
-const INTERRUPTION_MARKERS: &[(&str, InterruptionKind)] = &[
-    ("MERGE_HEAD", InterruptionKind::Merge),
-    ("CHERRY_PICK_HEAD", InterruptionKind::CherryPick),
-    ("REVERT_HEAD", InterruptionKind::Revert),
-    ("REBASE_HEAD", InterruptionKind::Rebase),
-    ("rebase-merge", InterruptionKind::Rebase),
-    ("rebase-apply", InterruptionKind::Rebase),
-    ("sequencer", InterruptionKind::Sequencer),
-    ("index.lock", InterruptionKind::IndexLock),
-];
 
 pub struct GitReadModule {
     /// 打开时传入的原始路径，供 gix 重新打开仓库使用。
@@ -145,7 +133,7 @@ impl GitReadModule {
             is_bare: repo.is_bare(),
             is_linked_worktree: self.git_dir != self.common_dir,
             is_shallow: self.git_dir.join("shallow").exists(),
-            interruption: detect_interruption(&self.git_dir),
+            interruption: interruption_dto(&self.git_dir, Vec::new()),
             git_version: self.git_version.clone(),
             git_version_supported: self.git_version_supported,
             minimum_git_version: MINIMUM_GIT_VERSION.to_owned(),
@@ -189,7 +177,7 @@ impl GitReadModule {
             parts.push(format!("ref:{name}={target}"));
         }
         parts.sort();
-        for (marker, _) in INTERRUPTION_MARKERS {
+        for (marker, _) in MARKERS {
             if self.git_dir.join(marker).exists() {
                 parts.push(format!("marker:{marker}"));
             }

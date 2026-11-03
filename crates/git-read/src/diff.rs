@@ -5,15 +5,16 @@
 
 use std::collections::BTreeMap;
 
-use git_core::{ChangedFileDto, ErrorCode, FileDiffDto, FileStatus, Oid, Result, UserVisibleError};
+use git_core::{
+    apply_patch_limit, binary_note, too_large_note, ChangedFileDto, ErrorCode, FileDiffDto,
+    FileStatus, Oid, Result, UserVisibleError, MAX_DIFF_BYTES,
+};
 use similar::{ChangeTag, TextDiff};
 
 use crate::util::{decode_text, find_tree, lossy, oid_from_gix, try_object_bytes};
 
 pub(crate) const MAX_FILES: usize = 5000;
 pub(crate) const MAX_LINE_COUNT_FILES: usize = 2000;
-pub(crate) const MAX_BLOB_BYTES: usize = 2 * 1024 * 1024;
-pub(crate) const MAX_PATCH_LINES: usize = 5000;
 
 #[derive(Debug, Clone)]
 pub(crate) struct RawChange {
@@ -490,11 +491,11 @@ pub(crate) fn diff_file(
 
     let old_bytes = old_oid.as_ref().and_then(|oid| try_object_bytes(repo, oid));
     let new_bytes = new_oid.as_ref().and_then(|oid| try_object_bytes(repo, oid));
-    if old_bytes.as_ref().map(|b| b.len()).unwrap_or(0) > MAX_BLOB_BYTES
-        || new_bytes.as_ref().map(|b| b.len()).unwrap_or(0) > MAX_BLOB_BYTES
+    if old_bytes.as_ref().map(|b| b.len()).unwrap_or(0) > MAX_DIFF_BYTES
+        || new_bytes.as_ref().map(|b| b.len()).unwrap_or(0) > MAX_DIFF_BYTES
     {
         dto.too_large = true;
-        dto.note = Some("文件超过 2MB，未生成文本差异".to_owned());
+        dto.note = Some(too_large_note());
         return Ok(dto);
     }
 
@@ -511,7 +512,7 @@ pub(crate) fn diff_file(
             .map(|t| t.encoding_fallback)
             .unwrap_or(false);
     if dto.binary {
-        dto.note = Some("二进制文件，无法显示文本差异".to_owned());
+        dto.note = Some(binary_note());
         return Ok(dto);
     }
 
@@ -532,24 +533,7 @@ pub(crate) fn diff_file(
         .context_radius(3)
         .header(&old_header, &new_header)
         .to_string();
-    let line_count = patch.lines().count();
-    if line_count > MAX_PATCH_LINES {
-        let truncated: String = patch
-            .lines()
-            .take(MAX_PATCH_LINES)
-            .collect::<Vec<_>>()
-            .join("\n");
-        dto.patch = Some(truncated);
-        dto.truncated = true;
-        dto.note = Some(format!(
-            "差异超过 {MAX_PATCH_LINES} 行，仅显示前 {MAX_PATCH_LINES} 行"
-        ));
-    } else {
-        dto.patch = Some(patch);
-    }
-    if dto.encoding_fallback {
-        dto.note = Some("文件不是合法 UTF-8，已按有损方式解码显示".to_owned());
-    }
+    apply_patch_limit(&mut dto, patch);
     Ok(dto)
 }
 

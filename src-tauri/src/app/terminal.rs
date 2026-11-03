@@ -134,7 +134,7 @@ pub fn resolve_lazygit(settings: &SettingsDto) -> Option<PathBuf> {
         return path.is_file().then_some(path);
     }
     let paths = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&paths) {
+    for dir in absolute_path_entries(&paths) {
         for name in ["lazygit.exe", "lazygit"] {
             let candidate = dir.join(name);
             if candidate.is_file() {
@@ -143,6 +143,26 @@ pub fn resolve_lazygit(settings: &SettingsDto) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// PATH 查找只保留绝对路径条目：相对条目与 "." 会随进程当前目录解析，
+/// 仓库内伪造的同名可执行文件可能先于系统目录命中（当前目录劫持）。
+fn absolute_path_entries(paths: &std::ffi::OsStr) -> Vec<PathBuf> {
+    std::env::split_paths(paths)
+        .filter(|dir| dir.is_absolute())
+        .collect()
+}
+
+/// PowerShell 必须以 System32 绝对路径启动：相对程序名会先按父进程当前目录
+/// 解析，从仓库目录启动应用时，仓库内伪造的 powershell.exe 会先于系统执行。
+fn powershell_path() -> Result<PathBuf> {
+    let system_root = std::env::var("SystemRoot").map_err(|_| {
+        UserVisibleError::new(
+            ErrorCode::ExternalToolFailed,
+            "未找到 PowerShell：缺少 SystemRoot 环境变量",
+        )
+    })?;
+    Ok(PathBuf::from(system_root).join(r"System32\WindowsPowerShell\v1.0\powershell.exe"))
 }
 
 pub fn capabilities(state: &AppState) -> Result<TerminalCapabilitiesDto> {
@@ -174,19 +194,23 @@ pub fn open(
             })?;
             (path.to_string_lossy().into_owned(), Vec::<String>::new())
         }
-        "shell" => (
-            "powershell.exe".to_owned(),
-            vec![
-                "-NoLogo".to_owned(),
-                "-NoExit".to_owned(),
-                "-Command".to_owned(),
-                // ConPTY 不会替 PowerShell 设编码；不设则中文按 GBK 输出成乱码。
-                "[Console]::InputEncoding=[Text.UTF8Encoding]::new($false);\
-                 [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);\
-                 $OutputEncoding=[Text.UTF8Encoding]::new($false)"
-                    .to_owned(),
-            ],
-        ),
+        "shell" => {
+            // 绝对路径启动，避免相对程序名被当前目录下的伪造可执行文件劫持。
+            let path = powershell_path()?;
+            (
+                path.to_string_lossy().into_owned(),
+                vec![
+                    "-NoLogo".to_owned(),
+                    "-NoExit".to_owned(),
+                    "-Command".to_owned(),
+                    // ConPTY 不会替 PowerShell 设编码；不设则中文按 GBK 输出成乱码。
+                    "[Console]::InputEncoding=[Text.UTF8Encoding]::new($false);\
+                     [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);\
+                     $OutputEncoding=[Text.UTF8Encoding]::new($false)"
+                        .to_owned(),
+                ],
+            )
+        }
         other => {
             return Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
@@ -370,5 +394,26 @@ mod tests {
         // 只要求不把空白当作路径；本机是否安装 LazyGit 不影响该断言。
         let resolved = resolve_lazygit(&settings);
         assert!(resolved.is_none() || resolved.as_deref() != Some(std::path::Path::new("   ")));
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn powershell_path_is_absolute_and_ends_with_executable() {
+        // 测试环境（Windows）必然存在 SystemRoot；此处只验证拼接结果。
+        let path = powershell_path().expect("SystemRoot 应存在");
+        assert!(path.is_absolute());
+        assert!(path.ends_with(std::path::Path::new("powershell.exe")));
+    }
+
+    #[test]
+    fn path_lookup_skips_relative_entries_and_dot() {
+        let absolute = if cfg!(windows) {
+            r"C:\Tools"
+        } else {
+            "/usr/tools"
+        };
+        let raw = std::env::join_paths([".", "relative", absolute]).expect("构造 PATH 值");
+        let dirs = absolute_path_entries(&raw);
+        assert_eq!(dirs, vec![PathBuf::from(absolute)]);
     }
 }

@@ -1,37 +1,6 @@
-use std::path::Path;
+use git_core::git_command;
 
-use git_core::{git_command, InterruptionDto, InterruptionKind};
-
-use super::{INTERRUPTION_MARKERS, MINIMUM_GIT_VERSION};
-
-pub(crate) fn detect_interruption(git_dir: &Path) -> InterruptionDto {
-    let mut kinds = Vec::new();
-    for (marker, kind) in INTERRUPTION_MARKERS {
-        if git_dir.join(marker).exists() && !kinds.contains(kind) {
-            kinds.push(*kind);
-        }
-    }
-    if kinds.is_empty() {
-        return InterruptionDto::none();
-    }
-    let labels: Vec<&str> = kinds
-        .iter()
-        .map(|kind| match kind {
-            InterruptionKind::Merge => "合并",
-            InterruptionKind::CherryPick => "cherry-pick",
-            InterruptionKind::Revert => "revert",
-            InterruptionKind::Rebase => "rebase",
-            InterruptionKind::Sequencer => "序列操作",
-            InterruptionKind::IndexLock => "index 锁",
-        })
-        .collect();
-    InterruptionDto {
-        kinds,
-        files: Vec::new(),
-        message: format!("仓库存在未完成的{}操作", labels.join("、")),
-        terminal_hint: "请在终端中检查并完成或中止该操作；本应用不会自动执行 abort/quit".to_owned(),
-    }
-}
+use super::MINIMUM_GIT_VERSION;
 
 /// 探测系统 Git 版本与最低版本支持情况；供应用外壳展示能力。
 pub fn detect_git_version() -> (Option<String>, bool) {

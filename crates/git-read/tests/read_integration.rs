@@ -8,43 +8,12 @@ use git_core::{
     SearchField, SearchRequest,
 };
 use git_read::GitReadModule;
-use test_support::{current_head, fixtures, git_ok, read_oid, write};
+use test_support::{
+    copy_dir, current_head, fixtures, git_ok, init_repo, oid_of, read_oid, temp_dir, write,
+};
 
 fn module(path: &Path) -> GitReadModule {
     GitReadModule::open(path, None).expect("打开夹具仓库")
-}
-
-fn oid_of(text: &str) -> Oid {
-    Oid::new(text).expect("合法 OID")
-}
-
-fn temp_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("git-graph-read-{}-{}", name, std::process::id()));
-    if dir.exists() {
-        std::fs::remove_dir_all(&dir).expect("清理旧临时目录");
-    }
-    std::fs::create_dir_all(&dir).expect("创建临时目录");
-    dir
-}
-
-fn copy_dir(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).expect("创建目标目录");
-    for entry in std::fs::read_dir(from).expect("读取源目录") {
-        let entry = entry.expect("目录项");
-        let target = to.join(entry.file_name());
-        if entry.file_type().expect("文件类型").is_dir() {
-            copy_dir(&entry.path(), &target);
-        } else {
-            std::fs::copy(entry.path(), &target).expect("复制文件");
-        }
-    }
-}
-
-fn init_repo(dir: &Path) {
-    git_ok(dir, &["init", "-q", "-b", "main"]);
-    git_ok(dir, &["config", "user.name", "Test"]);
-    git_ok(dir, &["config", "user.email", "test@example.com"]);
-    git_ok(dir, &["config", "core.autocrlf", "false"]);
 }
 
 #[test]
@@ -113,7 +82,7 @@ fn linear_state_refs_and_head() {
 
 #[test]
 fn local_branch_descriptions_come_from_local_config() {
-    let dir = temp_dir("branch-description");
+    let dir = temp_dir("git-graph-read-branch-description");
     let repo = dir.join("repo");
     std::fs::create_dir_all(&repo).expect("创建仓库目录");
     init_repo(&repo);
@@ -275,7 +244,7 @@ fn around_anchor_returns_page_containing_commit() {
 #[test]
 fn stale_cursor_is_rejected_after_ref_change() {
     let set = fixtures();
-    let dir = temp_dir("stale");
+    let dir = temp_dir("git-graph-read-stale");
     let repo = dir.join("linear");
     copy_dir(&set.linear(), &repo);
 
@@ -334,7 +303,7 @@ fn commit_detail_reports_files_and_root_baseline() {
 
 #[test]
 fn binary_encoding_and_gitlink_degrade_gracefully() {
-    let dir = temp_dir("degrade");
+    let dir = temp_dir("git-graph-read-degrade");
     let repo = dir.join("repo");
     std::fs::create_dir_all(&repo).expect("创建仓库目录");
     init_repo(&repo);
@@ -446,7 +415,7 @@ fn compare_three_dot_uses_merge_base() {
 
 #[test]
 fn compare_without_merge_base_falls_back() {
-    let dir = temp_dir("no-merge-base");
+    let dir = temp_dir("git-graph-read-no-merge-base");
     let repo = dir.join("repo");
     std::fs::create_dir_all(&repo).expect("创建仓库目录");
     init_repo(&repo);
@@ -562,7 +531,7 @@ fn shallow_bare_and_linked_worktree_are_detected() {
 #[test]
 fn index_cache_is_reused_between_reads() {
     let set = fixtures();
-    let cache = temp_dir("cache");
+    let cache = temp_dir("git-graph-read-cache");
     let read = GitReadModule::open(&set.linear(), Some(cache.clone())).expect("带缓存目录打开仓库");
 
     let first = read
@@ -594,7 +563,7 @@ fn index_cache_is_reused_between_reads() {
 
 #[test]
 fn empty_scope_reports_warning() {
-    let dir = temp_dir("unborn");
+    let dir = temp_dir("git-graph-read-unborn");
     let repo = dir.join("repo");
     std::fs::create_dir_all(&repo).expect("创建仓库目录");
     init_repo(&repo);
