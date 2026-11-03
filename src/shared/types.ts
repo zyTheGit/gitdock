@@ -350,6 +350,8 @@ export interface RepositoryChangedDto {
 
 export interface TerminalCapabilitiesDto {
   lazygit_path?: string | null;
+  /** Git for Windows 自带 bash.exe 探测结果；空 = 未安装（前端禁用该选项）。非 Windows 恒为空。 */
+  git_bash_path?: string | null;
 }
 
 export type TerminalEvent =
@@ -384,6 +386,8 @@ export interface SettingsDto {
   font_scale: number;
   /** 界面语言覆盖；空值跟随系统（"zh-CN" | "en"）。只经 set_language 命令修改。 */
   language?: string | null;
+  /** 终端 Shell 启动器（"default" | "git_bash"）；走设置草稿保存，下次启动 Shell 生效。 */
+  shell_profile: string;
 }
 
 /** Git 配置作用域：用户级（`--global`）或当前仓库（`--local`）。保存只写所选层。 */

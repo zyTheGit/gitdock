@@ -108,6 +108,8 @@ const errors = {
   // ---- src-tauri 应用层：终端 terminal* ----
   terminalResizeFailed: "调整终端尺寸失败",
   terminalPowershellNotFound: "未找到 PowerShell：缺少 SystemRoot 环境变量",
+  terminalGitBashNotFound: "未找到 Git Bash：请确认已安装 Git for Windows，或切回系统默认 Shell",
+  settingShellProfileUnsupported: "不支持的终端 Shell 启动器",
   terminalLazygitNotFound: "未找到 LazyGit，可在设置中填写可执行文件路径",
   terminalModeUnsupported: "不支持的终端模式：{{mode}}",
   terminalPtyCreateFailed: "创建伪终端失败",

@@ -23,6 +23,7 @@ export function useSettingsDraft(
   const [restore, setRestore] = useState(settings.restore_last_repository);
   const [watch, setWatch] = useState(settings.watch_enabled);
   const [lazygitPath, setLazygitPath] = useState(settings.lazygit_path ?? "");
+  const [shellProfile, setShellProfile] = useState(settings.shell_profile);
   const [defaultTool, setDefaultTool] = useState<string | null>(
     settings.default_tool ?? null,
   );
@@ -97,6 +98,7 @@ export function useSettingsDraft(
         restore_last_repository: restore,
         watch_enabled: watch,
         lazygit_path: lazygitPath.trim() || null,
+        shell_profile: shellProfile,
         font_scale: fontScale,
       });
     } catch (err) {
@@ -115,6 +117,8 @@ export function useSettingsDraft(
     setWatch,
     lazygitPath,
     setLazygitPath,
+    shellProfile,
+    setShellProfile,
     defaultTool,
     setDefaultTool,
     saving,

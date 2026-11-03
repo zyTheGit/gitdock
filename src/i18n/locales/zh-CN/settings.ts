@@ -47,6 +47,10 @@ const settings = {
   terminalHint: "GitDock 不捆绑 LazyGit。留空时从 PATH 查找；填写后只使用该文件，找不到会在终端面板提示。终端以当前用户权限、在当前打开的仓库目录中运行。",
   terminalLazygitLabel: "LazyGit 可执行文件",
   terminalLazygitPlaceholder: "可执行文件完整路径（如 lazygit）",
+  terminalShellProfileLabel: "Shell 模式启动器",
+  terminalShellProfileDefault: "系统默认（PowerShell）",
+  terminalShellProfileGitBash: "Git Bash（Git for Windows 自带）",
+  terminalShellProfileGitBashMissing: "未探测到 Git Bash：请确认已安装 Git for Windows，或改用系统默认。",
 
   // 外部对比工具（$LOCAL / $REMOTE 等参数与命令示例原文，在组件内以 code 标签渲染）
   toolsTitle: "外部文件对比工具",

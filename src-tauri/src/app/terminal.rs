@@ -35,6 +35,10 @@ pub enum TerminalEvent {
 #[derive(Debug, Clone, Serialize)]
 pub struct TerminalCapabilitiesDto {
     pub lazygit_path: Option<String>,
+    /// Git for Windows 自带 bash.exe 的探测结果；None = 未安装（前端禁用该选项）。
+    /// 非 Windows 平台恒为 None。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub git_bash_path: Option<String>,
 }
 
 struct Session {
@@ -150,7 +154,20 @@ pub fn capabilities(state: &AppState) -> Result<TerminalCapabilitiesDto> {
     let settings = state.settings()?;
     Ok(TerminalCapabilitiesDto {
         lazygit_path: resolve_lazygit(&settings).map(|path| path.to_string_lossy().into_owned()),
+        git_bash_path: detect_git_bash().map(|path| path.to_string_lossy().into_owned()),
     })
+}
+
+/// Git Bash 探测：委托 platform 层（Windows 实现；其余平台编译期回落 None）。
+#[cfg(windows)]
+fn detect_git_bash() -> Option<std::path::PathBuf> {
+    super::platform::detect_git_bash()
+}
+
+/// Git Bash 探测：非 Windows 无此概念，capabilities 恒报 None。
+#[cfg(not(windows))]
+fn detect_git_bash() -> Option<std::path::PathBuf> {
+    None
 }
 
 /// 启动终端。工作目录固定为当前仓库，模式只接受 `lazygit` / `shell`。
@@ -178,8 +195,11 @@ pub fn open(
         }
         "shell" => {
             // 平台差异（PowerShell 的 System32 绝对路径与 UTF-8 参数、Unix
-            // 登录 Shell 选择）收敛在 platform 层，这里只消费解析结果。
-            let shell = super::platform::default_shell()?;
+            // 登录 Shell 选择、Windows 的 Git Bash 启动器）收敛在 platform 层，
+            // 这里只按设置选启动器并消费解析结果。快照式读取：已运行会话
+            // 不受设置变更影响，下次启动生效。
+            let profile = super::platform::ShellProfile::from_stored(&settings.shell_profile);
+            let shell = super::platform::resolve_shell(profile)?;
             (shell.path.to_string_lossy().into_owned(), shell.args)
         }
         other => {
