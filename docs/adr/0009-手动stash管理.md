@@ -1,6 +1,6 @@
 # ADR 0009：手动 stash 管理——save / list / apply / pop / drop 与冲突边界
 
-- 状态：已接受（2026-11-04 实现；门禁全绿，GUI 实机验收待用户）
+- 状态：已接受（2026-11-04 实现；PR #10 / `b5cc7e4` 已合并；GUI 实机验收待用户）
 - 日期：2026-11-04
 - 影响范围：`crates/git-core/src/dto.rs`（WriteKind / WriteRequest / StashEntryDto）、`crates/git-write/src/stash.rs`（新增，含 `stash/gate.rs` 与测试）、`crates/git-write/src/command.rs`、`crates/git-write/src/execute.rs`、`crates/git-write/src/gate.rs`、`crates/git-read/src/read/stash.rs`（新增）、`src-tauri` command 装配、`src/shared/types.ts`、`src/features/staging/`、`src/app/*`、`src/i18n/locales/*`
 - 触发依据：docs/11 批次 3（2026-11-04 用户确认五批次序）；docs/06 N6「不自动 stash」；现有 `WriteKind` 无 stash 能力
