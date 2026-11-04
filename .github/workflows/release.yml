@@ -117,8 +117,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          shopt -s nullglob
-          assets=(bundle-artifacts/*-setup.exe bundle-artifacts/*.AppImage bundle-artifacts/*.deb bundle-artifacts/*.dmg)
+          # upload-artifact 保留 nsis/appimage/deb/dmg 子目录，必须递归收集。
+          shopt -s globstar nullglob
+          assets=(bundle-artifacts/**/*-setup.exe bundle-artifacts/**/*.AppImage bundle-artifacts/**/*.deb bundle-artifacts/**/*.dmg)
           if [ ${#assets[@]} -eq 0 ]; then
             echo "::error::未找到任何安装包"
             exit 1
@@ -129,8 +130,9 @@ jobs:
             *-*) prerelease=(--prerelease) ;;
           esac
 
-          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release upload "$TAG_NAME" "${assets[@]}" --clobber
+          # publish 未 checkout 仓库，显式指定仓库避免 gh 依赖当前目录。
+          if gh release view "$TAG_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "${assets[@]}" --clobber -R "$GITHUB_REPOSITORY"
           else
             # 未签名安装包的平台说明（--generate-notes 的自动日志会追加在其后）：
             # macOS DMG 未经签名/公证，Gatekeeper 会拦截直接打开；正式签名/公证
@@ -150,6 +152,7 @@ jobs:
               --title "GitDock $TAG_NAME" \
               --notes "$notes" \
               --generate-notes \
+              -R "$GITHUB_REPOSITORY" \
               "${prerelease[@]}"
           fi
 
