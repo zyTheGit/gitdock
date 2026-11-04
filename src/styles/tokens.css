@@ -35,14 +35,14 @@
   --remote-text: #b6c0d0;
 
   /* 图谱泳道配色：8 色循环 + 节点描边，深色背景下取亮色系。 */
-  --graph-lane-1: #6ea8fe;
-  --graph-lane-2: #f0a35e;
-  --graph-lane-3: #71c78e;
-  --graph-lane-4: #d98adf;
-  --graph-lane-5: #e0c14f;
-  --graph-lane-6: #6fd3d8;
-  --graph-lane-7: #e07f9a;
-  --graph-lane-8: #9d9df0;
+  --graph-lane-1: #8db8ff;
+  --graph-lane-2: #f7bc74;
+  --graph-lane-3: #8fe0a8;
+  --graph-lane-4: #e9a8ef;
+  --graph-lane-5: #eed970;
+  --graph-lane-6: #8ce6eb;
+  --graph-lane-7: #f2a1b7;
+  --graph-lane-8: #b7b7ff;
   --graph-lane-edge: #16181d;
   --diff-bg: #1b1e24;
   --diff-text: #d7dae0;
@@ -105,15 +105,15 @@
     --remote-text: #4a5568;
 
     /* 图谱泳道配色：浅色背景下降为深色系，连线对比度 ≥3:1 且 8 色彼此可区分。 */
-    --graph-lane-1: #1a5bb8;
-    --graph-lane-2: #ad5a10;
-    --graph-lane-3: #1e7a3c;
-    --graph-lane-4: #93389e;
-    --graph-lane-5: #806500;
-    --graph-lane-6: #0e7a80;
-    --graph-lane-7: #b83a5e;
-    --graph-lane-8: #5a5ac8;
-    --graph-lane-edge: #5a6070;
+    --graph-lane-1: #5b93d6;
+    --graph-lane-2: #c47f3c;
+    --graph-lane-3: #4f9b66;
+    --graph-lane-4: #b178c2;
+    --graph-lane-5: #a89036;
+    --graph-lane-6: #429ba4;
+    --graph-lane-7: #c7718b;
+    --graph-lane-8: #8a8ad4;
+    --graph-lane-edge: #7b8496;
     --diff-bg: #ffffff;
     --diff-text: #24292f;
     --diff-selection-bg: #cfe0ff;
@@ -162,15 +162,15 @@
   --remote-text: #4a5568;
 
   /* 图谱泳道配色：浅色背景下降为深色系，连线对比度 ≥3:1 且 8 色彼此可区分。 */
-  --graph-lane-1: #1a5bb8;
-  --graph-lane-2: #ad5a10;
-  --graph-lane-3: #1e7a3c;
-  --graph-lane-4: #93389e;
-  --graph-lane-5: #806500;
-  --graph-lane-6: #0e7a80;
-  --graph-lane-7: #b83a5e;
-  --graph-lane-8: #5a5ac8;
-  --graph-lane-edge: #5a6070;
+  --graph-lane-1: #5b93d6;
+  --graph-lane-2: #c47f3c;
+  --graph-lane-3: #4f9b66;
+  --graph-lane-4: #b178c2;
+  --graph-lane-5: #a89036;
+  --graph-lane-6: #429ba4;
+  --graph-lane-7: #c7718b;
+  --graph-lane-8: #8a8ad4;
+  --graph-lane-edge: #7b8496;
   --diff-bg: #ffffff;
   --diff-text: #24292f;
   --diff-selection-bg: #cfe0ff;

@@ -162,17 +162,26 @@
 
 .branch-panel-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  row-gap: 2px;
 }
 
 .branch-panel-head h2 {
+  flex: 0 1 auto;
+  min-width: 0;
   margin: 8px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .branch-panel-head button {
+  flex: none;
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .branch-chip {

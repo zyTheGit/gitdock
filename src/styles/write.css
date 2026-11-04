@@ -218,8 +218,11 @@
 
 .branch-panel-actions {
   display: flex;
+  flex: none;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px;
+  margin-left: auto;
 }
 
 .tag-item {
