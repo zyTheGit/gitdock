@@ -466,6 +466,10 @@ pub enum WriteKind {
     RenameBranch,
     CreateTag,
     DeleteTag,
+    StashSave,
+    StashApply,
+    StashPop,
+    StashDrop,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -492,6 +496,24 @@ pub struct WriteRequest {
     /// create_commit / amend_commit 的提交消息；其他操作忽略。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+    /// stash_save / stash_apply / stash_pop / stash_drop 的 `stash@{N}` 选择器。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stash: Option<String>,
+    /// stash_save 是否包含未跟踪文件；缺省 false。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub include_untracked: Option<bool>,
+}
+
+/// 单条本地 stash：index 0 为最新；selector 形如 `stash@{0}`。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StashEntryDto {
+    pub index: u32,
+    pub selector: String,
+    pub oid: Oid,
+    /// Git reflog 原始消息，不翻译。
+    pub message: String,
+    /// reflog 时间（Unix 秒）。
+    pub created_at: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -685,6 +707,8 @@ mod tests {
             interruption: Some(InterruptionKind::Revert),
             mainline: Some(2),
             message: None,
+            stash: None,
+            include_untracked: None,
         };
         let json = serde_json::to_string(&request).expect("序列化");
         assert!(json.contains(r#""interruption":"revert""#), "{json}");
@@ -705,6 +729,8 @@ mod tests {
             interruption: None,
             mainline: None,
             message: None,
+            stash: None,
+            include_untracked: None,
         };
         let json = serde_json::to_string(&minimal).expect("序列化");
         assert!(!json.contains("interruption"), "{json}");

@@ -258,3 +258,78 @@
   font-size: 12px;
   color: var(--warning);
 }
+
+/* Stash 面板（ADR 0009）。 */
+.stash-dialog .settings-hint {
+  margin: 4px 0 0;
+}
+
+.stash-save {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.stash-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.stash-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stash-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.stash-row-info {
+  display: flex;
+  flex: 1 1 260px;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.stash-row-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stash-row-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.stash-row-actions button {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.stash-row-actions button.danger {
+  color: var(--danger);
+}
+
+.stash-row-hints {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 11px;
+}
+
+.stash-error {
+  white-space: pre-wrap;
+}

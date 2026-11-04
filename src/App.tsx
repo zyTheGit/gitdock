@@ -13,6 +13,7 @@ import { useAppLanguage } from "./i18n/useAppLanguage";
 import { toLanguagePreference, useI18n } from "./i18n";
 
 import { useRefActions } from "./app/useRefActions";
+import { useStashActions } from "./app/useStashActions";
 import { useRepositorySession } from "./app/useRepositorySession";
 import {
   clearSkippedUpdate,
@@ -270,6 +271,7 @@ export default function App() {
   const localBranches = repo ? repo.refs.filter((ref) => ref.kind === "local_branch") : [];
   const tags = repo ? repo.refs.filter((ref) => ref.kind === "tag") : [];
   const refs = useRefActions({ repo, writeDisabled: write.disabled, onMutated: stagingMutated });
+  const stash = useStashActions({ writeDisabled: write.disabled, onMutated: stagingMutated });
 
   // 右键菜单条目组装（提交行/分支共享写与对比动作），细节见 useCommitMenus。
   const { commitActions, activeRowMenuItems, activeBranchMenuItems } = useCommitMenus({
@@ -419,6 +421,7 @@ export default function App() {
                 writeDisabled={write.disabled}
                 onBusyChange={setStagingBusy}
                 onMutated={stagingMutated}
+                onOpenStash={stash.openStash}
                 onOpenTerminal={() => {
                   setTerminalMounted(true);
                   setTerminalOpen(true);
@@ -495,7 +498,6 @@ export default function App() {
           )}
         </main>
       </div>
-
       {repo && terminalMounted && (
         <TerminalPanel
           repoPath={repo.path}
@@ -550,13 +552,12 @@ export default function App() {
           busy={write.busy}
           onCancel={write.cancel}
           onConfirm={() => void write.run()}
+          onOpenStash={() => { write.cancel(); stash.openStash(); }}
         />
       )}
-
       {refs.dialogs}
-
+      {stash.dialog}
       {toast && <div className="toast" role="status">{toast}</div>}
-
       {branchCompareOpen && repo && localBranches.length >= 2 && (
         <BranchCompareDialog
           branches={localBranches}

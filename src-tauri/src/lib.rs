@@ -101,6 +101,7 @@ pub fn run() {
             commands::read_graph_page_around,
             commands::read_commit,
             commands::read_head_message,
+            commands::read_stashes,
             commands::branches_containing,
             commands::commit_branch_context,
             commands::read_file_diff,

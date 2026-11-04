@@ -12,6 +12,7 @@ mod description;
 mod execute;
 mod gate;
 mod staging;
+mod stash;
 mod status;
 mod tag;
 

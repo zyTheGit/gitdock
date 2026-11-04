@@ -16,6 +16,8 @@ fn base_request(kind: WriteKind) -> WriteRequest {
         interruption: None,
         mainline: None,
         message: None,
+        stash: None,
+        include_untracked: None,
     }
 }
 

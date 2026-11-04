@@ -57,6 +57,31 @@ const staging = {
   amendConfirmTitle: "修改提交确认",
   amendConfirmExecute: "确认修改提交",
   amendLoadFailedPrefix: "读取上一条提交消息失败：",
+  // Stash 管理（ADR 0009）。
+  stashOpen: "Stash",
+  stashTitle: "Stash 管理",
+  stashSubtitle: "手动保存与恢复当前工作区改动",
+  stashMessageLabel: "消息（可选）",
+  stashMessagePlaceholder: "例如：切换分支前保存",
+  stashIncludeUntracked: "包含未跟踪文件",
+  stashSave: "保存 stash",
+  stashSaving: "保存中…",
+  stashEmpty: "没有本地 stash",
+  stashListLabel: "本地 stash",
+  stashApply: "应用",
+  stashPop: "弹出",
+  stashDrop: "删除",
+  stashApplyHint: "应用后保留条目",
+  stashPopHint: "成功后条目移除；冲突时保留",
+  stashDropHint: "删除后条目从列表移除",
+  stashDropConfirmTitle: "确认删除 stash",
+  stashDropConfirmHint:
+    "删除不可撤销；如需恢复，可在终端用 git fsck --unreachable 找到 stash 提交，再执行 git stash apply <oid>。",
+  stashDropConfirm: "确认删除",
+  stashBusy: "处理中…",
+  stashConflictHint: "应用产生冲突：stash 条目仍在，请到暂存区解决冲突。",
+  stashSaveFailed: "保存 stash 失败",
+  stashActionFailed: "stash 操作失败",
 } as const;
 
 export default staging;

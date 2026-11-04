@@ -13,6 +13,7 @@ use crate::branch;
 use crate::commit::{commit_args, MessageFile};
 use crate::description::validate_branch_description;
 use crate::staging::pathspec_stdin;
+use crate::stash;
 use crate::status::StatusSummary;
 use crate::tag;
 use crate::GitWriteModule;
@@ -245,6 +246,13 @@ impl GitWriteModule {
                 })?;
                 tag::delete_args(name)
             }
+            WriteKind::StashSave => stash::save_args(
+                request.message.as_deref(),
+                request.include_untracked.unwrap_or(false),
+            ),
+            WriteKind::StashApply => stash::apply_args(require_stash(request)?),
+            WriteKind::StashPop => stash::pop_args(require_stash(request)?),
+            WriteKind::StashDrop => stash::drop_args(require_stash(request)?),
         };
         spec.description_write = request.kind == WriteKind::SetBranchDescription;
         spec.message_file = message_file;
@@ -358,6 +366,15 @@ impl GitWriteModule {
         Ok(output.status.success())
     }
 
+    /// `refs/stash` 的 reflog 条目数；无 stash 或引用不可读时按 0 处理。
+    pub(crate) fn stash_count(&self) -> Result<u32> {
+        let output = self.run_readonly(&["rev-list", "--walk-reflogs", "--count", "refs/stash"])?;
+        if !output.status.success() {
+            return Ok(0);
+        }
+        Ok(text(&output.stdout).trim().parse().unwrap_or(0))
+    }
+
     /// 给定引用能否解析为 commit 对象；用于创建分支/标签的起点校验。
     pub(crate) fn commit_exists(&self, oid: &str) -> Result<bool> {
         if oid.is_empty() || oid.starts_with('-') {
@@ -466,6 +483,14 @@ impl GitWriteModule {
                 .with_detail(e.to_string())
         })
     }
+}
+
+/// stash apply/pop/drop 必须携带 `stash@{N}`；Gate 已校验范围，这里兜底非空。
+fn require_stash(request: &WriteRequest) -> Result<&str> {
+    request.stash.as_deref().ok_or_else(|| {
+        UserVisibleError::new(ErrorCode::InvalidArgument, "缺少 stash 选择器")
+            .with_key("errors.commandMissingStash")
+    })
 }
 
 /// 仅在提供了合法（1 起始）父序号时追加 `-m N`；范围由 Gate 校验。
