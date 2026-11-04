@@ -175,7 +175,7 @@ src-tauri app orchestration
 
 ### G6：Git 能力扩展
 
-> G6 进度（2026-11-04，分支 `plan/g6-git-capabilities`，前置方案阶段）：需求与优先级方案已产出（docs/11：A-E 五能力分组 + 批次推荐 + 凭据/历史改写/中断恢复约束），**优先级待产品裁决（裁决点 4），未裁决不实现任何单项**。现状底座已核实：WriteKind 白名单 8 种（无 commit/分支创建/标签/stash/远程/merge），扩展走 dto→command→gate→src-tauri→前端全链路既有模式。裁决后批次 1 先出需求细化 + ADR 再实现。
+> G6 进度（2026-11-04，分支 `plan/g6-git-capabilities`）：优先级已裁决（五批次序）；**批次 1（提交创建与 amend）已实现**（ADR-0007 已接受，e607131：WriteKind 新增 CreateCommit/AmendCommit、commit 模块含 Gate 校验与 13 项测试、CommitMessageDialog 前端、i18n zh/en；门禁全绿）。待办：批次 1 GUI 实机验收（用户）；批次 2（分支与标签管理）需求细化 + ADR 待启动。
 
 按独立阶段交付：提交创建/修改、分支与标签管理、stash、fetch/pull/push、merge/rebase/批量序列。每阶段先定语义与 ADR，再分读路径、Gate/执行器、UI、冲突/恢复、验证和文档子任务。远程凭据不得被应用记录；历史改写和破坏性操作必须有专门确认和恢复说明。
 

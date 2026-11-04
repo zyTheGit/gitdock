@@ -1,6 +1,6 @@
 # ADR 0007：提交创建与 amend——消息文件传递与历史改写确认
 
-- 状态：草案（待产品确认后进入实现）
+- 状态：已接受（2026-11-04 用户确认后实现，e607131；GUI 实机验收待用户执行）
 - 日期：2026-11-04
 - 影响范围：`crates/git-core/src/dto.rs`（WriteKind / WriteRequest）、`crates/git-write/src/command.rs`、`crates/git-write/src/commit_gate.rs`（新增）、`crates/git-write/src/commit.rs`（新增，测试拆 `commit/tests.rs`）、`src-tauri` command 装配、`src/shared/types.ts`、`src/features/staging/`（提交入口与消息对话框）、`docs/03-技术架构.md`
 - 触发依据：docs/06 N5（暂存区含提交闭环）、docs/11 批次 1（2026-11-04 用户裁决五批次序）；WriteKind 白名单现无提交能力
