@@ -1,6 +1,7 @@
 import { useI18n } from "../../i18n";
 import { gateSummaryText, issueText, warningText } from "../../shared/error";
 import { Modal } from "../../shared/Modal";
+import { useEscClose } from "../../shared/useEscClose";
 import type { CommitSummaryDto, GateReportDto, WriteKind } from "../../shared/types";
 
 type DialogKind = Extract<
@@ -42,6 +43,8 @@ export function ConfirmWriteDialog({
   onConfirm,
 }: ConfirmWriteDialogProps) {
   const { t } = useI18n();
+  useEscClose(onCancel, busy || validating);
+
   const actionLabel: Record<DialogKind, string> = {
     cherry_pick: t("write.labelCherryPick"),
     revert: t("write.labelRevert"),

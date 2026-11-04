@@ -13,6 +13,11 @@ const write = {
   labelAbortOperation: "中止操作",
   labelCreateCommit: "创建提交",
   labelAmendCommit: "修改提交",
+  labelCreateBranch: "创建分支",
+  labelDeleteBranch: "删除分支",
+  labelRenameBranch: "重命名分支",
+  labelCreateTag: "创建标签",
+  labelDeleteTag: "删除标签",
   // 写操作结果消息（状态栏 toast）。
   outcomeSwitchedToBranch: "已切换到分支 {{branch}}",
   outcomeContinueDone: "已继续并完成操作，已刷新图谱",

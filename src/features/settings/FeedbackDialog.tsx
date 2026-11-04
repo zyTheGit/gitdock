@@ -5,6 +5,7 @@ import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type { AppInfoDto } from "../../shared/types";
 import { Modal } from "../../shared/Modal";
+import { useEscClose } from "../../shared/useEscClose";
 
 interface FeedbackDialogProps {
   info: AppInfoDto;
@@ -30,6 +31,8 @@ export function FeedbackDialog({ info, onClose, onError }: FeedbackDialogProps) 
   );
   const [copied, setCopied] = useState(false);
   const [opening, setOpening] = useState(false);
+
+  useEscClose(onClose, opening);
 
   const copy = async () => {
     const ok = await copyText(`${title}\n\n${body}`);

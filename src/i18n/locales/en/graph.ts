@@ -44,6 +44,8 @@ const graph = {
   menuSetBase: "Set as Base",
   menuSetCompare: "Set as Compare",
   menuOpenDetail: "View details",
+  menuCreateBranchHere: "Create branch here…",
+  menuCreateTagHere: "Create tag here…",
 } satisfies GraphMessages;
 
 export default graph;

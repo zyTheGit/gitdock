@@ -355,6 +355,18 @@ impl GitWriteModule {
                 issues.extend(commit.issues);
                 (commit.summary, commit.summary_key, commit.summary_args)
             }
+            WriteKind::CreateBranch | WriteKind::DeleteBranch | WriteKind::RenameBranch => {
+                // 分支校验按 ADR 0008 拆到 branch 模块；bare 与中断态已由上方前置拒绝。
+                let change = crate::branch::gate::validate_branch_change(self, request, &head)?;
+                issues.extend(change.issues);
+                (change.summary, change.summary_key, change.summary_args)
+            }
+            WriteKind::CreateTag | WriteKind::DeleteTag => {
+                // 标签校验按 ADR 0008 拆到 tag 模块；bare 与中断态已由上方前置拒绝。
+                let change = crate::tag::gate::validate_tag_change(self, request, &head)?;
+                issues.extend(change.issues);
+                (change.summary, change.summary_key, change.summary_args)
+            }
             WriteKind::ContinueOperation | WriteKind::AbortOperation => {
                 let continuing = request.kind == WriteKind::ContinueOperation;
                 let verb = if continuing { "继续" } else { "中止" };

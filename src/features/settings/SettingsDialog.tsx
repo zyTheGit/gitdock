@@ -19,6 +19,7 @@ import { StartupSection } from "./StartupSection";
 import { TerminalSection } from "./TerminalSection";
 import { ToolsSection } from "./ToolsSection";
 import { useSettingsDraft } from "./useSettingsDraft";
+import { useEscClose } from "../../shared/useEscClose";
 
 interface SettingsDialogProps {
   settings: SettingsDto;
@@ -67,6 +68,8 @@ export function SettingsDialog({
   // Git 配置要读真实配置文件，首次进入该分区才发起读取；之后保留编辑内容。
   const [gitConfigOpened, setGitConfigOpened] = useState(false);
   const draft = useSettingsDraft(settings, fontScale, onError);
+
+  useEscClose(onClose, draft.saving);
 
   useEffect(() => {
     if (activeSection === "git-config") setGitConfigOpened(true);

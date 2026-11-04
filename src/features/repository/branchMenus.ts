@@ -16,11 +16,14 @@ export function branchSlot(branch: RefDto): BranchSlot {
 
 export interface BranchMenuActions {
   descriptionDisabled: boolean;
+  writeDisabled: boolean;
   hasHead: boolean;
   onEditDescription: (shortName: string) => void;
   onCompareWithHead: (branch: RefDto) => void;
   onSetBase: (branch: RefDto) => void;
   onSetCompare: (branch: RefDto) => void;
+  onRenameBranch: (shortName: string) => void;
+  onDeleteBranch: (shortName: string) => void;
 }
 
 export function branchMenuItems(branch: RefDto, actions: BranchMenuActions): MenuItem[] {
@@ -42,6 +45,16 @@ export function branchMenuItems(branch: RefDto, actions: BranchMenuActions): Men
     {
       label: i18next.t("repository.branchMenuSetCompare"),
       onSelect: () => actions.onSetCompare(branch),
+    },
+    {
+      label: i18next.t("repository.branchMenuRename"),
+      disabled: actions.writeDisabled,
+      onSelect: () => actions.onRenameBranch(branch.short_name),
+    },
+    {
+      label: i18next.t("repository.branchMenuDelete"),
+      disabled: actions.writeDisabled,
+      onSelect: () => actions.onDeleteBranch(branch.short_name),
     },
   ];
 }

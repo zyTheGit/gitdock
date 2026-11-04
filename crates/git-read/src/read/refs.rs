@@ -53,6 +53,11 @@ pub(crate) fn read_refs(
         } else {
             None
         };
+        let created_at = if kind == RefKind::Tag {
+            tag_created_at(repo, &target_oid)
+        } else {
+            None
+        };
         refs.push(RefDto {
             is_head: head_ref.as_deref() == Some(full_name.as_str()),
             full_name,
@@ -60,6 +65,7 @@ pub(crate) fn read_refs(
             kind,
             target_oid,
             commit_oid,
+            created_at,
             description,
         });
     }
@@ -80,6 +86,28 @@ pub(crate) fn read_refs(
         }
     }
     Ok((refs, badges))
+}
+
+/// tag 的创建时间；lightweight tag 没有真实创建时间，按 `git for-each-ref`
+/// 的 creatordate 语义回退到指向提交的 committer 时间。
+fn tag_created_at(repo: &gix::Repository, target: &Oid) -> Option<i64> {
+    let id = crate::util::gix_oid(target).ok()?;
+    let object = repo.find_object(id).ok()?;
+    match object.kind {
+        gix::object::Kind::Tag => object
+            .into_tag()
+            .tagger()
+            .ok()
+            .flatten()
+            .map(|signature| raw_time_seconds(signature.time)),
+        gix::object::Kind::Commit => object
+            .try_into_commit()
+            .ok()?
+            .time()
+            .ok()
+            .map(|time| time.seconds),
+        _ => None,
+    }
 }
 
 /// 读取 local config 中的 branch.<name>.description；空值按“未设置”处理。

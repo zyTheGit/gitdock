@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useI18n, type LanguagePreference } from "../../i18n";
+import { Icon } from "../../assets/icons";
 import { Select } from "../../shared/Select";
 
 const MIN_SCALE = 0.75;
@@ -77,9 +78,7 @@ export function AppearanceSection({
             onClick={onZoomOut}
             disabled={fontScale <= MIN_SCALE}
           >
-            <svg viewBox="0 0 16 16" aria-hidden="true" className="zoom-icon">
-              <path d="M3.5 8h9" />
-            </svg>
+            <Icon name="zoomOut" className="zoom-icon" />
           </button>
           <button
             type="button"
@@ -99,9 +98,7 @@ export function AppearanceSection({
             onClick={onZoomIn}
             disabled={fontScale >= MAX_SCALE}
           >
-            <svg viewBox="0 0 16 16" aria-hidden="true" className="zoom-icon">
-              <path d="M8 3.5v9M3.5 8h9" />
-            </svg>
+            <Icon name="zoomIn" className="zoom-icon" />
           </button>
         </span>
       </div>

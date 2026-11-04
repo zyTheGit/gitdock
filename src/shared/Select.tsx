@@ -1,4 +1,5 @@
 import type { SelectHTMLAttributes } from "react";
+import { Icon } from "../assets/icons";
 
 export interface SelectOption {
   value: string | number;
@@ -40,9 +41,7 @@ export function Select({
           </option>
         ))}
       </select>
-      <svg className="select-chevron" viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M4.5 6.5 8 10l3.5-3.5" />
-      </svg>
+      <Icon name="chevronDown" className="select-chevron" />
     </span>
   );
 }

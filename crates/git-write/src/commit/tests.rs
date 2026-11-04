@@ -13,6 +13,7 @@ fn base_request(kind: WriteKind) -> WriteRequest {
         kind,
         oid: None,
         branch: None,
+        new_name: None,
         description: None,
         paths: None,
         interruption: None,

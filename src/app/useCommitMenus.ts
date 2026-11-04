@@ -29,6 +29,10 @@ interface UseCommitMenusParams {
   writeDisabled: boolean;
   descriptionDisabled: boolean;
   onCopyMessage: (oid: string) => void;
+  onNewBranch: (commit: CommitSummaryDto) => void;
+  onNewTag: (commit: CommitSummaryDto) => void;
+  onRenameBranch: (shortName: string) => void;
+  onDeleteBranch: (shortName: string) => void;
   onCherryPick: (commit: CommitSummaryDto) => void;
   onRevert: (commit: CommitSummaryDto) => void;
   onEditDescription: (shortName: string) => void;
@@ -47,6 +51,10 @@ export function useCommitMenus({
   writeDisabled,
   descriptionDisabled,
   onCopyMessage,
+  onNewBranch,
+  onNewTag,
+  onRenameBranch,
+  onDeleteBranch,
   onCherryPick,
   onRevert,
   onEditDescription,
@@ -66,6 +74,8 @@ export function useCommitMenus({
         onSetBase: (commit) => slots.setSide("base", commitSlot(commit)),
         onSetCompare: (commit) => slots.setSide("compare", commitSlot(commit)),
         onOpenDetail: (commit) => onSelectCommit(commit.oid),
+        onNewBranch,
+        onNewTag,
       })
     : [];
 
@@ -83,11 +93,14 @@ export function useCommitMenus({
   const activeBranchMenuItems = branchMenu
     ? branchMenuItems(branchMenu.branch, {
         descriptionDisabled,
+        writeDisabled,
         hasHead: Boolean(repo?.head.oid),
         onEditDescription,
         onCompareWithHead: compareWithHead,
         onSetBase: (branch) => slots.setSide("base", branchSlot(branch)),
         onSetCompare: (branch) => slots.setSide("compare", branchSlot(branch)),
+        onRenameBranch,
+        onDeleteBranch,
       })
     : [];
 

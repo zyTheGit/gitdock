@@ -3,6 +3,7 @@ import { useI18n } from "../../i18n";
 import { errorText, issueText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
+import { useEscClose } from "../../shared/useEscClose";
 import { useIpcResource } from "../../shared/useIpcResource";
 import type { GateReportDto } from "../../shared/types";
 
@@ -28,6 +29,8 @@ export function BranchDescriptionDialog({
   const [gate, setGate] = useState<GateReportDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEscClose(onCancel, saving);
 
   // 读取结果到达后回填编辑器；layoutEffect 让回填与数据帧同批渲染，避免先闪一帧空输入框。
   useLayoutEffect(() => {
