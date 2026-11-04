@@ -355,3 +355,18 @@
   border-radius: 6px;
   background: var(--bg-panel);
 }
+
+/* 远程同步按钮组：跟随当前上游，窄窗口下整组换行。 */
+.remote-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.remote-actions button {
+  padding: 2px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}

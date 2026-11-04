@@ -177,7 +177,7 @@ src-tauri app orchestration
 
 ### G6：Git 能力扩展
 
-> G6 进度（2026-11-04，分支 `plan/g6-stash`）：优先级已裁决（五批次序）；**批次 1（提交创建与 amend）已实现**（ADR-0007 已接受，e607131：WriteKind 新增 CreateCommit/AmendCommit、commit 模块含 Gate 校验与 13 项测试、CommitMessageDialog 前端、i18n zh/en；门禁全绿）。**批次 2（分支与标签管理）已实现并合并**（ADR-0008：分支创建/删除/重命名、本地轻量/附注标签创建与删除，`git branch -D` 不进入白名单；PR #9 / `634af4c`，门禁全绿）。**批次 3（stash）已按 ADR-0009 实现并合并**（PR #10 / `b5cc7e4`；save/list/apply/pop/drop，手动 stash、不自动 stash；门禁全绿）。图谱配色与窄窗口优化已合并（PR #11 / `0c2dd20`）。**批次 4（远程基础）进入需求细化 + ADR-0010 阶段。** 待办：批次 1/2/3 GUI 实机验收（用户）。
+> G6 进度（2026-11-04，分支 `plan/g6-stash`）：优先级已裁决（五批次序）；**批次 1（提交创建与 amend）已实现**（ADR-0007 已接受，e607131：WriteKind 新增 CreateCommit/AmendCommit、commit 模块含 Gate 校验与 13 项测试、CommitMessageDialog 前端、i18n zh/en；门禁全绿）。**批次 2（分支与标签管理）已实现并合并**（ADR-0008：分支创建/删除/重命名、本地轻量/附注标签创建与删除，`git branch -D` 不进入白名单；PR #9 / `634af4c`，门禁全绿）。**批次 3（stash）已按 ADR-0009 实现并合并**（PR #10 / `b5cc7e4`；save/list/apply/pop/drop，手动 stash、不自动 stash；门禁全绿）。图谱配色与窄窗口优化已合并（PR #11 / `0c2dd20`）。**批次 4（远程基础：fetch / pull --ff-only / push）已按 ADR-0010 实现**，门禁全绿，待 PR 与 GUI 验收。待办：批次 1/2/3/4 GUI 实机验收（用户）。
 
 按独立阶段交付：提交创建/修改、分支与标签管理、stash、fetch/pull/push、merge/rebase/批量序列。每阶段先定语义与 ADR，再分读路径、Gate/执行器、UI、冲突/恢复、验证和文档子任务。远程凭据不得被应用记录；历史改写和破坏性操作必须有专门确认和恢复说明。
 

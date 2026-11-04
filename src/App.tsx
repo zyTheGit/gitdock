@@ -11,8 +11,8 @@ import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths"
 import { useFontScale } from "./app/useFontScale";
 import { useAppLanguage } from "./i18n/useAppLanguage";
 import { toLanguagePreference, useI18n } from "./i18n";
-
 import { useRefActions } from "./app/useRefActions";
+import { useRemoteActions } from "./app/useRemoteActions";
 import { useStashActions } from "./app/useStashActions";
 import { useRepositorySession } from "./app/useRepositorySession";
 import {
@@ -33,7 +33,6 @@ import { CommandLogDialog } from "./features/gitlog/CommandLogDialog";
 import { GraphPane } from "./features/graph/GraphPane";
 import { commitMenuItems } from "./features/graph/menus";
 import { branchSlot } from "./features/repository/branchMenus";
-
 import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
@@ -41,7 +40,6 @@ import { StagingView } from "./features/staging/StagingView";
 import { TerminalPanel } from "./features/terminal/TerminalPanel";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
 import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
-
 import { PaneSplitter } from "./shared/PaneSplitter";
 import { displaySpec, useBindings, useKeybindings } from "./shared/keybindings";
 import { copyText } from "./shared/clipboard";
@@ -272,6 +270,7 @@ export default function App() {
   const tags = repo ? repo.refs.filter((ref) => ref.kind === "tag") : [];
   const refs = useRefActions({ repo, writeDisabled: write.disabled, onMutated: stagingMutated });
   const stash = useStashActions({ writeDisabled: write.disabled, onMutated: stagingMutated });
+  const remote = useRemoteActions({ writeDisabled: write.disabled, onMutated: stagingMutated });
 
   // 右键菜单条目组装（提交行/分支共享写与对比动作），细节见 useCommitMenus。
   const { commitActions, activeRowMenuItems, activeBranchMenuItems } = useCommitMenus({
@@ -461,6 +460,7 @@ export default function App() {
                     onContextMenu={(event: MouseEvent, commit: CommitSummaryDto) => {
                       setRowMenu({ x: event.clientX, y: event.clientY, commit });
                     }}
+                    remote={remote}
                   />
                   {selectedOid && (
                     <>

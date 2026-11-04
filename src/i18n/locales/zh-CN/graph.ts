@@ -45,6 +45,15 @@ const graph = {
   menuSetCompare: "设为 Compare",
   menuOpenDetail: "查看详情",
   menuCreateBranchHere: "在此创建分支…",
+  fetch: "Fetch",
+  fetching: "Fetch 中…",
+  pull: "拉取",
+  pulling: "拉取中…",
+  push: "推送",
+  pushing: "推送中…",
+  fetchTitle: "git fetch：更新远程跟踪分支",
+  pullTitle: "git pull --ff-only：仅快进当前分支",
+  pushTitle: "git push：推送当前分支到上游",
   menuCreateTagHere: "在此创建标签…",
 } as const;
 

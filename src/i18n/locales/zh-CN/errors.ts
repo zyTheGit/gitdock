@@ -221,6 +221,11 @@ const errors = {
   gateStashUntrackedOnly: "当前只有未跟踪文件；如需保存，请勾选「包含未跟踪文件」",
   gateStashSelectorInvalid: "stash 选择器必须形如 stash@{N}",
   gateStashNotFound: "stash 条目 {{selector}} 不存在，请刷新列表后重试",
+  gateRemoteMissing: "仓库没有配置远程",
+  gateRemoteUnborn: "当前分支尚无提交",
+  gateRemoteDetached: "detached HEAD 不支持 pull / push，请先切换本地分支",
+  gateRemoteNoUpstream: "当前分支没有上游分支，请先在终端设置 upstream",
+  gateRemoteDirtyPull: "工作区不干净；pull --ff-only 前请先提交或 stash",
   commandMissingNewName: "缺少新分支名",
   gateInvalidBranchName: "分支名不合法",
   gateInvalidTagName: "标签名不合法",
@@ -259,6 +264,9 @@ const errors = {
   gateSummaryStashApply: "将应用 {{selector}}，条目保留",
   gateSummaryStashPop: "将应用 {{selector}} 并从列表移除",
   gateSummaryStashDrop: "将删除 {{selector}}（破坏性操作）",
+  gateSummaryFetch: "将 fetch 远程更新",
+  gateSummaryPull: "将 pull --ff-only（{{upstream}}）",
+  gateSummaryPush: "将 push 当前分支（{{upstream}}）",
   gateSummaryContinue: "将执行 git {{action}} --continue，完成当前 {{action}} 操作",
   gateSummaryAbort:
     "将执行 git {{action}} --abort，回到操作开始前的状态；已手工解决的冲突内容会丢失",
@@ -299,6 +307,16 @@ const errors = {
   outcomeStashDropped: "已删除 stash 条目 {{selector}}",
   outcomeStashConflicted: "{{selector}} 应用产生冲突；stash 条目保留，请解决冲突后重试",
   outcomeStashRejected: "stash 操作被 Git 拒绝，请刷新列表后重试",
+  outcomeFetchSucceeded: "已 fetch 远程更新，图谱已刷新",
+  outcomePullSucceeded: "已拉取并快进当前分支，工作区已刷新",
+  outcomePushSucceeded: "已推送当前分支",
+  outcomeRemoteAuthFailed:
+    "远程认证失败；本应用不接收密码。请在内置终端完成一次 fetch/push 授权，或配置系统凭据管理器 / SSH agent 后重试",
+  outcomePullNotFastForward:
+    "远端有本地没有的提交，pull --ff-only 无法快进；请先 fetch，并在终端 merge/rebase（批次 5）",
+  outcomePushRejected:
+    "远端拒绝了推送（可能非快进或 hook 拒绝）；本应用不提供 force push，请在终端处理",
+  outcomeRemoteFailed: "远程操作失败，请检查网络与远端配置",
   outcomeBranchDeleteRejected:
     "删除分支被 Git 拒绝（未完全合并的分支不会被删除）；如需强制删除，请在终端执行 git branch -D",
   outcomeGitRejected: "Git 拒绝了本次操作",
