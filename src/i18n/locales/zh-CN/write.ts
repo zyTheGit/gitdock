@@ -22,6 +22,9 @@ const write = {
   labelStashApply: "应用 stash",
   labelStashPop: "弹出 stash",
   labelStashDrop: "删除 stash",
+  labelFetch: "Fetch",
+  labelPull: "拉取",
+  labelPush: "推送",
   // 写操作结果消息（状态栏 toast）。
   outcomeSwitchedToBranch: "已切换到分支 {{branch}}",
   outcomeContinueDone: "已继续并完成操作，已刷新图谱",

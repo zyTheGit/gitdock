@@ -12,6 +12,7 @@ use git_core::{
 use crate::branch;
 use crate::commit::{commit_args, MessageFile};
 use crate::description::validate_branch_description;
+use crate::remote;
 use crate::staging::pathspec_stdin;
 use crate::stash;
 use crate::status::StatusSummary;
@@ -253,6 +254,9 @@ impl GitWriteModule {
             WriteKind::StashApply => stash::apply_args(require_stash(request)?),
             WriteKind::StashPop => stash::pop_args(require_stash(request)?),
             WriteKind::StashDrop => stash::drop_args(require_stash(request)?),
+            WriteKind::Fetch => remote::fetch_args(),
+            WriteKind::Pull => remote::pull_args(),
+            WriteKind::Push => remote::push_args(),
         };
         spec.description_write = request.kind == WriteKind::SetBranchDescription;
         spec.message_file = message_file;
@@ -364,6 +368,29 @@ impl GitWriteModule {
         let reference = format!("refs/tags/{tag}");
         let output = self.run(&["show-ref", "--verify", "--quiet", &reference])?;
         Ok(output.status.success())
+    }
+
+    /// 已配置的 remote 数量；`git remote` 无输出时按 0 处理。
+    pub(crate) fn remote_count(&self) -> Result<u32> {
+        let output = self.run_readonly(&["remote"])?;
+        if !output.status.success() {
+            return Ok(0);
+        }
+        Ok(text(&output.stdout)
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .count() as u32)
+    }
+
+    /// 当前分支上游引用（如 `origin/main`）；无 upstream 时返回 None。
+    pub(crate) fn upstream(&self) -> Result<Option<String>> {
+        let output =
+            self.run_readonly(&["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])?;
+        if !output.status.success() {
+            return Ok(None);
+        }
+        let name = text(&output.stdout).trim().to_owned();
+        Ok((!name.is_empty()).then_some(name))
     }
 
     /// `refs/stash` 的 reflog 条目数；无 stash 或引用不可读时按 0 处理。

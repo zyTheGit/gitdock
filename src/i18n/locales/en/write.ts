@@ -22,6 +22,9 @@ const write = {
   labelStashApply: "Apply stash",
   labelStashPop: "Pop stash",
   labelStashDrop: "Delete stash",
+  labelFetch: "Fetch",
+  labelPull: "Pull",
+  labelPush: "Push",
   // Outcome messages (status-bar toast).
   outcomeSwitchedToBranch: "Switched to branch {{branch}}",
   outcomeContinueDone: "Operation continued and completed; graph refreshed",

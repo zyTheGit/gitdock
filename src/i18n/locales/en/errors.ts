@@ -192,6 +192,11 @@ const errors = {
   gateStashUntrackedOnly: "Only untracked files are present; enable \"Include untracked files\" to stash them",
   gateStashSelectorInvalid: "The stash selector must look like stash@{N}",
   gateStashNotFound: "Stash entry {{selector}} does not exist; refresh the list and retry",
+  gateRemoteMissing: "No remote is configured",
+  gateRemoteUnborn: "The current branch has no commits",
+  gateRemoteDetached: "Detached HEAD does not support pull / push; switch to a local branch first",
+  gateRemoteNoUpstream: "The current branch has no upstream; set one in the terminal first",
+  gateRemoteDirtyPull: "The working tree is dirty; commit or stash before pull --ff-only",
   commandMissingNewName: "Missing new branch name",
   gateInvalidBranchName: "Invalid branch name",
   gateInvalidTagName: "Invalid tag name",
@@ -228,6 +233,9 @@ const errors = {
   gateSummaryStashApply: "Will apply {{selector}} and keep the entry",
   gateSummaryStashPop: "Will apply {{selector}} and remove it from the list",
   gateSummaryStashDrop: "Will delete {{selector}} (destructive)",
+  gateSummaryFetch: "Will fetch remote updates",
+  gateSummaryPull: "Will pull --ff-only ({{upstream}})",
+  gateSummaryPush: "Will push the current branch ({{upstream}})",
   gateSummaryContinue: "Will run git {{action}} --continue to finish the current {{action}} operation",
   gateSummaryAbort:
     "Will run git {{action}} --abort to return to the pre-operation state; conflict resolutions made manually will be lost",
@@ -266,6 +274,16 @@ const errors = {
   outcomeStashDropped: "Deleted stash entry {{selector}}",
   outcomeStashConflicted: "Applying {{selector}} produced conflicts; the stash entry is kept. Resolve the conflicts and retry",
   outcomeStashRejected: "The stash operation was rejected by Git; refresh the list and retry",
+  outcomeFetchSucceeded: "Fetched remote updates; graph refreshed",
+  outcomePullSucceeded: "Pulled and fast-forwarded the current branch; worktree refreshed",
+  outcomePushSucceeded: "Pushed the current branch",
+  outcomeRemoteAuthFailed:
+    "Remote authentication failed; this app never accepts passwords. Run fetch/push once in the built-in terminal to authorize, or configure a system credential helper / SSH agent and retry",
+  outcomePullNotFastForward:
+    "The remote has commits not present locally; pull --ff-only cannot fast-forward. Fetch first and merge/rebase in the terminal (batch 5)",
+  outcomePushRejected:
+    "The remote rejected the push (non-fast-forward or hook). This app does not provide force push; handle it in the terminal",
+  outcomeRemoteFailed: "Remote operation failed; check the network and remote configuration",
   outcomeBranchDeleteRejected:
     "The branch deletion was rejected by Git (branches that are not fully merged are kept). To force deletion, run git branch -D in the terminal",
   outcomeGitRejected: "Git rejected this operation",

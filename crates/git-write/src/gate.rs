@@ -367,6 +367,12 @@ impl GitWriteModule {
                 issues.extend(change.issues);
                 (change.summary, change.summary_key, change.summary_args)
             }
+            WriteKind::Fetch | WriteKind::Pull | WriteKind::Push => {
+                // 远程校验按 ADR 0010 拆到 remote 模块；bare 与中断态已由上方前置拒绝。
+                let change = crate::remote::gate::validate_remote(self, request, &head, status)?;
+                issues.extend(change.issues);
+                (change.summary, change.summary_key, change.summary_args)
+            }
             WriteKind::StashSave
             | WriteKind::StashApply
             | WriteKind::StashPop

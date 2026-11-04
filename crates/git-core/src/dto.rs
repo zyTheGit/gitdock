@@ -470,6 +470,9 @@ pub enum WriteKind {
     StashApply,
     StashPop,
     StashDrop,
+    Fetch,
+    Pull,
+    Push,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

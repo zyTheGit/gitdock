@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 import { useI18n } from "../../i18n";
 import type { CommitSummaryDto, RepoStateDto, GraphScope } from "../../shared/types";
+import type { RemoteActions } from "../../app/useRemoteActions";
 import { Select } from "../../shared/Select";
 import { GraphList } from "./GraphList";
 import type { GraphLoader } from "./useGraph";
@@ -16,6 +17,7 @@ interface GraphPaneProps {
   onSelect: (oid: string) => void;
   onCtrlSelect?: (commit: CommitSummaryDto) => void;
   onContextMenu?: (event: MouseEvent, commit: CommitSummaryDto) => void;
+  remote: RemoteActions;
 }
 
 export function GraphPane({
@@ -29,6 +31,7 @@ export function GraphPane({
   onSelect,
   onCtrlSelect,
   onContextMenu,
+  remote,
 }: GraphPaneProps) {
   const { t } = useI18n();
   const localBranches = repo.refs.filter((ref) => ref.kind === "local_branch");
@@ -82,9 +85,37 @@ export function GraphPane({
             : t("graph.rowCountAll", { n: view.rows.length })}
           {view.generation ? ` · generation ${view.generation}` : ""}
         </span>
+        <div className="remote-actions">
+          <button
+            disabled={remote.disabled || remote.busy !== null}
+            title={t("graph.fetchTitle")}
+            onClick={() => remote.run("fetch")}
+          >
+            {remote.busy === "fetch" ? t("graph.fetching") : t("graph.fetch")}
+          </button>
+          <button
+            disabled={remote.disabled || remote.busy !== null}
+            title={t("graph.pullTitle")}
+            onClick={() => remote.run("pull")}
+          >
+            {remote.busy === "pull" ? t("graph.pulling") : t("graph.pull")}
+          </button>
+          <button
+            disabled={remote.disabled || remote.busy !== null}
+            title={t("graph.pushTitle")}
+            onClick={() => remote.run("push")}
+          >
+            {remote.busy === "push" ? t("graph.pushing") : t("graph.push")}
+          </button>
+        </div>
       </div>
 
       {error && <div className="banner danger">{error}</div>}
+      {remote.error && (
+        <div className="banner danger" role="alert">
+          {remote.error}
+        </div>
+      )}
 
       <div className="graph-scroll">
         <GraphList

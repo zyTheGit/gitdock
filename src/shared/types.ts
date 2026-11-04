@@ -252,7 +252,12 @@ export type WriteKind =
   | "stash_save"
   | "stash_apply"
   | "stash_pop"
-  | "stash_drop";
+  | "stash_drop"
+  | "fetch"
+  | "pull"
+  | "push";
+
+export type RemoteSyncKind = Extract<WriteKind, "fetch" | "pull" | "push">;
 
 export interface WriteRequest {
   kind: WriteKind;

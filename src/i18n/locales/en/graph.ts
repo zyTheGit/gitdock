@@ -45,6 +45,15 @@ const graph = {
   menuSetCompare: "Set as Compare",
   menuOpenDetail: "View details",
   menuCreateBranchHere: "Create branch here…",
+  fetch: "Fetch",
+  fetching: "Fetching…",
+  pull: "Pull",
+  pulling: "Pulling…",
+  push: "Push",
+  pushing: "Pushing…",
+  fetchTitle: "git fetch: update remote-tracking branches",
+  pullTitle: "git pull --ff-only: fast-forward the current branch only",
+  pushTitle: "git push: push the current branch to its upstream",
   menuCreateTagHere: "Create tag here…",
 } satisfies GraphMessages;
 

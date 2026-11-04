@@ -51,6 +51,12 @@ function writeLabel(kind: WriteKind): string {
       return i18next.t("write.labelStashPop");
     case "stash_drop":
       return i18next.t("write.labelStashDrop");
+    case "fetch":
+      return i18next.t("write.labelFetch");
+    case "pull":
+      return i18next.t("write.labelPull");
+    case "push":
+      return i18next.t("write.labelPush");
   }
 }
 
