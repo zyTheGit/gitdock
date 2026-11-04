@@ -101,7 +101,11 @@ fn create_annotated_tag_with_multiline_message() {
     // 独立核对：附注标签为 tag 对象，内容保真。
     assert_eq!(git_ok(dir, &["cat-file", "-t", "refs/tags/v1"]), "tag");
     assert_eq!(
-        git_ok(dir, &["for-each-ref", "--format=%(contents)", "refs/tags/v1"]).trim_end(),
+        git_ok(
+            dir,
+            &["for-each-ref", "--format=%(contents)", "refs/tags/v1"]
+        )
+        .trim_end(),
         message
     );
 }

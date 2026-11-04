@@ -65,7 +65,11 @@ fn linear_state_refs_and_head() {
     // 创建时间：annotated tag 取 tagger 时间，与 git for-each-ref 的 creatordate 一致。
     let tagger = git_ok(
         &set.linear(),
-        &["for-each-ref", "--format=%(taggerdate:unix)", "refs/tags/v1.0"],
+        &[
+            "for-each-ref",
+            "--format=%(taggerdate:unix)",
+            "refs/tags/v1.0",
+        ],
     );
     assert_eq!(tag.created_at, tagger.parse::<i64>().ok());
 
@@ -78,7 +82,11 @@ fn linear_state_refs_and_head() {
     // 轻量 tag 没有真实创建时间，回退到被指向提交的提交时间。
     let commit_time = git_ok(
         &set.linear(),
-        &["for-each-ref", "--format=%(creatordate:unix)", "refs/tags/v1.1"],
+        &[
+            "for-each-ref",
+            "--format=%(creatordate:unix)",
+            "refs/tags/v1.1",
+        ],
     );
     assert_eq!(lightweight.created_at, commit_time.parse::<i64>().ok());
 

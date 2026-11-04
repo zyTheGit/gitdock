@@ -133,9 +133,7 @@ fn delete_merged_branch_succeeds() {
     git_ok(dir, &["branch", "topic"]);
     let module = GitWriteModule::new(dir).expect("打开写模块");
 
-    let outcome = module
-        .execute(&delete_request("topic"))
-        .expect("执行");
+    let outcome = module.execute(&delete_request("topic")).expect("执行");
     assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
     assert!(!ref_exists(dir, "refs/heads/topic"));
 }
@@ -162,9 +160,7 @@ fn delete_unmerged_branch_is_refused_and_kept() {
     git_ok(dir, &["switch", "main"]);
     let module = GitWriteModule::new(dir).expect("打开写模块");
 
-    let outcome = module
-        .execute(&delete_request("feature"))
-        .expect("执行");
+    let outcome = module.execute(&delete_request("feature")).expect("执行");
     assert_eq!(outcome.status, WriteStatus::Failed, "{outcome:?}");
     assert_eq!(
         outcome.key.as_deref(),
@@ -191,9 +187,7 @@ fn rename_branch_moves_ref() {
         Some("errors.gateSummaryBranchRename")
     );
 
-    let outcome = module
-        .execute(&rename_request("old", "new"))
-        .expect("执行");
+    let outcome = module.execute(&rename_request("old", "new")).expect("执行");
     assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
     assert!(!ref_exists(dir, "refs/heads/old"));
     assert_eq!(git_ok(dir, &["rev-parse", "refs/heads/new"]), head);
@@ -251,5 +245,4 @@ fn create_branch_from_unborn_but_staged_repo_is_refused() {
         .expect("Gate");
     assert!(!report.ok);
     assert!(issue_codes(&report).contains(&"gate_unborn_head_branch"));
-
 }

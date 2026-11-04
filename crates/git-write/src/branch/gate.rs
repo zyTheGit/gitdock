@@ -161,11 +161,8 @@ fn validate_rename(
         );
     } else if module.local_branch_exists(new_name)? {
         issues.push(
-            issue(
-                "gate_branch_exists",
-                format!("本地分支 {new_name} 已存在"),
-            )
-            .with_arg("branch", new_name),
+            issue("gate_branch_exists", format!("本地分支 {new_name} 已存在"))
+                .with_arg("branch", new_name),
         );
     }
     if !module.local_branch_exists(branch)? {

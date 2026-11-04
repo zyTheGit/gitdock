@@ -47,7 +47,8 @@ fn validate_create(
         ));
     }
     if module.tag_exists(tag)? {
-        issues.push(issue("gate_tag_exists", format!("本地标签 {tag} 已存在")).with_arg("tag", tag));
+        issues
+            .push(issue("gate_tag_exists", format!("本地标签 {tag} 已存在")).with_arg("tag", tag));
     }
 
     let target = request
@@ -94,9 +95,8 @@ fn validate_delete(module: &GitWriteModule, tag: &str) -> Result<RefGateResult> 
     let mut issues = Vec::new();
 
     if !module.tag_exists(tag)? {
-        issues.push(
-            issue("gate_tag_missing", format!("本地标签 {tag} 不存在")).with_arg("tag", tag),
-        );
+        issues
+            .push(issue("gate_tag_missing", format!("本地标签 {tag} 不存在")).with_arg("tag", tag));
     }
 
     Ok(RefGateResult {
