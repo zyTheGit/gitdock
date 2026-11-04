@@ -37,6 +37,8 @@ export interface RowMenuActions extends CommitMenuActions {
   onSetBase: (commit: CommitSummaryDto) => void;
   onSetCompare: (commit: CommitSummaryDto) => void;
   onOpenDetail: (commit: CommitSummaryDto) => void;
+  onNewBranch: (commit: CommitSummaryDto) => void;
+  onNewTag: (commit: CommitSummaryDto) => void;
 }
 
 export function rowMenuItems(commit: CommitSummaryDto, actions: RowMenuActions): MenuItem[] {
@@ -53,6 +55,16 @@ export function rowMenuItems(commit: CommitSummaryDto, actions: RowMenuActions):
     {
       label: i18next.t("graph.menuOpenDetail"),
       onSelect: () => actions.onOpenDetail(commit),
+    },
+    {
+      label: i18next.t("graph.menuCreateBranchHere"),
+      disabled: actions.writeDisabled,
+      onSelect: () => actions.onNewBranch(commit),
+    },
+    {
+      label: i18next.t("graph.menuCreateTagHere"),
+      disabled: actions.writeDisabled,
+      onSelect: () => actions.onNewTag(commit),
     },
   ];
 }

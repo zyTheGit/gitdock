@@ -13,6 +13,11 @@ const write = {
   labelAbortOperation: "Abort operation",
   labelCreateCommit: "Create commit",
   labelAmendCommit: "Amend commit",
+  labelCreateBranch: "Create branch",
+  labelDeleteBranch: "Delete branch",
+  labelRenameBranch: "Rename branch",
+  labelCreateTag: "Create tag",
+  labelDeleteTag: "Delete tag",
   // Outcome messages (status-bar toast).
   outcomeSwitchedToBranch: "Switched to branch {{branch}}",
   outcomeContinueDone: "Operation continued and completed; graph refreshed",

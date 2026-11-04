@@ -9,10 +9,12 @@ use git_core::{
     WriteRequest,
 };
 
+use crate::branch;
 use crate::commit::{commit_args, MessageFile};
 use crate::description::validate_branch_description;
 use crate::staging::pathspec_stdin;
 use crate::status::StatusSummary;
+use crate::tag;
 use crate::GitWriteModule;
 
 pub(crate) struct CommandSpec {
@@ -184,6 +186,65 @@ impl GitWriteModule {
                 message_file = Some(file);
                 args
             }
+            WriteKind::CreateBranch => {
+                let name = request.branch.clone().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+                        .with_key("errors.commandMissingBranch")
+                })?;
+                branch::create_args(&name, request.oid.as_ref().map(|oid| oid.as_str()))
+            }
+            WriteKind::DeleteBranch => {
+                let name = request.branch.as_deref().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+                        .with_key("errors.commandMissingBranch")
+                })?;
+                branch::delete_args(name)
+            }
+            WriteKind::RenameBranch => {
+                let name = request.branch.as_deref().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+                        .with_key("errors.commandMissingBranch")
+                })?;
+                let new_name = request.new_name.as_deref().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少新分支名")
+                        .with_key("errors.commandMissingNewName")
+                })?;
+                // Gate 已校验新分支名；此处兜底拒绝选项注入。
+                if new_name.is_empty() || new_name.starts_with('-') {
+                    return Err(UserVisibleError::new(
+                        ErrorCode::InvalidArgument,
+                        "新分支名不合法",
+                    )
+                    .with_key("errors.gateInvalidBranchName"));
+                }
+                branch::rename_args(name, new_name)
+            }
+            WriteKind::CreateTag => {
+                let name = request.branch.as_deref().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少标签名")
+                        .with_key("errors.commandMissingTag")
+                })?;
+                let target = request
+                    .oid
+                    .as_ref()
+                    .map(|oid| oid.as_str())
+                    .unwrap_or("HEAD");
+                match request
+                    .message
+                    .as_deref()
+                    .filter(|value| !value.trim().is_empty())
+                {
+                    Some(message) => tag::annotated_args(name, message, target),
+                    None => tag::lightweight_args(name, target),
+                }
+            }
+            WriteKind::DeleteTag => {
+                let name = request.branch.as_deref().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少标签名")
+                        .with_key("errors.commandMissingTag")
+                })?;
+                tag::delete_args(name)
+            }
         };
         spec.description_write = request.kind == WriteKind::SetBranchDescription;
         spec.message_file = message_file;
@@ -284,6 +345,26 @@ impl GitWriteModule {
         }
         let reference = format!("refs/heads/{branch}");
         let output = self.run(&["show-ref", "--verify", "--quiet", &reference])?;
+        Ok(output.status.success())
+    }
+
+    /// 本地标签是否存在；选项注入形态直接判为不存在。
+    pub(crate) fn tag_exists(&self, tag: &str) -> Result<bool> {
+        if tag.is_empty() || tag.starts_with('-') {
+            return Ok(false);
+        }
+        let reference = format!("refs/tags/{tag}");
+        let output = self.run(&["show-ref", "--verify", "--quiet", &reference])?;
+        Ok(output.status.success())
+    }
+
+    /// 给定引用能否解析为 commit 对象；用于创建分支/标签的起点校验。
+    pub(crate) fn commit_exists(&self, oid: &str) -> Result<bool> {
+        if oid.is_empty() || oid.starts_with('-') {
+            return Ok(false);
+        }
+        let object = format!("{oid}^{{commit}}");
+        let output = self.run_readonly(&["rev-parse", "--verify", "--quiet", &object])?;
         Ok(output.status.success())
     }
 

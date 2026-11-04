@@ -44,6 +44,8 @@ const graph = {
   menuSetBase: "设为 Base",
   menuSetCompare: "设为 Compare",
   menuOpenDetail: "查看详情",
+  menuCreateBranchHere: "在此创建分支…",
+  menuCreateTagHere: "在此创建标签…",
 } as const;
 
 export default graph;

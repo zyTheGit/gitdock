@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useI18n } from "../../i18n";
 import { Modal } from "../../shared/Modal";
 import { Select } from "../../shared/Select";
+import { useEscClose } from "../../shared/useEscClose";
 import type { RefDto } from "../../shared/types";
 
 interface BranchCompareDialogProps {
@@ -38,6 +39,8 @@ export function BranchCompareDialog({
   const [compareName, setCompareName] = useState(() =>
     pickName(branches, initialCompare, baseName || undefined),
   );
+
+  useEscClose(onCancel);
 
   const base = branches.find((branch) => branch.short_name === baseName);
   const compare = branches.find((branch) => branch.short_name === compareName);

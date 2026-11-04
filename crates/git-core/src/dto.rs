@@ -25,6 +25,11 @@ pub struct RefDto {
     pub target_oid: Oid,
     /// peel 后的 commit OID；tag 指向非 commit 对象时为 None。
     pub commit_oid: Option<Oid>,
+    /// tag 的创建时间（Unix 秒）：annotated tag 取 tagger 时间；轻量 tag 没有
+    /// 真实创建时间，回退到指向提交的 committer 时间（与 `git for-each-ref`
+    /// 的 creatordate 语义一致）。非 tag ref 为 None。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<i64>,
     pub is_head: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -456,6 +461,11 @@ pub enum WriteKind {
     AbortOperation,
     CreateCommit,
     AmendCommit,
+    CreateBranch,
+    DeleteBranch,
+    RenameBranch,
+    CreateTag,
+    DeleteTag,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -465,6 +475,9 @@ pub struct WriteRequest {
     pub oid: Option<Oid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub branch: Option<String>,
+    /// rename_branch 的新分支名；其他操作忽略。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub new_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// stage/unstage 的文件路径；其他操作忽略。
@@ -666,6 +679,7 @@ mod tests {
             kind: WriteKind::ContinueOperation,
             oid: None,
             branch: None,
+            new_name: None,
             description: None,
             paths: None,
             interruption: Some(InterruptionKind::Revert),
@@ -685,6 +699,7 @@ mod tests {
             kind: WriteKind::CherryPick,
             oid: None,
             branch: None,
+            new_name: None,
             description: None,
             paths: None,
             interruption: None,

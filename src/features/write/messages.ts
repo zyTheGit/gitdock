@@ -33,6 +33,16 @@ function writeLabel(kind: WriteKind): string {
       return i18next.t("write.labelCreateCommit");
     case "amend_commit":
       return i18next.t("write.labelAmendCommit");
+    case "create_branch":
+      return i18next.t("write.labelCreateBranch");
+    case "delete_branch":
+      return i18next.t("write.labelDeleteBranch");
+    case "rename_branch":
+      return i18next.t("write.labelRenameBranch");
+    case "create_tag":
+      return i18next.t("write.labelCreateTag");
+    case "delete_tag":
+      return i18next.t("write.labelDeleteTag");
   }
 }
 

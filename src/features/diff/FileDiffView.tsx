@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Diff, Hunk, parseDiff } from "react-diff-view";
 import "react-diff-view/style/index.css";
+import { Icon } from "../../assets/icons";
 import type { FileDiffDto, FileStatus } from "../../shared/types";
 import { noteText } from "../../shared/error";
 import { statusLabelKey } from "../../shared/fileStatus";
@@ -164,10 +165,7 @@ export function FileDiffView({
                 title={filesOpen ? t("diff.collapseFileList") : t("diff.expandFileList")}
                 aria-label={filesOpen ? t("diff.collapseFileList") : t("diff.expandFileList")}
               >
-                <svg viewBox="0 0 16 16" aria-hidden="true">
-                  <path d="M6 4.5h7M6 8h7M6 11.5h7" />
-                  <path d="M3 4.5h.01M3 8h.01M3 11.5h.01" />
-                </svg>
+                <Icon name="fileList" />
                 <span className="diff-icon-count">{fileEntries.length}</span>
               </button>
             )}
@@ -180,10 +178,7 @@ export function FileDiffView({
                   aria-label={t("diff.splitView")}
                   aria-pressed={viewType === "split"}
                 >
-                  <svg viewBox="0 0 16 16" aria-hidden="true">
-                    <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
-                    <path d="M8 3.5v9" />
-                  </svg>
+                  <Icon name="splitView" />
                 </button>
                 <button
                   className={viewType === "unified" ? "active" : ""}
@@ -192,10 +187,7 @@ export function FileDiffView({
                   aria-label={t("diff.unifiedView")}
                   aria-pressed={viewType === "unified"}
                 >
-                  <svg viewBox="0 0 16 16" aria-hidden="true">
-                    <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" />
-                    <path d="M4.5 6.5h7M4.5 9.5h5" />
-                  </svg>
+                  <Icon name="unifiedView" />
                 </button>
               </div>
             )}
@@ -206,10 +198,7 @@ export function FileDiffView({
               title={t("diff.wrapTitle")}
               aria-label={t("diff.wrap")}
             >
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M3 5h10M3 8h7a2 2 0 0 1 0 4H7" />
-                <path d="M8.5 10.5 7 12l1.5 1.5" />
-              </svg>
+              <Icon name="wrap" />
             </button>
             <button
               className={expanded ? "diff-icon-button active" : "diff-icon-button"}
@@ -218,13 +207,7 @@ export function FileDiffView({
               title={expanded ? t("diff.restoreHint") : t("diff.expandHint")}
               aria-label={expanded ? t("diff.restoreView") : t("diff.expandView")}
             >
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                {expanded ? (
-                  <path d="M9 7 13 3M13 7V3H9M7 9 3 13M3 9v4h4" />
-                ) : (
-                  <path d="M13 3 9 7M9 3h4v4M3 13l4-4M7 13H3V9" />
-                )}
-              </svg>
+              <Icon name={expanded ? "restore" : "expand"} />
             </button>
           </div>
         </header>

@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
+import { copyText } from "../../shared/clipboard";
 import { errorText } from "../../shared/error";
 import { formatDate } from "../../shared/format";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
+import { useEscClose } from "../../shared/useEscClose";
 import type { CommandLogEntryDto } from "../../shared/types";
 
 interface CommandLogDialogProps {
@@ -20,32 +22,86 @@ function latestFirst(entries: CommandLogEntryDto[]): CommandLogEntryDto[] {
   return [...entries].sort((a, b) => b.id - a.id);
 }
 
+/** 完整命令行；复制与展示共用同一份拼接结果。 */
+function commandText(entry: CommandLogEntryDto): string {
+  return ["git", ...entry.args].join(" ");
+}
+
 /**
  * Git 命令日志：应用级诊断数据，打开与手动刷新都拉一次快照，不经 generation。
  * 后端为内存环形缓冲（上限 500 条），Dialog 场景直接渲染，不做虚拟化。
  */
 export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
   const { t } = useI18n();
+  useEscClose(onClose);
+
   const [entries, setEntries] = useState<CommandLogEntryDto[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [failedOnly, setFailedOnly] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshDone, setRefreshDone] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  const load = useCallback(async () => {
+  const refreshTimer = useRef<number | undefined>(undefined);
+  const copyTimer = useRef<number | undefined>(undefined);
+
+  const load = useCallback(async (manual = false) => {
+    if (manual) {
+      setRefreshing(true);
+      setRefreshDone(false);
+    }
     try {
       setEntries(latestFirst(await ipc.gitCommandLog()));
       setLoadError(null);
+      if (manual) {
+        setRefreshDone(true);
+        window.clearTimeout(refreshTimer.current);
+        refreshTimer.current = window.setTimeout(() => setRefreshDone(false), 1500);
+      }
     } catch (err) {
       setLoadError(errorText(err));
+    } finally {
+      if (manual) {
+        setRefreshing(false);
+      }
     }
   }, []);
+
+  const copyCommand = useCallback(
+    async (entry: CommandLogEntryDto) => {
+      const ok = await copyText(commandText(entry));
+      if (!ok) {
+        setLoadError(t("gitlog.copyFailed"));
+        return;
+      }
+      setCopiedId(entry.id);
+      window.clearTimeout(copyTimer.current);
+      copyTimer.current = window.setTimeout(() => setCopiedId(null), 1500);
+    },
+    [t]
+  );
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  useEffect(
+    () => () => {
+      window.clearTimeout(refreshTimer.current);
+      window.clearTimeout(copyTimer.current);
+    },
+    []
+  );
+
   const visible =
     entries === null ? [] : failedOnly ? entries.filter((entry) => !entry.success) : entries;
+
+  const refreshLabel = refreshing
+    ? t("gitlog.refreshing")
+    : refreshDone
+      ? t("gitlog.refreshed")
+      : t("gitlog.refresh");
 
   return (
     <Modal className="gitlog-dialog">
@@ -55,8 +111,8 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
           <p className="muted settings-hint">{t("gitlog.dialogSubtitle")}</p>
         </div>
         <div className="gitlog-header-actions">
-          <button type="button" onClick={() => void load()}>
-            {t("gitlog.refresh")}
+          <button type="button" onClick={() => void load(true)} disabled={refreshing}>
+            {refreshLabel}
           </button>
           <button className="detail-close" onClick={onClose} aria-label={t("gitlog.closeAria")}>
             ×
@@ -87,21 +143,32 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
         <ul className="gitlog-list">
           {visible.map((entry) => (
             <li key={entry.id} className={entry.success ? "gitlog-row" : "gitlog-row failed"}>
-              <button
-                type="button"
-                className="gitlog-row-main"
-                aria-expanded={expandedId === entry.id}
-                onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
-              >
-                <span className={entry.success ? "gitlog-badge ok" : "gitlog-badge fail"}>
-                  {entry.success ? t("gitlog.successBadge") : t("gitlog.failedBadge")}
-                </span>
-                <span className="mono gitlog-command">{["git", ...entry.args].join(" ")}</span>
-                <span className="gitlog-duration">{formatDuration(entry.duration_ms)}</span>
-                <span className="gitlog-exit">
-                  {t("gitlog.exitCodeLabel")}: {entry.exit_code ?? t("gitlog.launchFailed")}
-                </span>
-              </button>
+              <div className="gitlog-row-line">
+                <button
+                  type="button"
+                  className="gitlog-row-main"
+                  aria-expanded={expandedId === entry.id}
+                  onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                >
+                  <span className={entry.success ? "gitlog-badge ok" : "gitlog-badge fail"}>
+                    {entry.success ? t("gitlog.successBadge") : t("gitlog.failedBadge")}
+                  </span>
+                  <span className="mono gitlog-command">{commandText(entry)}</span>
+                  <span className="gitlog-duration">{formatDuration(entry.duration_ms)}</span>
+                  <span className="gitlog-exit">
+                    {t("gitlog.exitCodeLabel")}:{" "}
+                    {entry.exit_code ?? t("gitlog.launchFailed")}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={copiedId === entry.id ? "gitlog-copy copied" : "gitlog-copy"}
+                  onClick={() => void copyCommand(entry)}
+                  aria-label={t("gitlog.copyCommandAria", { command: commandText(entry) })}
+                >
+                  {copiedId === entry.id ? t("gitlog.copied") : t("gitlog.copyCommand")}
+                </button>
+              </div>
               {expandedId === entry.id && (
                 <dl className="gitlog-detail">
                   <dt>{t("gitlog.cwdLabel")}</dt>

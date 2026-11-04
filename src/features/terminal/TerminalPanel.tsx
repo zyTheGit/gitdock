@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import { isEscConsumed } from "../../shared/esc";
 import { currentPlatform, primaryModifierLabel } from "../../shared/platform";
 import { useI18n } from "../../i18n";
+import { Icon } from "../../assets/icons";
 import { useTerminalSession } from "./useTerminalSession";
 import "../../styles/terminal.css";
 
@@ -160,7 +161,7 @@ export function TerminalPanel({
                 {t("terminal.launchLazygit")}
               </button>
               <button className="terminal-launch-button secondary" onClick={() => start("shell")}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v14H4z" /><path d="m7 9 3 3-3 3m6 0h4" /></svg>
+                <Icon name="shell" />
                 <span>{t("terminal.launchShell")}</span>
               </button>
             </>
@@ -170,9 +171,7 @@ export function TerminalPanel({
             </button>
           )}
           <button className="terminal-fullscreen-button" onClick={() => setFullscreen((current) => !current)} title={fullscreenTitle}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              {fullscreen ? <path d="M8 3v5H3m13-5v5h5M3 16h5v5m13-5h-5v5" /> : <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />}
-            </svg>
+            <Icon name={fullscreen ? "fullscreenRestore" : "fullscreen"} />
             <span>{fullscreen ? t("terminal.restore") : t("terminal.fullscreen")}</span>
           </button>
           <button
@@ -181,17 +180,7 @@ export function TerminalPanel({
             aria-label={t("terminal.collapseLabel")}
             title={t("terminal.collapseTitle", { shortcut: terminalShortcut })}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
+            <Icon name="collapse" />
           </button>
         </div>
       </header>

@@ -285,6 +285,47 @@ impl GitWriteModule {
                         )
                     }
                 }
+                WriteKind::CreateBranch => {
+                    let branch = request.branch.as_deref().unwrap_or_default();
+                    (
+                        format!("已创建本地分支 {branch}，图谱已刷新"),
+                        "errors.outcomeBranchCreated",
+                        args_map(&[("branch", branch)]),
+                    )
+                }
+                WriteKind::DeleteBranch => {
+                    let branch = request.branch.as_deref().unwrap_or_default();
+                    (
+                        format!("已删除本地分支 {branch}，图谱已刷新"),
+                        "errors.outcomeBranchDeleted",
+                        args_map(&[("branch", branch)]),
+                    )
+                }
+                WriteKind::RenameBranch => {
+                    let branch = request.branch.as_deref().unwrap_or_default();
+                    let new_name = request.new_name.as_deref().unwrap_or_default();
+                    (
+                        format!("已将本地分支 {branch} 重命名为 {new_name}，图谱已刷新"),
+                        "errors.outcomeBranchRenamed",
+                        args_map(&[("branch", branch), ("new_name", new_name)]),
+                    )
+                }
+                WriteKind::CreateTag => {
+                    let tag = request.branch.as_deref().unwrap_or_default();
+                    (
+                        format!("已创建本地标签 {tag}，图谱已刷新"),
+                        "errors.outcomeTagCreated",
+                        args_map(&[("tag", tag)]),
+                    )
+                }
+                WriteKind::DeleteTag => {
+                    let tag = request.branch.as_deref().unwrap_or_default();
+                    (
+                        format!("已删除本地标签 {tag}，图谱已刷新"),
+                        "errors.outcomeTagDeleted",
+                        args_map(&[("tag", tag)]),
+                    )
+                }
                 WriteKind::ContinueOperation | WriteKind::AbortOperation => (
                     "操作已完成，图谱已刷新".to_owned(),
                     "errors.outcomeCompleted",
@@ -366,17 +407,22 @@ impl GitWriteModule {
             }
         }
 
-        let (message, key) = if request.kind == WriteKind::SwitchBranch {
-            (
+        let (message, key, args) = match request.kind {
+            WriteKind::SwitchBranch => (
                 "切换被 Git 拒绝，未执行 stash / reset / clean；请根据诊断信息处理（提交、暂存或在终端处理）后重试",
                 "errors.outcomeSwitchRejected",
-            )
-        } else {
-            ("Git 拒绝了本次操作", "errors.outcomeGitRejected")
+                None,
+            ),
+            WriteKind::DeleteBranch => (
+                "删除分支被 Git 拒绝（未完全合并的分支不会被删除）；如需强制删除，请在终端执行 git branch -D",
+                "errors.outcomeBranchDeleteRejected",
+                args_map(&[("branch", request.branch.as_deref().unwrap_or_default())]),
+            ),
+            _ => ("Git 拒绝了本次操作", "errors.outcomeGitRejected", None),
         };
         Ok(WriteOutcomeDto {
             key: Some(key.into()),
-            args: None,
+            args,
             status: WriteStatus::Failed,
             message: message.to_owned(),
             exit_code,

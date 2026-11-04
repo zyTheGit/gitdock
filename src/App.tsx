@@ -12,6 +12,7 @@ import { useFontScale } from "./app/useFontScale";
 import { useAppLanguage } from "./i18n/useAppLanguage";
 import { toLanguagePreference, useI18n } from "./i18n";
 
+import { useRefActions } from "./app/useRefActions";
 import { useRepositorySession } from "./app/useRepositorySession";
 import {
   clearSkippedUpdate,
@@ -39,7 +40,6 @@ import { StagingView } from "./features/staging/StagingView";
 import { TerminalPanel } from "./features/terminal/TerminalPanel";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
 import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
-
 
 import { PaneSplitter } from "./shared/PaneSplitter";
 import { displaySpec, useBindings, useKeybindings } from "./shared/keybindings";
@@ -268,6 +268,8 @@ export default function App() {
   );
 
   const localBranches = repo ? repo.refs.filter((ref) => ref.kind === "local_branch") : [];
+  const tags = repo ? repo.refs.filter((ref) => ref.kind === "tag") : [];
+  const refs = useRefActions({ repo, writeDisabled: write.disabled, onMutated: stagingMutated });
 
   // 右键菜单条目组装（提交行/分支共享写与对比动作），细节见 useCommitMenus。
   const { commitActions, activeRowMenuItems, activeBranchMenuItems } = useCommitMenus({
@@ -289,6 +291,7 @@ export default function App() {
       setSelectedOid(oid);
       setMode("graph");
     },
+    ...refs.menuActions,
   });
 
   const headLabel = repo
@@ -347,12 +350,15 @@ export default function App() {
           repo={repo}
           headLabel={headLabel}
           localBranches={localBranches}
+          tags={tags}
           writeDisabled={write.disabled}
           onCompareBranches={() => setBranchCompareOpen(true)}
           onSwitchBranch={(branch) => void write.start("switch_branch", { branch: branch.short_name })}
           onBranchMenu={(event, branch) => {
             setBranchMenu({ x: event.clientX, y: event.clientY, branch });
           }}
+          onCreateBranch={() => refs.openCreateBranch()}
+          onDeleteTag={(tag) => refs.openDeleteTag(tag.short_name)}
         />
         <PaneSplitter
           label={t("shell.sidebarResizeLabel")}
@@ -502,9 +508,7 @@ export default function App() {
           onRepoChanged={handleTerminalRepoChanged}
         />
       )}
-
       <StatusBar {...statusBarProps} />
-
       {mode === "search" && repo && (
         <SearchView
           repo={repo}
@@ -549,6 +553,8 @@ export default function App() {
         />
       )}
 
+      {refs.dialogs}
+
       {toast && <div className="toast" role="status">{toast}</div>}
 
       {branchCompareOpen && repo && localBranches.length >= 2 && (
@@ -587,7 +593,6 @@ export default function App() {
           onError={setError}
         />
       )}
-
       {commandLogOpen && <CommandLogDialog onClose={() => setCommandLogOpen(false)} />}
     </div>
   );

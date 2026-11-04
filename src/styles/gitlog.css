@@ -165,3 +165,32 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* 行内命令与复制按钮：主按钮占满剩余宽度，复制入口靠右且保持轻量。 */
+.gitlog-row-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gitlog-row-line .gitlog-row-main {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.gitlog-copy {
+  flex: none;
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--accent);
+  background: transparent;
+  border-color: transparent;
+}
+
+.gitlog-copy:hover:not(:disabled) {
+  border-color: var(--border);
+}
+
+.gitlog-copy.copied {
+  color: var(--ok);
+}

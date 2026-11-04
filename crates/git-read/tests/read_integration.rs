@@ -62,6 +62,33 @@ fn linear_state_refs_and_head() {
         tag.commit_oid.as_ref().map(Oid::as_str),
         Some(read_oid(&set.linear(), "v1.0^{commit}").as_str())
     );
+    // 创建时间：annotated tag 取 tagger 时间，与 git for-each-ref 的 creatordate 一致。
+    let tagger = git_ok(
+        &set.linear(),
+        &[
+            "for-each-ref",
+            "--format=%(taggerdate:unix)",
+            "refs/tags/v1.0",
+        ],
+    );
+    assert_eq!(tag.created_at, tagger.parse::<i64>().ok());
+
+    let lightweight = state
+        .refs
+        .iter()
+        .find(|r| r.short_name == "v1.1")
+        .expect("轻量 tag");
+    assert_eq!(lightweight.kind, RefKind::Tag);
+    // 轻量 tag 没有真实创建时间，回退到被指向提交的提交时间。
+    let commit_time = git_ok(
+        &set.linear(),
+        &[
+            "for-each-ref",
+            "--format=%(creatordate:unix)",
+            "refs/tags/v1.1",
+        ],
+    );
+    assert_eq!(lightweight.created_at, commit_time.parse::<i64>().ok());
 
     // generation 对同一仓库状态是稳定的。
     assert_eq!(

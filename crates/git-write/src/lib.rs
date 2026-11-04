@@ -4,6 +4,7 @@
 //! Gate；状态路径全部经 `git rev-parse` 解析取得；绝不自动 abort / quit。
 //! 结果以退出码与执行后重新探测到的操作态判定，不解析输出文本猜测冲突。
 
+mod branch;
 mod command;
 mod commit;
 pub mod config;
@@ -12,6 +13,7 @@ mod execute;
 mod gate;
 mod staging;
 mod status;
+mod tag;
 
 use std::path::{Path, PathBuf};
 

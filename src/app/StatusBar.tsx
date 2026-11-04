@@ -1,3 +1,4 @@
+import { Icon } from "../assets/icons";
 import { useI18n } from "../i18n";
 import type { AppInfoDto, RepoStateDto, SettingsDto } from "../shared/types";
 
@@ -14,45 +15,6 @@ export interface StatusBarProps {
   onOpenCommandLog: () => void;
   onToggleTerminal: () => void;
   onOpenUpdate: () => void;
-}
-
-function TerminalIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="m7 11 2-2-2-2" />
-      <path d="M11 13h4" />
-    </svg>
-  );
-}
-
-function CommandLogIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M8 6h13" />
-      <path d="M8 12h13" />
-      <path d="M8 18h13" />
-      <path d="M3 6h.01" />
-      <path d="M3 12h.01" />
-      <path d="M3 18h.01" />
-    </svg>
-  );
 }
 
 export function StatusBar({
@@ -96,7 +58,7 @@ export function StatusBar({
           aria-label={t("gitlog.openButtonTitle")}
           title={t("gitlog.openButtonTitle")}
         >
-          <CommandLogIcon />
+          <Icon name="commandLog" />
         </button>
         {repo && (
           <button
@@ -110,7 +72,7 @@ export function StatusBar({
                 : t("shell.openTerminalTitle", { shortcut: terminalShortcut })
             }
           >
-            <TerminalIcon />
+            <Icon name="terminalStatus" />
             {terminalRunning && <span className="terminal-status-dot" aria-hidden="true" />}
           </button>
         )}

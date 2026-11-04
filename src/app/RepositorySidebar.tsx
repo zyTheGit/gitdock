@@ -1,16 +1,20 @@
 import type { MouseEvent } from "react";
 import { useI18n } from "../i18n";
 import type { RepoStateDto, RefDto } from "../shared/types";
+import { latestTagsFirst } from "../features/repository/tagOrder";
 
 interface RepositorySidebarProps {
   width: number;
   repo: RepoStateDto | null;
   headLabel: string;
   localBranches: RefDto[];
+  tags: RefDto[];
   writeDisabled: boolean;
   onCompareBranches: () => void;
   onSwitchBranch: (branch: RefDto) => void;
   onBranchMenu: (event: MouseEvent, branch: RefDto) => void;
+  onCreateBranch: () => void;
+  onDeleteTag: (tag: RefDto) => void;
 }
 
 export function RepositorySidebar({
@@ -18,12 +22,16 @@ export function RepositorySidebar({
   repo,
   headLabel,
   localBranches,
+  tags,
   writeDisabled,
   onCompareBranches,
   onSwitchBranch,
   onBranchMenu,
+  onCreateBranch,
+  onDeleteTag,
 }: RepositorySidebarProps) {
   const { t } = useI18n();
+  const orderedTags = latestTagsFirst(tags);
   return (
     <aside className="sidebar" style={{ width }}>
       {!repo && <p className="muted">{t("shell.sidebarNoRepo")}</p>}
@@ -51,14 +59,19 @@ export function RepositorySidebar({
         <div className="branch-list branch-panel">
           <div className="branch-panel-head">
             <h2>{t("shell.localBranches")}</h2>
-            <button
-              className="link"
-              disabled={localBranches.length < 2}
-              onClick={onCompareBranches}
-              title={t("shell.compareBranchesTitle")}
-            >
-              {t("shell.compareBranches")}
-            </button>
+            <div className="branch-panel-actions">
+              <button className="link" disabled={writeDisabled} onClick={onCreateBranch}>
+                {t("repository.createBranch")}
+              </button>
+              <button
+                className="link"
+                disabled={localBranches.length < 2}
+                onClick={onCompareBranches}
+                title={t("shell.compareBranchesTitle")}
+              >
+                {t("shell.compareBranches")}
+              </button>
+            </div>
           </div>
           {localBranches.length === 0 ? (
             <p className="muted">{t("shell.noLocalBranches")}</p>
@@ -91,6 +104,36 @@ export function RepositorySidebar({
                     </span>
                     {branch.is_head && <span className="tag">{t("shell.currentTag")}</span>}
                   </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {repo && (
+        <div className="branch-list branch-panel">
+          <div className="branch-panel-head">
+            <h2>{t("repository.tags")}</h2>
+          </div>
+          {orderedTags.length === 0 ? (
+            <p className="muted">{t("repository.noTags")}</p>
+          ) : (
+            <ul>
+              {orderedTags.map((tag) => (
+                <li key={tag.full_name}>
+                  <div className="branch-item tag-item">
+                    <span className="branch-text">
+                      <span className="branch-name">{tag.short_name}</span>
+                    </span>
+                    <button
+                      className="link"
+                      disabled={writeDisabled}
+                      onClick={() => onDeleteTag(tag)}
+                      aria-label={t("repository.deleteTagAria", { tag: tag.short_name })}
+                    >
+                      {t("repository.deleteRef")}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

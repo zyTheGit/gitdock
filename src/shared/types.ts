@@ -34,6 +34,8 @@ export interface RefDto {
   kind: RefKind;
   target_oid: string;
   commit_oid?: string;
+  /** tag 创建时间（Unix 秒）；轻量 tag 为指向提交的提交时间。非 tag 不返回。 */
+  created_at?: number;
   is_head: boolean;
   description?: string;
 }
@@ -241,12 +243,19 @@ export type WriteKind =
   | "continue_operation"
   | "abort_operation"
   | "create_commit"
-  | "amend_commit";
+  | "amend_commit"
+  | "create_branch"
+  | "delete_branch"
+  | "rename_branch"
+  | "create_tag"
+  | "delete_tag";
 
 export interface WriteRequest {
   kind: WriteKind;
   oid?: string;
   branch?: string;
+  /** rename_branch 的新分支名；其他操作忽略。 */
+  new_name?: string;
   description?: string;
   /** stage/unstage 的文件路径；其他操作忽略。 */
   paths?: string[];
