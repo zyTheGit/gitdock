@@ -284,6 +284,15 @@ fn pre_commit_hook_failure_keeps_head_and_surfaces_stderr() {
     let head_before = current_head(dir);
     let hook = dir.join(".git").join("hooks").join("pre-commit");
     write(&hook, "#!/bin/sh\necho 'hook 拒绝提交' >&2\nexit 1\n");
+    // fs::write 在 Linux 上默认 644，Git 会静默跳过无执行位的 hook，测试就失去了
+    // 「hook 拒绝提交」的前提；Windows 无 POSIX 权限位（Git for Windows 视普通文件
+    // 为可执行），只需在 Unix 上补 0o755。
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755))
+            .expect("设置 hook 执行位");
+    }
     write(&dir.join("a.txt"), "two\n");
     git_ok(dir, &["add", "-A"]);
     let module = GitWriteModule::new(dir).expect("打开写模块");
