@@ -211,7 +211,7 @@
 }
 
 .graph-row-summary {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -220,12 +220,19 @@
 }
 
 .commit-summary {
+  flex: 0 1 auto;
+  min-width: 24px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .ref-badge {
   flex: none;
+  display: inline-block;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11px;
   line-height: 16px;
   padding: 0 5px;
@@ -237,6 +244,7 @@
 
 .ref-group {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 4px;
   min-width: 0;
@@ -273,7 +281,7 @@
 
 .graph-row-author {
   flex: none;
-  width: 130px;
+  width: 104px;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--muted);
@@ -281,32 +289,48 @@
 
 .graph-row-date {
   flex: none;
-  width: 132px;
+  width: 118px;
   color: var(--muted);
   font-size: 12px;
 }
 
 .graph-row-oid {
   flex: none;
-  width: 70px;
+  width: 64px;
   color: var(--muted);
   text-align: right;
 }
 
 /* 图谱变窄时按优先级收起次要列，避免提交列表出现横向滚动条。 */
-@container graph (max-width: 520px) {
+@container graph (max-width: 640px) {
   .graph-row-date {
     display: none;
   }
 }
 
-@container graph (max-width: 420px) {
+@container graph (max-width: 500px) {
   .graph-row-author {
     display: none;
   }
 }
 
-@container graph (max-width: 300px) {
+@container graph (max-width: 720px) {
+  .ref-badge {
+    max-width: 150px;
+  }
+}
+
+@container graph (max-width: 560px) {
+  .ref-badge {
+    max-width: 120px;
+  }
+
+  .ref-desc {
+    display: none;
+  }
+}
+
+@container graph (max-width: 360px) {
   .graph-row-oid {
     display: none;
   }
