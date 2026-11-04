@@ -166,6 +166,8 @@ src-tauri app orchestration
 
 ### G5：Linux 首发支持
 
+> G5 进度（2026-11-04，分支 `plan/g5-linux-first`）：第 1 项完成——包格式比选方案（docs/10）经用户裁决为 **deb 主格式 + AppImage 实验级保留**（选项 A）。本地落地：release.yml 的 Linux Release 说明按主次调整；`tauri.conf.json` 补 `bundle.linux.category: "Development"`。已核实关键输入：CI 双格式产出就绪、deb 依赖自动生成而 AppImage 不含 WebKitGTK（docs/09 B-2）、自更新为手动浏览器下载且未启用 Tauri 更新器（update.rs）。**G5 剩余**：第 2/3/4 项需 Ubuntu 22.04 实机或 runner 安装验证（WebKitGTK 依赖展示、PTY/Shell、中文路径、inotify 文件监听、装/升/卸）与其他发行版支持等级声明；artifact 可复现随 prerelease tag 授权。实机验证前不宣称 Linux 正式支持。
+
 1. 以 Ubuntu LTS x86_64 为目标基线，选择 AppImage 或 deb 作为首发格式。
 2. 明确并展示 WebKitGTK 等运行依赖；检查桌面环境下文件选择、URL 打开、系统主题、剪贴板、图标与托盘差异。
 3. 验证 PTY/Shell、中文路径、仓库文件监听、权限和安装/升级/卸载。
@@ -197,7 +199,7 @@ G0 交接状态清理
 
 1. ~~中英文首发语言策略~~ **已确认（2026-11-03）**：系统语言默认、设置可覆盖；缺失翻译时**中文兜底**（用户裁决，G1 已按此实现）。
 2. ~~macOS 是否首期同时支持 Apple Silicon + Intel~~ **已确认（2026-11-03）**：优先 Apple Silicon（aarch64），Intel 延后到 G4 评估（Rosetta 2 / universal2）。
-3. ~~Linux 是否接受首期只正式支持 Ubuntu LTS x86_64 与单一包格式~~ **已确认（2026-11-03）**：接受；基线 Ubuntu 22.04 LTS x86_64（glibc 2.35），CI 双格式产出（AppImage + deb）供 G5 实机比选后定主格式，其他发行版实验支持。
+3. ~~Linux 是否接受首期只正式支持 Ubuntu LTS x86_64 与单一包格式~~ **已确认（2026-11-03）**：接受；基线 Ubuntu 22.04 LTS x86_64（glibc 2.35），CI 双格式产出（AppImage + deb）供 G5 比选后定主格式，其他发行版实验支持。**主格式已裁决（2026-11-04）**：deb（docs/10 方案，选项 A）；AppImage 保留为实验级便携通道。
 4. Git 能力优先级：推荐提交/分支与标签/stash 优先于远程同步，再到 merge/rebase；根据实际用户工作流调整。
 5. 插件：推荐至少等跨平台与 Git 操作模块稳定后，再决定是否开放外部插件 API。
 
