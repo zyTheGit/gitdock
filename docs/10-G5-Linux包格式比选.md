@@ -1,6 +1,6 @@
 # G5：Linux 包格式比选（AppImage vs deb）
 
-> 状态：**方案产出，待产品裁决**（docs/08 裁决点 3 的遗留比选项；未确认前只做方案不实现）。
+> 状态：**已裁决（2026-11-04，用户选 A：deb 主格式 + AppImage 实验级保留）**；本地落地同日完成（release.yml 指引措辞 + tauri.conf.json bundle.linux），实机验证部分见 §4。
 > 基线已裁决（2026-11-03）：Ubuntu 22.04 LTS x86_64（glibc 2.35），其他发行版实验支持。
 
 ## 1. 背景与输入
@@ -44,15 +44,17 @@
 
 | 工作项 | 内容 | 预估 |
 |---|---|---|
-| 主格式落地 | Release 说明措辞按主次调整；`tauri.conf.json` 补 `bundle.linux`（category 等可选项）；README/docs 安装说明补 WebKitGTK 依赖展示（G5 第 2 项） | 0.5 天 |
+| 主格式落地 | ~~Release 说明措辞按主次调整；`tauri.conf.json` 补 `bundle.linux`~~ **已落地（2026-11-04）**：release.yml 的 Linux 指引改为 deb 主格式优先、AppImage 标注实验级；`bundle.linux.category: "Development"`。README 安装说明的 WebKitGTK 依赖展示延后到实机验证后随「其他发行版支持等级」一并补——实机未验证前不在用户文档宣称安装方法 | 0.5 天 |
 | 实机验证矩阵 | Ubuntu 22.04 全新安装/升级/卸载 + docs/09 §6 功能清单 Linux 部分（PTY/Shell、中文路径、inotify 文件监听、主题、剪贴板、A-4 进程组回收） | 需 Ubuntu 实机或 runner 安装验证（用户资源） |
 | 其他发行版支持等级 | 记录 Debian 12（deb 可用）/ 其他（AppImage 实验）等级声明；不承诺未验证发行版 | 0.5 天 |
 | artifact 可复现验证 | prerelease tag 首跑 release.yml，核对产物与体积记录 | 随 tag 授权 |
 
-## 5. 待裁决
+## 5. 裁决记录
+
+**2026-11-04 用户裁决：选项 A——deb 主格式 + AppImage 实验级保留。**
 
 | 选项 | 内容 | 后果 |
 |---|---|---|
-| **A（推荐）** | deb 主格式 + AppImage 实验级保留 | 完成标准达成路径最稳；安装体验开箱即用；双产出维持现状 |
+| **A（已选定）** | deb 主格式 + AppImage 实验级保留 | 完成标准达成路径最稳；安装体验开箱即用；双产出维持现状 |
 | B | AppImage 主格式 | 便携与免 root 优先；接受 WebKitGTK 兼容风险、libfuse2 前置与无桌面集成 |
 | C | 双格式平级 | 不区分主次；文档与指引将含糊，验证矩阵需双份，不推荐 |
