@@ -9,6 +9,7 @@ use git_core::{
     WriteRequest,
 };
 
+use crate::commit::{commit_args, MessageFile};
 use crate::description::validate_branch_description;
 use crate::staging::pathspec_stdin;
 use crate::status::StatusSummary;
@@ -18,6 +19,8 @@ pub(crate) struct CommandSpec {
     pub(crate) args: Vec<String>,
     pub(crate) stdin: Option<Vec<u8>>,
     pub(crate) description_write: bool,
+    /// 提交消息临时文件；spec 存续期间有效，drop 时无条件删除（含失败与错误路径）。
+    pub(crate) message_file: Option<MessageFile>,
 }
 
 pub(crate) struct HeadInfo {
@@ -71,7 +74,9 @@ impl GitWriteModule {
             args: Vec::new(),
             stdin: None,
             description_write: false,
+            message_file: None,
         };
+        let mut message_file = None;
         spec.args = match request.kind {
             WriteKind::CherryPick => {
                 let oid = request
@@ -164,8 +169,24 @@ impl GitWriteModule {
                 };
                 vec![action.to_owned(), flag.to_owned()]
             }
+            WriteKind::CreateCommit | WriteKind::AmendCommit => {
+                // Gate 已拒绝空消息；此处兜底再拦一次，防调用方绕过 Gate。
+                let message = request.message.as_deref().unwrap_or("");
+                if message.trim().is_empty() {
+                    return Err(UserVisibleError::new(
+                        ErrorCode::InvalidArgument,
+                        "提交消息不能为空",
+                    )
+                    .with_key("errors.gateEmptyMessage"));
+                }
+                let file = MessageFile::create(message)?;
+                let args = commit_args(request.kind == WriteKind::AmendCommit, &file);
+                message_file = Some(file);
+                args
+            }
         };
         spec.description_write = request.kind == WriteKind::SetBranchDescription;
+        spec.message_file = message_file;
         Ok(spec)
     }
 
@@ -218,6 +239,24 @@ impl GitWriteModule {
                 .with_key("errors.commandHeadUnreadable")
                 .with_detail(e.to_string())
         })
+    }
+
+    /// HEAD 提交的（短 oid, 主题）；unborn 或读取失败返回 None，仅用于 amend Gate
+    /// 摘要展示，失败不阻断 Gate。与 parent_options 同用 `show -s` 的 %h/%s 形态。
+    pub(crate) fn head_commit_summary(&self) -> Option<(String, String)> {
+        let output = self
+            .run_readonly(&["show", "-s", "--format=%h%x1f%s", "HEAD"])
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let raw = text(&output.stdout);
+        let raw = raw.trim_end_matches(['\r', '\n']);
+        let (short_oid, subject) = raw.split_once('\x1f')?;
+        if short_oid.is_empty() {
+            return None;
+        }
+        Some((short_oid.to_owned(), subject.to_owned()))
     }
 
     pub(crate) fn is_bare(&self) -> Result<bool> {

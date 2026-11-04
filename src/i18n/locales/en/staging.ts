@@ -40,6 +40,24 @@ const staging = {
   submodule: "submodule",
   binary: "binary",
   selectFile: "Select {{path}}",
+  // Commit message dialog (ADR 0007).
+  openCommitDialog: "Commit",
+  commitTitle: "Create commit",
+  commitCloseAria: "Close commit dialog",
+  commitMessageLabel: "Commit message",
+  commitMessagePlaceholder: "Write the commit message (multi-line supported)",
+  commitSubmit: "Commit",
+  commitSubmitting: "Committing…",
+  amendToggle: "Amend the last commit",
+  amendLoadingMessage: "Reading the last commit message…",
+  amendUnbornHint: "The current branch has no commits yet; there is nothing to amend",
+  amendRewriteHint:
+    "Replaces the last commit: its identity changes; the author stays the same and the committer is updated.",
+  amendReflogHint:
+    "To restore: run git reflog in the terminal to find the record, then git reset --hard HEAD@{1} to return to the commit before the amend.",
+  amendConfirmTitle: "Confirm amend",
+  amendConfirmExecute: "Amend commit",
+  amendLoadFailedPrefix: "Failed to read the last commit message: ",
 } satisfies StagingMessages;
 
 export default staging;

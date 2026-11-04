@@ -11,6 +11,8 @@ const write = {
   labelUnstageFiles: "Unstage files",
   labelContinueOperation: "Continue operation",
   labelAbortOperation: "Abort operation",
+  labelCreateCommit: "Create commit",
+  labelAmendCommit: "Amend commit",
   // Outcome messages (status-bar toast).
   outcomeSwitchedToBranch: "Switched to branch {{branch}}",
   outcomeContinueDone: "Operation continued and completed; graph refreshed",

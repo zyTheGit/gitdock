@@ -454,6 +454,8 @@ pub enum WriteKind {
     UnstageFiles,
     ContinueOperation,
     AbortOperation,
+    CreateCommit,
+    AmendCommit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -474,6 +476,9 @@ pub struct WriteRequest {
     /// merge commit 的基线父序号（1 起始）；非 merge commit 不得提供。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mainline: Option<u32>,
+    /// create_commit / amend_commit 的提交消息；其他操作忽略。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -665,6 +670,7 @@ mod tests {
             paths: None,
             interruption: Some(InterruptionKind::Revert),
             mainline: Some(2),
+            message: None,
         };
         let json = serde_json::to_string(&request).expect("序列化");
         assert!(json.contains(r#""interruption":"revert""#), "{json}");
@@ -683,6 +689,7 @@ mod tests {
             paths: None,
             interruption: None,
             mainline: None,
+            message: None,
         };
         let json = serde_json::to_string(&minimal).expect("序列化");
         assert!(!json.contains("interruption"), "{json}");

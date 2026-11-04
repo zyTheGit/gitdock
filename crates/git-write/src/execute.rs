@@ -265,6 +265,26 @@ impl GitWriteModule {
                         args_map(&[("n", &count.to_string())]),
                     )
                 }
+                WriteKind::CreateCommit | WriteKind::AmendCommit => {
+                    // spec.message_file 随函数返回 drop，临时消息文件成败均被删除。
+                    let short = head_oid
+                        .as_ref()
+                        .map(|oid| oid.short(8).to_owned())
+                        .unwrap_or_default();
+                    if request.kind == WriteKind::CreateCommit {
+                        (
+                            format!("已创建提交 {short}，图谱已刷新"),
+                            "errors.outcomeCommitSucceeded",
+                            args_map(&[("oid", &short)]),
+                        )
+                    } else {
+                        (
+                            format!("已修改上一条提交，新提交 {short}；原提交可经 git reflog 找回"),
+                            "errors.outcomeAmendSucceeded",
+                            args_map(&[("oid", &short)]),
+                        )
+                    }
+                }
                 WriteKind::ContinueOperation | WriteKind::AbortOperation => (
                     "操作已完成，图谱已刷新".to_owned(),
                     "errors.outcomeCompleted",
