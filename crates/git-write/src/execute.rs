@@ -326,6 +326,35 @@ impl GitWriteModule {
                         args_map(&[("tag", tag)]),
                     )
                 }
+                WriteKind::StashSave => (
+                    "已保存当前工作区改动为 stash".to_owned(),
+                    "errors.outcomeStashSaved",
+                    None,
+                ),
+                WriteKind::StashApply => {
+                    let selector = request.stash.as_deref().unwrap_or_default();
+                    (
+                        format!("已应用 {selector}，条目保留"),
+                        "errors.outcomeStashApplied",
+                        args_map(&[("selector", selector)]),
+                    )
+                }
+                WriteKind::StashPop => {
+                    let selector = request.stash.as_deref().unwrap_or_default();
+                    (
+                        format!("已应用并移除 {selector}"),
+                        "errors.outcomeStashPopped",
+                        args_map(&[("selector", selector)]),
+                    )
+                }
+                WriteKind::StashDrop => {
+                    let selector = request.stash.as_deref().unwrap_or_default();
+                    (
+                        format!("已删除 stash 条目 {selector}"),
+                        "errors.outcomeStashDropped",
+                        args_map(&[("selector", selector)]),
+                    )
+                }
                 WriteKind::ContinueOperation | WriteKind::AbortOperation => (
                     "操作已完成，图谱已刷新".to_owned(),
                     "errors.outcomeCompleted",
@@ -407,6 +436,26 @@ impl GitWriteModule {
             }
         }
 
+        // stash 应用/弹出可能产生索引冲突；stash 条目不会因此被删除。
+        if matches!(request.kind, WriteKind::StashApply | WriteKind::StashPop) {
+            let status = self.status_summary()?;
+            if status.conflicted > 0 {
+                let selector = request.stash.as_deref().unwrap_or_default();
+                return Ok(WriteOutcomeDto {
+                    key: Some("errors.outcomeStashConflicted".into()),
+                    args: args_map(&[("selector", selector)]),
+                    status: WriteStatus::Conflicted,
+                    message: format!("{selector} 应用产生冲突；stash 条目保留，请解决冲突后重试"),
+                    exit_code,
+                    stderr: stderr_option(&stderr),
+                    conflict_files: status.conflicted_files,
+                    interruption: Some(self.inspect_interruption()?),
+                    generation: None,
+                    head_oid,
+                });
+            }
+        }
+
         let (message, key, args) = match request.kind {
             WriteKind::SwitchBranch => (
                 "切换被 Git 拒绝，未执行 stash / reset / clean；请根据诊断信息处理（提交、暂存或在终端处理）后重试",
@@ -417,6 +466,18 @@ impl GitWriteModule {
                 "删除分支被 Git 拒绝（未完全合并的分支不会被删除）；如需强制删除，请在终端执行 git branch -D",
                 "errors.outcomeBranchDeleteRejected",
                 args_map(&[("branch", request.branch.as_deref().unwrap_or_default())]),
+            ),
+            WriteKind::StashSave
+            | WriteKind::StashApply
+            | WriteKind::StashPop
+            | WriteKind::StashDrop => (
+                "stash 操作被 Git 拒绝，请刷新列表后重试",
+                "errors.outcomeStashRejected",
+                request
+                    .stash
+                    .as_deref()
+                    .map(|selector| args_map(&[("selector", selector)]))
+                    .unwrap_or(None),
             ),
             _ => ("Git 拒绝了本次操作", "errors.outcomeGitRejected", None),
         };

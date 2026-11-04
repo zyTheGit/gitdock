@@ -1,6 +1,6 @@
 # ADR 0009：手动 stash 管理——save / list / apply / pop / drop 与冲突边界
 
-- 状态：草案（待产品确认后实现）
+- 状态：已接受（2026-11-04 实现；门禁全绿，GUI 实机验收待用户）
 - 日期：2026-11-04
 - 影响范围：`crates/git-core/src/dto.rs`（WriteKind / WriteRequest / StashEntryDto）、`crates/git-write/src/stash.rs`（新增，含 `stash/gate.rs` 与测试）、`crates/git-write/src/command.rs`、`crates/git-write/src/execute.rs`、`crates/git-write/src/gate.rs`、`crates/git-read/src/read/stash.rs`（新增）、`src-tauri` command 装配、`src/shared/types.ts`、`src/features/staging/`、`src/app/*`、`src/i18n/locales/*`
 - 触发依据：docs/11 批次 3（2026-11-04 用户确认五批次序）；docs/06 N6「不自动 stash」；现有 `WriteKind` 无 stash 能力
@@ -85,7 +85,7 @@ stash 条目是 `refs/stash` 的 reflog，不是普通 ref 列表。读取实现
 - **保存**：消息输入（可选）+「包含未跟踪文件」复选框（默认关闭）；保存成功后刷新工作区、暂存区、图谱与 stash 列表。
 - **apply / pop**：直接执行；pop 的按钮旁提示「成功后该条目会从列表移除」，冲突时保留条目。
 - **drop**：专门确认框，展示 selector、短 oid、消息，并给出恢复路径（drop 后对象变为不可达，可用 `git fsck --unreachable` 找到 stash 提交后 `git stash apply <oid>`）；确认后才执行。
-- **分支切换 dirty 确认框**：增加「先 stash 当前改动」链接，打开同一个 StashDialog；保存成功后用户可返回确认框继续切换。该链接是本批对 N6 的直接回应。
+- **分支切换 dirty 确认框**：增加「先 stash 当前改动」链接，关闭确认框并打开同一个 StashDialog；保存成功后重新发起切换。该链接是本批对 N6 的直接回应。
 - 写后刷新沿用既有 `readSnapshot` + `reload` + RefreshCoordinator generation 通道；stash 列表单独重读。
 
 ### 2.7 错误与 i18n
@@ -131,5 +131,5 @@ stash 条目是 `refs/stash` 的 reflog，不是普通 ref 列表。读取实现
 5. pop 成功后条目移除；pop 冲突时条目保留、冲突文件可见，可进入既有冲突展示流。
 6. drop 移除指定条目，其余条目索引前移；selector 越界被 Gate 拒绝；确认框展示 oid 与恢复说明。
 7. `stash_list` 与 `git stash list` 的条目数、顺序、消息一致（独立核对）。
-8. 分支切换 dirty 确认框的「先 stash」入口可用，保存后返回可继续切换。
+8. 分支切换 dirty 确认框的「先 stash」入口可用：点击后打开 stash 面板，保存成功后重新发起切换即可通过 Gate。
 9. `npm run check` 全绿；触及文件行数合规（新文件 ≤400，存量文件只减不增）。

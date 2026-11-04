@@ -26,6 +26,7 @@ interface StagingViewProps {
   writeDisabled: boolean;
   onBusyChange: (busy: boolean) => void;
   onMutated: (message: string) => Promise<void>;
+  onOpenStash: () => void;
   onOpenTerminal: () => void;
   onExit: () => void;
 }
@@ -36,6 +37,7 @@ export function StagingView({
   writeDisabled,
   onBusyChange,
   onMutated,
+  onOpenStash,
   onOpenTerminal,
   onExit,
 }: StagingViewProps) {
@@ -361,6 +363,9 @@ export function StagingView({
               ].join(" · ")}
             </span>
           )}
+          <button onClick={onOpenStash} disabled={disabled}>
+            {t("staging.stashOpen")}
+          </button>
           <button
             className="primary"
             disabled={

@@ -18,6 +18,10 @@ const write = {
   labelRenameBranch: "重命名分支",
   labelCreateTag: "创建标签",
   labelDeleteTag: "删除标签",
+  labelStashSave: "保存 stash",
+  labelStashApply: "应用 stash",
+  labelStashPop: "弹出 stash",
+  labelStashDrop: "删除 stash",
   // 写操作结果消息（状态栏 toast）。
   outcomeSwitchedToBranch: "已切换到分支 {{branch}}",
   outcomeContinueDone: "已继续并完成操作，已刷新图谱",
@@ -42,6 +46,7 @@ const write = {
   actionHintContinue:
     "将完成当前中断的操作。请先在终端解决全部冲突并 git add；若结果为空提交，Git 会失败并保留中断标记，此时需在终端执行 --skip 跳过本次操作（本应用不会自动跳过）。",
   actionHintAbort: "将回到操作开始前的状态，已手工解决的冲突内容会丢失。",
+  stashBeforeSwitch: "先 stash 当前改动",
   confirmContinue: "继续并完成操作",
   confirmAbort: "中止并丢弃冲突解决",
   confirmExecute: "执行 {{label}}",

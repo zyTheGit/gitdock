@@ -43,6 +43,14 @@ function writeLabel(kind: WriteKind): string {
       return i18next.t("write.labelCreateTag");
     case "delete_tag":
       return i18next.t("write.labelDeleteTag");
+    case "stash_save":
+      return i18next.t("write.labelStashSave");
+    case "stash_apply":
+      return i18next.t("write.labelStashApply");
+    case "stash_pop":
+      return i18next.t("write.labelStashPop");
+    case "stash_drop":
+      return i18next.t("write.labelStashDrop");
   }
 }
 

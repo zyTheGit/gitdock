@@ -25,6 +25,8 @@ interface ConfirmWriteDialogProps {
   busy: boolean;
   onCancel: () => void;
   onConfirm: () => void;
+  /** 分支切换因工作区不干净被拒时，引导用户先手动 stash。 */
+  onOpenStash?: () => void;
 }
 
 /** 写操作确认框：先展示 Gate 结论，Gate 未通过时禁止执行。 */
@@ -41,6 +43,7 @@ export function ConfirmWriteDialog({
   busy,
   onCancel,
   onConfirm,
+  onOpenStash,
 }: ConfirmWriteDialogProps) {
   const { t } = useI18n();
   useEscClose(onCancel, busy || validating);
@@ -74,6 +77,10 @@ export function ConfirmWriteDialog({
   };
   const blocked = Boolean(gateError) || !gate?.ok || validating;
   const destructive = kind === "abort_operation";
+  const dirtySwitch =
+    kind === "switch_branch" &&
+    Boolean(onOpenStash) &&
+    Boolean(gate?.issues.some((issue) => issue.code === "gate_worktree_dirty"));
 
   return (
     <Modal className="confirm-dialog">
@@ -105,6 +112,11 @@ export function ConfirmWriteDialog({
         <p className={destructive ? "danger-text confirm-hint" : "muted confirm-hint"}>
           {actionHint[kind]}
         </p>
+        {dirtySwitch && (
+          <button className="link" onClick={onOpenStash} disabled={busy}>
+            {t("write.stashBeforeSwitch")}
+          </button>
+        )}
       </section>
 
       <section className="gate-report">

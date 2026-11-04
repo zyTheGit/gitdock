@@ -18,6 +18,10 @@ const write = {
   labelRenameBranch: "Rename branch",
   labelCreateTag: "Create tag",
   labelDeleteTag: "Delete tag",
+  labelStashSave: "Save stash",
+  labelStashApply: "Apply stash",
+  labelStashPop: "Pop stash",
+  labelStashDrop: "Delete stash",
   // Outcome messages (status-bar toast).
   outcomeSwitchedToBranch: "Switched to branch {{branch}}",
   outcomeContinueDone: "Operation continued and completed; graph refreshed",
@@ -46,6 +50,7 @@ const write = {
     "Completes the interrupted operation. Resolve all conflicts in the terminal and run git add first; if the result is an empty commit, Git fails and keeps the interruption marker; run --skip in the terminal to skip this operation (this app never skips automatically).",
   actionHintAbort:
     "Restores the state from before the operation started; manually resolved conflict changes will be lost.",
+  stashBeforeSwitch: "Stash current changes first",
   confirmContinue: "Continue and complete",
   confirmAbort: "Abort and discard resolutions",
   confirmExecute: "Run {{label}}",

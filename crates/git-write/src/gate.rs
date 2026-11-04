@@ -367,6 +367,15 @@ impl GitWriteModule {
                 issues.extend(change.issues);
                 (change.summary, change.summary_key, change.summary_args)
             }
+            WriteKind::StashSave
+            | WriteKind::StashApply
+            | WriteKind::StashPop
+            | WriteKind::StashDrop => {
+                // stash 校验按 ADR 0009 拆到 stash 模块；bare 与中断态已由上方前置拒绝。
+                let change = crate::stash::gate::validate_stash_change(self, request, status)?;
+                issues.extend(change.issues);
+                (change.summary, change.summary_key, change.summary_args)
+            }
             WriteKind::ContinueOperation | WriteKind::AbortOperation => {
                 let continuing = request.kind == WriteKind::ContinueOperation;
                 let verb = if continuing { "继续" } else { "中止" };

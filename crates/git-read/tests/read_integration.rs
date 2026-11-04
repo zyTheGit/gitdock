@@ -9,7 +9,8 @@ use git_core::{
 };
 use git_read::GitReadModule;
 use test_support::{
-    copy_dir, current_head, fixtures, git_ok, init_repo, oid_of, read_oid, temp_dir, write,
+    commit, copy_dir, current_head, fixtures, git_ok, init_repo, init_temp_repo, oid_of, read_oid,
+    temp_dir, write,
 };
 
 fn module(path: &Path) -> GitReadModule {
@@ -673,4 +674,37 @@ fn commit_branch_context_reports_branch_gaps() {
         .expect("feature 分支差异");
     assert_eq!(limited_gap.head_only_commits.len(), 1);
     assert!(limited_gap.head_only_truncated);
+}
+
+#[test]
+fn stash_list_reads_reflog_newest_first() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    commit(
+        dir, "a.txt", "base
+", "c1",
+    );
+    write(
+        &dir.join("a.txt"),
+        "first
+",
+    );
+    git_ok(dir, &["stash", "push", "-m", "first"]);
+    write(
+        &dir.join("a.txt"),
+        "second
+",
+    );
+    git_ok(dir, &["stash", "push", "-m", "second"]);
+
+    let read = module(dir);
+    let stashes = read.read_stashes().expect("读取 stash");
+    assert_eq!(stashes.len(), 2);
+    assert_eq!(stashes[0].selector, "stash@{0}");
+    assert_eq!(stashes[0].message, "On main: second");
+    assert_eq!(stashes[1].message, "On main: first");
+    assert_eq!(
+        stashes[0].oid.as_str(),
+        git_ok(dir, &["rev-parse", "stash@{0}"])
+    );
 }

@@ -248,7 +248,11 @@ export type WriteKind =
   | "delete_branch"
   | "rename_branch"
   | "create_tag"
-  | "delete_tag";
+  | "delete_tag"
+  | "stash_save"
+  | "stash_apply"
+  | "stash_pop"
+  | "stash_drop";
 
 export interface WriteRequest {
   kind: WriteKind;
@@ -265,6 +269,21 @@ export interface WriteRequest {
   mainline?: number;
   /** create_commit / amend_commit 的提交消息；其他操作忽略。 */
   message?: string;
+  /** stash apply/pop/drop 的 `stash@{N}` 选择器。 */
+  stash?: string;
+  /** stash_save 是否包含未跟踪文件；缺省 false。 */
+  include_untracked?: boolean;
+}
+
+/** 单个本地 stash；index 0 为最新。 */
+export interface StashEntryDto {
+  index: number;
+  selector: string;
+  oid: string;
+  /** Git reflog 原始消息，不翻译。 */
+  message: string;
+  /** reflog 时间（Unix 秒）。 */
+  created_at: number;
 }
 
 export interface GateIssueDto {

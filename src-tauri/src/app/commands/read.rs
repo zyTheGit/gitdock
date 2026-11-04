@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use git_core::{
     CommitBranchContextDto, CommitDetailDto, CompareResultDto, ErrorCode, FileDiffDto,
-    GraphPageDto, GraphScope, Oid, Result, SearchPageDto, SearchRequest, UserVisibleError,
+    GraphPageDto, GraphScope, Oid, Result, SearchPageDto, SearchRequest, StashEntryDto,
+    UserVisibleError,
 };
 use git_read::DEFAULT_PAGE_LIMIT;
 use tauri::State;
@@ -89,6 +90,12 @@ pub async fn commit_branch_context(
         state.with_session(|session| session.read.commit_branch_context(&oid, limit))
     })
     .await
+}
+
+#[tauri::command]
+pub async fn read_stashes(state: State<'_, Shared>) -> Result<Vec<StashEntryDto>> {
+    let state = Arc::clone(&state);
+    blocking(move || state.with_session(|session| session.read.read_stashes())).await
 }
 
 #[tauri::command]

@@ -58,6 +58,31 @@ const staging = {
   amendConfirmTitle: "Confirm amend",
   amendConfirmExecute: "Amend commit",
   amendLoadFailedPrefix: "Failed to read the last commit message: ",
+  // Stash management (ADR 0009).
+  stashOpen: "Stash",
+  stashTitle: "Stash management",
+  stashSubtitle: "Manually save and restore working tree changes",
+  stashMessageLabel: "Message (optional)",
+  stashMessagePlaceholder: "e.g. save before switching branches",
+  stashIncludeUntracked: "Include untracked files",
+  stashSave: "Save stash",
+  stashSaving: "Saving…",
+  stashEmpty: "No local stashes",
+  stashListLabel: "Local stashes",
+  stashApply: "Apply",
+  stashPop: "Pop",
+  stashDrop: "Delete",
+  stashApplyHint: "Keeps the entry after applying",
+  stashPopHint: "Removes the entry on success; kept on conflict",
+  stashDropHint: "Removes the entry from the list",
+  stashDropConfirmTitle: "Confirm stash deletion",
+  stashDropConfirmHint:
+    "Deletion cannot be undone. To recover, run git fsck --unreachable in the terminal to find the stash commit, then git stash apply <oid>.",
+  stashDropConfirm: "Delete stash",
+  stashBusy: "Working…",
+  stashConflictHint: "The apply produced conflicts; the stash entry is kept. Resolve them in the staging view.",
+  stashSaveFailed: "Failed to save the stash",
+  stashActionFailed: "Stash operation failed",
 } satisfies StagingMessages;
 
 export default staging;
