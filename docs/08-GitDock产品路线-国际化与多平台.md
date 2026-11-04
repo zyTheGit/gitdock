@@ -166,6 +166,8 @@ src-tauri app orchestration
 
 ### G5：Linux 首发支持
 
+> G5 进度（2026-11-04，分支 `plan/g5-linux-first`，方案阶段）：第 1 项的包格式比选方案已产出（docs/10：逐维比选 + 推荐「deb 主格式 + AppImage 实验级保留」），**待产品裁决，未定案不实现**。已核实的关键输入：CI 双格式产出就绪（release.yml）、deb 依赖自动生成而 AppImage 不含 WebKitGTK（docs/09 B-2）、自更新为手动浏览器下载且未启用 Tauri 更新器（update.rs）。定案后剩余工作见 docs/10 §4。
+
 1. 以 Ubuntu LTS x86_64 为目标基线，选择 AppImage 或 deb 作为首发格式。
 2. 明确并展示 WebKitGTK 等运行依赖；检查桌面环境下文件选择、URL 打开、系统主题、剪贴板、图标与托盘差异。
 3. 验证 PTY/Shell、中文路径、仓库文件监听、权限和安装/升级/卸载。
