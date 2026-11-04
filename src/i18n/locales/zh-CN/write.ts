@@ -11,6 +11,8 @@ const write = {
   labelUnstageFiles: "取消暂存",
   labelContinueOperation: "继续操作",
   labelAbortOperation: "中止操作",
+  labelCreateCommit: "创建提交",
+  labelAmendCommit: "修改提交",
   // 写操作结果消息（状态栏 toast）。
   outcomeSwitchedToBranch: "已切换到分支 {{branch}}",
   outcomeContinueDone: "已继续并完成操作，已刷新图谱",

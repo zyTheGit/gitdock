@@ -103,6 +103,8 @@ export const ipc = {
   stagingStatus: () => call<StagingStatusDto>("staging_status"),
   readStagingDiff: (path: string, staged: boolean) =>
     call<FileDiffDto>("read_staging_diff", { path, staged }),
+  /** 当前 HEAD 提交消息（amend 预填）；unborn/空仓库返回 null。 */
+  readHeadMessage: () => call<string | null>("read_head_message"),
   readBranchDescription: (branch: string) =>
     call<BranchDescriptionDto>("read_branch_description", { branch }),
   readGitConfig: () => call<GitConfigDto>("read_git_config"),

@@ -239,7 +239,9 @@ export type WriteKind =
   | "stage_files"
   | "unstage_files"
   | "continue_operation"
-  | "abort_operation";
+  | "abort_operation"
+  | "create_commit"
+  | "amend_commit";
 
 export interface WriteRequest {
   kind: WriteKind;
@@ -252,6 +254,8 @@ export interface WriteRequest {
   interruption?: "cherry_pick" | "revert";
   /** merge commit 的基线父序号（1 起始）；非 merge commit 不得提供。 */
   mainline?: number;
+  /** create_commit / amend_commit 的提交消息；其他操作忽略。 */
+  message?: string;
 }
 
 export interface GateIssueDto {

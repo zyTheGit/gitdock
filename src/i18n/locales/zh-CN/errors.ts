@@ -104,6 +104,8 @@ const errors = {
   searchReadMessageFailed: "读取提交信息失败",
   searchReadAuthorFailed: "读取提交作者失败",
   searchReadTreeFailed: "读取提交树失败",
+  readHeadMessageFailed: "读取 HEAD 提交消息失败",
+  commitTempFileCreateFailed: "无法创建提交消息临时文件",
 
   // ---- src-tauri 应用层：终端 terminal* ----
   terminalResizeFailed: "调整终端尺寸失败",
@@ -209,6 +211,10 @@ const errors = {
   gateSequencedOperation: "检测到批量 cherry-pick / revert 序列（sequencer），请在终端继续或中止",
   gateIndexLocked: "index.lock 被占用，请等待其他 Git 进程结束后重试；本应用不会删除锁文件",
   gateUnresolvedConflicts: "还有 {{n}} 个文件存在未解决冲突，请先解决冲突并 git add 后再继续",
+  gateNothingToCommit: "暂存区为空，请先暂存要提交的改动",
+  gateEmptyMessage: "提交消息不能为空",
+  gateUnbornHeadAmend: "当前分支尚无提交，无法修改（amend）",
+  gateConflictedIndexCommit: "存在 {{n}} 个未解决的冲突文件，请先解决并暂存后再提交",
 
   // ---- 写前 Gate：GateReportDto.summary ----
   gateSummaryBare: "bare 仓库不支持写操作",
@@ -220,6 +226,9 @@ const errors = {
   gateSummaryDescription: "将更新分支 {{branch}} 的本地描述",
   gateSummaryStage: "将暂存 {{n}} 个文件",
   gateSummaryUnstage: "将取消暂存 {{n}} 个文件",
+  gateSummaryCommit: "将创建一个新提交",
+  gateSummaryAmend: "将替换上一条提交 {{oid}}（{{subject}}），生成新的提交标识",
+  gateSummaryAmendUnavailable: "无法修改 HEAD 提交",
   gateSummaryContinueUnavailable: "无法继续当前操作",
   gateSummaryAbortUnavailable: "无法中止当前操作",
   gateSummaryContinue: "将执行 git {{action}} --continue，完成当前 {{action}} 操作",
@@ -244,6 +253,8 @@ const errors = {
   outcomeSwitchedWithChanges: "已切换到分支 {{branch}}，{{n}} 个文件的工作区改动已保留",
   outcomeStaged: "已暂存 {{n}} 个文件",
   outcomeUnstaged: "已取消暂存 {{n}} 个文件",
+  outcomeCommitSucceeded: "提交成功（{{oid}}），图谱已刷新",
+  outcomeAmendSucceeded: "已修改提交（{{oid}}），图谱已刷新",
   outcomeCompleted: "操作已完成，图谱已刷新",
   outcomeConflicted: "{{action}} 产生冲突，请在终端处理；本应用不会自动 abort / quit",
   outcomeEmptyPick: "无变更：该提交的内容已包含在当前分支中，已清理操作状态",

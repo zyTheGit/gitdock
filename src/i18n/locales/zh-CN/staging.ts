@@ -40,6 +40,23 @@ const staging = {
   submodule: "子模块",
   binary: "二进制",
   selectFile: "选择 {{path}}",
+  // 提交消息对话框（ADR 0007）。
+  openCommitDialog: "提交",
+  commitTitle: "创建提交",
+  commitCloseAria: "关闭提交对话框",
+  commitMessageLabel: "提交消息",
+  commitMessagePlaceholder: "填写提交消息（支持多行）",
+  commitSubmit: "提交",
+  commitSubmitting: "提交中…",
+  amendToggle: "修改上一条提交（amend）",
+  amendLoadingMessage: "正在读取上一条提交消息…",
+  amendUnbornHint: "当前分支尚无提交，没有可修改的提交",
+  amendRewriteHint: "将替换上一条提交：提交标识会改变，author 保持不变、committer 更新。",
+  amendReflogHint:
+    "如需恢复：在终端执行 git reflog 查看记录，再执行 git reset --hard HEAD@{1} 回到替换前的提交。",
+  amendConfirmTitle: "修改提交确认",
+  amendConfirmExecute: "确认修改提交",
+  amendLoadFailedPrefix: "读取上一条提交消息失败：",
 } as const;
 
 export default staging;

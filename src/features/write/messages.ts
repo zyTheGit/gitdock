@@ -29,6 +29,10 @@ function writeLabel(kind: WriteKind): string {
       return i18next.t("write.labelContinueOperation");
     case "abort_operation":
       return i18next.t("write.labelAbortOperation");
+    case "create_commit":
+      return i18next.t("write.labelCreateCommit");
+    case "amend_commit":
+      return i18next.t("write.labelAmendCommit");
   }
 }
 
@@ -53,6 +57,13 @@ export function outcomeMessage(
       }
       if (kind === "abort_operation") {
         return i18next.t("write.outcomeAbortDone");
+      }
+      // 提交类成功优先用 errors 域 key（带新提交短 oid）；Rust 未带 key 时由此回落。
+      if (kind === "create_commit") {
+        return i18next.t("errors.outcomeCommitSucceeded", { oid: outcome.args?.oid ?? "" });
+      }
+      if (kind === "amend_commit") {
+        return i18next.t("errors.outcomeAmendSucceeded", { oid: outcome.args?.oid ?? "" });
       }
       return i18next.t("write.outcomeSucceeded", { label: writeLabel(kind) });
     case "empty_pick":

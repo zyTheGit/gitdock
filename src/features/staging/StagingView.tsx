@@ -13,6 +13,7 @@ import type {
   StagingStatusDto,
 } from "../../shared/types";
 import { StagingFileList, sideKey, type Side } from "./StagingFileList";
+import { CommitMessageDialog } from "./CommitMessageDialog";
 
 interface Selection {
   path: string;
@@ -48,6 +49,7 @@ export function StagingView({
   const [diffLoading, setDiffLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [commitOpen, setCommitOpen] = useState(false);
 
   const busyRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -113,6 +115,7 @@ export function StagingView({
     setDiffLoading(false);
     setChecked({});
     setExpanded(false);
+    setCommitOpen(false);
     void load();
   }, [repo.path, load]);
 
@@ -222,6 +225,17 @@ export function StagingView({
       }
     },
     [load, select, selection, writeDisabled],
+  );
+
+  // 提交成功：先重读暂存状态（对话框由 CommitMessageDialog 自行关闭），再走
+  // 既有 mutate 通道（toast + 快照 + 图谱刷新），generation 语义与 stage/unstage 一致。
+  const commitCommitted = useCallback(
+    async (message: string) => {
+      setChecked({});
+      await load(true);
+      await onMutatedRef.current(message);
+    },
+    [load],
   );
 
   const toggle = (side: Side, path: string) =>
@@ -347,11 +361,31 @@ export function StagingView({
               ].join(" · ")}
             </span>
           )}
+          <button
+            className="primary"
+            disabled={
+              disabled ||
+              status === null ||
+              status.conflicted_files.length > 0 ||
+              (status.staged.length === 0 && !status.unborn)
+            }
+            onClick={() => setCommitOpen(true)}
+          >
+            {t("staging.openCommitDialog")}
+          </button>
           <button onClick={() => void load()} disabled={loading || busy}>
             {loading ? t("staging.loading") : t("staging.refresh")}
           </button>
         </div>
       </header>
+
+      {commitOpen && status && (
+        <CommitMessageDialog
+          unborn={status.unborn}
+          onCancel={() => setCommitOpen(false)}
+          onCommitted={commitCommitted}
+        />
+      )}
 
       {error && (
         <div className="banner danger compact" role="alert">

@@ -349,6 +349,12 @@ impl GitWriteModule {
                     )
                 }
             }
+            WriteKind::CreateCommit | WriteKind::AmendCommit => {
+                // 提交校验按 ADR 0007 拆到 commit 模块；bare 与中断态已由上方前置拒绝。
+                let commit = crate::commit::gate::validate_commit(self, request, &head, status)?;
+                issues.extend(commit.issues);
+                (commit.summary, commit.summary_key, commit.summary_args)
+            }
             WriteKind::ContinueOperation | WriteKind::AbortOperation => {
                 let continuing = request.kind == WriteKind::ContinueOperation;
                 let verb = if continuing { "继续" } else { "中止" };

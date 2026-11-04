@@ -61,6 +61,12 @@ pub async fn read_commit(state: State<'_, Shared>, oid: String) -> Result<Commit
 }
 
 #[tauri::command]
+pub async fn read_head_message(state: State<'_, Shared>) -> Result<Option<String>> {
+    let state = Arc::clone(&state);
+    blocking(move || state.with_session(|session| session.read.read_head_message())).await
+}
+
+#[tauri::command]
 pub async fn branches_containing(state: State<'_, Shared>, oid: String) -> Result<Vec<String>> {
     let state = Arc::clone(&state);
     blocking(move || {

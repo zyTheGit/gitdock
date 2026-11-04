@@ -5,6 +5,7 @@
 //! 结果以退出码与执行后重新探测到的操作态判定，不解析输出文本猜测冲突。
 
 mod command;
+mod commit;
 pub mod config;
 mod description;
 mod execute;

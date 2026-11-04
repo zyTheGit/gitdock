@@ -177,6 +177,8 @@ src-tauri app orchestration
 
 ### G6：Git 能力扩展
 
+> G6 进度（2026-11-04，分支 `plan/g6-git-capabilities`）：优先级已裁决（五批次序）；**批次 1（提交创建与 amend）已实现**（ADR-0007 已接受，e607131：WriteKind 新增 CreateCommit/AmendCommit、commit 模块含 Gate 校验与 13 项测试、CommitMessageDialog 前端、i18n zh/en；门禁全绿）。待办：批次 1 GUI 实机验收（用户）；批次 2（分支与标签管理）需求细化 + ADR 待启动。
+
 按独立阶段交付：提交创建/修改、分支与标签管理、stash、fetch/pull/push、merge/rebase/批量序列。每阶段先定语义与 ADR，再分读路径、Gate/执行器、UI、冲突/恢复、验证和文档子任务。远程凭据不得被应用记录；历史改写和破坏性操作必须有专门确认和恢复说明。
 
 完成标准：每个操作在 GitWriteModule 白名单内；成功/失败/冲突/中断状态清晰；工作区与 refs 的实际状态经过独立测试验证；对应文档和支持平台矩阵同步。
@@ -199,8 +201,8 @@ G0 交接状态清理
 
 1. ~~中英文首发语言策略~~ **已确认（2026-11-03）**：系统语言默认、设置可覆盖；缺失翻译时**中文兜底**（用户裁决，G1 已按此实现）。
 2. ~~macOS 是否首期同时支持 Apple Silicon + Intel~~ **已确认（2026-11-03）**：优先 Apple Silicon（aarch64），Intel 延后到 G4 评估（Rosetta 2 / universal2）。
-3. ~~Linux 是否接受首期只正式支持 Ubuntu LTS x86_64 与单一包格式~~ **已确认（2026-11-03）**：接受；基线 Ubuntu 22.04 LTS x86_64（glibc 2.35），CI 双格式产出（AppImage + deb）供 G5 比选后定主格式，其他发行版实验支持。**主格式已裁决（2026-11-04）**：deb（docs/10 方案，选项 A）；AppImage 保留为实验级便携通道。
-4. Git 能力优先级：推荐提交/分支与标签/stash 优先于远程同步，再到 merge/rebase；根据实际用户工作流调整。
+3. ~~Linux 是否接受首期只正式支持 Ubuntu LTS x86_64 与单一包格式~~ **已确认（2026-11-03）**：接受；基线 Ubuntu 22.04 LTS x86_64（glibc 2.35），CI 双格式产出（AppImage + deb）供 G5 实机比选后定主格式，其他发行版实验支持。
+4. ~~Git 能力优先级~~ **已确认（2026-11-04）**：接受 docs/11 §3 五批次序（提交创建+amend → 分支+标签 → stash → 远程基础 fetch/pull --ff-only/push → merge/rebase/批量序列+完整 pull）；每批单项先需求细化+ADR+验收再实现。
 5. 插件：推荐至少等跨平台与 Git 操作模块稳定后，再决定是否开放外部插件 API。
 
 ## 7. 执行 Agent 可复制提示词

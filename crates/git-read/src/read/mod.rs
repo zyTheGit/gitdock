@@ -6,6 +6,7 @@
 mod compare;
 mod detail;
 mod graph;
+mod message;
 mod probe;
 mod refs;
 
