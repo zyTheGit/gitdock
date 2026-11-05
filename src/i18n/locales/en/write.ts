@@ -25,6 +25,8 @@ const write = {
   labelFetch: "Fetch",
   labelPull: "Pull",
   labelPush: "Push",
+  labelMerge: "Merge into current",
+  labelRebase: "Rebase onto this branch",
   // Outcome messages (status-bar toast).
   outcomeSwitchedToBranch: "Switched to branch {{branch}}",
   outcomeContinueDone: "Operation continued and completed; graph refreshed",
@@ -53,6 +55,10 @@ const write = {
     "Completes the interrupted operation. Resolve all conflicts in the terminal and run git add first; if the result is an empty commit, Git fails and keeps the interruption marker; run --skip in the terminal to skip this operation (this app never skips automatically).",
   actionHintAbort:
     "Restores the state from before the operation started; manually resolved conflict changes will be lost.",
+  actionHintMerge:
+    "Merges the selected branch into the current branch (--no-edit); this may create a merge commit.",
+  actionHintRebase:
+    "Rebases the current branch onto the selected branch; this rewrites history and can be restored with git rebase --abort.",
   stashBeforeSwitch: "Stash current changes first",
   confirmContinue: "Continue and complete",
   confirmAbort: "Abort and discard resolutions",

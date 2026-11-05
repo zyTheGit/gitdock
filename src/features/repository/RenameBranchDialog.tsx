@@ -118,7 +118,7 @@ export function RenameBranchDialog({ branch, onCancel, onMutated }: RenameBranch
             {t("write.cancel")}
           </button>
           <button className="primary" onClick={() => void confirm()} disabled={busy}>
-            {busy ? t("repository.branchRenaming") : t("repository.renameBranch")}
+            {busy ? t("repository.branchRenaming") : t("repository.renameBranchConfirmAction")}
           </button>
         </footer>
       </Modal>
@@ -178,7 +178,7 @@ export function RenameBranchDialog({ branch, onCancel, onMutated }: RenameBranch
           {t("write.cancel")}
         </button>
         <button className="primary" onClick={() => void submit()} disabled={!canSubmit}>
-          {busy ? t("repository.branchValidating") : t("repository.renameBranch")}
+          {busy ? t("repository.branchValidating") : t("repository.renameBranchCheck")}
         </button>
       </footer>
     </Modal>

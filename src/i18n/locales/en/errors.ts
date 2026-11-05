@@ -45,7 +45,8 @@ const errors = {
   commandCommitUnreadable: "Commit not found or unreadable",
   commandParentOidInvalid: "Failed to parse parent commit OID",
   commandSpawnFailed: "Failed to launch git command",
-  commandInterruptionKindInvalid: "Continue/abort requires a valid cherry-pick or revert interruption",
+  commandInterruptionKindInvalid:
+    "Continue/abort requires a valid Git interruption type (cherry-pick, revert, merge, or rebase)",
   descriptionBranchMissing: "Local branch {{branch}} does not exist",
   descriptionLeadingDash: 'Branch description cannot start with "-"; Git would parse it as an option',
   descriptionControlChars: "Branch description cannot contain newlines or control characters",
@@ -174,7 +175,8 @@ const errors = {
   gateNothingToStage: "{{path}} has no unstaged changes",
   gateNothingToUnstage: "{{path}} has no staged changes",
   gateConflictedIndexStage: "Unresolved conflict files exist; resolve them in the terminal before staging",
-  gateInterruptionInvalid: "Only cherry-pick or revert interruptions support continue/abort",
+  gateInterruptionInvalid:
+    "Only cherry-pick, revert, merge, or rebase interruptions support continue/abort",
   gateInterruptionRequired: "The {{verb}} operation requires an interruption type (cherry_pick or revert)",
   gateInterruptionMismatch: "A {{action}} interruption was requested, but a {{other}} interruption marker was detected ({{marker}})",
   gateInterruptionMarkerAbsent: "{{marker}} not detected; there is no {{action}} operation to {{verb}}",
@@ -197,6 +199,9 @@ const errors = {
   gateRemoteDetached: "Detached HEAD does not support pull / push; switch to a local branch first",
   gateRemoteNoUpstream: "The current branch has no upstream; set one in the terminal first",
   gateRemoteDirtyPull: "The working tree is dirty; commit or stash before pull --ff-only",
+  gateRemoteBranchMissing: "Local branch {{branch}} does not exist",
+  gateRemoteBranchSelf: "Cannot integrate the current branch into itself",
+  gateRemoteDirtyHistory: "The working tree is dirty; commit or stash before merge / rebase",
   commandMissingNewName: "Missing new branch name",
   gateInvalidBranchName: "Invalid branch name",
   gateInvalidTagName: "Invalid tag name",
@@ -236,6 +241,9 @@ const errors = {
   gateSummaryFetch: "Will fetch remote updates",
   gateSummaryPull: "Will pull --ff-only ({{upstream}})",
   gateSummaryPush: "Will push the current branch ({{upstream}})",
+  gateSummaryMerge: "Will merge {{branch}} into the current branch {{current}} (--no-edit)",
+  gateSummaryRebase:
+    "Will rebase the current branch {{current}} onto {{branch}}; restore with git rebase --abort",
   gateSummaryContinue: "Will run git {{action}} --continue to finish the current {{action}} operation",
   gateSummaryAbort:
     "Will run git {{action}} --abort to return to the pre-operation state; conflict resolutions made manually will be lost",
@@ -277,6 +285,8 @@ const errors = {
   outcomeFetchSucceeded: "Fetched remote updates; graph refreshed",
   outcomePullSucceeded: "Pulled and fast-forwarded the current branch; worktree refreshed",
   outcomePushSucceeded: "Pushed the current branch",
+  outcomeMergeSucceeded: "Merged {{branch}} into the current branch",
+  outcomeRebaseSucceeded: "Rebased the current branch onto {{branch}}",
   outcomeRemoteAuthFailed:
     "Remote authentication failed; this app never accepts passwords. Run fetch/push once in the built-in terminal to authorize, or configure a system credential helper / SSH agent and retry",
   outcomePullNotFastForward:

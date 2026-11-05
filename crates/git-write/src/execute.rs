@@ -90,9 +90,10 @@ impl GitWriteModule {
             request.kind,
             WriteKind::ContinueOperation | WriteKind::AbortOperation
         ) {
-            let (action, marker) = interruption_command(request)?;
+            let (action, markers) = interruption_command(request)?;
+            let marker_text = markers.join(" / ");
             let continuing = request.kind == WriteKind::ContinueOperation;
-            let marker_present = self.marker_exists(marker);
+            let marker_present = markers.iter().any(|marker| self.marker_exists(marker));
             if exit_code == Some(0) && !marker_present {
                 let (message, key, args) = if continuing {
                     (
@@ -174,12 +175,17 @@ impl GitWriteModule {
                     status.conflicted_files,
                 )
             } else {
-                (
+                let hint = if action == "merge" || action == "rebase" {
+                    format!("继续 {action} 未完成（{marker_text} 仍然存在）；请在终端处理")
+                } else {
                     format!(
-                        "继续 {action} 后结果为空（{marker} 仍然存在）。请在终端执行 git cherry-pick --skip 或 git revert --skip 跳过该提交；本应用不会自动跳过"
-                    ),
+                        "继续 {action} 后结果为空（{marker_text} 仍然存在）。请在终端执行 git cherry-pick --skip 或 git revert --skip 跳过该提交；本应用不会自动跳过"
+                    )
+                };
+                (
+                    hint,
                     "errors.outcomeContinueEmpty",
-                    args_map(&[("action", action), ("marker", marker)]),
+                    args_map(&[("action", action), ("marker", marker_text.as_str())]),
                     Vec::new(),
                 )
             };
@@ -360,16 +366,40 @@ impl GitWriteModule {
                     "errors.outcomeFetchSucceeded",
                     None,
                 ),
-                WriteKind::Pull => (
-                    "已拉取并快进当前分支，工作区已刷新".to_owned(),
-                    "errors.outcomePullSucceeded",
-                    None,
-                ),
+                WriteKind::Pull => {
+                    let mode = request.pull_mode.unwrap_or(git_core::PullMode::FfOnly);
+                    (
+                        match mode {
+                            git_core::PullMode::FfOnly => "已拉取并快进当前分支，工作区已刷新",
+                            git_core::PullMode::Merge => "已拉取并合并远端更新，工作区已刷新",
+                            git_core::PullMode::Rebase => "已拉取并将当前分支 rebase 到远端",
+                        }
+                        .to_owned(),
+                        "errors.outcomePullSucceeded",
+                        None,
+                    )
+                }
                 WriteKind::Push => (
                     "已推送当前分支".to_owned(),
                     "errors.outcomePushSucceeded",
                     None,
                 ),
+                WriteKind::Merge => {
+                    let branch = request.branch.as_deref().unwrap_or_default();
+                    (
+                        format!("已把 {branch} merge 到当前分支"),
+                        "errors.outcomeMergeSucceeded",
+                        args_map(&[("branch", branch)]),
+                    )
+                }
+                WriteKind::Rebase => {
+                    let branch = request.branch.as_deref().unwrap_or_default();
+                    (
+                        format!("已把当前分支 rebase 到 {branch}"),
+                        "errors.outcomeRebaseSucceeded",
+                        args_map(&[("branch", branch)]),
+                    )
+                }
                 WriteKind::ContinueOperation | WriteKind::AbortOperation => (
                     "操作已完成，图谱已刷新".to_owned(),
                     "errors.outcomeCompleted",
@@ -448,6 +478,41 @@ impl GitWriteModule {
                         head_oid,
                     });
                 }
+            }
+        }
+
+        let pull_is_rebase = request.kind == WriteKind::Pull
+            && request.pull_mode == Some(git_core::PullMode::Rebase);
+        let history_action = match request.kind {
+            WriteKind::Merge => Some(("merge", "Merge")),
+            WriteKind::Rebase => Some(("rebase", "Rebase")),
+            WriteKind::Pull if request.pull_mode != Some(git_core::PullMode::FfOnly) => {
+                Some(("pull", "Pull"))
+            }
+            _ => None,
+        };
+        if let Some((action, action_label)) = history_action {
+            let status = self.status_summary()?;
+            let markers: &[&str] = if action == "rebase" || pull_is_rebase {
+                &["REBASE_HEAD", "rebase-merge", "rebase-apply"]
+            } else {
+                &["MERGE_HEAD"]
+            };
+            if status.conflicted > 0 && markers.iter().any(|marker| self.marker_exists(marker)) {
+                return Ok(WriteOutcomeDto {
+                    key: Some("errors.outcomeConflicted".into()),
+                    args: args_map(&[("action", action)]),
+                    status: WriteStatus::Conflicted,
+                    message: format!(
+                        "{action_label} 产生冲突，请在终端处理；本应用不会自动 abort / quit"
+                    ),
+                    exit_code,
+                    stderr: stderr_option(&stderr),
+                    conflict_files: status.conflicted_files,
+                    interruption: Some(self.inspect_interruption()?),
+                    generation: None,
+                    head_oid,
+                });
             }
         }
 

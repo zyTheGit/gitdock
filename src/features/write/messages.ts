@@ -57,6 +57,10 @@ function writeLabel(kind: WriteKind): string {
       return i18next.t("write.labelPull");
     case "push":
       return i18next.t("write.labelPush");
+    case "merge":
+      return i18next.t("write.labelMerge");
+    case "rebase":
+      return i18next.t("write.labelRebase");
   }
 }
 
@@ -65,7 +69,7 @@ export function outcomeMessage(
   kind: WriteKind,
   outcome: WriteOutcomeDto,
   branch?: string,
-  interruption?: "cherry_pick" | "revert",
+  interruption?: "cherry_pick" | "revert" | "merge" | "rebase",
 ): string {
   // Rust 侧已带 i18n key（errors 域，含全部插值）时优先使用；
   // 缺失翻译回落下方的 status 分支生成（write 域）。
@@ -104,7 +108,7 @@ export function outcomeMessage(
         label: writeLabel(kind),
         message: outcome.message,
       });
-      if (kind !== "continue_operation") {
+      if (kind !== "continue_operation" || interruption === "merge" || interruption === "rebase") {
         return base;
       }
       // 空结果结论已由 empty_pick 状态在上方分流（不解析 message 内容）；

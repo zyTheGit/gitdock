@@ -3,6 +3,8 @@
 //! 不提供 force push、prune、tags 推送或多 remote 选择；凭据完全交给
 //! 系统凭据管理器与 SSH agent。
 
+use git_core::PullMode;
+
 pub(crate) mod gate;
 
 #[cfg(test)]
@@ -13,9 +15,17 @@ pub(crate) fn fetch_args() -> Vec<String> {
     vec!["fetch".to_owned()]
 }
 
-/// `git pull --ff-only`：只允许快进，不产生 merge commit。
-pub(crate) fn pull_args() -> Vec<String> {
-    vec!["pull".to_owned(), "--ff-only".to_owned()]
+/// pull 按模式构造：首版默认只快进，merge/rebase 作为显式选择。
+pub(crate) fn pull_args(mode: PullMode) -> Vec<String> {
+    match mode {
+        PullMode::FfOnly => vec!["pull".to_owned(), "--ff-only".to_owned()],
+        PullMode::Merge => vec![
+            "pull".to_owned(),
+            "--no-rebase".to_owned(),
+            "--no-edit".to_owned(),
+        ],
+        PullMode::Rebase => vec!["pull".to_owned(), "--rebase".to_owned()],
+    }
 }
 
 /// `git push`：使用当前分支上游；不推 tags、不 `--all`、不 `--force`。

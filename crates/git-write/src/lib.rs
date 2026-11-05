@@ -11,6 +11,7 @@ pub mod config;
 mod description;
 mod execute;
 mod gate;
+mod history;
 mod remote;
 mod staging;
 mod stash;

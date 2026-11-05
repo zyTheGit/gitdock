@@ -163,6 +163,8 @@ src-tauri app orchestration
 > G4 进度（2026-11-03，分支 `feature/g4-macos-prep`，本地准备阶段）：已落地的本地可逆准备——① `tauri.conf.json` 新增 `bundle.macOS.minimumSystemVersion: "10.15"`（WKWebView API 基线；未经实机验证的声明性取值，G4 实测后冻结）；② release.yml 的 Release 说明自动附加未签名平台指引（macOS Gatekeeper 右键打开/`xattr -cr`、Linux AppImage 需 libfuse2）——G4 第 2 项「首次启动提示」的发布渠道部分。**G4 前置条件（均未满足）**：① 多平台 release.yml 构建链路从未运行（需授权 bump + prerelease tag 首跑验证，同时满足 G2 安装级验证）；② Apple Developer Program 账号与 Developer ID Application 证书（签名/公证必需，$99/年，用户资源）；③ macOS 实机（Apple Silicon 已裁决优先）执行第 3 项逐项验收。**在 ①③ 完成前 macOS 保持「CI 构建通过」级，不宣称支持。**
 >
 > **G4 约束更新（2026-11-03，用户确认无 Apple Developer 账号）**：签名/公证不可执行，G4 原完成标准（「用户无需命令行绕过安全提示即可启动」）**在当前资源下不可达**。路线调整方向待产品裁决：macOS 目标等级可降为「未签名实验性支持」（未签名 DMG + 实机验收 + 发布说明绕过指引，不计入正式支持），G5 Linux（无账号门槛）相应提前为首个正式多平台发布；或待未来购买账号后回补签名/公证。无论何种调整，Apple Silicon 优先、Intel 延后的架构裁决不变。
+>
+> **G4 裁决（2026-11-04，用户选择「未签名实验版」）**：macOS 支持等级定为**未签名实验性支持**，不计入正式支持。完成标准调整为：未签名 DMG 产出、发布说明包含 Gatekeeper 绕过指引、Apple Silicon 实机完成第 3 项功能清单。正式签名/公证待未来有 Apple Developer 账号后另立 ADR 回补；README 与 Release 文案必须明确标注「未签名实验版」，不得宣称正式支持 macOS。
 
 ### G5：Linux 首发支持
 
@@ -177,7 +179,7 @@ src-tauri app orchestration
 
 ### G6：Git 能力扩展
 
-> G6 进度（2026-11-04，分支 `plan/g6-stash`）：优先级已裁决（五批次序）；**批次 1（提交创建与 amend）已实现**（ADR-0007 已接受，e607131：WriteKind 新增 CreateCommit/AmendCommit、commit 模块含 Gate 校验与 13 项测试、CommitMessageDialog 前端、i18n zh/en；门禁全绿）。**批次 2（分支与标签管理）已实现并合并**（ADR-0008：分支创建/删除/重命名、本地轻量/附注标签创建与删除，`git branch -D` 不进入白名单；PR #9 / `634af4c`，门禁全绿）。**批次 3（stash）已按 ADR-0009 实现并合并**（PR #10 / `b5cc7e4`；save/list/apply/pop/drop，手动 stash、不自动 stash；门禁全绿）。图谱配色与窄窗口优化已合并（PR #11 / `0c2dd20`）。**批次 4（远程基础：fetch / pull --ff-only / push）已按 ADR-0010 实现并合并**（PR #12 / `dfe9a7e`，门禁全绿）。待办：批次 1/2/3/4 GUI 实机验收（用户）；之后进入批次 5。
+> G6 进度（2026-11-04，分支 `plan/g6-stash`）：优先级已裁决（五批次序）；**批次 1（提交创建与 amend）已实现**（ADR-0007 已接受，e607131：WriteKind 新增 CreateCommit/AmendCommit、commit 模块含 Gate 校验与 13 项测试、CommitMessageDialog 前端、i18n zh/en；门禁全绿）。**批次 2（分支与标签管理）已实现并合并**（ADR-0008：分支创建/删除/重命名、本地轻量/附注标签创建与删除，`git branch -D` 不进入白名单；PR #9 / `634af4c`，门禁全绿）。**批次 3（stash）已按 ADR-0009 实现并合并**（PR #10 / `b5cc7e4`；save/list/apply/pop/drop，手动 stash、不自动 stash；门禁全绿）。图谱配色与窄窗口优化已合并（PR #11 / `0c2dd20`）。**批次 4（远程基础：fetch / pull --ff-only / push）已按 ADR-0010 实现并合并**（PR #12 / `dfe9a7e`，门禁全绿）。**批次 5（merge / rebase / 批量 pick / 完整 pull）已按 ADR-0011 实现**，门禁全绿，待 PR 与 GUI 验收。待办：批次 1/2/3/4/5 GUI 实机验收（用户）。
 
 按独立阶段交付：提交创建/修改、分支与标签管理、stash、fetch/pull/push、merge/rebase/批量序列。每阶段先定语义与 ADR，再分读路径、Gate/执行器、UI、冲突/恢复、验证和文档子任务。远程凭据不得被应用记录；历史改写和破坏性操作必须有专门确认和恢复说明。
 

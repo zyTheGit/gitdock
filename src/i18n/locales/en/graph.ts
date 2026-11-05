@@ -52,7 +52,10 @@ const graph = {
   push: "Push",
   pushing: "Pushing…",
   fetchTitle: "git fetch: update remote-tracking branches",
-  pullTitle: "git pull --ff-only: fast-forward the current branch only",
+  pullTitle: "git pull: sync the current branch with the selected mode",
+  pullModeAria: "Pull mode",
+  pullModeFfOnly: "Fast-forward only",
+  pullModeMerge: "Merge",
   pushTitle: "git push: push the current branch to its upstream",
   menuCreateTagHere: "Create tag here…",
 } satisfies GraphMessages;

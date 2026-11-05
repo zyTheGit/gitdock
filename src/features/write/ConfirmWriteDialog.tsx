@@ -6,7 +6,7 @@ import type { CommitSummaryDto, GateReportDto, WriteKind } from "../../shared/ty
 
 type DialogKind = Extract<
   WriteKind,
-  "cherry_pick" | "revert" | "switch_branch" | "continue_operation" | "abort_operation"
+  "cherry_pick" | "revert" | "switch_branch" | "merge" | "rebase" | "continue_operation" | "abort_operation"
 >;
 
 interface ConfirmWriteDialogProps {
@@ -14,7 +14,7 @@ interface ConfirmWriteDialogProps {
   commit?: CommitSummaryDto;
   branch?: string;
   /** continue/abort 对应的中断类型；存在时不显示提交目标行。 */
-  interruption?: "cherry_pick" | "revert";
+  interruption?: "cherry_pick" | "revert" | "merge" | "rebase";
   gate: GateReportDto | null;
   gateError?: string;
   /** 正在重新检查（例如改选父提交）；期间不得放行执行。 */
@@ -52,6 +52,8 @@ export function ConfirmWriteDialog({
     cherry_pick: t("write.labelCherryPick"),
     revert: t("write.labelRevert"),
     switch_branch: t("write.labelSwitchBranch"),
+    merge: t("write.labelMerge"),
+    rebase: t("write.labelRebase"),
     continue_operation: t("write.labelContinueOperation"),
     abort_operation: t("write.labelAbortOperation"),
   };
@@ -60,6 +62,8 @@ export function ConfirmWriteDialog({
     cherry_pick: t("write.actionHintCherryPick"),
     revert: t("write.actionHintRevert"),
     switch_branch: t("write.actionHintSwitchBranch"),
+    merge: t("write.actionHintMerge"),
+    rebase: t("write.actionHintRebase"),
     continue_operation: t("write.actionHintContinue"),
     abort_operation: t("write.actionHintAbort"),
   };
@@ -71,9 +75,11 @@ export function ConfirmWriteDialog({
     continue_operation: t("write.titleContinue"),
     abort_operation: t("write.titleAbort"),
   };
-  const interruptionLabel: Record<"cherry_pick" | "revert", string> = {
+  const interruptionLabel: Record<"cherry_pick" | "revert" | "merge" | "rebase", string> = {
     cherry_pick: t("write.labelCherryPick"),
     revert: t("write.labelRevert"),
+    merge: t("write.labelMerge"),
+    rebase: t("write.labelRebase"),
   };
   const blocked = Boolean(gateError) || !gate?.ok || validating;
   const destructive = kind === "abort_operation";
@@ -197,7 +203,11 @@ export function ConfirmWriteDialog({
         <button onClick={onCancel} disabled={busy}>
           {t("write.cancel")}
         </button>
-        <button className="primary" onClick={onConfirm} disabled={blocked || busy}>
+        <button
+          className={destructive ? "danger" : "primary"}
+          onClick={onConfirm}
+          disabled={blocked || busy}
+        >
           {busy
             ? t("write.executing")
             : (confirmLabel[kind] ?? t("write.confirmExecute", { label }))}

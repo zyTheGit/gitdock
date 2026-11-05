@@ -144,7 +144,7 @@ export function StashDialog({ writeDisabled, onClose, onMutated }: StashDialogPr
           className="detail-close"
           onClick={onClose}
           disabled={busy}
-          aria-label={t("staging.commitCloseAria")}
+          aria-label={t("staging.stashCloseAria")}
         >
           ×
         </button>

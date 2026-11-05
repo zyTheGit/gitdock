@@ -7,15 +7,17 @@ import {
 import type { AppInfoDto, InterruptionKind, RepoStateDto } from "../shared/types";
 
 export type InterruptionActionKind = "continue_operation" | "abort_operation";
-export type SingleInterruption = Extract<InterruptionKind, "cherry_pick" | "revert">;
+export type SingleInterruption = Extract<InterruptionKind, "cherry_pick" | "revert" | "merge" | "rebase">;
 
-/** 只有「恰好一个」cherry-pick / revert 中断标记才接管；批量序列、merge、rebase 一律交给终端。 */
+/** 只有「恰好一个」可接管的中断标记才在应用内提供继续/中止；索引锁等交给终端。 */
 function singleInterruption(kinds: InterruptionKind[]): SingleInterruption | null {
   if (kinds.length !== 1) {
     return null;
   }
   const kind = kinds[0];
-  return kind === "cherry_pick" || kind === "revert" ? kind : null;
+  return kind === "cherry_pick" || kind === "revert" || kind === "merge" || kind === "rebase"
+    ? kind
+    : null;
 }
 
 interface BannersProps {

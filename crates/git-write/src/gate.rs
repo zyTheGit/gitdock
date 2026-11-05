@@ -76,10 +76,14 @@ impl GitWriteModule {
 
         let (summary, summary_key, summary_args) = match request.kind {
             WriteKind::CherryPick | WriteKind::Revert => {
-                let oid = request.oid.as_ref().ok_or_else(|| {
-                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少提交 OID")
-                        .with_key("errors.commandMissingOid")
-                })?;
+                let oid = request
+                    .oid
+                    .as_ref()
+                    .or_else(|| request.oids.as_ref().and_then(|oids| oids.first()))
+                    .ok_or_else(|| {
+                        UserVisibleError::new(ErrorCode::InvalidArgument, "缺少提交 OID")
+                            .with_key("errors.commandMissingOid")
+                    })?;
                 let parent_oids = self.commit_parents(oid.as_str())?;
                 is_merge_commit = parent_oids.len() > 1;
                 // 父提交列表按 `-m` 的 1 起始顺序给出，供前端选择基线父。
@@ -382,17 +386,31 @@ impl GitWriteModule {
                 issues.extend(change.issues);
                 (change.summary, change.summary_key, change.summary_args)
             }
+            WriteKind::Merge | WriteKind::Rebase => {
+                // merge / rebase 校验按 ADR 0011 拆到 history 模块；bare 与中断态已由上方前置拒绝。
+                let change =
+                    crate::history::gate::validate_history_change(self, request, &head, status)?;
+                issues.extend(change.issues);
+                (change.summary, change.summary_key, change.summary_args)
+            }
             WriteKind::ContinueOperation | WriteKind::AbortOperation => {
                 let continuing = request.kind == WriteKind::ContinueOperation;
                 let verb = if continuing { "继续" } else { "中止" };
                 let verb_name = if continuing { "continue" } else { "abort" };
                 let pick = match request.interruption {
-                    Some(InterruptionKind::CherryPick) => Some(("cherry-pick", "CHERRY_PICK_HEAD")),
-                    Some(InterruptionKind::Revert) => Some(("revert", "REVERT_HEAD")),
+                    Some(InterruptionKind::CherryPick) => {
+                        Some(("cherry-pick", vec!["CHERRY_PICK_HEAD"]))
+                    }
+                    Some(InterruptionKind::Revert) => Some(("revert", vec!["REVERT_HEAD"])),
+                    Some(InterruptionKind::Merge) => Some(("merge", vec!["MERGE_HEAD"])),
+                    Some(InterruptionKind::Rebase) => Some((
+                        "rebase",
+                        vec!["REBASE_HEAD", "rebase-merge", "rebase-apply"],
+                    )),
                     Some(_) => {
                         issues.push(issue(
                             "gate_interruption_invalid",
-                            "继续/中止只支持 cherry-pick 或 revert 中断",
+                            "继续/中止只支持 cherry-pick、revert、merge 或 rebase 中断",
                         ));
                         None
                     }
@@ -400,7 +418,9 @@ impl GitWriteModule {
                         issues.push(
                             issue(
                                 "gate_interruption_required",
-                                format!("{verb}操作需要指定中断类型（cherry_pick 或 revert）"),
+                                format!(
+                                    "{verb}操作需要指定中断类型（cherry_pick、revert、merge 或 rebase）"
+                                ),
                             )
                             .with_arg("verb", verb_name),
                         );
@@ -414,60 +434,43 @@ impl GitWriteModule {
                     "errors.gateSummaryAbortUnavailable"
                 };
                 let mut summary_args: Option<BTreeMap<String, String>> = None;
-                if let Some((action, marker)) = pick {
-                    let (other_action, other_marker) = if marker == "CHERRY_PICK_HEAD" {
-                        ("revert", "REVERT_HEAD")
-                    } else {
-                        ("cherry-pick", "CHERRY_PICK_HEAD")
-                    };
-                    // 标记必须严格匹配：请求的 kind 与磁盘上唯一的中断标记一致。
-                    if self.marker_exists(other_marker) {
+                if let Some((action, markers)) = pick {
+                    let all_markers = [
+                        "MERGE_HEAD",
+                        "CHERRY_PICK_HEAD",
+                        "REVERT_HEAD",
+                        "REBASE_HEAD",
+                        "rebase-merge",
+                        "rebase-apply",
+                    ];
+                    // 标记必须严格匹配：磁盘上出现了请求类型之外的标记即拒绝。
+                    if let Some(other_marker) = all_markers
+                        .iter()
+                        .find(|marker| !markers.contains(marker) && self.marker_exists(marker))
+                    {
                         issues.push(
                             issue(
                                 "gate_interruption_mismatch",
                                 format!(
-                                    "请求的是 {action} 中断，但检测到 {other_action} 中断标记（{other_marker}）"
+                                    "请求的是 {action} 中断，但检测到其他操作的中断标记（{other_marker}）"
                                 ),
                             )
                             .with_arg("action", action)
-                            .with_arg("other", other_action)
-                            .with_arg("marker", other_marker),
+                            .with_arg("marker", *other_marker),
                         );
-                    } else if !self.marker_exists(marker) {
+                    } else if !markers.iter().any(|marker| self.marker_exists(marker)) {
                         issues.push(
                             issue(
                                 "gate_interruption_marker_absent",
-                                format!("未检测到 {marker}，当前没有可{verb}的 {action} 操作"),
+                                format!(
+                                    "未检测到 {}，当前没有可{verb}的 {action} 操作",
+                                    markers.join(" / ")
+                                ),
                             )
-                            .with_arg("marker", marker)
+                            .with_arg("marker", markers.join(" / "))
                             .with_arg("action", action)
                             .with_arg("verb", verb_name),
                         );
-                    }
-                    for (name, label) in [
-                        ("MERGE_HEAD", "merge"),
-                        ("REBASE_HEAD", "rebase"),
-                        ("rebase-merge", "rebase"),
-                        ("rebase-apply", "rebase"),
-                    ] {
-                        if self.marker_exists(name) {
-                            issues.push(
-                                issue(
-                                    "gate_interruption_unsupported",
-                                    format!(
-                                        "检测到 {label} 中断（{name}），本应用只接管单次 cherry-pick / revert"
-                                    ),
-                                )
-                                .with_arg("label", label)
-                                .with_arg("marker", name),
-                            );
-                        }
-                    }
-                    if self.marker_exists("sequencer") {
-                        issues.push(issue(
-                            "gate_sequenced_operation",
-                            "检测到批量 cherry-pick / revert 序列（sequencer），请在终端继续或中止",
-                        ));
                     }
                     if self.marker_exists("index.lock") {
                         issues.push(issue(

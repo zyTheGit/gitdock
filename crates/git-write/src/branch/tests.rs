@@ -18,6 +18,8 @@ fn base_request(kind: WriteKind) -> WriteRequest {
         message: None,
         stash: None,
         include_untracked: None,
+        pull_mode: None,
+        oids: None,
     }
 }
 

@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use git_core::{GateIssueDto, Result, WriteKind, WriteRequest};
+use git_core::{GateIssueDto, PullMode, Result, WriteKind, WriteRequest};
 
 use crate::command::HeadInfo;
 use crate::status::StatusSummary;
@@ -51,12 +51,17 @@ pub(crate) fn validate_remote(
         }
     }
 
+    let pull_mode = request.pull_mode.unwrap_or(PullMode::FfOnly);
     if request.kind == WriteKind::Pull
         && (status.staged > 0 || status.tracked > 0 || status.untracked > 0)
     {
         issues.push(issue(
             "gate_remote_dirty_pull",
-            "工作区不干净；pull --ff-only 前请先提交或 stash",
+            match pull_mode {
+                PullMode::FfOnly => "工作区不干净；pull --ff-only 前请先提交或 stash",
+                PullMode::Merge => "工作区不干净；pull（merge）前请先提交或 stash",
+                PullMode::Rebase => "工作区不干净；pull --rebase 前请先提交或 stash",
+            },
         ));
     }
 
@@ -64,11 +69,21 @@ pub(crate) fn validate_remote(
         WriteKind::Fetch => ("将 fetch 远程更新".to_owned(), "errors.gateSummaryFetch"),
         WriteKind::Pull => (
             format!(
-                "将 pull --ff-only{}",
+                "将 pull{}（{}）{}",
                 upstream
                     .as_deref()
                     .map(|u| format!("（{u}）"))
-                    .unwrap_or_default()
+                    .unwrap_or_default(),
+                match pull_mode {
+                    PullMode::FfOnly => "ff-only",
+                    PullMode::Merge => "merge",
+                    PullMode::Rebase => "rebase",
+                },
+                if pull_mode == PullMode::Rebase {
+                    "；可用 git rebase --abort 恢复"
+                } else {
+                    ""
+                }
             ),
             "errors.gateSummaryPull",
         ),
