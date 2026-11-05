@@ -32,10 +32,10 @@ const errors = {
   kindIndexLock: "index.lock 被占用",
   kindSeparator: "、",
   hintIndexLock: "请确认没有其他 Git 进程后，在终端手动删除 index.lock；本应用不会删除任何锁文件",
-  hintCherryPick: "请在终端解决冲突后执行 git cherry-pick --continue（或 --abort）",
-  hintRevert: "请在终端解决冲突后执行 git revert --continue（或 --abort）",
-  hintRebase: "请在终端执行 git rebase --continue（或 --abort）",
-  hintMerge: "请在终端执行 git merge --continue（或 git merge --abort）",
+  hintCherryPick: "可在上方横幅继续或中止；也可在终端解决冲突后执行 git cherry-pick --continue（或 --abort）",
+  hintRevert: "可在上方横幅继续或中止；也可在终端解决冲突后执行 git revert --continue（或 --abort）",
+  hintRebase: "可在上方横幅继续或中止；也可在终端执行 git rebase --continue（或 --abort）",
+  hintMerge: "可在上方横幅继续或中止；也可在终端执行 git merge --continue（或 git merge --abort）",
   hintGeneral: "请在终端完成或放弃当前操作",
 
   // ---- git-write 基础设施：暂存 staging* ----
@@ -320,7 +320,7 @@ const errors = {
   outcomeRemoteAuthFailed:
     "远程认证失败；本应用不接收密码。请在内置终端完成一次 fetch/push 授权，或配置系统凭据管理器 / SSH agent 后重试",
   outcomePullNotFastForward:
-    "远端有本地没有的提交，pull --ff-only 无法快进；请先 fetch，并在终端 merge/rebase（批次 5）",
+    "远端有本地没有的提交，pull --ff-only 无法快进；请先 fetch，再用 Merge / Rebase 操作同步，或到终端处理",
   outcomePushRejected:
     "远端拒绝了推送（可能非快进或 hook 拒绝）；本应用不提供 force push，请在终端处理",
   outcomeRemoteFailed: "远程操作失败，请检查网络与远端配置",

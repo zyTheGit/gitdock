@@ -94,6 +94,25 @@
   background: var(--accent-soft);
 }
 
+/* 批量选择：左侧强调条 + 行内序号，区别于单条详情选中。 */
+.graph-row.batch-selected {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.graph-row-selection {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  flex: none;
+}
+
 .commit-hover-card {
   position: fixed;
   z-index: 30;

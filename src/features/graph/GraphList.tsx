@@ -15,12 +15,20 @@ interface GraphListProps {
   loading: boolean;
   loadingMore: boolean;
   selectedOid: string | null;
+  /** 批量选择集合；顺序即执行顺序。 */
+  selectedOids: string[];
   focusedOid?: string | null;
   /** 定位请求序号：每次定位递增，用于只滚动一次。 */
   focusSeq?: number | null;
   onSelect: (oid: string) => void;
+  onRangeSelect?: (oid: string) => void;
   onCtrlSelect?: (commit: CommitSummaryDto) => void;
-  onContextMenu?: (event: MouseEvent, commit: CommitSummaryDto) => void;
+  onContextMenu?: (
+    event: MouseEvent,
+    commit: CommitSummaryDto,
+    selectedCommits: CommitSummaryDto[],
+  ) => void;
+  selectionIndexOf: (oid: string) => number;
   onLoadMore: () => void;
 }
 
@@ -29,11 +37,14 @@ export function GraphList({
   loading,
   loadingMore,
   selectedOid,
+  selectedOids,
   focusedOid,
   focusSeq,
   onSelect,
+  onRangeSelect,
   onCtrlSelect,
   onContextMenu,
+  selectionIndexOf,
   onLoadMore,
 }: GraphListProps) {
   const { t } = useI18n();
@@ -113,7 +124,12 @@ export function GraphList({
       }
       const commit = commitsByOid.get(oid);
       cancelHover();
-      // Ctrl / Cmd + 点击填对比槽；普通点击打开详情。
+      // Shift+点击按当前视图顺序做区间选择；Ctrl/Cmd+点击填对比槽；普通点击打开详情。
+      if (event.shiftKey && onRangeSelect) {
+        event.preventDefault();
+        onRangeSelect(oid);
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && commit && onCtrlSelect) {
         event.preventDefault();
         onCtrlSelect(commit);
@@ -121,7 +137,7 @@ export function GraphList({
       }
       onSelect(oid);
     },
-    [commitsByOid, cancelHover, onCtrlSelect, onSelect],
+    [commitsByOid, cancelHover, onCtrlSelect, onRangeSelect, onSelect],
   );
 
   const handleListContextMenu = useCallback(
@@ -134,10 +150,13 @@ export function GraphList({
       cancelHover();
       if (commit && onContextMenu) {
         event.preventDefault();
-        onContextMenu(event, commit);
+        const selectedCommits = selectedOids
+          .map((selectedOid) => commitsByOid.get(selectedOid))
+          .filter((item): item is CommitSummaryDto => Boolean(item));
+        onContextMenu(event, commit, selectedCommits);
       }
     },
-    [commitsByOid, cancelHover, onContextMenu],
+    [commitsByOid, cancelHover, onContextMenu, selectedOids],
   );
 
   // mouseenter / mouseleave 不冒泡，用容器级 mouseover 模拟换行语义：
@@ -206,6 +225,8 @@ export function GraphList({
               start={item.start}
               height={ROW_HEIGHT}
               selected={selectedOid === oid}
+
+              selectionIndex={selectionIndexOf(oid)}
               located={focusedOid === oid}
             />
           );

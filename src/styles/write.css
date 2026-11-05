@@ -52,6 +52,34 @@
   margin: 0;
 }
 
+/* 批量 pick / revert：按执行顺序列出目标，长列表内部滚动。 */
+.confirm-batch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
+.confirm-batch-list {
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 0 0 18px;
+  font-size: 12px;
+}
+
+.confirm-batch-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+  min-width: 0;
+}
+
+.confirm-batch-list .confirm-summary {
+  min-width: 0;
+}
+
 .description-input {
   width: 100%;
   min-height: 96px;

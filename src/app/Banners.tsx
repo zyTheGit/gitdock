@@ -9,15 +9,16 @@ import type { AppInfoDto, InterruptionKind, RepoStateDto } from "../shared/types
 export type InterruptionActionKind = "continue_operation" | "abort_operation";
 export type SingleInterruption = Extract<InterruptionKind, "cherry_pick" | "revert" | "merge" | "rebase">;
 
-/** 只有「恰好一个」可接管的中断标记才在应用内提供继续/中止；索引锁等交给终端。 */
+/** 恰好一个可接管的中断标记才在应用内提供继续/中止；批量序列的 sequencer 不算独立操作。 */
 function singleInterruption(kinds: InterruptionKind[]): SingleInterruption | null {
-  if (kinds.length !== 1) {
+  if (kinds.includes("index_lock")) {
     return null;
   }
-  const kind = kinds[0];
-  return kind === "cherry_pick" || kind === "revert" || kind === "merge" || kind === "rebase"
-    ? kind
-    : null;
+  const actionable = kinds.filter(
+    (kind) =>
+      kind === "cherry_pick" || kind === "revert" || kind === "merge" || kind === "rebase",
+  );
+  return actionable.length === 1 ? actionable[0] : null;
 }
 
 interface BannersProps {

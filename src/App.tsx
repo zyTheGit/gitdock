@@ -7,6 +7,7 @@ import { TopBar } from "./app/TopBar";
 import { WelcomePane } from "./app/WelcomePane";
 import { useCommitMenus, type BranchMenuState, type RowMenuState } from "./app/useCommitMenus";
 import { useGlobalEsc, type ViewMode } from "./app/useGlobalEsc";
+import { formatHeadLabel } from "./app/headLabel";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
 import { useFontScale } from "./app/useFontScale";
 import { useAppLanguage } from "./i18n/useAppLanguage";
@@ -283,6 +284,8 @@ export default function App() {
     onCopyMessage: copyDescription,
     onCherryPick: (commit) => void write.start("cherry_pick", { commit }),
     onRevert: (commit) => void write.start("revert", { commit }),
+    onBatchCherryPick: (commits) => void write.startBatch("cherry_pick", commits),
+    onBatchRevert: (commits) => void write.startBatch("revert", commits),
     onMergeBranch: (branch) => void write.start("merge", { branch }),
     onRebaseBranch: (branch) => void write.start("rebase", { branch }),
     onEditDescription: (shortName) => {
@@ -297,17 +300,9 @@ export default function App() {
     ...refs.menuActions,
   });
 
-  const headLabel = repo
-    ? repo.head.kind === "branch"
-      ? repo.head.branch ?? t("shell.headBranchFallback")
-      : repo.head.kind === "detached"
-        ? "detached HEAD"
-        : t("shell.unbornBranch")
-    : "";
+  const headLabel = formatHeadLabel(repo, t("shell.headBranchFallback"), t("shell.unbornBranch"));
 
-  const compareReady = Boolean(slots.base && slots.compare);
 
-  // 状态栏 props 集中组装：右侧入口（更新/命令日志/终端）逐项罗列，挂载处整体展开。
   const statusBarProps: StatusBarProps = {
     busy,
     repo,
@@ -331,7 +326,7 @@ export default function App() {
         recent={settings?.recent_repositories ?? []}
         busy={busy}
         mode={mode}
-        compareReady={compareReady}
+        compareReady={Boolean(slots.base && slots.compare)}
         localBranchCount={localBranches.length}
         terminalOpen={terminalOpen}
         terminalRunning={terminalRunning}
@@ -459,8 +454,8 @@ export default function App() {
                       setFocusTarget(null);
                     }}
                     onCtrlSelect={slots.ctrlSelect}
-                    onContextMenu={(event: MouseEvent, commit: CommitSummaryDto) => {
-                      setRowMenu({ x: event.clientX, y: event.clientY, commit });
+                    onContextMenu={(event: MouseEvent, commit: CommitSummaryDto, selectedCommits: CommitSummaryDto[]) => {
+                      setRowMenu({ x: event.clientX, y: event.clientY, commit, selection: selectedCommits });
                     }}
                     remote={remote}
                   />
@@ -544,6 +539,7 @@ export default function App() {
         <ConfirmWriteDialog
           kind={write.prompt.kind}
           commit={write.prompt.commit}
+          commits={write.prompt.commits}
           branch={write.prompt.branch}
           interruption={write.prompt.interruption}
           gate={write.prompt.gate}

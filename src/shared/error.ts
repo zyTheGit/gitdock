@@ -94,8 +94,11 @@ const KIND_KEYS: Record<InterruptionKind, string> = {
 
 /** 中断态标题：「检测到未完成的 Git 操作：…」；名称列表按当前语言拼接。 */
 export function interruptionText(kinds: InterruptionKind[]): string {
+  const hasStep = kinds.includes("cherry_pick") || kinds.includes("revert");
+  // 批量序列的 sequencer 目录与当前步标记同时存在时，只展示当前步类型。
+  const visible = hasStep ? kinds.filter((kind) => kind !== "sequencer") : kinds;
   const separator = looseT("errors.kindSeparator");
-  const names = kinds.map((kind) => looseT(KIND_KEYS[kind])).join(separator);
+  const names = visible.map((kind) => looseT(KIND_KEYS[kind])).join(separator);
   return looseT("errors.interruptionDetected", { names });
 }
 

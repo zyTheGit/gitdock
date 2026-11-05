@@ -22,6 +22,8 @@ export type SingleInterruption = "cherry_pick" | "revert" | "merge" | "rebase";
 export interface WritePrompt {
   kind: PromptWriteKind;
   commit?: CommitSummaryDto;
+  /** 批量 cherry-pick / revert 的目标列表；与 commit 互斥。 */
+  commits?: CommitSummaryDto[];
   branch?: string;
   /** 继续/中止对应的中断类型；必须与后端探测结果严格一致。 */
   interruption?: SingleInterruption;
@@ -106,6 +108,25 @@ export function useWriteFlow({
     [fetchGate, setDiagnostic, setError],
   );
 
+  /** 批量 cherry-pick / revert：oids 顺序即执行顺序。 */
+  const startBatch = useCallback(
+    async (kind: "cherry_pick" | "revert", commits: CommitSummaryDto[]) => {
+      if (commits.length < 2) {
+        return;
+      }
+      setError(null);
+      setDiagnostic(null);
+      setMainline(1);
+      setPrompt({ kind, commits, gate: null });
+      const request: WriteRequest = { kind, oids: commits.map((commit) => commit.oid) };
+      const gate = await fetchGate(request);
+      if (gate?.is_merge_commit) {
+        await fetchGate({ ...request, mainline: 1 });
+      }
+    },
+    [fetchGate, setDiagnostic, setError],
+  );
+
   /** 继续/中止没有提交目标，只带中断类型；是否可用仍由 Gate 决定。 */
   const startInterruption = useCallback(
     async (kind: InterruptionWriteKind, interruption: SingleInterruption) => {
@@ -128,6 +149,7 @@ export function useWriteFlow({
       void fetchGate({
         kind: prompt.kind,
         oid: prompt.commit?.oid,
+        oids: prompt.commits?.map((commit) => commit.oid),
         branch: prompt.branch,
         interruption: prompt.interruption,
         mainline: value,
@@ -140,11 +162,12 @@ export function useWriteFlow({
     if (!prompt?.gate?.ok) {
       return;
     }
-    const { kind, commit, branch, interruption, gate } = prompt;
+    const { kind, commit, commits, branch, interruption, gate } = prompt;
     const repoPath = repo?.path;
     const request: WriteRequest = {
       kind,
       oid: commit?.oid,
+      oids: commits?.map((item) => item.oid),
       branch,
       interruption,
       // 非 merge commit 不得携带 mainline，否则 Gate 会拒绝。
@@ -210,6 +233,7 @@ export function useWriteFlow({
     validating,
     mainline,
     start,
+    startBatch,
     startInterruption,
     changeMainline,
     run,

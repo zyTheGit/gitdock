@@ -27,6 +27,7 @@ const write = {
   labelPush: "Push",
   labelMerge: "Merge into current",
   labelRebase: "Rebase onto this branch",
+  batchOrderHint: "Will run in this order, {{n}} commits",
   // Outcome messages (status-bar toast).
   outcomeSwitchedToBranch: "Switched to branch {{branch}}",
   outcomeContinueDone: "Operation continued and completed; graph refreshed",

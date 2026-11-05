@@ -1,6 +1,6 @@
 # ADR 0011：merge / rebase / 批量 pick 与完整 pull
 
-- 状态：已接受（2026-11-04 实现；门禁待最终验证）
+- 状态：已接受（2026-11-04 实现；PR #13 已合并；批量 pick 前端入口与 sequencer 应用内继续/中止已补齐；GUI 实机验收待用户）
 - 日期：2026-11-04
 - 影响范围：`crates/git-core/src/dto.rs`（WriteKind / PullMode / WriteRequest）、新增 `crates/git-write/src/history.rs` 与 `history/gate.rs`/测试、`command.rs`、`execute.rs`、`gate.rs`、`src/app/useWriteFlow.ts`、`useRemoteActions.tsx`、`GraphPane`、分支右键菜单、`ConfirmWriteDialog`、i18n
 - 触发依据：docs/11 批次 5；docs/08 G6 完成标准；ADR-0001 / ADR-0002 的冲突与中断边界

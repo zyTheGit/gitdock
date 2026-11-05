@@ -27,6 +27,7 @@ const write = {
   labelPush: "推送",
   labelMerge: "合并到此分支",
   labelRebase: "Rebase 到此分支",
+  batchOrderHint: "将按以下顺序执行，共 {{n}} 个提交",
   // 写操作结果消息（状态栏 toast）。
   outcomeSwitchedToBranch: "已切换到分支 {{branch}}",
   outcomeContinueDone: "已继续并完成操作，已刷新图谱",
