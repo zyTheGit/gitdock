@@ -37,6 +37,8 @@ function writeLabel(kind: WriteKind): string {
       return i18next.t("write.labelCreateBranch");
     case "delete_branch":
       return i18next.t("write.labelDeleteBranch");
+    case "delete_branch_remote":
+      return i18next.t("write.labelDeleteBranchRemote");
     case "rename_branch":
       return i18next.t("write.labelRenameBranch");
     case "create_tag":

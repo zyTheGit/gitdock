@@ -43,6 +43,7 @@ interface UseCommitMenusParams {
   onNewTag: (commit: CommitSummaryDto) => void;
   onRenameBranch: (shortName: string) => void;
   onDeleteBranch: (shortName: string) => void;
+  onDeleteBranchRemote: (name: string) => void;
   onDeleteTag: (name: string) => void;
   onMergeBranch: (shortName: string) => void;
   onRebaseBranch: (shortName: string) => void;
@@ -71,6 +72,7 @@ export function useCommitMenus({
   onNewTag,
   onRenameBranch,
   onDeleteBranch,
+  onDeleteBranchRemote,
   onDeleteTag,
   onMergeBranch,
   onRebaseBranch,
@@ -122,12 +124,19 @@ export function useCommitMenus({
         descriptionDisabled,
         writeDisabled,
         hasHead: Boolean(repo?.head.oid),
+        // 远程跟踪引用的 short_name 保留 origin/ 前缀（refs.rs classify_ref）。
+        hasRemoteTracking: repo?.refs.some(
+          (ref) =>
+            ref.kind === "remote_branch" &&
+            ref.short_name === `origin/${branchMenu.branch.short_name}`,
+        ) ?? false,
         onEditDescription,
         onCompareWithHead: compareWithHead,
         onSetBase: (branch) => slots.setSide("base", branchSlot(branch)),
         onSetCompare: (branch) => slots.setSide("compare", branchSlot(branch)),
         onRenameBranch,
         onDeleteBranch,
+        onDeleteBranchRemote,
         onMergeBranch,
         onRebaseBranch,
       })

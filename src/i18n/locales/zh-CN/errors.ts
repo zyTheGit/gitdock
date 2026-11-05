@@ -222,6 +222,11 @@ const errors = {
   gateStashSelectorInvalid: "stash 选择器必须形如 stash@{N}",
   gateStashNotFound: "stash 条目 {{selector}} 不存在，请刷新列表后重试",
   gateRemoteMissing: "仓库没有配置远程",
+  gateRemoteRefMissing: "远程没有该分支（本地缓存未命中）；如远端确有该分支，请先 fetch 再试",
+  gateSummaryBranchRemoteDelete:
+    "将删除本地分支 {{branch}} 并删除远程 origin/{{branch}}；远程删除影响协作者且不可逆",
+  outcomeBranchRemoteDeleted: "已删除远程分支 {{branch}}，图谱已刷新",
+  outcomeRemoteRefMissing: "远程分支不存在或已删除；本地删除已生效",
   gateRemoteUnborn: "当前分支尚无提交",
   gateRemoteDetached: "detached HEAD 不支持 pull / push，请先切换本地分支",
   gateRemoteNoUpstream: "当前分支没有上游分支，请先在终端设置 upstream",

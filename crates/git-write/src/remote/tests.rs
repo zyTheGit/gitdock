@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use git_core::{GateReportDto, WriteKind, WriteRequest, WriteStatus};
 use test_support::{commit, git_ok, init_temp_repo, temp_dir, write};
 
-use crate::execute::remote_failure;
+use crate::remote::failure::remote_failure;
 use crate::GitWriteModule;
 
 fn base_request(kind: WriteKind) -> WriteRequest {

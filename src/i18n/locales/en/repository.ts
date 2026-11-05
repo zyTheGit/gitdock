@@ -24,7 +24,8 @@ const repository = {
   branchMenuMerge: "Merge into current…",
   branchMenuRebase: "Rebase current onto this…",
   branchMenuRename: "Rename",
-  branchMenuDelete: "Delete",
+  branchMenuDelete: "Delete branch",
+  branchMenuDeleteRemote: "Delete local & remote branch",
   createBranch: "New branch",
   createBranchTitle: "Create local branch",
   branchNameLabel: "Branch name",
@@ -60,6 +61,9 @@ const repository = {
   deleteBranchTitle: "Delete local branch",
   deleteBranchWarning:
     "Deletion only uses the safe form git branch -d: Git refuses and keeps branches that are not fully merged. To force deletion, run git branch -D in the terminal.",
+  deleteBranchRemoteTitle: "Delete local & remote branch",
+  deleteBranchRemoteWarning:
+    "Deletes the local branch first (safe form git branch -d; unmerged branches are rejected), then the same-name branch on origin; remote deletion affects collaborators and cannot be undone.",
   deleteTagTitle: "Delete local tag",
   deleteTagWarning:
     "The local tag will be deleted; the remote tag with the same name is not affected. Recreate it to restore.",

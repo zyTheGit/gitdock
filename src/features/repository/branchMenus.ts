@@ -18,12 +18,15 @@ export interface BranchMenuActions {
   descriptionDisabled: boolean;
   writeDisabled: boolean;
   hasHead: boolean;
+  /** 本地缓存里存在 origin/<branch> 远程跟踪引用；决定「删除本地和远程分支」是否可用。 */
+  hasRemoteTracking: boolean;
   onEditDescription: (shortName: string) => void;
   onCompareWithHead: (branch: RefDto) => void;
   onSetBase: (branch: RefDto) => void;
   onSetCompare: (branch: RefDto) => void;
   onRenameBranch: (shortName: string) => void;
   onDeleteBranch: (shortName: string) => void;
+  onDeleteBranchRemote: (name: string) => void;
   onMergeBranch: (shortName: string) => void;
   onRebaseBranch: (shortName: string) => void;
 }
@@ -67,6 +70,11 @@ export function branchMenuItems(branch: RefDto, actions: BranchMenuActions): Men
       label: i18next.t("repository.branchMenuDelete"),
       disabled: actions.writeDisabled,
       onSelect: () => actions.onDeleteBranch(branch.short_name),
+    },
+    {
+      label: i18next.t("repository.branchMenuDeleteRemote"),
+      disabled: actions.writeDisabled || !actions.hasRemoteTracking,
+      onSelect: () => actions.onDeleteBranchRemote(branch.short_name),
     },
   ];
 }

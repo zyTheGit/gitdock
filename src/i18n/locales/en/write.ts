@@ -15,6 +15,7 @@ const write = {
   labelAmendCommit: "Amend commit",
   labelCreateBranch: "Create branch",
   labelDeleteBranch: "Delete branch",
+  labelDeleteBranchRemote: "Delete local & remote branch",
   labelRenameBranch: "Rename branch",
   labelCreateTag: "Create tag",
   labelDeleteTag: "Delete tag",

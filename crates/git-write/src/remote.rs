@@ -5,6 +5,8 @@
 
 use git_core::PullMode;
 
+pub(crate) mod failure;
+
 pub(crate) mod gate;
 
 #[cfg(test)]

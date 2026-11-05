@@ -1,8 +1,10 @@
-//! 远程操作的 Gate 校验（ADR 0010 §2.3）。
+//! 远程操作的 Gate 校验（ADR 0010 §2.3、ADR 0022 分支远程删除）。
 
 use std::collections::BTreeMap;
 
-use git_core::{GateIssueDto, PullMode, Result, WriteKind, WriteRequest};
+use git_core::{
+    ErrorCode, GateIssueDto, PullMode, Result, UserVisibleError, WriteKind, WriteRequest,
+};
 
 use crate::command::HeadInfo;
 use crate::status::StatusSummary;
@@ -112,6 +114,40 @@ pub(crate) fn validate_remote(
 
 fn issue(code: &str, message: impl Into<String>) -> GateIssueDto {
     GateIssueDto::new(code, message)
+}
+
+/// 删除远程分支的 Gate 校验（ADR 0022）：remote 存在且本地缓存里有对应远程跟踪引用。
+pub(crate) fn validate_delete_branch_remote(
+    module: &GitWriteModule,
+    request: &WriteRequest,
+) -> Result<RemoteGateResult> {
+    let mut issues = Vec::new();
+    let branch = request.branch.as_deref().ok_or_else(|| {
+        UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+            .with_key("errors.commandMissingBranch")
+    })?;
+
+    if module.remote_count()? == 0 {
+        issues.push(issue("gate_remote_missing", "仓库没有配置远程"));
+    }
+    // 用本地缓存的远程跟踪引用判断存在性；缓存过期时由执行阶段的 Git 报错兜底。
+    if !module.remote_ref_exists(&format!("refs/remotes/origin/{branch}"))? {
+        issues.push(issue(
+            "gate_remote_ref_missing",
+            format!(
+                "远程没有 origin/{branch}（本地缓存未命中）；如远端确有该分支，请先 fetch 再试"
+            ),
+        ));
+    }
+
+    let summary =
+        format!("将删除本地分支 {branch}，并删除远程 origin/{branch}；远程删除影响协作者且不可逆");
+    Ok(RemoteGateResult {
+        issues,
+        summary,
+        summary_key: "errors.gateSummaryBranchRemoteDelete",
+        summary_args: args_map(&[("branch", branch)]),
+    })
 }
 
 fn args_map(pairs: &[(&str, &str)]) -> Option<BTreeMap<String, String>> {
