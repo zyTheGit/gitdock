@@ -372,6 +372,13 @@
   display: flex;
   flex-direction: column;
   max-height: min(640px, 84vh);
+  padding: 16px;
+  overflow: hidden;
+  gap: 8px;
+  /* 与 .settings-dialog 同款容器外观；此前漏写导致弹窗底部没有背景。 */
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
 .about-dialog > header {
