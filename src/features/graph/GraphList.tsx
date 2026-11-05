@@ -22,6 +22,7 @@ interface GraphListProps {
   focusSeq?: number | null;
   onSelect: (oid: string) => void;
   onRangeSelect?: (oid: string) => void;
+  onToggleSelect?: (oid: string) => void;
   onCtrlSelect?: (commit: CommitSummaryDto) => void;
   onContextMenu?: (
     event: MouseEvent,
@@ -42,6 +43,7 @@ export function GraphList({
   focusSeq,
   onSelect,
   onRangeSelect,
+  onToggleSelect,
   onCtrlSelect,
   onContextMenu,
   selectionIndexOf,
@@ -122,9 +124,15 @@ export function GraphList({
       if (!oid) {
         return;
       }
+
       const commit = commitsByOid.get(oid);
       cancelHover();
-      // Shift+点击按当前视图顺序做区间选择；Ctrl/Cmd+点击填对比槽；普通点击打开详情。
+      // Alt/Option+点击切换单个提交；Shift+点击做区间选择；Ctrl/Cmd+点击填对比槽；普通点击打开详情。
+      if (event.altKey && onToggleSelect) {
+        event.preventDefault();
+        onToggleSelect(oid);
+        return;
+      }
       if (event.shiftKey && onRangeSelect) {
         event.preventDefault();
         onRangeSelect(oid);
@@ -137,7 +145,7 @@ export function GraphList({
       }
       onSelect(oid);
     },
-    [commitsByOid, cancelHover, onCtrlSelect, onRangeSelect, onSelect],
+    [commitsByOid, cancelHover, onCtrlSelect, onRangeSelect, onSelect, onToggleSelect],
   );
 
   const handleListContextMenu = useCallback(
@@ -201,6 +209,7 @@ export function GraphList({
     <div
       className="graph-list"
       ref={scrollRef}
+
       onClick={handleListClick}
       onContextMenu={handleListContextMenu}
       onMouseOver={handleListMouseOver}
@@ -225,8 +234,8 @@ export function GraphList({
               start={item.start}
               height={ROW_HEIGHT}
               selected={selectedOid === oid}
-
               selectionIndex={selectionIndexOf(oid)}
+              batchActive={selectedOids.length > 0}
               located={focusedOid === oid}
             />
           );

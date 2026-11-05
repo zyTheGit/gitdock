@@ -71,8 +71,12 @@ export function rowMenuItems(
   actions: RowMenuActions,
   selection: CommitSummaryDto[] = [],
 ): MenuItem[] {
+  // 多选时只保留批量操作：单条项只作用于右键那一行，与批量语义并列容易误点。
+  const batch = batchMenuItems(commit, selection, actions);
+  if (batch.length > 0) {
+    return batch;
+  }
   return [
-    ...batchMenuItems(commit, selection, actions),
     ...commitMenuItems(commit, actions),
     {
       label: i18next.t("graph.menuSetBase"),

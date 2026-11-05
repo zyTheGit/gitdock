@@ -9,7 +9,11 @@ const SRC_DIR = 'src'
 
 // 约定保留的中文（不阻塞）：Issue 模板语言待产品裁决；键位匹配字面量「点击」非文案。
 const CHINESE_FILE_ALLOWLIST = new Set(['src/features/settings/FeedbackDialog.tsx'])
-const CHINESE_LINE_ALLOWLIST = [/点击:\s*["']settings\./, /["']Ctrl["'],\s*["']点击["']/]
+const CHINESE_LINE_ALLOWLIST = [
+  /点击:\s*["']settings\./,
+  // 固定键位里的「修饰键 + 点击」是鼠标键名，不是界面文案。
+  /["'](?:Ctrl|Shift|Alt|Meta)["'],\s*["']点击["']/,
+]
 
 // 恰好形如「域.key」但不是 i18n key 的标识符（如 BindableAction 枚举值）。
 const NON_I18N_KEYS = new Set(['terminal.toggle'])
