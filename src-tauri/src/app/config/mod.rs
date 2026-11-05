@@ -9,8 +9,8 @@ use std::path::{Path, PathBuf};
 use git_core::{ErrorCode, UserVisibleError};
 use serde::{Deserialize, Serialize};
 
-pub(crate) use recent::strip_verbatim;
 pub use recent::{forget, remember, RecentRepository};
+pub(crate) use recent::{strip_verbatim, strip_verbatim_text};
 pub use tools::ExternalToolConfig;
 use tools::{detected_tools, normalize_default_tool, seed_tools, validate};
 

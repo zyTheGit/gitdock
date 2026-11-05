@@ -27,6 +27,8 @@ import { stop } from "./stop";
 import { cloudDownload } from "./cloud-download";
 import { download } from "./download";
 import { upload } from "./upload";
+import { copy } from "./copy";
+import { trash } from "./trash";
 
 /**
  * 应用内所有 SVG 图标的注册表。单个图标定义在同目录的独立文件中；图标统一
@@ -59,6 +61,8 @@ const ICONS = {
   cloudDownload,
   download,
   upload,
+  copy,
+  trash,
 } satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;

@@ -122,4 +122,6 @@ export const ipc = {
   terminalClose: (id: number) => call<void>("terminal_close", { id }),
   /** git CLI 命令日志快照（内存环形缓冲的只读拷贝，新条目在后）。 */
   gitCommandLog: () => call<CommandLogEntryDto[]>("git_command_log"),
+  /** 清空本次运行的内存命令日志；磁盘应用日志不变。 */
+  clearCommandLog: () => call<void>("clear_git_command_log"),
 };

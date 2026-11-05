@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Icon } from "../../assets/icons";
 import { useI18n } from "../../i18n";
 import { copyText } from "../../shared/clipboard";
 import { errorText } from "../../shared/error";
-import { formatDate } from "../../shared/format";
+import { formatDateTimeWithSeconds } from "../../shared/format";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
 import { useEscClose } from "../../shared/useEscClose";
@@ -42,9 +43,14 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshDone, setRefreshDone] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [copiedCwdId, setCopiedCwdId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const refreshTimer = useRef<number | undefined>(undefined);
   const copyTimer = useRef<number | undefined>(undefined);
+  const cwdTimer = useRef<number | undefined>(undefined);
+  const clearTimer = useRef<number | undefined>(undefined);
 
   const load = useCallback(async (manual = false) => {
     if (manual) {
@@ -82,6 +88,41 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
     [t]
   );
 
+  const copyEntryCwd = useCallback(
+    async (entry: CommandLogEntryDto) => {
+      if (!entry.cwd) {
+        return;
+      }
+      const ok = await copyText(entry.cwd);
+      if (!ok) {
+        setLoadError(t("gitlog.copyFailed"));
+        return;
+      }
+      setCopiedCwdId(entry.id);
+      window.clearTimeout(cwdTimer.current);
+      cwdTimer.current = window.setTimeout(() => setCopiedCwdId(null), 1500);
+    },
+    [t]
+  );
+
+  const clearLog = useCallback(async () => {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      window.clearTimeout(clearTimer.current);
+      clearTimer.current = window.setTimeout(() => setConfirmClear(false), 3000);
+      return;
+    }
+    window.clearTimeout(clearTimer.current);
+    try {
+      await ipc.clearCommandLog();
+      setEntries([]);
+      setLoadError(null);
+      setConfirmClear(false);
+    } catch (err) {
+      setLoadError(errorText(err));
+    }
+  }, [confirmClear]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -90,12 +131,29 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
     () => () => {
       window.clearTimeout(refreshTimer.current);
       window.clearTimeout(copyTimer.current);
+      window.clearTimeout(cwdTimer.current);
+      window.clearTimeout(clearTimer.current);
     },
     []
   );
 
+  const normalizedQuery = query.trim().toLowerCase();
   const visible =
-    entries === null ? [] : failedOnly ? entries.filter((entry) => !entry.success) : entries;
+    entries === null
+      ? []
+      : entries
+          .filter((entry) => !failedOnly || !entry.success)
+          .filter((entry) => {
+            if (!normalizedQuery) {
+              return true;
+            }
+            const haystack = `${commandText(entry)} ${entry.cwd} ${entry.stderr_head ?? ""}`;
+            return haystack.toLowerCase().includes(normalizedQuery);
+          });
+
+  const total = entries?.length ?? 0;
+  const failedCount = entries?.filter((entry) => !entry.success).length ?? 0;
+  const filtering = normalizedQuery.length > 0 || failedOnly;
 
   const refreshLabel = refreshing
     ? t("gitlog.refreshing")
@@ -109,10 +167,19 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
         <div>
           <h2>{t("gitlog.dialogTitle")}</h2>
           <p className="muted settings-hint">{t("gitlog.dialogSubtitle")}</p>
+          {entries !== null && (
+            <p className="gitlog-stats">
+              {t("gitlog.stats", { total, failed: failedCount })}
+              {filtering && (
+                <> · {t("gitlog.statsFiltered", { visible: visible.length })}</>
+              )}
+            </p>
+          )}
         </div>
         <div className="gitlog-header-actions">
-          <button type="button" onClick={() => void load(true)} disabled={refreshing}>
-            {refreshLabel}
+          <button type="button" className="gitlog-refresh" onClick={() => void load(true)} disabled={refreshing}>
+            <Icon name="refresh" className={refreshing ? "gitlog-spin" : undefined} />
+            <span>{refreshLabel}</span>
           </button>
           <button className="detail-close" onClick={onClose} aria-label={t("gitlog.closeAria")}>
             ×
@@ -120,14 +187,48 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
         </div>
       </header>
 
-      <label className="gitlog-filter">
-        <input
-          type="checkbox"
-          checked={failedOnly}
-          onChange={(event) => setFailedOnly(event.target.checked)}
-        />
-        {t("gitlog.filterFailed")}
-      </label>
+      <div className="gitlog-filter-row">
+        <div className="gitlog-search-wrap">
+          <input
+            className="ref-input gitlog-search"
+            type="search"
+            value={query}
+            disabled={entries === null}
+            placeholder={t("gitlog.searchPlaceholder")}
+            aria-label={t("gitlog.searchAria")}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          {query.length > 0 && (
+            <button
+              type="button"
+              className="gitlog-search-clear"
+              onClick={() => setQuery("")}
+              aria-label={t("gitlog.clearSearch")}
+              title={t("gitlog.clearSearch")}
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <label className="gitlog-filter">
+          <input
+            type="checkbox"
+            checked={failedOnly}
+            onChange={(event) => setFailedOnly(event.target.checked)}
+          />
+          {t("gitlog.filterFailed")}
+        </label>
+        <button
+          type="button"
+          className={confirmClear ? "gitlog-clear danger" : "gitlog-clear"}
+          title={t("gitlog.clearHint")}
+          disabled={entries === null || entries.length === 0}
+          onClick={() => void clearLog()}
+        >
+          <Icon name="trash" />
+          <span>{confirmClear ? t("gitlog.confirmClear") : t("gitlog.clear")}</span>
+        </button>
+      </div>
 
       {loadError && (
         <p className="gitlog-error" role="alert">
@@ -136,7 +237,9 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
       )}
 
       {entries !== null && visible.length === 0 && (
-        <p className="muted gitlog-empty">{t("gitlog.empty")}</p>
+        <p className="muted gitlog-empty">
+          {entries.length === 0 ? t("gitlog.empty") : t("gitlog.noMatches")}
+        </p>
       )}
 
       {visible.length > 0 && (
@@ -159,22 +262,41 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
                     {t("gitlog.exitCodeLabel")}:{" "}
                     {entry.exit_code ?? t("gitlog.launchFailed")}
                   </span>
+                  <span className="gitlog-chevron" aria-hidden="true">
+                    <Icon name="chevronDown" />
+                  </span>
                 </button>
                 <button
                   type="button"
                   className={copiedId === entry.id ? "gitlog-copy copied" : "gitlog-copy"}
                   onClick={() => void copyCommand(entry)}
+                  title={copiedId === entry.id ? t("gitlog.copied") : t("gitlog.copyCommand")}
                   aria-label={t("gitlog.copyCommandAria", { command: commandText(entry) })}
                 >
-                  {copiedId === entry.id ? t("gitlog.copied") : t("gitlog.copyCommand")}
+                  <Icon name="copy" />
                 </button>
               </div>
               {expandedId === entry.id && (
                 <dl className="gitlog-detail">
                   <dt>{t("gitlog.cwdLabel")}</dt>
-                  <dd className="mono">{entry.cwd}</dd>
+                  <dd className="mono gitlog-cwd">
+                    <span className="gitlog-cwd-text">{entry.cwd || "—"}</span>
+                    {entry.cwd && (
+                      <button
+                        type="button"
+                        className={
+                          copiedCwdId === entry.id ? "gitlog-copy-path copied" : "gitlog-copy-path"
+                        }
+                        onClick={() => void copyEntryCwd(entry)}
+                        title={copiedCwdId === entry.id ? t("gitlog.copied") : t("gitlog.copyPath")}
+                        aria-label={t("gitlog.copyPath")}
+                      >
+                        <Icon name="copy" />
+                      </button>
+                    )}
+                  </dd>
                   <dt>{t("gitlog.startedAtLabel")}</dt>
-                  <dd>{formatDate(Math.floor(entry.started_at_ms / 1000))}</dd>
+                  <dd>{formatDateTimeWithSeconds(entry.started_at_ms)}</dd>
                   <dt>{t("gitlog.stderrLabel")}</dt>
                   <dd>
                     {entry.stderr_head ? (

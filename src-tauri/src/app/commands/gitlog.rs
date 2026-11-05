@@ -11,3 +11,8 @@ use crate::app::gitlog;
 pub fn git_command_log() -> Result<Vec<CommandLogEntry>> {
     Ok(gitlog::snapshot())
 }
+#[tauri::command]
+pub fn clear_git_command_log() -> Result<()> {
+    gitlog::clear();
+    Ok(())
+}

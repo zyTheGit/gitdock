@@ -65,12 +65,32 @@ pub fn forget(
 
 /// Windows 的 canonicalize 会返回 `\\?\` 扩展前缀；最近仓库列表需要展示用户熟悉的路径。
 pub(crate) fn strip_verbatim(path: &Path) -> String {
-    let text = path.to_string_lossy();
+    strip_verbatim_text(&path.to_string_lossy())
+}
+
+/// 字符串形态的同上前缀剥离，供已有字符串路径（如命令日志 cwd）复用。
+pub(crate) fn strip_verbatim_text(text: &str) -> String {
     if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
         format!(r"\\{rest}")
     } else if let Some(rest) = text.strip_prefix(r"\\?\") {
         rest.to_string()
     } else {
-        text.into_owned()
+        text.to_string()
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_verbatim_text_removes_windows_prefixes() {
+        assert_eq!(strip_verbatim_text(r"\\?\C:\repo\src"), r"C:\repo\src");
+        assert_eq!(
+            strip_verbatim_text(r"\\?\UNC\server\share"),
+            r"\\server\share"
+        );
+        assert_eq!(strip_verbatim_text(r"C:\repo"), r"C:\repo");
+        assert_eq!(strip_verbatim_text("/home/user/repo"), "/home/user/repo");
+        assert_eq!(strip_verbatim_text(""), "");
     }
 }
