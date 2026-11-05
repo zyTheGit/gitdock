@@ -29,7 +29,11 @@ export function useSettingsEntry(params: SettingsEntryParams) {
     onOpenRepository: params.onOpenRepository,
     onToggleTerminal: params.onToggleTerminal,
     onOpenCommandLog: params.onOpenCommandLog,
-    onCheckUpdate: params.onCheckUpdate,
+    onCheckUpdate: () => {
+      // 检查更新本身没有独立通知；打开「关于」分区，让用户看到检查状态与结果。
+      openSettings("about");
+      params.onCheckUpdate();
+    },
   });
 
   // 菜单栏入口之外的键盘快捷方式：Ctrl/Cmd + 逗号。
