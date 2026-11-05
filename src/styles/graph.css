@@ -84,6 +84,8 @@
   border-bottom: 1px solid var(--row-divider);
   cursor: default;
   white-space: nowrap;
+  /* 行文本通过右键菜单复制；禁止拖动选中，避免 Shift 批量选择时触发原生文本选区。 */
+  user-select: none;
 }
 
 .graph-row:hover {

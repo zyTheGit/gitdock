@@ -22,6 +22,8 @@ export interface GraphRowProps {
   selected: boolean;
   /** 批量选择序号（0 起始）；未选中为 -1。 */
   selectionIndex: number;
+  /** 是否处于批量选择模式；是则详情选中让位，避免「有高亮但没有序号」。 */
+  batchActive: boolean;
   located: boolean;
 }
 
@@ -39,15 +41,15 @@ export const GraphRow = memo(function GraphRow({
   height,
   selected,
   selectionIndex,
+  batchActive,
   located,
 }: GraphRowProps) {
   const { t } = useI18n();
   const classes = ["graph-row"];
-  if (selected || selectionIndex >= 0) {
-    classes.push("selected");
-  }
   if (selectionIndex >= 0) {
-    classes.push("batch-selected");
+    classes.push("selected", "batch-selected");
+  } else if (selected && !batchActive) {
+    classes.push("selected");
   }
   if (located) {
     classes.push("located");

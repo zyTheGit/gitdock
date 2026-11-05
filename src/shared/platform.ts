@@ -23,3 +23,7 @@ export function currentPlatform(): Platform {
 export function primaryModifierLabel(): string {
   return platform === "macos" ? "⌘" : "Ctrl";
 }
+/** 平台 Alt 键名：macOS 显示 Option，其余显示 Alt。用于多选交互文案。 */
+export function altModifierLabel(): string {
+  return platform === "macos" ? "Option" : "Alt";
+}

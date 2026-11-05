@@ -52,6 +52,7 @@ export function GraphPane({
   const clearSelection = selection.clear;
 
   useEffect(() => {
+
     clearSelection();
   }, [view.viewKey, clearSelection]);
 
@@ -160,9 +161,11 @@ export function GraphPane({
           focusSeq={focusSeq}
           onSelect={(oid) => {
             clearSelection();
+            selection.setAnchor(oid);
             onSelect(oid);
           }}
           onRangeSelect={selection.selectRange}
+          onToggleSelect={selection.toggle}
           onCtrlSelect={onCtrlSelect}
           onContextMenu={onContextMenu}
           selectionIndexOf={selection.indexOf}

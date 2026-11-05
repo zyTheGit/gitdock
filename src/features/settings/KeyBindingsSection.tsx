@@ -16,7 +16,7 @@ import {
   type BindingRejection,
 } from "../../shared/keybindings";
 import { Kbd } from "../../shared/Kbd";
-import { primaryModifierLabel } from "../../shared/platform";
+import { altModifierLabel, primaryModifierLabel } from "../../shared/platform";
 
 /** settings 域消息 key（带命名空间前缀）：映射表字段用它收窄，t() 才能编译期校验。 */
 type SettingsKey = `settings.${keyof typeof settingsZh}`;
@@ -47,6 +47,8 @@ const FIXED_SHORTCUTS: { keys: string[]; textKey: SettingsKey }[] = [
   { keys: ["↑", "↓"], textKey: "settings.fixedArrows" },
   { keys: ["Enter"], textKey: "settings.fixedEnter" },
   { keys: ["Ctrl", "点击"], textKey: "settings.fixedCtrlClick" },
+  { keys: ["Shift", "点击"], textKey: "settings.fixedShiftClick" },
+  { keys: ["Alt", "点击"], textKey: "settings.fixedAltClick" },
 ];
 
 /** 可改键动作的展示名 key；shared 的 ACTION_LABELS 供其内部消息使用，界面渲染走 i18n。 */
@@ -181,14 +183,16 @@ export function KeyBindingsSection() {
                 <kbd key={key}>
                   {key === "Ctrl" && primaryModifierLabel() !== "Ctrl"
                     ? primaryModifierLabel()
-                    : KBD_LABEL_KEYS[key]
-                      ? t(KBD_LABEL_KEYS[key])
-                      : key}
+                    : key === "Alt"
+                      ? altModifierLabel()
+                      : KBD_LABEL_KEYS[key]
+                        ? t(KBD_LABEL_KEYS[key])
+                        : key}
                 </kbd>
               ))}
             </span>
             <span className="muted">
-              {tLoose(shortcut.textKey, { modifier: primaryModifierLabel() })}
+              {tLoose(shortcut.textKey, { modifier: primaryModifierLabel(), alt: altModifierLabel() })}
             </span>
           </li>
         ))}
