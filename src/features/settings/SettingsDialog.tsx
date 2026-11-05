@@ -128,8 +128,7 @@ export function SettingsDialog({
               active={activeSection === "terminal"}
               lazygitPath={draft.lazygitPath}
               onLazygitPathChange={draft.setLazygitPath}
-              shellProfile={draft.shellProfile}
-              onShellProfileChange={draft.setShellProfile}
+
               onBrowse={draft.browseLazygit}
             />
 

@@ -7,6 +7,7 @@ import { TopBar } from "./app/TopBar";
 import { WelcomePane } from "./app/WelcomePane";
 import { useCommitMenus, type BranchMenuState, type RowMenuState, type TagMenuState } from "./app/useCommitMenus";
 import { useGlobalEsc, type ViewMode } from "./app/useGlobalEsc";
+import { useBottomPanel } from "./app/useBottomPanel";
 import { formatHeadLabel } from "./app/headLabel";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
 import { useFontScale } from "./app/useFontScale";
@@ -31,7 +32,7 @@ import { CompareBar } from "./features/compare/CompareBar";
 import { CompareView } from "./features/compare/CompareView";
 import { useCompareResult, useCompareSlots } from "./features/compare/useCompare";
 import { CommitDetailPane } from "./features/detail/CommitDetailPane";
-import { CommandLogDialog } from "./features/gitlog/CommandLogDialog";
+
 import { GraphPane } from "./features/graph/GraphPane";
 import { commitMenuItems } from "./features/graph/menus";
 import { branchSlot } from "./features/repository/branchMenus";
@@ -40,7 +41,7 @@ import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
 
 import { StagingView } from "./features/staging/StagingView";
-import { TerminalPanel } from "./features/terminal/TerminalPanel";
+import { PanelArea } from "./app/PanelArea";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
 import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
 import { PaneSplitter } from "./shared/PaneSplitter";
@@ -62,11 +63,8 @@ export default function App() {
   const [pathFilter, setPathFilter] = useState("");
   const [twoDot, setTwoDot] = useState(false);
 
-  const [terminalOpen, setTerminalOpen] = useState(false);
-  const [terminalMounted, setTerminalMounted] = useState(false);
-  const [terminalRunning, setTerminalRunning] = useState(false);
+  const panel = useBottomPanel();
   const [branchCompareOpen, setBranchCompareOpen] = useState(false);
-  const [commandLogOpen, setCommandLogOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null);
   const [branchMenu, setBranchMenu] = useState<BranchMenuState | null>(null);
   const [tagMenu, setTagMenu] = useState<TagMenuState | null>(null);
@@ -109,17 +107,11 @@ export default function App() {
   writeBusyRef.current = write.busy || stagingBusy;
 
 
-  const toggleTerminal = useCallback(() => {
-    setTerminalMounted(true);
-    setTerminalOpen((open) => !open);
-  }, []);
-
-
   // 切仓库时 Rust 已结束旧会话；收起面板并提示，避免误以为旧终端仍在。
   const handleTerminalRepoChanged = useCallback(() => {
-    setTerminalOpen(false);
+    panel.collapse();
     setToast(t("shell.terminalProcessEnded"));
-  }, [setToast, t]);
+  }, [panel.collapse, setToast, t]);
 
   const settingsEntry = useSettingsEntry({ onOpenRepository: () => void session.pick() });
 
@@ -217,7 +209,7 @@ export default function App() {
   // 在捕获阶段派发，终端里的按键也由窗口层接管，避免误发给 Shell。
   const bindings = useBindings();
   useKeybindings({
-    "terminal.toggle": repo ? toggleTerminal : undefined,
+    "terminal.toggle": repo ? panel.toggleTerminal : undefined,
     "zoom.in": zoom.zoomIn,
     "zoom.out": zoom.zoomOut,
     "zoom.reset": zoom.resetZoom,
@@ -303,13 +295,14 @@ export default function App() {
     info,
     settings,
     fontScale: zoom.fontScale,
-    terminalOpen,
-    terminalRunning,
+    terminalActive: panel.panelOpen && panel.activeTab === "terminal",
+    logActive: panel.panelOpen && panel.activeTab === "log",
+    terminalRunning: panel.terminalRunning,
     terminalShortcut: displaySpec(bindings["terminal.toggle"]),
     updateVersion,
-    onToggleTerminal: toggleTerminal,
+    onToggleTerminal: panel.toggleTerminal,
     onOpenUpdate: () => void openAvailableUpdate(),
-    onOpenCommandLog: () => setCommandLogOpen(true),
+    onToggleCommandLog: panel.toggleCommandLog,
   };
 
   return (
@@ -408,10 +401,7 @@ export default function App() {
                 onBusyChange={setStagingBusy}
                 onMutated={stagingMutated}
                 onOpenStash={stash.openStash}
-                onOpenTerminal={() => {
-                  setTerminalMounted(true);
-                  setTerminalOpen(true);
-                }}
+                onOpenTerminal={panel.openTerminal}
                 onExit={() => setMode("graph")}
               />
             ) : (
@@ -485,18 +475,16 @@ export default function App() {
           )}
         </main>
       </div>
-      {repo && terminalMounted && (
-        <TerminalPanel
-          repoPath={repo.path}
-          visible={terminalOpen}
-          lazygitConfig={settings?.lazygit_path ?? ""}
-          terminalShortcut={displaySpec(bindings["terminal.toggle"])}
-          onCollapse={() => setTerminalOpen(false)}
-          onOpenSettings={() => settingsEntry.openSettings()}
-          onRunningChange={setTerminalRunning}
-          onRepoChanged={handleTerminalRepoChanged}
-        />
-      )}
+      <PanelArea
+        panel={panel}
+        repo={repo}
+        lazygitConfig={settings?.lazygit_path ?? ""}
+        shellProfile={settings?.shell_profile === "git_bash" ? "git_bash" : "default"}
+        onShellProfileSaved={setSettings}
+        onOpenSettings={() => settingsEntry.openSettings()}
+        onRepoChanged={handleTerminalRepoChanged}
+        terminalShortcut={displaySpec(bindings["terminal.toggle"])}
+      />
       <StatusBar {...statusBarProps} />
       {mode === "search" && repo && (
         <SearchView
@@ -587,7 +575,7 @@ export default function App() {
         />
       )}
 
-      {commandLogOpen && <CommandLogDialog onClose={() => setCommandLogOpen(false)} />}
+
     </div>
   );
 }

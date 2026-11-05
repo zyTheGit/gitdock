@@ -66,6 +66,8 @@ export const ipc = {
   loadSettings: () => call<SettingsDto>("load_settings"),
   saveSettings: (settings: SettingsDto) => call<SettingsDto>("save_settings", { settings }),
   setLanguage: (language: string | null) => call<SettingsDto>("set_language", { language }),
+  setShellProfile: (profile: "default" | "git_bash") =>
+    call<SettingsDto>("set_shell_profile", { profile }),
   rememberRepository: (path: string) => call<SettingsDto>("remember_repository", { path }),
   forgetRecentRepository: (path: string) =>
     call<SettingsDto>("forget_recent_repository", { path }),

@@ -1,41 +1,43 @@
-/* Git 命令日志：状态栏入口的对话框、命令行徽标与展开详情 */
+/* Git 命令日志（ADR-0023 面板化）：底部面板标签的内容视图、命令行徽标与展开详情 */
 
-.gitlog-dialog {
+.gitlog-view {
   display: flex;
+  flex: 1;
+  min-height: 0;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px;
-  width: min(720px, 92vw);
-  height: min(560px, 80vh);
+  gap: 8px;
+  padding: 8px 12px 12px;
   background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
 }
 
-.gitlog-dialog > header {
+.gitlog-header {
   flex: none;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
 }
 
 /* 标题区可收缩，窄窗口时按钮组整体换行而不是挤压文案。 */
-.gitlog-dialog > header > div:first-child {
+.gitlog-header-info {
   flex: 1 1 240px;
   min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.gitlog-dialog h2 {
-  margin: 0;
-  font-size: 16px;
+.gitlog-subtitle {
+  font-size: 11.5px;
 }
 
 .gitlog-stats {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 11.5px;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .gitlog-header-actions {
@@ -192,7 +194,7 @@
   font-size: 12.5px;
 }
 
-/* 中部列表整体滚动：头部与筛选行固定；条目上限 500，Dialog 场景不做虚拟化。 */
+/* 中部列表整体滚动：头部与筛选行固定；条目上限 500，面板场景不做虚拟化。 */
 .gitlog-list {
   flex: 1 1 auto;
   min-height: 0;
@@ -391,9 +393,8 @@
 }
 
 @media (max-width: 620px) {
-  .gitlog-dialog {
-    width: 96vw;
-    padding: 12px;
+  .gitlog-view {
+    padding: 6px 8px 8px;
   }
 
   .gitlog-clear {

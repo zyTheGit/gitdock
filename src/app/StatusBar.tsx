@@ -8,12 +8,14 @@ export interface StatusBarProps {
   info: AppInfoDto | null;
   settings: SettingsDto | null;
   fontScale: number;
-  terminalOpen: boolean;
+  /** 底部面板打开且终端标签活动；按钮按下则收起面板，否则切到终端标签。 */
+  terminalActive: boolean;
+  logActive: boolean;
   terminalRunning: boolean;
   terminalShortcut: string;
   updateVersion: string | null;
-  onOpenCommandLog: () => void;
   onToggleTerminal: () => void;
+  onToggleCommandLog: () => void;
   onOpenUpdate: () => void;
 }
 
@@ -23,12 +25,13 @@ export function StatusBar({
   info,
   settings,
   fontScale,
-  terminalOpen,
+  terminalActive,
+  logActive,
   terminalRunning,
   terminalShortcut,
   updateVersion,
-  onOpenCommandLog,
   onToggleTerminal,
+  onToggleCommandLog,
   onOpenUpdate,
 }: StatusBarProps) {
   const { t } = useI18n();
@@ -53,21 +56,22 @@ export function StatusBar({
           </button>
         )}
         <button
-          className="gitlog-status-button"
-          onClick={onOpenCommandLog}
+          className={logActive ? "gitlog-status-button active" : "gitlog-status-button"}
+          onClick={onToggleCommandLog}
           aria-label={t("gitlog.openButtonTitle")}
-          title={t("gitlog.openButtonTitle")}
+          title={logActive ? t("shell.collapsePanel") : t("gitlog.openButtonTitle")}
+          aria-pressed={logActive}
         >
           <Icon name="commandLog" />
         </button>
         {repo && (
           <button
-            className={terminalOpen ? "terminal-status-button active" : "terminal-status-button"}
+            className={terminalActive ? "terminal-status-button active" : "terminal-status-button"}
             onClick={onToggleTerminal}
-            aria-label={terminalOpen ? t("shell.collapseTerminal") : t("shell.openTerminal")}
-            aria-pressed={terminalOpen}
+            aria-label={terminalActive ? t("shell.collapseTerminal") : t("shell.openTerminal")}
+            aria-pressed={terminalActive}
             title={
-              terminalOpen
+              terminalActive
                 ? t("shell.collapseTerminalTitle", { shortcut: terminalShortcut })
                 : t("shell.openTerminalTitle", { shortcut: terminalShortcut })
             }

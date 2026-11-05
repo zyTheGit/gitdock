@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useCompareSlots } from "../features/compare/useCompare";
-import { isEscConsumed, isEventInTerminal } from "../shared/esc";
+import { isEscConsumed, isEventInBottomPanel } from "../shared/esc";
 
 /** 主区视图模式：图谱 / 对比 / 搜索 / 暂存区。 */
 export type ViewMode = "graph" | "compare" | "search" | "staging";
@@ -32,8 +32,8 @@ export function useGlobalEsc({ closeSearch, mode, slots, setMode }: UseGlobalEsc
       if (isEscConsumed(event)) {
         return;
       }
-      // 终端内的 Esc 属于终端程序（例如关闭 LazyGit 弹层），不触发界面退出逻辑。
-      if (isEventInTerminal(event)) {
+      // 底部面板内的 Esc 归面板内容（终端程序或日志视图），不触发界面退出逻辑。
+      if (isEventInBottomPanel(event)) {
         return;
       }
       const { closeSearch, mode, slots } = escStateRef.current;

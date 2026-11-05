@@ -46,8 +46,9 @@ pub struct SettingsDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
     /// 终端 Shell 模式的启动器；合法取值见 `SHELL_PROFILES`（default / git_bash）。
-    /// 走设置草稿「保存」：已运行会话不受影响，下次启动 Shell 时生效。
-    /// 非 Windows 平台上 git_bash 无意义，读取时回落 default。
+    /// 经 `set_shell_profile` 面板内即时切换并持久化；已运行会话不受影响，
+    /// 下次启动 Shell 时生效。缺省平台相关：Windows 为 git_bash，其余为 default。
+    /// 非 Windows 平台上 git_bash 无意义，`resolve_shell` 回落系统默认。
     #[serde(default = "default_shell_profile")]
     pub shell_profile: String,
 }
@@ -58,8 +59,14 @@ pub const SUPPORTED_LANGUAGES: &[&str] = &["zh-CN", "en"];
 /// 终端 Shell 启动器白名单；存储值与前端 Select 的 value 一致。
 pub const SHELL_PROFILES: &[&str] = &["default", "git_bash"];
 
+/// 新配置/缺字段/非法值回落的唯一默认来源：Windows 用 Git Bash，其余系统默认。
+/// 已显式保存的值不经此改写（含 Windows 上保存为 default 的老设置），无老值迁移。
 fn default_shell_profile() -> String {
-    "default".to_owned()
+    if cfg!(windows) {
+        "git_bash".to_owned()
+    } else {
+        "default".to_owned()
+    }
 }
 
 fn shell_profile_valid(value: &str) -> bool {

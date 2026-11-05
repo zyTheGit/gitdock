@@ -50,6 +50,8 @@ export interface TerminalSessionState {
   message: string | null;
   /** lazygit 可执行路径探测结果：undefined=探测中，null=未找到。 */
   lazygitPath: string | null | undefined;
+  /** Git Bash 可执行路径探测结果：undefined=探测中，null=未安装（仅 Windows 有意义）。 */
+  gitBashPath: string | null | undefined;
   /** 启动（或重启）指定模式的会话。 */
   start: (mode: TerminalMode) => void;
   /** 结束当前进程并回到未启动状态。 */
@@ -74,6 +76,7 @@ export function useTerminalSession({
   const [status, setStatus] = useState<TerminalStatus>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [lazygitPath, setLazygitPath] = useState<string | null | undefined>(undefined);
+  const [gitBashPath, setGitBashPath] = useState<string | null | undefined>(undefined);
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<XTerm | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -93,16 +96,19 @@ export function useTerminalSession({
   useEffect(() => {
     let disposed = false;
     setLazygitPath(undefined);
+    setGitBashPath(undefined);
     void ipc
       .terminalCapabilities()
       .then((capabilities) => {
         if (!disposed) {
           setLazygitPath(capabilities.lazygit_path ?? null);
+          setGitBashPath(capabilities.git_bash_path ?? null);
         }
       })
       .catch(() => {
         if (!disposed) {
           setLazygitPath(null);
+          setGitBashPath(null);
         }
       });
     return () => {
@@ -273,5 +279,5 @@ export function useTerminalSession({
     termRef.current?.focus();
   }, []);
 
-  return { hostRef, mode, status, message, lazygitPath, start, end, focus };
+  return { hostRef, mode, status, message, lazygitPath, gitBashPath, start, end, focus };
 }

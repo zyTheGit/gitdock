@@ -1,159 +1,48 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "../../assets/icons";
 import { useI18n } from "../../i18n";
-import { copyText } from "../../shared/clipboard";
-import { errorText } from "../../shared/error";
 import { formatDateTimeWithSeconds } from "../../shared/format";
-import { ipc } from "../../shared/ipc";
-import { Modal } from "../../shared/Modal";
-import { useEscClose } from "../../shared/useEscClose";
 import type { CommandLogEntryDto } from "../../shared/types";
+import { useCommandLog } from "./useCommandLog";
 
-interface CommandLogDialogProps {
-  onClose: () => void;
-}
 
-/** 耗时展示：不足 1 秒以毫秒计，满 1 秒折算为秒并保留 1 位小数。 */
-function formatDuration(ms: number): string {
-  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
-}
-
-/** 快照内新条目在后；按 id 倒序让最新命令排在最前。 */
-function latestFirst(entries: CommandLogEntryDto[]): CommandLogEntryDto[] {
-  return [...entries].sort((a, b) => b.id - a.id);
-}
-
-/** 完整命令行；复制与展示共用同一份拼接结果。 */
-function commandText(entry: CommandLogEntryDto): string {
-  return ["git", ...entry.args].join(" ");
+interface CommandLogViewProps {
+  /** 底部面板打开且命令日志标签处于活动状态；重新激活时重拉快照。 */
+  active: boolean;
 }
 
 /**
- * Git 命令日志：应用级诊断数据，打开与手动刷新都拉一次快照，不经 generation。
- * 后端为内存环形缓冲（上限 500 条），Dialog 场景直接渲染，不做虚拟化。
+ * 底部面板的命令日志内容视图（ADR-0023）：搜索、失败筛选、刷新、两段确认
+ * 清空、单条展开与复制。数据是应用级内存环形缓冲快照，不做虚拟化。
+ * 状态与加载逻辑见 useCommandLog；切换标签保留筛选与展开状态。
  */
-export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
+export function CommandLogView({ active }: CommandLogViewProps) {
   const { t } = useI18n();
-  useEscClose(onClose);
-
-  const [entries, setEntries] = useState<CommandLogEntryDto[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [failedOnly, setFailedOnly] = useState(false);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [refreshDone, setRefreshDone] = useState(false);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [copiedCwdId, setCopiedCwdId] = useState<number | null>(null);
-  const [query, setQuery] = useState("");
-  const [confirmClear, setConfirmClear] = useState(false);
-
-  const refreshTimer = useRef<number | undefined>(undefined);
-  const copyTimer = useRef<number | undefined>(undefined);
-  const cwdTimer = useRef<number | undefined>(undefined);
-  const clearTimer = useRef<number | undefined>(undefined);
-
-  const load = useCallback(async (manual = false) => {
-    if (manual) {
-      setRefreshing(true);
-      setRefreshDone(false);
-    }
-    try {
-      setEntries(latestFirst(await ipc.gitCommandLog()));
-      setLoadError(null);
-      if (manual) {
-        setRefreshDone(true);
-        window.clearTimeout(refreshTimer.current);
-        refreshTimer.current = window.setTimeout(() => setRefreshDone(false), 1500);
-      }
-    } catch (err) {
-      setLoadError(errorText(err));
-    } finally {
-      if (manual) {
-        setRefreshing(false);
-      }
-    }
-  }, []);
-
-  const copyCommand = useCallback(
-    async (entry: CommandLogEntryDto) => {
-      const ok = await copyText(commandText(entry));
-      if (!ok) {
-        setLoadError(t("gitlog.copyFailed"));
-        return;
-      }
-      setCopiedId(entry.id);
-      window.clearTimeout(copyTimer.current);
-      copyTimer.current = window.setTimeout(() => setCopiedId(null), 1500);
-    },
-    [t]
-  );
-
-  const copyEntryCwd = useCallback(
-    async (entry: CommandLogEntryDto) => {
-      if (!entry.cwd) {
-        return;
-      }
-      const ok = await copyText(entry.cwd);
-      if (!ok) {
-        setLoadError(t("gitlog.copyFailed"));
-        return;
-      }
-      setCopiedCwdId(entry.id);
-      window.clearTimeout(cwdTimer.current);
-      cwdTimer.current = window.setTimeout(() => setCopiedCwdId(null), 1500);
-    },
-    [t]
-  );
-
-  const clearLog = useCallback(async () => {
-    if (!confirmClear) {
-      setConfirmClear(true);
-      window.clearTimeout(clearTimer.current);
-      clearTimer.current = window.setTimeout(() => setConfirmClear(false), 3000);
-      return;
-    }
-    window.clearTimeout(clearTimer.current);
-    try {
-      await ipc.clearCommandLog();
-      setEntries([]);
-      setLoadError(null);
-      setConfirmClear(false);
-    } catch (err) {
-      setLoadError(errorText(err));
-    }
-  }, [confirmClear]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(
-    () => () => {
-      window.clearTimeout(refreshTimer.current);
-      window.clearTimeout(copyTimer.current);
-      window.clearTimeout(cwdTimer.current);
-      window.clearTimeout(clearTimer.current);
-    },
-    []
-  );
-
-  const normalizedQuery = query.trim().toLowerCase();
-  const visible =
-    entries === null
-      ? []
-      : entries
-          .filter((entry) => !failedOnly || !entry.success)
-          .filter((entry) => {
-            if (!normalizedQuery) {
-              return true;
-            }
-            const haystack = `${commandText(entry)} ${entry.cwd} ${entry.stderr_head ?? ""}`;
-            return haystack.toLowerCase().includes(normalizedQuery);
-          });
+  const {
+    entries,
+    loadError,
+    failedOnly,
+    setFailedOnly,
+    expandedId,
+    setExpandedId,
+    refreshing,
+    refreshDone,
+    query,
+    setQuery,
+    confirmClear,
+    copiedId,
+    copiedCwdId,
+    load,
+    copyCommand,
+    copyEntryCwd,
+    clearLog,
+    visible,
+    formatDuration,
+    commandText,
+  } = useCommandLog(active);
 
   const total = entries?.length ?? 0;
   const failedCount = entries?.filter((entry) => !entry.success).length ?? 0;
-  const filtering = normalizedQuery.length > 0 || failedOnly;
+  const filtering = query.trim().length > 0 || failedOnly;
 
   const refreshLabel = refreshing
     ? t("gitlog.refreshing")
@@ -162,27 +51,21 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
       : t("gitlog.refresh");
 
   return (
-    <Modal className="gitlog-dialog">
-      <header>
-        <div>
-          <h2>{t("gitlog.dialogTitle")}</h2>
-          <p className="muted settings-hint">{t("gitlog.dialogSubtitle")}</p>
-          {entries !== null && (
-            <p className="gitlog-stats">
-              {t("gitlog.stats", { total, failed: failedCount })}
-              {filtering && (
-                <> · {t("gitlog.statsFiltered", { visible: visible.length })}</>
-              )}
-            </p>
-          )}
+    <div className="gitlog-view">
+      <header className="gitlog-header">
+        <div className="gitlog-header-info">
+          <span className="gitlog-stats">
+            {t("gitlog.stats", { total, failed: failedCount })}
+            {filtering && (
+              <> · {t("gitlog.statsFiltered", { visible: visible.length })}</>
+            )}
+          </span>
+          <span className="muted gitlog-subtitle">{t("gitlog.dialogSubtitle")}</span>
         </div>
         <div className="gitlog-header-actions">
           <button type="button" className="gitlog-refresh" onClick={() => void load(true)} disabled={refreshing}>
             <Icon name="refresh" className={refreshing ? "gitlog-spin" : undefined} />
             <span>{refreshLabel}</span>
-          </button>
-          <button className="detail-close" onClick={onClose} aria-label={t("gitlog.closeAria")}>
-            ×
           </button>
         </div>
       </header>
@@ -244,7 +127,7 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
 
       {visible.length > 0 && (
         <ul className="gitlog-list">
-          {visible.map((entry) => (
+          {visible.map((entry: CommandLogEntryDto) => (
             <li key={entry.id} className={entry.success ? "gitlog-row" : "gitlog-row failed"}>
               <div className="gitlog-row-line">
                 <button
@@ -311,6 +194,6 @@ export function CommandLogDialog({ onClose }: CommandLogDialogProps) {
           ))}
         </ul>
       )}
-    </Modal>
+    </div>
   );
 }

@@ -431,7 +431,7 @@ export interface SettingsDto {
   font_scale: number;
   /** 界面语言覆盖；空值跟随系统（"zh-CN" | "en"）。只经 set_language 命令修改。 */
   language?: string | null;
-  /** 终端 Shell 启动器（"default" | "git_bash"）；走设置草稿保存，下次启动 Shell 生效。 */
+  /** 终端 Shell 启动器（"default" | "git_bash"）；缺省 Windows 为 git_bash、其余平台 default。经 set_shell_profile 面板内切换即时生效。 */
   shell_profile: string;
 }
 

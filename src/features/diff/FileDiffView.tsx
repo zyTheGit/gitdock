@@ -6,7 +6,7 @@ import { Icon } from "../../assets/icons";
 import type { FileDiffDto, FileStatus } from "../../shared/types";
 import { noteText } from "../../shared/error";
 import { statusLabelKey } from "../../shared/fileStatus";
-import { consumeEsc, isEventInTerminal } from "../../shared/esc";
+import { consumeEsc, isEventInBottomPanel } from "../../shared/esc";
 import { Select } from "../../shared/Select";
 import { useIpcResource } from "../../shared/useIpcResource";
 import { useResolvedTheme } from "../../shared/theme";
@@ -85,8 +85,8 @@ export function FileDiffView({
       if (event.key !== "Escape") {
         return;
       }
-      // 终端聚焦时 Esc 归终端程序，本层同样让路。
-      if (isEventInTerminal(event)) {
+      // 底部面板聚焦时 Esc 归面板内容（终端程序或日志视图），本层同样让路。
+      if (isEventInBottomPanel(event)) {
         return;
       }
       consumeEsc(event);
