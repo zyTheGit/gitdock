@@ -24,7 +24,8 @@ const repository = {
   branchMenuMerge: "合并到当前分支…",
   branchMenuRebase: "Rebase 当前分支到此分支…",
   branchMenuRename: "重命名",
-  branchMenuDelete: "删除",
+  branchMenuDelete: "删除分支",
+  branchMenuDeleteRemote: "删除本地和远程分支",
   createBranch: "新建分支",
   createBranchTitle: "创建本地分支",
   branchNameLabel: "分支名",
@@ -59,6 +60,9 @@ const repository = {
   deleteBranchTitle: "删除本地分支",
   deleteBranchWarning:
     "删除只使用安全形态 git branch -d：未完全合并的分支会被 Git 拒绝并保留。如需强制删除，请在终端执行 git branch -D。",
+  deleteBranchRemoteTitle: "删除本地和远程分支",
+  deleteBranchRemoteWarning:
+    "先删除本地分支（安全形态 git branch -d，未合并会被拒绝），再删除远程 origin 同名分支；远程删除影响协作者且不可逆。",
   deleteTagTitle: "删除本地标签",
   deleteTagWarning: "将删除本地标签，不会删除远程同名标签；删除后如需恢复需重新创建。",
 } as const;

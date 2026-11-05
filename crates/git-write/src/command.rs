@@ -187,6 +187,18 @@ impl GitWriteModule {
                 })?;
                 branch::delete_args(name)
             }
+            WriteKind::DeleteBranchRemote => {
+                let name = request.branch.as_deref().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+                        .with_key("errors.commandMissingBranch")
+                })?;
+                vec![
+                    "push".into(),
+                    "origin".into(),
+                    "--delete".into(),
+                    name.into(),
+                ]
+            }
             WriteKind::RenameBranch => {
                 let name = request.branch.as_deref().ok_or_else(|| {
                     UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
@@ -367,6 +379,12 @@ impl GitWriteModule {
             .lines()
             .filter(|line| !line.trim().is_empty())
             .count() as u32)
+    }
+
+    /// 本地缓存的远程跟踪引用是否存在（如 `refs/remotes/origin/main`）。
+    pub(crate) fn remote_ref_exists(&self, ref_name: &str) -> Result<bool> {
+        let output = self.run_readonly(&["rev-parse", "--verify", "--quiet", ref_name])?;
+        Ok(output.status.success())
     }
 
     /// 当前分支上游引用（如 `origin/main`）；无 upstream 时返回 None。

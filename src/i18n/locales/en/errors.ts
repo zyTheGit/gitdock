@@ -195,6 +195,13 @@ const errors = {
   gateStashSelectorInvalid: "The stash selector must look like stash@{N}",
   gateStashNotFound: "Stash entry {{selector}} does not exist; refresh the list and retry",
   gateRemoteMissing: "No remote is configured",
+  gateRemoteRefMissing:
+    "The remote has no such branch (local cache miss); fetch first if the remote actually has it",
+  gateSummaryBranchRemoteDelete:
+    "Deletes local branch {{branch}} and remote origin/{{branch}}; remote deletion affects collaborators and cannot be undone",
+  outcomeBranchRemoteDeleted: "Remote branch {{branch}} deleted, graph refreshed",
+  outcomeRemoteRefMissing:
+    "The remote branch does not exist or is already deleted; local deletion took effect",
   gateRemoteUnborn: "The current branch has no commits",
   gateRemoteDetached: "Detached HEAD does not support pull / push; switch to a local branch first",
   gateRemoteNoUpstream: "The current branch has no upstream; set one in the terminal first",

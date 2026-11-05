@@ -246,6 +246,7 @@ export type WriteKind =
   | "amend_commit"
   | "create_branch"
   | "delete_branch"
+  | "delete_branch_remote"
   | "rename_branch"
   | "create_tag"
   | "delete_tag"

@@ -15,6 +15,7 @@ const write = {
   labelAmendCommit: "修改提交",
   labelCreateBranch: "创建分支",
   labelDeleteBranch: "删除分支",
+  labelDeleteBranchRemote: "删除本地和远程分支",
   labelRenameBranch: "重命名分支",
   labelCreateTag: "创建标签",
   labelDeleteTag: "删除标签",

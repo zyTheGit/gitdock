@@ -371,6 +371,12 @@ impl GitWriteModule {
                 issues.extend(change.issues);
                 (change.summary, change.summary_key, change.summary_args)
             }
+            WriteKind::DeleteBranchRemote => {
+                // 远程分支删除校验按 ADR 0022 拆到 remote 模块；bare 与中断态已由上方前置拒绝。
+                let change = crate::remote::gate::validate_delete_branch_remote(self, request)?;
+                issues.extend(change.issues);
+                (change.summary, change.summary_key, change.summary_args)
+            }
             WriteKind::Fetch | WriteKind::Pull | WriteKind::Push => {
                 // 远程校验按 ADR 0010 拆到 remote 模块；bare 与中断态已由上方前置拒绝。
                 let change = crate::remote::gate::validate_remote(self, request, &head, status)?;

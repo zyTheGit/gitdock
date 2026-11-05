@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
-
 use crate::oid::{ObjectFormat, Oid};
+use serde::{Deserialize, Serialize};
 
 /* ------------------------------ 仓库与 ref ------------------------------ */
 
@@ -463,6 +462,7 @@ pub enum WriteKind {
     AmendCommit,
     CreateBranch,
     DeleteBranch,
+    DeleteBranchRemote,
     RenameBranch,
     CreateTag,
     DeleteTag,

@@ -14,6 +14,8 @@ interface UseRefActionsParams {
 interface DeleteTarget {
   kind: DeleteKind;
   name: string;
+  /** 分支删除时同时删除远程同名分支（ADR 0022）；两段执行由 DeleteRefDialog 处理。 */
+  remote?: boolean;
 }
 
 /**
@@ -70,6 +72,15 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
     [available],
   );
 
+  const openDeleteBranchRemote = useCallback(
+    (name: string) => {
+      if (available) {
+        setDeleteTarget({ kind: "delete_branch", name, remote: true });
+      }
+    },
+    [available],
+  );
+
   const openDeleteTag = useCallback(
     (name: string) => {
       if (available) {
@@ -108,6 +119,7 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
         <DeleteRefDialog
           kind={deleteTarget.kind}
           name={deleteTarget.name}
+          remote={deleteTarget.remote}
           onCancel={() => setDeleteTarget(null)}
           onMutated={onMutated}
         />
@@ -120,12 +132,14 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
     openRenameBranch,
     openCreateTag,
     openDeleteBranch,
+    openDeleteBranchRemote,
     openDeleteTag,
     menuActions: {
       onNewBranch: openCreateBranch,
       onNewTag: openCreateTag,
       onRenameBranch: openRenameBranch,
       onDeleteBranch: openDeleteBranch,
+      onDeleteBranchRemote: openDeleteBranchRemote,
     },
     dialogs,
   };

@@ -1,14 +1,13 @@
 //! 执行状态机：运行白名单命令并按退出码与操作态判定结果。
 
-use std::collections::BTreeMap;
-
 use git_core::{
     lossy_text as text, run_git_output, run_git_with_stdin, ErrorCode, Result, UserVisibleError,
     WriteKind, WriteOutcomeDto, WriteRequest, WriteStatus,
 };
 
-use crate::command::interruption_command;
 use crate::description::description_message;
+use crate::interruption_outcome::{args_map, stderr_option};
+use crate::remote::failure::remote_failure;
 use crate::GitWriteModule;
 
 impl GitWriteModule {
@@ -85,122 +84,10 @@ impl GitWriteModule {
             });
         }
 
-        // 继续/中止：成功必须同时满足「退出码 0」与「对应标记消失」，不做任何自动收尾。
-        if matches!(
-            request.kind,
-            WriteKind::ContinueOperation | WriteKind::AbortOperation
-        ) {
-            let (action, markers) = interruption_command(request)?;
-            let marker_text = markers.join(" / ");
-            let continuing = request.kind == WriteKind::ContinueOperation;
-            let marker_present = markers.iter().any(|marker| self.marker_exists(marker));
-            if exit_code == Some(0) && !marker_present {
-                let (message, key, args) = if continuing {
-                    (
-                        format!("已继续并完成 {action} 操作，图谱已刷新"),
-                        "errors.outcomeContinueCompleted",
-                        args_map(&[("action", action)]),
-                    )
-                } else {
-                    (
-                        format!("已中止 {action} 操作，已回到操作开始前的状态"),
-                        "errors.outcomeAbortCompleted",
-                        args_map(&[("action", action)]),
-                    )
-                };
-                return Ok(WriteOutcomeDto {
-                    key: Some(key.into()),
-                    args,
-                    status: WriteStatus::Succeeded,
-                    message,
-                    exit_code,
-                    stderr: None,
-                    conflict_files: Vec::new(),
-                    interruption: Some(self.inspect_interruption()?),
-                    generation: None,
-                    head_oid,
-                });
-            }
-            if !continuing {
-                let (message, key, args) = if marker_present {
-                    (
-                        format!("中止 {action} 未完成，中断标记仍然存在；请在终端处理"),
-                        "errors.outcomeAbortIncomplete",
-                        args_map(&[("action", action)]),
-                    )
-                } else {
-                    (
-                        format!("中止 {action} 未生效，Git 返回非零退出码"),
-                        "errors.outcomeAbortFailed",
-                        args_map(&[("action", action)]),
-                    )
-                };
-                return Ok(WriteOutcomeDto {
-                    key: Some(key.into()),
-                    args,
-                    status: WriteStatus::Failed,
-                    message,
-                    exit_code,
-                    stderr: stderr_option(&stderr),
-                    conflict_files: Vec::new(),
-                    interruption: Some(self.inspect_interruption()?),
-                    generation: None,
-                    head_oid,
-                });
-            }
-            if !marker_present {
-                // 标记已消失但退出码非零：属于 Git 的其他失败，不臆测为空提交。
-                return Ok(WriteOutcomeDto {
-                    key: Some("errors.outcomeContinueFailed".into()),
-                    args: args_map(&[("action", action)]),
-                    status: WriteStatus::Failed,
-                    message: format!("继续 {action} 未完成，Git 返回非零退出码"),
-                    exit_code,
-                    stderr: stderr_option(&stderr),
-                    conflict_files: Vec::new(),
-                    interruption: Some(self.inspect_interruption()?),
-                    generation: None,
-                    head_oid,
-                });
-            }
-            let status = self.status_summary()?;
-            let (message, key, args, conflict_files) = if status.conflicted > 0 {
-                (
-                    format!(
-                        "还有 {} 个文件存在未解决冲突，请解决冲突并 git add 后再继续",
-                        status.conflicted
-                    ),
-                    "errors.outcomeUnresolvedConflicts",
-                    args_map(&[("n", &status.conflicted.to_string())]),
-                    status.conflicted_files,
-                )
-            } else {
-                let hint = if action == "merge" || action == "rebase" {
-                    format!("继续 {action} 未完成（{marker_text} 仍然存在）；请在终端处理")
-                } else {
-                    format!(
-                        "继续 {action} 后结果为空（{marker_text} 仍然存在）。请在终端执行 git cherry-pick --skip 或 git revert --skip 跳过该提交；本应用不会自动跳过"
-                    )
-                };
-                (
-                    hint,
-                    "errors.outcomeContinueEmpty",
-                    args_map(&[("action", action), ("marker", marker_text.as_str())]),
-                    Vec::new(),
-                )
-            };
-            return Ok(WriteOutcomeDto {
-                key: Some(key.into()),
-                args,
-                status: WriteStatus::Failed,
-                message,
-                exit_code,
-                stderr: stderr_option(&stderr),
-                conflict_files,
-                interruption: Some(self.inspect_interruption()?),
-                generation: None,
-                head_oid,
-            });
+        if let Some(outcome) =
+            crate::interruption_outcome::interruption_outcome(self, request, exit_code, &stderr)?
+        {
+            return Ok(outcome);
         }
 
         if exit_code == Some(0) {
@@ -304,6 +191,14 @@ impl GitWriteModule {
                     (
                         format!("已删除本地分支 {branch}，图谱已刷新"),
                         "errors.outcomeBranchDeleted",
+                        args_map(&[("branch", branch)]),
+                    )
+                }
+                WriteKind::DeleteBranchRemote => {
+                    let branch = request.branch.as_deref().unwrap_or_default();
+                    (
+                        format!("已删除远程分支 origin/{branch}，图谱已刷新"),
+                        "errors.outcomeBranchRemoteDeleted",
                         args_map(&[("branch", branch)]),
                     )
                 }
@@ -518,7 +413,7 @@ impl GitWriteModule {
 
         if matches!(
             request.kind,
-            WriteKind::Fetch | WriteKind::Pull | WriteKind::Push
+            WriteKind::Fetch | WriteKind::Pull | WriteKind::Push | WriteKind::DeleteBranchRemote
         ) {
             let (message, key) = remote_failure(request.kind, &stderr).unwrap_or((
                 "远程操作失败，请检查网络与远端配置",
@@ -596,54 +491,4 @@ impl GitWriteModule {
             head_oid,
         })
     }
-}
-
-/// 远程失败分类：只按 Git stderr 的稳定片段归类，不猜测具体远端。
-pub(crate) fn remote_failure(
-    kind: WriteKind,
-    stderr: &str,
-) -> Option<(&'static str, &'static str)> {
-    let lower = stderr.to_lowercase();
-    let auth = lower.contains("authentication failed")
-        || lower.contains("could not read username")
-        || lower.contains("could not read password")
-        || lower.contains("terminal prompts disabled")
-        || lower.contains("permission denied (publickey)");
-    if auth {
-        return Some((
-            "远程认证失败；本应用不接收密码。请在内置终端完成一次 fetch/push 授权，或配置系统凭据管理器 / SSH agent 后重试",
-            "errors.outcomeRemoteAuthFailed",
-        ));
-    }
-    match kind {
-        WriteKind::Pull if lower.contains("not possible to fast-forward") => Some((
-            "远端有本地没有的提交，pull --ff-only 无法快进；请先 fetch，并在终端 merge/rebase（批次 5）",
-            "errors.outcomePullNotFastForward",
-        )),
-        WriteKind::Push
-            if lower.contains("non-fast-forward")
-                || lower.contains("failed to push some refs")
-                || lower.contains("rejected") =>
-        {
-            Some((
-                "远端拒绝了推送（可能非快进或 hook 拒绝）；本应用不提供 force push，请在终端处理",
-                "errors.outcomePushRejected",
-            ))
-        }
-        _ => None,
-    }
-}
-
-fn stderr_option(stderr: &str) -> Option<String> {
-    (!stderr.trim().is_empty()).then(|| stderr.to_owned())
-}
-
-/// 插值参数表 → BTreeMap；仅用于带参数的 i18n 模板。
-fn args_map(pairs: &[(&str, &str)]) -> Option<BTreeMap<String, String>> {
-    Some(
-        pairs
-            .iter()
-            .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
-            .collect(),
-    )
 }
