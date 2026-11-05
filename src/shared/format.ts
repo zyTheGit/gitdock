@@ -2,6 +2,7 @@
 import { currentLocale } from "../i18n";
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
+const secondFormatters = new Map<string, Intl.DateTimeFormat>();
 
 function formatter(): Intl.DateTimeFormat {
   const locale = currentLocale();
@@ -22,6 +23,27 @@ function formatter(): Intl.DateTimeFormat {
 /** 秒级时间戳 → 当前语言的本地日期时间；0 视为未知。 */
 export function formatDate(seconds: number): string {
   return seconds ? formatter().format(new Date(seconds * 1000)) : "—";
+}
+
+/** 毫秒级时间戳 → 当前语言的本地日期时间（精确到秒）；0 视为未知。 */
+export function formatDateTimeWithSeconds(ms: number): string {
+  if (!ms) {
+    return "—";
+  }
+  const locale = currentLocale();
+  let cached = secondFormatters.get(locale);
+  if (!cached) {
+    cached = new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    secondFormatters.set(locale, cached);
+  }
+  return cached.format(new Date(ms));
 }
 
 export function shortOid(oid: string): string {

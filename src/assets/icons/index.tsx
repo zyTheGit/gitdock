@@ -22,6 +22,13 @@ import { fullscreen } from "./fullscreen";
 import { fullscreenRestore } from "./fullscreen-restore";
 import { collapse } from "./collapse";
 import { chevronDown } from "./chevron-down";
+import { play } from "./play";
+import { stop } from "./stop";
+import { cloudDownload } from "./cloud-download";
+import { download } from "./download";
+import { upload } from "./upload";
+import { copy } from "./copy";
+import { trash } from "./trash";
 
 /**
  * 应用内所有 SVG 图标的注册表。单个图标定义在同目录的独立文件中；图标统一
@@ -49,6 +56,13 @@ const ICONS = {
   fullscreenRestore,
   collapse,
   chevronDown,
+  play,
+  stop,
+  cloudDownload,
+  download,
+  upload,
+  copy,
+  trash,
 } satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;

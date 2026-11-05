@@ -283,6 +283,8 @@ export default function App() {
     onCopyMessage: copyDescription,
     onCherryPick: (commit) => void write.start("cherry_pick", { commit }),
     onRevert: (commit) => void write.start("revert", { commit }),
+    onMergeBranch: (branch) => void write.start("merge", { branch }),
+    onRebaseBranch: (branch) => void write.start("rebase", { branch }),
     onEditDescription: (shortName) => {
       setError(null);
       setDiagnostic(null);

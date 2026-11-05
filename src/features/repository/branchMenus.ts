@@ -24,6 +24,8 @@ export interface BranchMenuActions {
   onSetCompare: (branch: RefDto) => void;
   onRenameBranch: (shortName: string) => void;
   onDeleteBranch: (shortName: string) => void;
+  onMergeBranch: (shortName: string) => void;
+  onRebaseBranch: (shortName: string) => void;
 }
 
 export function branchMenuItems(branch: RefDto, actions: BranchMenuActions): MenuItem[] {
@@ -45,6 +47,16 @@ export function branchMenuItems(branch: RefDto, actions: BranchMenuActions): Men
     {
       label: i18next.t("repository.branchMenuSetCompare"),
       onSelect: () => actions.onSetCompare(branch),
+    },
+    {
+      label: i18next.t("repository.branchMenuMerge"),
+      disabled: actions.writeDisabled || branch.is_head,
+      onSelect: () => actions.onMergeBranch(branch.short_name),
+    },
+    {
+      label: i18next.t("repository.branchMenuRebase"),
+      disabled: actions.writeDisabled || branch.is_head,
+      onSelect: () => actions.onRebaseBranch(branch.short_name),
     },
     {
       label: i18next.t("repository.branchMenuRename"),

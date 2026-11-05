@@ -473,6 +473,16 @@ pub enum WriteKind {
     Fetch,
     Pull,
     Push,
+    Merge,
+    Rebase,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PullMode {
+    FfOnly,
+    Merge,
+    Rebase,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -505,6 +515,12 @@ pub struct WriteRequest {
     /// stash_save 是否包含未跟踪文件；缺省 false。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub include_untracked: Option<bool>,
+    /// pull 的模式；缺省 ff_only。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pull_mode: Option<PullMode>,
+    /// 批量 cherry-pick / revert 的提交列表；提供时优先于 oid。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub oids: Option<Vec<Oid>>,
 }
 
 /// 单条本地 stash：index 0 为最新；selector 形如 `stash@{0}`。
@@ -712,6 +728,8 @@ mod tests {
             message: None,
             stash: None,
             include_untracked: None,
+            pull_mode: None,
+            oids: None,
         };
         let json = serde_json::to_string(&request).expect("序列化");
         assert!(json.contains(r#""interruption":"revert""#), "{json}");
@@ -734,6 +752,8 @@ mod tests {
             message: None,
             stash: None,
             include_untracked: None,
+            pull_mode: None,
+            oids: None,
         };
         let json = serde_json::to_string(&minimal).expect("序列化");
         assert!(!json.contains("interruption"), "{json}");

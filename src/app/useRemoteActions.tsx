@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { errorText, issueText, outcomeText } from "../shared/error";
 import { ipc } from "../shared/ipc";
-import type { RemoteSyncKind, WriteRequest } from "../shared/types";
+import type { PullMode, RemoteSyncKind, WriteRequest } from "../shared/types";
 
 interface UseRemoteActionsParams {
   writeDisabled: boolean;
@@ -12,13 +12,16 @@ export interface RemoteActions {
   disabled: boolean;
   busy: RemoteSyncKind | null;
   error: string | null;
+  pullMode: PullMode;
+  setPullMode: (mode: PullMode) => void;
   run: (kind: RemoteSyncKind) => void;
 }
 
-/** fetch / pull --ff-only / push 的直执入口（ADR 0010），不做额外确认框。 */
+/** fetch / pull / push 的直执入口（ADR 0010），不做额外确认框。 */
 export function useRemoteActions({ writeDisabled, onMutated }: UseRemoteActionsParams) {
   const [busy, setBusy] = useState<RemoteSyncKind | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pullMode, setPullMode] = useState<PullMode>("ff_only");
   const busyRef = useRef(false);
   busyRef.current = busy !== null;
 
@@ -30,7 +33,10 @@ export function useRemoteActions({ writeDisabled, onMutated }: UseRemoteActionsP
       setBusy(kind);
       setError(null);
       try {
-        const request: WriteRequest = { kind };
+        const request: WriteRequest = {
+          kind,
+          pull_mode: kind === "pull" ? pullMode : undefined,
+        };
         const gate = await ipc.validateWrite(request);
         if (!gate.ok) {
           setError(gate.issues.map(issueText).join("\n"));
@@ -48,8 +54,8 @@ export function useRemoteActions({ writeDisabled, onMutated }: UseRemoteActionsP
         setBusy(null);
       }
     },
-    [onMutated, writeDisabled],
+    [onMutated, pullMode, writeDisabled],
   );
 
-  return { disabled: writeDisabled, busy, error, run };
+  return { disabled: writeDisabled, busy, error, pullMode, setPullMode, run };
 }

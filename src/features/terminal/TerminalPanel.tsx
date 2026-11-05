@@ -149,7 +149,7 @@ export function TerminalPanel({
           {restartable ? (
             <>
               <button
-                className="primary"
+                className="primary terminal-launch-button"
                 onClick={() => start("lazygit")}
                 disabled={lazygitMissing}
                 title={
@@ -158,7 +158,8 @@ export function TerminalPanel({
                     : t("terminal.launchLazygitTitle")
                 }
               >
-                {t("terminal.launchLazygit")}
+                <Icon name="play" />
+                <span>{t("terminal.launchLazygit")}</span>
               </button>
               <button className="terminal-launch-button secondary" onClick={() => start("shell")}>
                 <Icon name="shell" />
@@ -166,8 +167,14 @@ export function TerminalPanel({
               </button>
             </>
           ) : (
-            <button onClick={end} disabled={status === "starting"}>
-              {t("terminal.endProcess")}
+            <button
+              className="terminal-launch-button danger"
+              onClick={end}
+              disabled={status === "starting"}
+              title={t("terminal.endProcessTitle")}
+            >
+              <Icon name="stop" />
+              <span>{t("terminal.endProcess")}</span>
             </button>
           )}
           <button className="terminal-fullscreen-button" onClick={() => setFullscreen((current) => !current)} title={fullscreenTitle}>

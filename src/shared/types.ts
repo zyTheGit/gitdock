@@ -255,9 +255,12 @@ export type WriteKind =
   | "stash_drop"
   | "fetch"
   | "pull"
-  | "push";
+  | "push"
+  | "merge"
+  | "rebase";
 
 export type RemoteSyncKind = Extract<WriteKind, "fetch" | "pull" | "push">;
+export type PullMode = "ff_only" | "merge" | "rebase";
 
 export interface WriteRequest {
   kind: WriteKind;
@@ -269,7 +272,7 @@ export interface WriteRequest {
   /** stage/unstage 的文件路径；其他操作忽略。 */
   paths?: string[];
   /** 继续/中止时指定的中断类型；必须与后端探测结果严格一致。 */
-  interruption?: "cherry_pick" | "revert";
+  interruption?: Exclude<InterruptionKind, "sequencer" | "index_lock">;
   /** merge commit 的基线父序号（1 起始）；非 merge commit 不得提供。 */
   mainline?: number;
   /** create_commit / amend_commit 的提交消息；其他操作忽略。 */
@@ -278,6 +281,10 @@ export interface WriteRequest {
   stash?: string;
   /** stash_save 是否包含未跟踪文件；缺省 false。 */
   include_untracked?: boolean;
+  /** pull 的模式；缺省 ff_only。 */
+  pull_mode?: PullMode;
+  /** 批量 cherry-pick / revert 的提交列表；提供时优先于 oid。 */
+  oids?: string[];
 }
 
 /** 单个本地 stash；index 0 为最新。 */

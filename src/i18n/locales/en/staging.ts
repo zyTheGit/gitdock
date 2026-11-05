@@ -61,6 +61,7 @@ const staging = {
   // Stash management (ADR 0009).
   stashOpen: "Stash",
   stashTitle: "Stash management",
+  stashCloseAria: "Close stash management",
   stashSubtitle: "Manually save and restore working tree changes",
   stashMessageLabel: "Message (optional)",
   stashMessagePlaceholder: "e.g. save before switching branches",
@@ -75,7 +76,7 @@ const staging = {
   stashApplyHint: "Keeps the entry after applying",
   stashPopHint: "Removes the entry on success; kept on conflict",
   stashDropHint: "Removes the entry from the list",
-  stashDropConfirmTitle: "Confirm stash deletion",
+
   stashDropConfirmHint:
     "Deletion cannot be undone. To recover, run git fsck --unreachable in the terminal to find the stash commit, then git stash apply <oid>.",
   stashDropConfirm: "Delete stash",

@@ -14,10 +14,10 @@ import type {
 
 export type PromptWriteKind = Extract<
   WriteKind,
-  "cherry_pick" | "revert" | "switch_branch" | "continue_operation" | "abort_operation"
+  "cherry_pick" | "revert" | "switch_branch" | "merge" | "rebase" | "continue_operation" | "abort_operation"
 >;
 export type InterruptionWriteKind = Extract<WriteKind, "continue_operation" | "abort_operation">;
-export type SingleInterruption = "cherry_pick" | "revert";
+export type SingleInterruption = "cherry_pick" | "revert" | "merge" | "rebase";
 
 export interface WritePrompt {
   kind: PromptWriteKind;
@@ -89,7 +89,7 @@ export function useWriteFlow({
 
   const start = useCallback(
     async (
-      kind: Extract<WriteKind, "cherry_pick" | "revert" | "switch_branch">,
+      kind: Extract<WriteKind, "cherry_pick" | "revert" | "switch_branch" | "merge" | "rebase">,
       target: { commit?: CommitSummaryDto; branch?: string },
     ) => {
       setError(null);
@@ -161,7 +161,11 @@ export function useWriteFlow({
         // 切换分支与继续/中止失败时直接展示 stderr，用户需要看到 Git 点名的路径或拒绝原因。
         const showStderr =
           Boolean(outcome.stderr) &&
-          (kind === "switch_branch" || kind === "continue_operation" || kind === "abort_operation");
+          (kind === "switch_branch" ||
+            kind === "continue_operation" ||
+            kind === "abort_operation" ||
+            kind === "merge" ||
+            kind === "rebase");
         const headline = outcomeText(outcome);
         setError(showStderr ? `${headline}\n\n${outcome.stderr!.trim()}` : headline);
         setDiagnostic(outcome.stderr ?? headline);

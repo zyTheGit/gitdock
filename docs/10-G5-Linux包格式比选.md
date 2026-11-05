@@ -45,7 +45,7 @@
 | 工作项 | 内容 | 预估 |
 |---|---|---|
 | 主格式落地 | ~~Release 说明措辞按主次调整；`tauri.conf.json` 补 `bundle.linux`~~ **已落地（2026-11-04）**：release.yml 的 Linux 指引改为 deb 主格式优先、AppImage 标注实验级；`bundle.linux.category: "Development"`。README 安装说明的 WebKitGTK 依赖展示延后到实机验证后随「其他发行版支持等级」一并补——实机未验证前不在用户文档宣称安装方法 | 0.5 天 |
-| 实机验证矩阵 | Ubuntu 22.04 全新安装/升级/卸载 + docs/09 §6 功能清单 Linux 部分（PTY/Shell、中文路径、inotify 文件监听、主题、剪贴板、A-4 进程组回收） | 需 Ubuntu 实机或 runner 安装验证（用户资源） |
+| 实机验证矩阵 | Ubuntu 22.04 全新安装/升级/卸载 + docs/09 §6 功能清单 Linux 部分（PTY/Shell、中文路径、inotify 文件监听、主题、剪贴板、A-4 进程组回收）。固定清单见 [Linux 安装验收](verification/Linux-安装验收.md) | 需 Ubuntu 实机或 runner 安装验证（用户资源） |
 | 其他发行版支持等级 | 记录 Debian 12（deb 可用）/ 其他（AppImage 实验）等级声明；不承诺未验证发行版 | 0.5 天 |
 | artifact 可复现验证 | prerelease tag 首跑 release.yml，核对产物与体积记录 | 随 tag 授权 |
 

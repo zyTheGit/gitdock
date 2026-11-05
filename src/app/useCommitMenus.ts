@@ -33,6 +33,8 @@ interface UseCommitMenusParams {
   onNewTag: (commit: CommitSummaryDto) => void;
   onRenameBranch: (shortName: string) => void;
   onDeleteBranch: (shortName: string) => void;
+  onMergeBranch: (shortName: string) => void;
+  onRebaseBranch: (shortName: string) => void;
   onCherryPick: (commit: CommitSummaryDto) => void;
   onRevert: (commit: CommitSummaryDto) => void;
   onEditDescription: (shortName: string) => void;
@@ -55,6 +57,8 @@ export function useCommitMenus({
   onNewTag,
   onRenameBranch,
   onDeleteBranch,
+  onMergeBranch,
+  onRebaseBranch,
   onCherryPick,
   onRevert,
   onEditDescription,
@@ -101,6 +105,8 @@ export function useCommitMenus({
         onSetCompare: (branch) => slots.setSide("compare", branchSlot(branch)),
         onRenameBranch,
         onDeleteBranch,
+        onMergeBranch,
+        onRebaseBranch,
       })
     : [];
 

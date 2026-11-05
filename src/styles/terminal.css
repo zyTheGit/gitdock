@@ -120,6 +120,17 @@
   border-color: #596273;
 }
 
+.terminal-launch-button.danger {
+  color: var(--terminal-error-text);
+  background: var(--terminal-error-bg);
+  border-color: #5a2b26;
+}
+
+.terminal-launch-button.danger:hover:not(:disabled) {
+  color: #ffb4a4;
+  border-color: var(--terminal-error-text);
+}
+
 .terminal-launch-button:focus-visible,
 .terminal-fullscreen-button:focus-visible,
 .terminal-icon-button:focus-visible {

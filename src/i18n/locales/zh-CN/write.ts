@@ -25,6 +25,8 @@ const write = {
   labelFetch: "Fetch",
   labelPull: "拉取",
   labelPush: "推送",
+  labelMerge: "合并到此分支",
+  labelRebase: "Rebase 到此分支",
   // 写操作结果消息（状态栏 toast）。
   outcomeSwitchedToBranch: "已切换到分支 {{branch}}",
   outcomeContinueDone: "已继续并完成操作，已刷新图谱",
@@ -49,6 +51,9 @@ const write = {
   actionHintContinue:
     "将完成当前中断的操作。请先在终端解决全部冲突并 git add；若结果为空提交，Git 会失败并保留中断标记，此时需在终端执行 --skip 跳过本次操作（本应用不会自动跳过）。",
   actionHintAbort: "将回到操作开始前的状态，已手工解决的冲突内容会丢失。",
+  actionHintMerge: "将把所选分支 merge 到当前分支（--no-edit），可能产生合并提交。",
+  actionHintRebase:
+    "将把当前分支 rebase 到所选分支；这会改写提交历史，可用 git rebase --abort 恢复。",
   stashBeforeSwitch: "先 stash 当前改动",
   confirmContinue: "继续并完成操作",
   confirmAbort: "中止并丢弃冲突解决",

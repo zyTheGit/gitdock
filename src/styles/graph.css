@@ -366,7 +366,16 @@
 }
 
 .remote-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 2px 8px;
   font-size: 11px;
   white-space: nowrap;
+}
+
+.remote-actions button svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
 }

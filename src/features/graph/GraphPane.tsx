@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 import { useI18n } from "../../i18n";
-import type { CommitSummaryDto, RepoStateDto, GraphScope } from "../../shared/types";
+import { Icon } from "../../assets/icons";
+import type { CommitSummaryDto, PullMode, RepoStateDto, GraphScope } from "../../shared/types";
 import type { RemoteActions } from "../../app/useRemoteActions";
 import { Select } from "../../shared/Select";
 import { GraphList } from "./GraphList";
@@ -91,21 +92,35 @@ export function GraphPane({
             title={t("graph.fetchTitle")}
             onClick={() => remote.run("fetch")}
           >
-            {remote.busy === "fetch" ? t("graph.fetching") : t("graph.fetch")}
+            <Icon name="cloudDownload" />
+            <span>{remote.busy === "fetch" ? t("graph.fetching") : t("graph.fetch")}</span>
           </button>
+          <Select
+            className="pull-mode"
+            compact
+            aria-label={t("graph.pullModeAria")}
+            value={remote.pullMode}
+            options={[
+              { value: "ff_only", label: t("graph.pullModeFfOnly") },
+              { value: "merge", label: t("graph.pullModeMerge") },
+            ]}
+            onChange={(event) => remote.setPullMode(event.target.value as PullMode)}
+          />
           <button
             disabled={remote.disabled || remote.busy !== null}
             title={t("graph.pullTitle")}
             onClick={() => remote.run("pull")}
           >
-            {remote.busy === "pull" ? t("graph.pulling") : t("graph.pull")}
+            <Icon name="download" />
+            <span>{remote.busy === "pull" ? t("graph.pulling") : t("graph.pull")}</span>
           </button>
           <button
             disabled={remote.disabled || remote.busy !== null}
             title={t("graph.pushTitle")}
             onClick={() => remote.run("push")}
           >
-            {remote.busy === "push" ? t("graph.pushing") : t("graph.push")}
+            <Icon name="upload" />
+            <span>{remote.busy === "push" ? t("graph.pushing") : t("graph.push")}</span>
           </button>
         </div>
       </div>

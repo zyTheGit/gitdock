@@ -10,6 +10,7 @@ use std::sync::{Mutex, OnceLock};
 
 use git_core::{CommandLogEntry, CommandRecorder};
 
+use super::config::strip_verbatim_text;
 use super::logging;
 
 /// 环形缓冲上限：保留最近的命令，超出弹头部。
@@ -32,7 +33,9 @@ pub fn init() {
 struct CommandLogRecorder;
 
 impl CommandRecorder for CommandLogRecorder {
-    fn record(&self, entry: CommandLogEntry) {
+    fn record(&self, mut entry: CommandLogEntry) {
+        // 日志只用于展示：剥离 Windows canonicalize 的 `\\?\` 前缀，执行路径不受影响。
+        entry.cwd = strip_verbatim_text(&entry.cwd);
         log_summary(&entry);
         // 锁失败（poisoned）时丢弃本条：执行日志是观测通道，不能反向拖垮执行。
         if let Ok(mut buffer) = buffer().lock() {
@@ -65,4 +68,10 @@ pub fn snapshot() -> Vec<CommandLogEntry> {
         .lock()
         .map(|buffer| buffer.iter().cloned().collect())
         .unwrap_or_default()
+}
+/// 清空本次运行的内存日志；磁盘应用日志不受影响。
+pub fn clear() {
+    if let Ok(mut buffer) = buffer().lock() {
+        buffer.clear();
+    }
 }

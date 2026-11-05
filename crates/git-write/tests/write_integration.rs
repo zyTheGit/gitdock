@@ -20,6 +20,8 @@ fn base_request(kind: WriteKind) -> WriteRequest {
         message: None,
         stash: None,
         include_untracked: None,
+        pull_mode: None,
+        oids: None,
     }
 }
 
@@ -309,7 +311,7 @@ fn continue_gate_requires_matching_interruption() {
     let invalid = module
         .validate(&operation_request(
             WriteKind::ContinueOperation,
-            InterruptionKind::Merge,
+            InterruptionKind::Sequencer,
         ))
         .expect("Gate");
     assert!(!invalid.ok);
@@ -442,8 +444,16 @@ fn continue_gate_rejects_sequencer_and_index_lock() {
         report
             .issues
             .iter()
-            .any(|issue| issue.code == "gate_sequenced_operation"),
+            .any(|issue| issue.code == "gate_unresolved_conflicts"),
         "{:?}",
+        report.issues
+    );
+    assert!(
+        report
+            .issues
+            .iter()
+            .all(|issue| issue.code != "gate_sequenced_operation"),
+        "sequences are now handled in-app: {:?}",
         report.issues
     );
     std::fs::remove_dir_all(&sequencer).expect("删除 sequencer");
