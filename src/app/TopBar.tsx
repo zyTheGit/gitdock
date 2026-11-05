@@ -6,7 +6,7 @@ import { WorkspaceBadge } from "./WorkspaceBadge";
 import type { RecentRepository, RepoStateDto, WorkspaceStatusDto } from "../shared/types";
 import type { ViewMode } from "./useGlobalEsc";
 
-function ActionIcon({ name }: { name: "search" | "stage" | "compare" | "terminal" | "settings" | "refresh" }) {
+function ActionIcon({ name }: { name: "search" | "stage" | "compare" | "terminal" | "refresh" }) {
   return <Icon name={name} className="topbar-action-icon" />;
 }
 
@@ -29,7 +29,7 @@ interface TopBarProps {
   setMode: (mode: ViewMode) => void;
   onOpenBranchCompare: () => void;
   onToggleTerminal: () => void;
-  onOpenSettings: () => void;
+
 }
 
 /** 顶栏：仓库切换、工作区徽标与全局动作按钮。纯展示，动作经回调上抛。 */
@@ -52,7 +52,7 @@ export function TopBar({
   setMode,
   onOpenBranchCompare,
   onToggleTerminal,
-  onOpenSettings,
+
 }: TopBarProps) {
   const { t } = useI18n();
   return (
@@ -115,7 +115,7 @@ export function TopBar({
             </button>
           </>
         )}
-        <button onClick={onOpenSettings}><ActionIcon name="settings" /><span>{t("shell.settings")}</span></button>
+
         <button onClick={onRefresh} disabled={busy || !repo}>
           <ActionIcon name="refresh" /><span>{busy ? t("shell.refreshing") : t("shell.refresh")}</span>
         </button>

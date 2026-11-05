@@ -4,6 +4,7 @@ pub mod external;
 
 pub mod gitlog;
 pub mod logging;
+pub mod menu;
 pub mod platform;
 mod state;
 pub mod terminal;

@@ -37,10 +37,16 @@ fn legacy_fullscreen_size(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .on_menu_event(|app, event| app::menu::on_event(app, &event))
         .setup(|app| {
             let state = Arc::new(AppState::new(app.handle())?);
             let settings = state.settings().unwrap_or_default();
             app.manage(Arc::clone(&state));
+
+            // 应用菜单（ADR-0012）：设置/文件/视图/帮助入口统一到菜单栏。
+            if let Err(error) = app::menu::install(app.handle(), settings.language.as_deref()) {
+                app::logging::warn(&format!("应用菜单初始化失败：{error}"));
+            }
 
             if let Some(window) = app.get_webview_window("main") {
                 // 显示前先定好尺寸：窗口在配置里是隐藏的，用户看不到默认尺寸到目标尺寸的过渡。
