@@ -38,6 +38,7 @@ import { branchSlot } from "./features/repository/branchMenus";
 import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
+import { AboutDialog } from "./features/settings/AboutDialog";
 import { StagingView } from "./features/staging/StagingView";
 import { TerminalPanel } from "./features/terminal/TerminalPanel";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
@@ -120,10 +121,7 @@ export default function App() {
     setToast(t("shell.terminalProcessEnded"));
   }, [setToast, t]);
 
-  const settingsEntry = useSettingsEntry({
-    onOpenRepository: () => void session.pick(), onToggleTerminal: toggleTerminal,
-    onOpenCommandLog: () => setCommandLogOpen(true), onCheckUpdate: () => void runUpdateCheck(true),
-  });
+  const settingsEntry = useSettingsEntry({ onOpenRepository: () => void session.pick() });
 
   const generation = repo?.generation ?? 0;
   const slots = useCompareSlots(repo);
@@ -592,6 +590,7 @@ export default function App() {
           onError={setError}
         />
       )}
+      {settingsEntry.aboutOpen && <AboutDialog info={info} updateCheck={updateState} onClose={settingsEntry.closeAbout} onError={setError} />}
       {commandLogOpen && <CommandLogDialog onClose={() => setCommandLogOpen(false)} />}
     </div>
   );

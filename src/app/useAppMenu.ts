@@ -1,24 +1,13 @@
 import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
-import type { SettingsSectionKey } from "../features/settings/settingsSections";
 
 /** Rust 菜单事件（app://menu）的动作标识，与 src-tauri/src/app/menu.rs 保持一致。 */
-export type AppMenuAction =
-  | "settings"
-  | "open_repository"
-  | "terminal"
-  | "command_log"
-  | "feedback"
-  | "shortcuts"
-  | "about"
-  | "check_update";
+export type AppMenuAction = "settings" | "open_repository" | "about";
 
 export interface AppMenuHandlers {
-  onOpenSettings: (section: SettingsSectionKey) => void;
+  onOpenSettings: () => void;
   onOpenRepository: () => void;
-  onToggleTerminal: () => void;
-  onOpenCommandLog: () => void;
-  onCheckUpdate: () => void;
+  onOpenAbout: () => void;
 }
 
 /**
@@ -37,26 +26,13 @@ export function useAppMenu(handlers: AppMenuHandlers) {
       const current = handlersRef.current;
       switch (event.payload) {
         case "settings":
-          current.onOpenSettings("startup");
-          break;
-        case "shortcuts":
-          current.onOpenSettings("keybindings");
-          break;
-        case "about":
-        case "feedback":
-          current.onOpenSettings("about");
+          current.onOpenSettings();
           break;
         case "open_repository":
           current.onOpenRepository();
           break;
-        case "terminal":
-          current.onToggleTerminal();
-          break;
-        case "command_log":
-          current.onOpenCommandLog();
-          break;
-        case "check_update":
-          current.onCheckUpdate();
+        case "about":
+          current.onOpenAbout();
           break;
       }
     }).then((fn) => {

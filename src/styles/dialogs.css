@@ -366,6 +366,32 @@
   margin-bottom: 8px;
 }
 
+/* 独立「关于」弹窗：复用设置关于分区内容，固定宽高，不再嵌进设置弹框。 */
+.about-dialog {
+  width: min(560px, 92vw);
+  display: flex;
+  flex-direction: column;
+  max-height: min(640px, 84vh);
+}
+
+.about-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.about-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.about-dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 2px 8px;
+}
+
 /* 检查更新：与关于分区同宽的一行内联状态，不弹窗。 */
 .update-row {
   display: flex;

@@ -80,6 +80,7 @@
 - 新增 `src-tauri/src/app/menu.rs`：用原生 `Menu / Submenu / MenuItem` 构建菜单，菜单事件经 `app://menu` 发给前端；macOS 首个子菜单为应用菜单，Windows/Linux 为窗口菜单栏。
 - `set_language` 成功后调用 `menu::install` 重建文案（Rust 侧 zh/en 静态表）。
 - 前端新增 `useAppMenu`（事件分发）与 `useSettingsEntry`（设置开合 + `Ctrl/Cmd+,`），`TopBar` 移除设置按钮。
-- `SettingsDialog` 增加 `initialSection`，菜单可直达「快捷键」「关于」分区。
-- 设置 → 快捷键固定键位新增 `Ctrl/Cmd+,`。
+- `SettingsDialog` 增加 `initialSection`；设置 → 快捷键固定键位新增 `Ctrl/Cmd+,`。
+- **菜单二次精简（同日）**：菜单只保留「文件（打开仓库 / 设置 / 退出）+ 关于」；移除「视图」（终端、命令日志已有底部面板与状态栏）、「快捷键」「反馈」「检查更新」菜单项，避免菜单变成设置的第二入口。
+- 新增独立「关于」弹窗（`AboutDialog`，复用设置关于分区内容）：版本、检查更新（就地状态反馈）、反馈按钮都在弹窗内完成，不再打开设置弹框。
 - `npm run check` 退出码 0；待 PR 合并与三平台实机验收。

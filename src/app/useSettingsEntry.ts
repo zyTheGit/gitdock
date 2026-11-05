@@ -4,18 +4,16 @@ import { useAppMenu } from "./useAppMenu";
 
 interface SettingsEntryParams {
   onOpenRepository: () => void;
-  onToggleTerminal: () => void;
-  onOpenCommandLog: () => void;
-  onCheckUpdate: () => void;
 }
 
 /**
- * 设置入口与菜单接线（ADR-0012）：菜单与 Ctrl/Cmd+, 都统一走 openSettings，
- * 同时把其余菜单动作分发到既有状态 setter，避免 App 继续膨胀。
+ * 应用入口接线（ADR-0012）：菜单与 Ctrl/Cmd+, 打开设置，「关于」打开独立弹窗，
+ * 避免菜单项全部落到设置弹框。
  */
 export function useSettingsEntry(params: SettingsEntryParams) {
   const [open, setOpen] = useState(false);
   const [section, setSection] = useState<SettingsSectionKey>("startup");
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const openSettings = useCallback((next: SettingsSectionKey = "startup") => {
     setSection(next);
@@ -23,17 +21,13 @@ export function useSettingsEntry(params: SettingsEntryParams) {
   }, []);
 
   const closeSettings = useCallback(() => setOpen(false), []);
+  const openAbout = useCallback(() => setAboutOpen(true), []);
+  const closeAbout = useCallback(() => setAboutOpen(false), []);
 
   useAppMenu({
     onOpenSettings: openSettings,
     onOpenRepository: params.onOpenRepository,
-    onToggleTerminal: params.onToggleTerminal,
-    onOpenCommandLog: params.onOpenCommandLog,
-    onCheckUpdate: () => {
-      // 检查更新本身没有独立通知；打开「关于」分区，让用户看到检查状态与结果。
-      openSettings("about");
-      params.onCheckUpdate();
-    },
+    onOpenAbout: openAbout,
   });
 
   // 菜单栏入口之外的键盘快捷方式：Ctrl/Cmd + 逗号。
@@ -48,5 +42,5 @@ export function useSettingsEntry(params: SettingsEntryParams) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [openSettings]);
 
-  return { open, section, openSettings, closeSettings };
+  return { open, section, openSettings, closeSettings, aboutOpen, openAbout, closeAbout };
 }
