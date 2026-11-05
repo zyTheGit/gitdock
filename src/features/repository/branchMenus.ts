@@ -70,3 +70,18 @@ export function branchMenuItems(branch: RefDto, actions: BranchMenuActions): Men
     },
   ];
 }
+export interface TagMenuActions {
+  writeDisabled: boolean;
+  onDeleteTag: (name: string) => void;
+}
+
+/** 标签右键菜单：删除入口与分支统一，避免侧栏堆叠「删除」链接。 */
+export function tagMenuItems(tag: RefDto, actions: TagMenuActions): MenuItem[] {
+  return [
+    {
+      label: i18next.t("repository.tagMenuDelete"),
+      disabled: actions.writeDisabled,
+      onSelect: () => actions.onDeleteTag(tag.short_name),
+    },
+  ];
+}

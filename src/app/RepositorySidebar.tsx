@@ -14,7 +14,7 @@ interface RepositorySidebarProps {
   onSwitchBranch: (branch: RefDto) => void;
   onBranchMenu: (event: MouseEvent, branch: RefDto) => void;
   onCreateBranch: () => void;
-  onDeleteTag: (tag: RefDto) => void;
+  onTagMenu: (event: MouseEvent, tag: RefDto) => void;
 }
 
 export function RepositorySidebar({
@@ -28,7 +28,7 @@ export function RepositorySidebar({
   onSwitchBranch,
   onBranchMenu,
   onCreateBranch,
-  onDeleteTag,
+  onTagMenu,
 }: RepositorySidebarProps) {
   const { t } = useI18n();
   const orderedTags = latestTagsFirst(tags);
@@ -121,19 +121,18 @@ export function RepositorySidebar({
             <ul>
               {orderedTags.map((tag) => (
                 <li key={tag.full_name}>
-                  <div className="branch-item tag-item">
+                  <button
+                    className="branch-item tag-item"
+                    title={tag.short_name}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      onTagMenu(event, tag);
+                    }}
+                  >
                     <span className="branch-text">
                       <span className="branch-name">{tag.short_name}</span>
                     </span>
-                    <button
-                      className="link"
-                      disabled={writeDisabled}
-                      onClick={() => onDeleteTag(tag)}
-                      aria-label={t("repository.deleteTagAria", { tag: tag.short_name })}
-                    >
-                      {t("repository.deleteRef")}
-                    </button>
-                  </div>
+                  </button>
                 </li>
               ))}
             </ul>

@@ -1,5 +1,5 @@
 import { rowMenuItems, type CommitMenuActions } from "../features/graph/menus";
-import { branchMenuItems, branchSlot } from "../features/repository/branchMenus";
+import { branchMenuItems, branchSlot, tagMenuItems } from "../features/repository/branchMenus";
 import { commitSlot, useCompareSlots } from "../features/compare/useCompare";
 import { copyText } from "../shared/clipboard";
 import type { CommitSummaryDto, RefDto, RepoStateDto } from "../shared/types";
@@ -23,9 +23,17 @@ export interface BranchMenuState {
   branch: RefDto;
 }
 
+/** 标签右键菜单的落点坐标与目标标签。 */
+export interface TagMenuState {
+  x: number;
+  y: number;
+  tag: RefDto;
+}
+
 interface UseCommitMenusParams {
   rowMenu: RowMenuState | null;
   branchMenu: BranchMenuState | null;
+  tagMenu: TagMenuState | null;
   repo: RepoStateDto | null;
   slots: CompareSlots;
   writeDisabled: boolean;
@@ -35,6 +43,7 @@ interface UseCommitMenusParams {
   onNewTag: (commit: CommitSummaryDto) => void;
   onRenameBranch: (shortName: string) => void;
   onDeleteBranch: (shortName: string) => void;
+  onDeleteTag: (name: string) => void;
   onMergeBranch: (shortName: string) => void;
   onRebaseBranch: (shortName: string) => void;
   onCherryPick: (commit: CommitSummaryDto) => void;
@@ -46,12 +55,13 @@ interface UseCommitMenusParams {
 }
 
 /**
- * 组装右键菜单条目：提交行菜单与分支菜单共享同一套写/对比动作。
- * 菜单落点状态（rowMenu/branchMenu）由调用方持有，便于切仓库时统一复位。
+ * 组装右键菜单条目：提交行菜单与分支/标签菜单共享同一套写/对比动作。
+ * 菜单落点状态（rowMenu/branchMenu/tagMenu）由调用方持有，便于切仓库时统一复位。
  */
 export function useCommitMenus({
   rowMenu,
   branchMenu,
+  tagMenu,
   repo,
   slots,
   writeDisabled,
@@ -61,6 +71,7 @@ export function useCommitMenus({
   onNewTag,
   onRenameBranch,
   onDeleteBranch,
+  onDeleteTag,
   onMergeBranch,
   onRebaseBranch,
   onCherryPick,
@@ -122,5 +133,14 @@ export function useCommitMenus({
       })
     : [];
 
-  return { commitActions, activeRowMenuItems, activeBranchMenuItems };
+  const activeTagMenuItems = tagMenu
+    ? tagMenuItems(tagMenu.tag, { writeDisabled, onDeleteTag })
+    : [];
+
+  return {
+    commitActions,
+    activeRowMenuItems,
+    activeBranchMenuItems,
+    activeTagMenuItems,
+  };
 }

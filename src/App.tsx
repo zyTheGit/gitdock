@@ -5,7 +5,7 @@ import { RepositorySidebar } from "./app/RepositorySidebar";
 import { StatusBar, type StatusBarProps } from "./app/StatusBar";
 import { TopBar } from "./app/TopBar";
 import { WelcomePane } from "./app/WelcomePane";
-import { useCommitMenus, type BranchMenuState, type RowMenuState } from "./app/useCommitMenus";
+import { useCommitMenus, type BranchMenuState, type RowMenuState, type TagMenuState } from "./app/useCommitMenus";
 import { useGlobalEsc, type ViewMode } from "./app/useGlobalEsc";
 import { formatHeadLabel } from "./app/headLabel";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
@@ -67,6 +67,7 @@ export default function App() {
   const [commandLogOpen, setCommandLogOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null);
   const [branchMenu, setBranchMenu] = useState<BranchMenuState | null>(null);
+  const [tagMenu, setTagMenu] = useState<TagMenuState | null>(null);
   const [descriptionBranch, setDescriptionBranch] = useState<string | null>(null);
   const [stagingBusy, setStagingBusy] = useState(false);
   const writeBusyRef = useRef(false);
@@ -272,36 +273,32 @@ export default function App() {
   const refs = useRefActions({ repo, writeDisabled: write.disabled, onMutated: stagingMutated });
   const stash = useStashActions({ writeDisabled: write.disabled, onMutated: stagingMutated });
   const remote = useRemoteActions({ writeDisabled: write.disabled, onMutated: stagingMutated });
-
-  // 右键菜单条目组装（提交行/分支共享写与对比动作），细节见 useCommitMenus。
-  const { commitActions, activeRowMenuItems, activeBranchMenuItems } = useCommitMenus({
-    rowMenu,
-    branchMenu,
-    repo,
-    slots,
-    writeDisabled: write.disabled,
-    descriptionDisabled,
-    onCopyMessage: copyDescription,
-    onCherryPick: (commit) => void write.start("cherry_pick", { commit }),
-    onRevert: (commit) => void write.start("revert", { commit }),
-    onBatchCherryPick: (commits) => void write.startBatch("cherry_pick", commits),
-    onBatchRevert: (commits) => void write.startBatch("revert", commits),
-    onMergeBranch: (branch) => void write.start("merge", { branch }),
-    onRebaseBranch: (branch) => void write.start("rebase", { branch }),
-    onEditDescription: (shortName) => {
-      setError(null);
-      setDiagnostic(null);
-      setDescriptionBranch(shortName);
-    },
-    onSelectCommit: (oid) => {
-      setSelectedOid(oid);
-      setMode("graph");
-    },
-    ...refs.menuActions,
-  });
+  // 右键菜单条目组装（提交行/分支/标签共享写与对比动作），细节见 useCommitMenus。
+  const { commitActions, activeRowMenuItems, activeBranchMenuItems, activeTagMenuItems } =
+    useCommitMenus({
+      rowMenu,
+      branchMenu,
+      tagMenu,
+      repo,
+      slots,
+      writeDisabled: write.disabled,
+      descriptionDisabled,
+      onCopyMessage: copyDescription,
+      ...write.menuWriteActions,
+      onDeleteTag: (name) => refs.openDeleteTag(name),
+      onEditDescription: (shortName) => {
+        setError(null);
+        setDiagnostic(null);
+        setDescriptionBranch(shortName);
+      },
+      onSelectCommit: (oid) => {
+        setSelectedOid(oid);
+        setMode("graph");
+      },
+      ...refs.menuActions,
+    });
 
   const headLabel = formatHeadLabel(repo, t("shell.headBranchFallback"), t("shell.unbornBranch"));
-
 
   const statusBarProps: StatusBarProps = {
     busy,
@@ -356,7 +353,7 @@ export default function App() {
             setBranchMenu({ x: event.clientX, y: event.clientY, branch });
           }}
           onCreateBranch={() => refs.openCreateBranch()}
-          onDeleteTag={(tag) => refs.openDeleteTag(tag.short_name)}
+          onTagMenu={(event, tag) => setTagMenu({ x: event.clientX, y: event.clientY, tag })}
         />
         <PaneSplitter
           label={t("shell.sidebarResizeLabel")}
@@ -521,10 +518,13 @@ export default function App() {
       <AppMenus
         rowMenu={rowMenu}
         branchMenu={branchMenu}
+        tagMenu={tagMenu}
         rowItems={activeRowMenuItems}
         branchItems={activeBranchMenuItems}
+        tagItems={activeTagMenuItems}
         onRowClose={() => setRowMenu(null)}
         onBranchClose={() => setBranchMenu(null)}
+        onTagClose={() => setTagMenu(null)}
       />
 
       {descriptionBranch && (
