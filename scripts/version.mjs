@@ -81,7 +81,7 @@ function readLock(text) {
 }
 
 function writeLock(text, version) {
-  const pattern = new RegExp(`(name = "(?:${MEMBERS.join('|')})"\\nversion = )"[^"]+"`, 'g')
+  const pattern = new RegExp(`(name = "(?:${MEMBERS.join('|')})"\\r?\\nversion = )"[^"]+"`, 'g')
   let seen = 0
   const out = text.replace(pattern, (full, head) => {
     seen += 1
