@@ -9,6 +9,8 @@ import type {
 
 interface AboutSectionProps {
   active: boolean;
+  /** 独立「关于」弹窗已在外层显示标题，内嵌时传 false 避免重复。 */
+  showTitle?: boolean;
   info: AppInfoDto | null;
   updateCheck: UpdateCheckState;
   updateOffer: UpdateCheckDto | null;
@@ -21,6 +23,7 @@ interface AboutSectionProps {
 
 export function AboutSection({
   active,
+  showTitle,
   info,
   updateCheck,
   updateOffer,
@@ -47,7 +50,7 @@ export function AboutSection({
 
   return (
     <section id="settings-about" hidden={!active}>
-      <h3>{t("settings.aboutTitle")}</h3>
+      {showTitle !== false && <h3>{t("settings.aboutTitle")}</h3>}
       {info ? (
         <dl className="about-grid">
           <dt>{t("settings.aboutVersion")}</dt>

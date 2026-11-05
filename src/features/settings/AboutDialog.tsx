@@ -40,6 +40,7 @@ export function AboutDialog({ info, updateCheck, onClose, onError }: AboutDialog
       <div className="about-dialog-body">
         <AboutSection
           active
+          showTitle={false}
           info={info}
           updateCheck={updateCheck}
           updateOffer={pendingUpdate(updateCheck)}
