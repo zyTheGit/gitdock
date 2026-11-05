@@ -11,7 +11,8 @@ export interface AppMenuHandlers {
 }
 
 /**
- * 应用菜单事件接线（ADR-0012）：Rust 菜单只发动作标识，前端分发到既有状态 setter。
+ * 应用菜单事件接线（ADR-0012，2026-11-05 修订后仅 macOS 存在原生菜单）：
+ * Rust 菜单只发动作标识，前端分发到既有状态 setter。
  * handlers 放在 ref 中，避免函数身份变化导致反复监听/退订。
  */
 export function useAppMenu(handlers: AppMenuHandlers) {

@@ -23,6 +23,7 @@ const shell = {
   openTerminalTitle: "打开终端（{{shortcut}}）",
   terminalRunningTitle: "终端进程运行中；收起不会结束进程（{{shortcut}}）",
   settings: "设置",
+  settingsButtonTitle: "打开设置（Ctrl+, / Cmd+,）",
   refresh: "刷新",
   refreshing: "刷新中…",
   busy: "处理中…",

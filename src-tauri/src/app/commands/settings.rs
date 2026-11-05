@@ -50,7 +50,7 @@ pub async fn set_language(
 ) -> Result<SettingsDto> {
     let state = Arc::clone(&state);
     let saved = blocking(move || state.set_language(language)).await?;
-    // 菜单文案随语言即时重建（ADR-0012）；失败只记录，不影响语言切换本身。
+    // 菜单文案随语言即时重建（ADR-0012，仅 macOS）；失败只记录，不影响语言切换本身。
     if let Err(error) = crate::app::menu::install(&app, saved.language.as_deref()) {
         crate::app::logging::warn(&format!("菜单重建失败：{error}"));
     }

@@ -23,6 +23,7 @@ const shell = {
   openTerminalTitle: "Open terminal ({{shortcut}})",
   terminalRunningTitle: "Terminal process running; collapsing won't end it ({{shortcut}})",
   settings: "Settings",
+  settingsButtonTitle: "Open settings (Ctrl+, / Cmd+,)",
   refresh: "Refresh",
   refreshing: "Refreshing…",
   busy: "Working…",

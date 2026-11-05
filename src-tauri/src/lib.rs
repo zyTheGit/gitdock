@@ -43,7 +43,8 @@ pub fn run() {
             let settings = state.settings().unwrap_or_default();
             app.manage(Arc::clone(&state));
 
-            // 应用菜单（ADR-0012）：设置/文件/视图/帮助入口统一到菜单栏。
+            // 应用菜单（ADR-0012 修订）：仅 macOS 安装原生应用菜单；
+            // Windows/Linux 不装窗口菜单，设置入口由顶栏按钮与快捷键承载。
             if let Err(error) = app::menu::install(app.handle(), settings.language.as_deref()) {
                 app::logging::warn(&format!("应用菜单初始化失败：{error}"));
             }

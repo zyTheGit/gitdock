@@ -1,10 +1,8 @@
-//! 应用菜单（ADR-0012）：设置入口统一到菜单栏，菜单事件经 `app://menu` 发给前端。
-//!
-//! 菜单保持最小：文件（打开仓库 / 设置 / 退出）+ 帮助（关于）。
-//! 终端、命令日志已有底部面板与状态栏入口；快捷键、反馈、检查更新分别在设置分区与
-//! 关于弹窗内提供，不再放进菜单，避免菜单变成设置的第二入口。
+//! 应用菜单（ADR-0012，2026-11-05 修订）：仅 macOS 保留原生应用菜单；
+//! Windows/Linux 不安装窗口菜单——原生菜单独占标题栏下方的独立一行，
+//! 且不随应用深色主题变色，用户裁决移除，设置入口改由顶栏按钮与快捷键承载。
+//! 菜单事件经 `app://menu` 发给前端。
 
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter};
 
 /// 菜单事件通道：payload 为动作标识（settings / open_repository / about）。
@@ -14,25 +12,26 @@ pub const ID_SETTINGS: &str = "menu:settings";
 pub const ID_OPEN_REPOSITORY: &str = "menu:open_repository";
 pub const ID_ABOUT: &str = "menu:about";
 
+#[cfg(target_os = "macos")]
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+
+/// macOS 应用菜单文案；`language` 为 `Some("en")` 时英文，其余（含跟随系统）按中文兜底。
+#[cfg(target_os = "macos")]
 struct Labels {
-    /// 仅 macOS 应用菜单使用；Windows/Linux 编译时该字段不参与读取。
-    #[allow(dead_code)]
     app: &'static str,
     file: &'static str,
-    help: &'static str,
     about: &'static str,
     settings: &'static str,
     quit: &'static str,
     open_repository: &'static str,
 }
 
-/// 菜单文案：`language` 为 `Some("en")` 时英文，其余（含跟随系统）按中文兜底。
+#[cfg(target_os = "macos")]
 fn labels(language: Option<&str>) -> Labels {
     if language == Some("en") {
         Labels {
             app: "GitDock",
             file: "File",
-            help: "Help",
             about: "About GitDock",
             settings: "Settings…",
             quit: "Quit GitDock",
@@ -42,7 +41,6 @@ fn labels(language: Option<&str>) -> Labels {
         Labels {
             app: "GitDock",
             file: "文件",
-            help: "帮助",
             about: "关于 GitDock",
             settings: "设置…",
             quit: "退出 GitDock",
@@ -51,7 +49,9 @@ fn labels(language: Option<&str>) -> Labels {
     }
 }
 
-/// 构建并安装应用菜单；语言切换后调用以重建文案。
+/// 构建并安装 macOS 应用菜单；语言切换后调用以重建文案。
+/// 菜单保持最小：应用菜单（关于 / 设置 / 退出）+ 文件（打开仓库）。
+#[cfg(target_os = "macos")]
 pub fn install(app: &AppHandle, language: Option<&str>) -> tauri::Result<()> {
     let l = labels(language);
 
@@ -69,36 +69,28 @@ pub fn install(app: &AppHandle, language: Option<&str>) -> tauri::Result<()> {
     let sep_a = PredefinedMenuItem::separator(app)?;
     let sep_b = PredefinedMenuItem::separator(app)?;
 
-    #[cfg(target_os = "macos")]
-    {
-        // macOS 第一个子菜单是应用菜单：关于 / 设置 / 退出放这里，文件只保留打开仓库。
-        let app_menu = Submenu::with_items(
-            app,
-            l.app,
-            true,
-            &[&about, &sep_b, &settings, &sep_a, &quit],
-        )?;
-        let file = Submenu::with_items(app, l.file, true, &[&open_repository])?;
-        let menu = Menu::with_items(app, &[&app_menu, &file])?;
-        app.set_menu(menu)?;
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let file = Submenu::with_items(
-            app,
-            l.file,
-            true,
-            &[&open_repository, &sep_b, &settings, &sep_a, &quit],
-        )?;
-        let help = Submenu::with_items(app, l.help, true, &[&about])?;
-        let menu = Menu::with_items(app, &[&file, &help])?;
-        app.set_menu(menu)?;
-    }
+    // macOS 第一个子菜单是应用菜单：关于 / 设置 / 退出放这里，文件只保留打开仓库。
+    let app_menu = Submenu::with_items(
+        app,
+        l.app,
+        true,
+        &[&about, &sep_b, &settings, &sep_a, &quit],
+    )?;
+    let file = Submenu::with_items(app, l.file, true, &[&open_repository])?;
+    let menu = Menu::with_items(app, &[&app_menu, &file])?;
+    app.set_menu(menu)?;
 
     Ok(())
 }
 
-/// 菜单事件 → 前端动作；未知 id（含预定义项）直接忽略。
+/// Windows/Linux：不安装窗口菜单（ADR-0012 修订）。
+/// 设置入口为顶栏按钮与 `Ctrl+,`；关于在设置弹窗的「关于」分区。
+#[cfg(not(target_os = "macos"))]
+pub fn install(_app: &AppHandle, _language: Option<&str>) -> tauri::Result<()> {
+    Ok(())
+}
+
+/// 菜单事件 → 前端动作；未知 id（含预定义项）直接忽略。仅 macOS 会触发。
 pub fn on_event(app: &AppHandle, event: &tauri::menu::MenuEvent) {
     let action = match event.id().as_ref() {
         ID_SETTINGS => "settings",

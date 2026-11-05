@@ -38,7 +38,7 @@ import { branchSlot } from "./features/repository/branchMenus";
 import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
-import { AboutDialog } from "./features/settings/AboutDialog";
+
 import { StagingView } from "./features/staging/StagingView";
 import { TerminalPanel } from "./features/terminal/TerminalPanel";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
@@ -322,18 +322,14 @@ export default function App() {
         mode={mode}
         compareReady={Boolean(slots.base && slots.compare)}
         localBranchCount={localBranches.length}
-        terminalOpen={terminalOpen}
-        terminalRunning={terminalRunning}
-        terminalShortcut={displaySpec(bindings["terminal.toggle"])}
         onOpenRepo={(path) => void session.open(path)}
         onForgetRepo={(path) => void session.forget(path)}
         onPickRepo={() => void session.pick()}
         onRefresh={() => void session.refresh()}
+        onOpenSettings={() => settingsEntry.openSettings()}
         closeSearch={closeSearch}
         setMode={setMode}
         onOpenBranchCompare={() => setBranchCompareOpen(true)}
-        onToggleTerminal={toggleTerminal}
-
       />
 
       <div className="layout">
@@ -590,7 +586,7 @@ export default function App() {
           onError={setError}
         />
       )}
-      {settingsEntry.aboutOpen && <AboutDialog info={info} updateCheck={updateState} onClose={settingsEntry.closeAbout} onError={setError} />}
+
       {commandLogOpen && <CommandLogDialog onClose={() => setCommandLogOpen(false)} />}
     </div>
   );

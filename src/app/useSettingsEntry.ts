@@ -7,13 +7,12 @@ interface SettingsEntryParams {
 }
 
 /**
- * 应用入口接线（ADR-0012）：菜单与 Ctrl/Cmd+, 打开设置，「关于」打开独立弹窗，
- * 避免菜单项全部落到设置弹框。
+ * 应用入口接线（ADR-0012，2026-11-05 修订）：顶栏设置按钮与 Ctrl/Cmd+, 打开设置；
+ * macOS 原生菜单事件仍经 useAppMenu 接入，「关于」直达设置弹窗的关于分区。
  */
 export function useSettingsEntry(params: SettingsEntryParams) {
   const [open, setOpen] = useState(false);
   const [section, setSection] = useState<SettingsSectionKey>("startup");
-  const [aboutOpen, setAboutOpen] = useState(false);
 
   const openSettings = useCallback((next: SettingsSectionKey = "startup") => {
     setSection(next);
@@ -21,16 +20,14 @@ export function useSettingsEntry(params: SettingsEntryParams) {
   }, []);
 
   const closeSettings = useCallback(() => setOpen(false), []);
-  const openAbout = useCallback(() => setAboutOpen(true), []);
-  const closeAbout = useCallback(() => setAboutOpen(false), []);
 
   useAppMenu({
     onOpenSettings: openSettings,
     onOpenRepository: params.onOpenRepository,
-    onOpenAbout: openAbout,
+    onOpenAbout: () => openSettings("about"),
   });
 
-  // 菜单栏入口之外的键盘快捷方式：Ctrl/Cmd + 逗号。
+  // 顶栏按钮之外的键盘快捷方式：Ctrl/Cmd + 逗号。
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === ",") {
@@ -42,5 +39,5 @@ export function useSettingsEntry(params: SettingsEntryParams) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [openSettings]);
 
-  return { open, section, openSettings, closeSettings, aboutOpen, openAbout, closeAbout };
+  return { open, section, openSettings, closeSettings };
 }
