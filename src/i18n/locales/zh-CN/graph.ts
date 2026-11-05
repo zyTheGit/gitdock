@@ -41,6 +41,8 @@ const graph = {
   menuCopyMessage: "复制提交说明",
   menuCherryPick: "Cherry Pick 此提交",
   menuRevert: "Revert 此提交",
+  menuBatchCherryPick: "批量 Cherry-pick {{n}} 个提交",
+  menuBatchRevert: "批量 Revert {{n}} 个提交",
   menuSetBase: "设为 Base",
   menuSetCompare: "设为 Compare",
   menuOpenDetail: "查看详情",

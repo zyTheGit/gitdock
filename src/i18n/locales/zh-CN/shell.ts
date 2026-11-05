@@ -44,7 +44,7 @@ const shell = {
   interruptionHintSingle:
     "本应用不会自动执行 --abort / --quit / --skip；继续或中止只在手动点击并确认后执行，其他写操作在中断态解除前保持禁用。",
   interruptionHintGeneral:
-    "本应用不会自动执行 --abort / --quit / --skip；写操作在中断态解除前保持禁用，批量序列、merge 与 rebase 中断请在终端收尾。",
+    "本应用不会自动执行 --abort / --quit / --skip；写操作在中断态解除前保持禁用，批量序列、merge 与 rebase 中断可在上方横幅继续或中止。",
   gitVersionTooLow: "系统 Git 版本 {{current}} 低于最低要求 {{minimum}}，写操作将不可用。",
   copyDiagnostic: "复制诊断",
   sidebarNoRepo: "尚未打开仓库，可从左上角仓库菜单打开。",

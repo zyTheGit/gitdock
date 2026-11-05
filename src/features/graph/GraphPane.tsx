@@ -1,10 +1,11 @@
-import type { MouseEvent } from "react";
+import { useEffect, useMemo, type MouseEvent } from "react";
 import { useI18n } from "../../i18n";
 import { Icon } from "../../assets/icons";
 import type { CommitSummaryDto, PullMode, RepoStateDto, GraphScope } from "../../shared/types";
 import type { RemoteActions } from "../../app/useRemoteActions";
 import { Select } from "../../shared/Select";
 import { GraphList } from "./GraphList";
+import { useCommitSelection } from "./useCommitSelection";
 import type { GraphLoader } from "./useGraph";
 
 interface GraphPaneProps {
@@ -17,7 +18,11 @@ interface GraphPaneProps {
   focusSeq?: number | null;
   onSelect: (oid: string) => void;
   onCtrlSelect?: (commit: CommitSummaryDto) => void;
-  onContextMenu?: (event: MouseEvent, commit: CommitSummaryDto) => void;
+  onContextMenu?: (
+    event: MouseEvent,
+    commit: CommitSummaryDto,
+    selectedCommits: CommitSummaryDto[],
+  ) => void;
   remote: RemoteActions;
 }
 
@@ -37,6 +42,18 @@ export function GraphPane({
   const { t } = useI18n();
   const localBranches = repo.refs.filter((ref) => ref.kind === "local_branch");
   const { view, loading, loadingMore, error } = graph;
+
+  // 选择顺序按当前视图行序：锚点在前、Shift 点击的目标在后。
+  const orderedOids = useMemo(
+    () => view.rows.map((row) => row.commit?.oid ?? row.layout.oid),
+    [view.rows],
+  );
+  const selection = useCommitSelection(orderedOids);
+  const clearSelection = selection.clear;
+
+  useEffect(() => {
+    clearSelection();
+  }, [view.viewKey, clearSelection]);
 
   return (
     <section className="graph-pane">
@@ -138,11 +155,17 @@ export function GraphPane({
           loading={loading}
           loadingMore={loadingMore}
           selectedOid={selectedOid}
+          selectedOids={selection.oids}
           focusedOid={focusedOid}
           focusSeq={focusSeq}
-          onSelect={onSelect}
+          onSelect={(oid) => {
+            clearSelection();
+            onSelect(oid);
+          }}
+          onRangeSelect={selection.selectRange}
           onCtrlSelect={onCtrlSelect}
           onContextMenu={onContextMenu}
+          selectionIndexOf={selection.indexOf}
           onLoadMore={() => void graph.loadMore()}
         />
       </div>

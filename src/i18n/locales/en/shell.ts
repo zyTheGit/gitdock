@@ -44,7 +44,7 @@ const shell = {
   interruptionHintSingle:
     "This app never runs --abort / --quit / --skip automatically; Continue or Abort only runs after a manual click and confirmation, and other write operations stay disabled until the interruption clears.",
   interruptionHintGeneral:
-    "This app never runs --abort / --quit / --skip automatically; write operations stay disabled until the interruption clears. Finish batch sequences, merge, and rebase interruptions in the terminal.",
+    "This app never runs --abort / --quit / --skip automatically; write operations stay disabled until the interruption clears. Batch sequences, merge, and rebase can be continued or aborted from the banner above.",
   gitVersionTooLow: "System Git version {{current}} is below the minimum required {{minimum}}; write operations will be unavailable.",
   copyDiagnostic: "Copy diagnostics",
   sidebarNoRepo: "No repository open yet. Open one from the repository menu in the top left.",

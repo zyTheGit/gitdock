@@ -38,8 +38,17 @@ pub fn detect_kinds(git_dir: &Path) -> Vec<InterruptionKind> {
 
 /// 中断类型的用户可见名称；多个时以「、」连接。
 pub fn kind_names(kinds: &[InterruptionKind]) -> String {
+    // 批量序列会同时留下 sequencer 目录与当前步的 cherry-pick / revert 标记，
+    // 对用户只展示当前步类型，避免「cherry-pick 未完成、sequencer 未完成」的冗余。
+    let has_step = kinds.iter().any(|kind| {
+        matches!(
+            kind,
+            InterruptionKind::CherryPick | InterruptionKind::Revert
+        )
+    });
     kinds
         .iter()
+        .filter(|kind| !(has_step && **kind == InterruptionKind::Sequencer))
         .map(|kind| match kind {
             InterruptionKind::Merge => "merge 未完成",
             InterruptionKind::CherryPick => "cherry-pick 未完成",
@@ -153,5 +162,17 @@ mod tests {
         assert!(terminal_hint(&kinds).contains("index.lock"));
         assert!(terminal_hint(&[InterruptionKind::Merge]).contains("git merge --continue"));
         assert_eq!(terminal_hint(&[]), "请在终端完成或放弃当前操作");
+    }
+
+    #[test]
+    fn kind_names_hides_sequencer_when_step_marker_exists() {
+        let batch_pick = [InterruptionKind::CherryPick, InterruptionKind::Sequencer];
+        assert_eq!(kind_names(&batch_pick), "cherry-pick 未完成");
+        let batch_revert = [InterruptionKind::Revert, InterruptionKind::Sequencer];
+        assert_eq!(kind_names(&batch_revert), "revert 未完成");
+        assert_eq!(
+            kind_names(&[InterruptionKind::Sequencer]),
+            "sequencer 未完成"
+        );
     }
 }

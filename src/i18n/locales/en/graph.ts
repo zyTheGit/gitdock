@@ -41,6 +41,8 @@ const graph = {
   menuCopyMessage: "Copy commit message",
   menuCherryPick: "Cherry pick this commit",
   menuRevert: "Revert this commit",
+  menuBatchCherryPick: "Cherry pick {{n}} commits",
+  menuBatchRevert: "Revert {{n}} commits",
   menuSetBase: "Set as Base",
   menuSetCompare: "Set as Compare",
   menuOpenDetail: "View details",

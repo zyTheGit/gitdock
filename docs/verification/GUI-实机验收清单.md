@@ -59,7 +59,7 @@
 - [ ] 5.3 merge/rebase Gate 拒绝自身、脏工作区、detached/unborn、目标不存在
 - [ ] 5.4 pull ff-only 非快进继续提示；pull merge 成功与冲突两条路径符合预期
 - [ ] 5.5 冲突后继续/中止：标记消失才算成功；不自动 skip/abort
-- [ ] 5.6 **批量 cherry-pick / revert：当前前端无多选入口，暂不可验收**（后端 `oids` 已就绪，待 P1 接入后再补测）
+- [ ] 5.6 批量 cherry-pick / revert：Shift+点击选中 ≥2 个提交 → 右键「批量 Cherry-pick / Revert」→ 确认框按选择顺序展示 → 执行成功；中途冲突后可在横幅继续或中止，标记消失才算完成
 
 ## 6. 冲突分组真实仓库实测
 

@@ -20,6 +20,8 @@ export interface GraphRowProps {
   start: number;
   height: number;
   selected: boolean;
+  /** 批量选择序号（0 起始）；未选中为 -1。 */
+  selectionIndex: number;
   located: boolean;
 }
 
@@ -36,12 +38,16 @@ export const GraphRow = memo(function GraphRow({
   start,
   height,
   selected,
+  selectionIndex,
   located,
 }: GraphRowProps) {
   const { t } = useI18n();
   const classes = ["graph-row"];
-  if (selected) {
+  if (selected || selectionIndex >= 0) {
     classes.push("selected");
+  }
+  if (selectionIndex >= 0) {
+    classes.push("batch-selected");
   }
   if (located) {
     classes.push("located");
@@ -54,6 +60,9 @@ export const GraphRow = memo(function GraphRow({
     >
       <GraphCell layout={layout} laneCount={laneCount} height={height} />
       <div className="graph-row-summary">
+        {selectionIndex >= 0 && (
+          <span className="graph-row-selection mono">{selectionIndex + 1}</span>
+        )}
         <span className="commit-summary">{commit?.summary || t("graph.noSummary")}</span>
         {commit?.refs.map((badge) => (
           <span className="ref-group" key={`${badge.kind}:${badge.name}`}>

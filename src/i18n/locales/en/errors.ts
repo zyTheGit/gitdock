@@ -24,10 +24,10 @@ const errors = {
   kindIndexLock: "index.lock held",
   kindSeparator: ", ",
   hintIndexLock: "After confirming no other Git process is running, delete index.lock manually in the terminal; this app never removes lock files",
-  hintCherryPick: "Resolve conflicts in the terminal, then run git cherry-pick --continue (or --abort)",
-  hintRevert: "Resolve conflicts in the terminal, then run git revert --continue (or --abort)",
-  hintRebase: "Run git rebase --continue (or --abort) in the terminal",
-  hintMerge: "Run git merge --continue (or git merge --abort) in the terminal",
+  hintCherryPick: "Continue or abort from the banner above; you can also resolve conflicts in the terminal and run git cherry-pick --continue (or --abort)",
+  hintRevert: "Continue or abort from the banner above; you can also resolve conflicts in the terminal and run git revert --continue (or --abort)",
+  hintRebase: "Continue or abort from the banner above; you can also run git rebase --continue (or --abort) in the terminal",
+  hintMerge: "Continue or abort from the banner above; you can also run git merge --continue (or git merge --abort) in the terminal",
   hintGeneral: "Finish or abandon the current operation in the terminal",
   stagingInvalidPath: "Invalid path: {{path}}",
   stagingFileMissing: "File {{path}} not found in the staging area; refresh and retry",
@@ -290,7 +290,7 @@ const errors = {
   outcomeRemoteAuthFailed:
     "Remote authentication failed; this app never accepts passwords. Run fetch/push once in the built-in terminal to authorize, or configure a system credential helper / SSH agent and retry",
   outcomePullNotFastForward:
-    "The remote has commits not present locally; pull --ff-only cannot fast-forward. Fetch first and merge/rebase in the terminal (batch 5)",
+    "The remote has commits not present locally; pull --ff-only cannot fast-forward. Fetch first, then use Merge / Rebase or handle it in the terminal",
   outcomePushRejected:
     "The remote rejected the push (non-fast-forward or hook). This app does not provide force push; handle it in the terminal",
   outcomeRemoteFailed: "Remote operation failed; check the network and remote configuration",

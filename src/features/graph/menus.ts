@@ -39,10 +39,40 @@ export interface RowMenuActions extends CommitMenuActions {
   onOpenDetail: (commit: CommitSummaryDto) => void;
   onNewBranch: (commit: CommitSummaryDto) => void;
   onNewTag: (commit: CommitSummaryDto) => void;
+  onBatchCherryPick: (commits: CommitSummaryDto[]) => void;
+  onBatchRevert: (commits: CommitSummaryDto[]) => void;
 }
 
-export function rowMenuItems(commit: CommitSummaryDto, actions: RowMenuActions): MenuItem[] {
+/** 右键落在选中集合内时，菜单顶部出现批量操作；顺序沿用用户选择顺序。 */
+function batchMenuItems(
+  commit: CommitSummaryDto,
+  selection: CommitSummaryDto[],
+  actions: RowMenuActions,
+): MenuItem[] {
+  if (selection.length < 2 || !selection.some((item) => item.oid === commit.oid)) {
+    return [];
+  }
   return [
+    {
+      label: i18next.t("graph.menuBatchCherryPick", { n: selection.length }),
+      disabled: actions.writeDisabled,
+      onSelect: () => actions.onBatchCherryPick(selection),
+    },
+    {
+      label: i18next.t("graph.menuBatchRevert", { n: selection.length }),
+      disabled: actions.writeDisabled,
+      onSelect: () => actions.onBatchRevert(selection),
+    },
+  ];
+}
+
+export function rowMenuItems(
+  commit: CommitSummaryDto,
+  actions: RowMenuActions,
+  selection: CommitSummaryDto[] = [],
+): MenuItem[] {
+  return [
+    ...batchMenuItems(commit, selection, actions),
     ...commitMenuItems(commit, actions),
     {
       label: i18next.t("graph.menuSetBase"),

@@ -7,11 +7,13 @@ import type { CommitSummaryDto, RefDto, RepoStateDto } from "../shared/types";
 /** 双槽状态由 useCompareSlots 提供，这里只消费其槽位写入成员。 */
 type CompareSlots = ReturnType<typeof useCompareSlots>;
 
-/** 提交行右键菜单的落点坐标与目标提交。 */
+/** 提交行右键菜单的落点坐标、目标提交与当前批量选择。 */
 export interface RowMenuState {
   x: number;
   y: number;
   commit: CommitSummaryDto;
+  /** Shift+点击形成的批量选择；右键落在集合内时菜单显示批量项。 */
+  selection?: CommitSummaryDto[];
 }
 
 /** 分支右键菜单的落点坐标与目标分支。 */
@@ -37,6 +39,8 @@ interface UseCommitMenusParams {
   onRebaseBranch: (shortName: string) => void;
   onCherryPick: (commit: CommitSummaryDto) => void;
   onRevert: (commit: CommitSummaryDto) => void;
+  onBatchCherryPick: (commits: CommitSummaryDto[]) => void;
+  onBatchRevert: (commits: CommitSummaryDto[]) => void;
   onEditDescription: (shortName: string) => void;
   onSelectCommit: (oid: string) => void;
 }
@@ -61,6 +65,8 @@ export function useCommitMenus({
   onRebaseBranch,
   onCherryPick,
   onRevert,
+  onBatchCherryPick,
+  onBatchRevert,
   onEditDescription,
   onSelectCommit,
 }: UseCommitMenusParams) {
@@ -73,14 +79,20 @@ export function useCommitMenus({
   };
 
   const activeRowMenuItems = rowMenu
-    ? rowMenuItems(rowMenu.commit, {
-        ...commitActions,
-        onSetBase: (commit) => slots.setSide("base", commitSlot(commit)),
-        onSetCompare: (commit) => slots.setSide("compare", commitSlot(commit)),
-        onOpenDetail: (commit) => onSelectCommit(commit.oid),
-        onNewBranch,
-        onNewTag,
-      })
+    ? rowMenuItems(
+        rowMenu.commit,
+        {
+          ...commitActions,
+          onSetBase: (commit) => slots.setSide("base", commitSlot(commit)),
+          onSetCompare: (commit) => slots.setSide("compare", commitSlot(commit)),
+          onOpenDetail: (commit) => onSelectCommit(commit.oid),
+          onNewBranch,
+          onNewTag,
+          onBatchCherryPick,
+          onBatchRevert,
+        },
+        rowMenu.selection ?? [],
+      )
     : [];
 
   // 以 HEAD 作 Base、所选分支作 Compare；Base 已占用时不覆盖用户的选择。

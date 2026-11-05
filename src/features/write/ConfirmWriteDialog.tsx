@@ -12,6 +12,8 @@ type DialogKind = Extract<
 interface ConfirmWriteDialogProps {
   kind: DialogKind;
   commit?: CommitSummaryDto;
+  /** 批量 cherry-pick / revert 的目标列表；存在时替代单条目标展示。 */
+  commits?: CommitSummaryDto[];
   branch?: string;
   /** continue/abort 对应的中断类型；存在时不显示提交目标行。 */
   interruption?: "cherry_pick" | "revert" | "merge" | "rebase";
@@ -33,6 +35,7 @@ interface ConfirmWriteDialogProps {
 export function ConfirmWriteDialog({
   kind,
   commit,
+  commits,
   branch,
   interruption,
   gate,
@@ -103,6 +106,24 @@ export function ConfirmWriteDialog({
             <span className="muted">{t("write.interruptedOperation")}</span>
             <span className="mono">{interruptionLabel[interruption]}</span>
           </p>
+        ) : commits && commits.length > 0 ? (
+          <div className="confirm-batch">
+            <p className="muted confirm-hint">
+              {t("write.batchOrderHint", { n: commits.length })}
+            </p>
+            <ol className="confirm-batch-list">
+              {commits.map((item, index) => (
+                <li key={item.oid}>
+                  <span className="mono">
+                    {index + 1}. {item.short_oid}
+                  </span>
+                  <span className="confirm-summary" title={item.summary}>
+                    {item.summary}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
         ) : commit ? (
           <p className="confirm-target">
             <span className="mono">{commit.short_oid}</span>
