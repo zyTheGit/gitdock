@@ -23,6 +23,8 @@ import { useEscClose } from "../../shared/useEscClose";
 
 interface SettingsDialogProps {
   settings: SettingsDto;
+  /** 菜单入口可直达指定分区（快捷键/关于）；缺省为启动分区。 */
+  initialSection?: SettingsSectionKey;
   /** 当前语言偏好；语言切换即时生效，不经过草稿「保存」。 */
   language: LanguagePreference;
   onLanguageChange: (preference: LanguagePreference) => void;
@@ -45,6 +47,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({
   settings,
+  initialSection,
   language,
   onLanguageChange,
   info,
@@ -63,7 +66,9 @@ export function SettingsDialog({
   onError,
 }: SettingsDialogProps) {
   const { t } = useI18n();
-  const [activeSection, setActiveSection] = useState<SettingsSectionKey>("startup");
+  const [activeSection, setActiveSection] = useState<SettingsSectionKey>(
+    initialSection ?? "startup",
+  );
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   // Git 配置要读真实配置文件，首次进入该分区才发起读取；之后保留编辑内容。
   const [gitConfigOpened, setGitConfigOpened] = useState(false);

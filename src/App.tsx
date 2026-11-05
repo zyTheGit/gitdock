@@ -16,6 +16,7 @@ import { useRefActions } from "./app/useRefActions";
 import { useRemoteActions } from "./app/useRemoteActions";
 import { useStashActions } from "./app/useStashActions";
 import { useRepositorySession } from "./app/useRepositorySession";
+import { useSettingsEntry } from "./app/useSettingsEntry";
 import {
   clearSkippedUpdate,
   openAvailableUpdate,
@@ -37,6 +38,7 @@ import { branchSlot } from "./features/repository/branchMenus";
 import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
 import { SettingsDialog } from "./features/settings/SettingsDialog";
+
 import { StagingView } from "./features/staging/StagingView";
 import { TerminalPanel } from "./features/terminal/TerminalPanel";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
@@ -59,7 +61,7 @@ export default function App() {
   const [mode, setMode] = useState<ViewMode>("graph");
   const [pathFilter, setPathFilter] = useState("");
   const [twoDot, setTwoDot] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalMounted, setTerminalMounted] = useState(false);
   const [terminalRunning, setTerminalRunning] = useState(false);
@@ -106,25 +108,20 @@ export default function App() {
   });
   writeBusyRef.current = write.busy || stagingBusy;
 
-  const handleTerminalRunning = useCallback((running: boolean) => {
-    setTerminalRunning(running);
-  }, []);
 
   const toggleTerminal = useCallback(() => {
     setTerminalMounted(true);
     setTerminalOpen((open) => !open);
   }, []);
 
-  // 下载页地址由后端返回并经 Rust 打开，前端不拼 URL、不用 window.open。
-  const openUpdatePage = useCallback(() => {
-    void openAvailableUpdate();
-  }, []);
 
   // 切仓库时 Rust 已结束旧会话；收起面板并提示，避免误以为旧终端仍在。
   const handleTerminalRepoChanged = useCallback(() => {
     setTerminalOpen(false);
     setToast(t("shell.terminalProcessEnded"));
   }, [setToast, t]);
+
+  const settingsEntry = useSettingsEntry({ onOpenRepository: () => void session.pick() });
 
   const generation = repo?.generation ?? 0;
   const slots = useCompareSlots(repo);
@@ -311,7 +308,7 @@ export default function App() {
     terminalShortcut: displaySpec(bindings["terminal.toggle"]),
     updateVersion,
     onToggleTerminal: toggleTerminal,
-    onOpenUpdate: openUpdatePage,
+    onOpenUpdate: () => void openAvailableUpdate(),
     onOpenCommandLog: () => setCommandLogOpen(true),
   };
 
@@ -325,18 +322,14 @@ export default function App() {
         mode={mode}
         compareReady={Boolean(slots.base && slots.compare)}
         localBranchCount={localBranches.length}
-        terminalOpen={terminalOpen}
-        terminalRunning={terminalRunning}
-        terminalShortcut={displaySpec(bindings["terminal.toggle"])}
         onOpenRepo={(path) => void session.open(path)}
         onForgetRepo={(path) => void session.forget(path)}
         onPickRepo={() => void session.pick()}
         onRefresh={() => void session.refresh()}
+        onOpenSettings={() => settingsEntry.openSettings()}
         closeSearch={closeSearch}
         setMode={setMode}
         onOpenBranchCompare={() => setBranchCompareOpen(true)}
-        onToggleTerminal={toggleTerminal}
-        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <div className="layout">
@@ -499,8 +492,8 @@ export default function App() {
           lazygitConfig={settings?.lazygit_path ?? ""}
           terminalShortcut={displaySpec(bindings["terminal.toggle"])}
           onCollapse={() => setTerminalOpen(false)}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onRunningChange={handleTerminalRunning}
+          onOpenSettings={() => settingsEntry.openSettings()}
+          onRunningChange={setTerminalRunning}
           onRepoChanged={handleTerminalRepoChanged}
         />
       )}
@@ -571,9 +564,10 @@ export default function App() {
         />
       )}
 
-      {settingsOpen && settings && (
+      {settingsEntry.open && settings && (
         <SettingsDialog
           settings={settings}
+          initialSection={settingsEntry.section}
           language={toLanguagePreference(settings.language)}
           onLanguageChange={language.changeLanguage}
           info={info}
@@ -587,11 +581,12 @@ export default function App() {
           onZoomIn={zoom.zoomIn}
           onZoomOut={zoom.zoomOut}
           onResetZoom={zoom.resetZoom}
-          onClose={() => setSettingsOpen(false)}
+          onClose={settingsEntry.closeSettings}
           onSaved={setSettings}
           onError={setError}
         />
       )}
+
       {commandLogOpen && <CommandLogDialog onClose={() => setCommandLogOpen(false)} />}
     </div>
   );

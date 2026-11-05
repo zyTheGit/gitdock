@@ -44,11 +44,17 @@ pub async fn remember_repository(state: State<'_, Shared>, path: String) -> Resu
 /// 语言覆盖即时生效并持久化；`None` 表示跟随系统语言。仅此命令修改 language 字段。
 #[tauri::command]
 pub async fn set_language(
+    app: tauri::AppHandle,
     state: State<'_, Shared>,
     language: Option<String>,
 ) -> Result<SettingsDto> {
     let state = Arc::clone(&state);
-    blocking(move || state.set_language(language)).await
+    let saved = blocking(move || state.set_language(language)).await?;
+    // 菜单文案随语言即时重建（ADR-0012，仅 macOS）；失败只记录，不影响语言切换本身。
+    if let Err(error) = crate::app::menu::install(&app, saved.language.as_deref()) {
+        crate::app::logging::warn(&format!("菜单重建失败：{error}"));
+    }
+    Ok(saved)
 }
 
 /// 仅从最近仓库列表移除展示项，不删除磁盘上的仓库。

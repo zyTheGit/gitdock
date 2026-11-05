@@ -103,6 +103,7 @@ const settings = {
   fixedArrows: "仓库切换器、搜索建议里移动高亮；拖拽分隔条时调整栏宽，按住 Shift 步长更大",
   fixedEnter: "确认仓库切换器 / 搜索输入框里的高亮项",
   fixedCtrlClick: "{{modifier}}+点击：把提交放进对比双槽，第二次点击换到另一个槽位",
+  fixedSettings: "{{modifier}}+逗号：打开设置（入口统一在菜单栏）",
   fixedShiftClick:
     "Shift+点击：按当前视图顺序批量选择提交区间；多选后右键只显示批量操作",
   fixedAltClick: "{{alt}}+点击：从批量选择中单独加入或移除一个提交",

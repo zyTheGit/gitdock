@@ -112,6 +112,7 @@ const settings = {
   fixedEnter: "Confirms the highlighted item in the repository switcher / search input",
   fixedCtrlClick:
     "{{modifier}}+click: puts the commit into the compare slots; a second click switches to the other slot",
+  fixedSettings: "{{modifier}}+comma: open settings (entry lives in the menu bar)",
   fixedShiftClick:
     "Shift+click: selects a range of commits in the current view order; right-click then shows batch actions only",
   fixedAltClick: "{{alt}}+click: adds or removes a single commit from the batch selection",

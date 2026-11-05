@@ -366,6 +366,7 @@
   margin-bottom: 8px;
 }
 
+
 /* 检查更新：与关于分区同宽的一行内联状态，不弹窗。 */
 .update-row {
   display: flex;
