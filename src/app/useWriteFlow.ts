@@ -227,8 +227,19 @@ export function useWriteFlow({
   const interruptionDisabled =
     appBusy || busy || !repo || repo.is_bare || !info?.git_version_supported;
 
+  // 右键菜单的写动作集合：App 组装菜单时整体展开，避免逐项传参。
+  const menuWriteActions = {
+    onCherryPick: (commit: CommitSummaryDto) => void start("cherry_pick", { commit }),
+    onRevert: (commit: CommitSummaryDto) => void start("revert", { commit }),
+    onBatchCherryPick: (commits: CommitSummaryDto[]) => void startBatch("cherry_pick", commits),
+    onBatchRevert: (commits: CommitSummaryDto[]) => void startBatch("revert", commits),
+    onMergeBranch: (branch: string) => void start("merge", { branch }),
+    onRebaseBranch: (branch: string) => void start("rebase", { branch }),
+  };
+
   return {
     prompt,
+    menuWriteActions,
     busy,
     validating,
     mainline,

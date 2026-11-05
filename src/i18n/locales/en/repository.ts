@@ -45,7 +45,7 @@ const repository = {
   branchValidating: "Checking…",
   tags: "Tags",
   noTags: "No local tags",
-  deleteTagAria: "Delete tag {{tag}}",
+  tagMenuDelete: "Delete tag",
   deleteRef: "Delete",
   refDeleting: "Deleting…",
   createTag: "New tag",

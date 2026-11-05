@@ -44,7 +44,7 @@ const repository = {
   branchValidating: "检查中…",
   tags: "标签",
   noTags: "没有本地标签",
-  deleteTagAria: "删除标签 {{tag}}",
+  tagMenuDelete: "删除标签",
   deleteRef: "删除",
   refDeleting: "删除中…",
   createTag: "新建标签",
