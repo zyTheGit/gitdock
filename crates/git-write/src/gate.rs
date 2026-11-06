@@ -365,7 +365,7 @@ impl GitWriteModule {
                 issues.extend(change.issues);
                 (change.summary, change.summary_key, change.summary_args)
             }
-            WriteKind::CreateTag | WriteKind::DeleteTag => {
+            WriteKind::CreateTag | WriteKind::DeleteTag | WriteKind::SetTagDescription => {
                 // 标签校验按 ADR 0008 拆到 tag 模块；bare 与中断态已由上方前置拒绝。
                 let change = crate::tag::gate::validate_tag_change(self, request, &head)?;
                 issues.extend(change.issues);

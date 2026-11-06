@@ -48,15 +48,13 @@ pub(crate) fn read_refs(
             gix::refs::TargetRef::Symbolic(_) => continue,
         };
         let commit_oid = reference.peel_to_id().ok().map(|id| oid_from_id(&id));
-        let description = if kind == RefKind::LocalBranch {
-            descriptions.get(&short_name).cloned()
-        } else {
-            None
-        };
-        let created_at = if kind == RefKind::Tag {
-            tag_created_at(repo, &target_oid)
-        } else {
-            None
+        let (description, created_at) = match kind {
+            RefKind::LocalBranch => (descriptions.get(&short_name).cloned(), None),
+            RefKind::Tag => {
+                let meta = tag_meta(repo, &target_oid);
+                (meta.description, meta.created_at)
+            }
+            _ => (None, None),
         };
         refs.push(RefDto {
             is_head: head_ref.as_deref() == Some(full_name.as_str()),
@@ -88,25 +86,49 @@ pub(crate) fn read_refs(
     Ok((refs, badges))
 }
 
-/// tag 的创建时间；lightweight tag 没有真实创建时间，按 `git for-each-ref`
-/// 的 creatordate 语义回退到指向提交的 committer 时间。
-fn tag_created_at(repo: &gix::Repository, target: &Oid) -> Option<i64> {
-    let id = crate::util::gix_oid(target).ok()?;
-    let object = repo.find_object(id).ok()?;
+#[derive(Default)]
+struct TagMeta {
+    created_at: Option<i64>,
+    /// 附注标签的 message 即界面上的「描述」；轻量标签没有描述。
+    description: Option<String>,
+}
+
+/// 读取 tag 的创建时间与附注消息。lightweight tag 没有真实创建时间，按
+/// `git for-each-ref` 的 creatordate 语义回退到指向提交的 committer 时间。
+fn tag_meta(repo: &gix::Repository, target: &Oid) -> TagMeta {
+    let Ok(id) = crate::util::gix_oid(target) else {
+        return TagMeta::default();
+    };
+    let Ok(object) = repo.find_object(id) else {
+        return TagMeta::default();
+    };
     match object.kind {
-        gix::object::Kind::Tag => object
-            .into_tag()
-            .tagger()
-            .ok()
-            .flatten()
-            .map(|signature| raw_time_seconds(signature.time)),
-        gix::object::Kind::Commit => object
-            .try_into_commit()
-            .ok()?
-            .time()
-            .ok()
-            .map(|time| time.seconds),
-        _ => None,
+        gix::object::Kind::Tag => {
+            let tag = object.into_tag();
+            let created_at = tag
+                .tagger()
+                .ok()
+                .flatten()
+                .map(|signature| raw_time_seconds(signature.time));
+            let description = tag
+                .decode()
+                .ok()
+                .map(|decoded| lossy(decoded.message.as_ref()).trim().to_owned())
+                .filter(|text| !text.is_empty());
+            TagMeta {
+                created_at,
+                description,
+            }
+        }
+        gix::object::Kind::Commit => TagMeta {
+            created_at: object
+                .try_into_commit()
+                .ok()
+                .and_then(|commit| commit.time().ok())
+                .map(|time| time.seconds),
+            description: None,
+        },
+        _ => TagMeta::default(),
     }
 }
 

@@ -43,6 +43,7 @@ import { SettingsDialog } from "./features/settings/SettingsDialog";
 import { StagingView } from "./features/staging/StagingView";
 import { PanelArea } from "./app/PanelArea";
 import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
+import { TagDescriptionDialog } from "./features/write/TagDescriptionDialog";
 import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
 import { PaneSplitter } from "./shared/PaneSplitter";
 import { displaySpec, useBindings, useKeybindings } from "./shared/keybindings";
@@ -50,7 +51,7 @@ import { copyText } from "./shared/clipboard";
 import { errorText } from "./shared/error";
 import { ipc } from "./shared/ipc";
 import { initPlatform } from "./shared/platform";
-import type { CommitSummaryDto, GraphScope } from "./shared/types";
+import type { CommitSummaryDto, GraphScope, RefDto } from "./shared/types";
 
 export default function App() {
   const { t } = useI18n();
@@ -69,6 +70,7 @@ export default function App() {
   const [branchMenu, setBranchMenu] = useState<BranchMenuState | null>(null);
   const [tagMenu, setTagMenu] = useState<TagMenuState | null>(null);
   const [descriptionBranch, setDescriptionBranch] = useState<string | null>(null);
+  const [descriptionTag, setDescriptionTag] = useState<RefDto | null>(null);
   const [stagingBusy, setStagingBusy] = useState(false);
   const writeBusyRef = useRef(false);
 
@@ -82,6 +84,7 @@ export default function App() {
     setRowMenu(null);
     setBranchMenu(null);
     setDescriptionBranch(null);
+    setDescriptionTag(null);
   }, []);
 
   const session = useRepositorySession({ scope, onOpened: resetView, writeBusyRef });
@@ -222,6 +225,7 @@ export default function App() {
     async (message: string) => {
       const repoPath = repo?.path;
       setDescriptionBranch(null);
+      setDescriptionTag(null);
       setToast(message);
       setError(null);
       try {
@@ -279,6 +283,11 @@ export default function App() {
         setError(null);
         setDiagnostic(null);
         setDescriptionBranch(shortName);
+      },
+      onEditTagDescription: (tag) => {
+        setError(null);
+        setDiagnostic(null);
+        setDescriptionTag(tag);
       },
       onSelectCommit: (oid) => {
         setSelectedOid(oid);
@@ -510,6 +519,15 @@ export default function App() {
         <BranchDescriptionDialog
           branch={descriptionBranch}
           onCancel={() => setDescriptionBranch(null)}
+          onSaved={(message) => void descriptionSaved(message)}
+        />
+      )}
+
+      {descriptionTag && (
+        <TagDescriptionDialog
+          tag={descriptionTag.short_name}
+          description={descriptionTag.description ?? ""}
+          onCancel={() => setDescriptionTag(null)}
           onSaved={(message) => void descriptionSaved(message)}
         />
       )}

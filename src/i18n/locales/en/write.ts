@@ -19,6 +19,7 @@ const write = {
   labelRenameBranch: "Rename branch",
   labelCreateTag: "Create tag",
   labelDeleteTag: "Delete tag",
+  labelSetTagDescription: "Update tag description",
   labelStashSave: "Save stash",
   labelStashApply: "Apply stash",
   labelStashPop: "Pop stash",
@@ -91,6 +92,14 @@ const write = {
   descriptionPlaceholder: "Describe this branch (may be left empty)",
   descriptionSharedHint:
     "This repository is a linked worktree: the description is written to the shared repository-level local config, which other worktrees of the same repository also see.",
+  // Tag description dialog: the description is the annotated tag message.
+  descriptionTagTitle: "Edit tag description",
+  descriptionTagCloseAria: "Close tag description editor",
+  descriptionTagHintPrefix: "Writes ",
+  descriptionTagHintSuffix: "; saving an empty value turns the tag into a lightweight tag.",
+  descriptionTagRewriteHint:
+    "Rewriting creates a new tag object; a tag already pushed to the remote is not updated automatically. Run git push --force origin <tag> in the terminal when needed.",
+  descriptionTagPlaceholder: "Describe this tag (may be left empty)",
   saving: "Saving…",
   save: "Save",
 } satisfies WriteMessages;

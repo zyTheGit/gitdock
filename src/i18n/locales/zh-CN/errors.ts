@@ -61,6 +61,7 @@ const errors = {
   descriptionBranchMissing: "本地分支 {{branch}} 不存在",
   descriptionLeadingDash: "分支描述不能以 \"-\" 开头，该值会被 Git 当作选项解析",
   descriptionControlChars: "分支描述不能包含换行或控制字符",
+  tagDescriptionControlChars: "标签描述不能包含 NUL 等控制字符",
   descriptionTooLong: "分支描述长度需小于 {{max}} 个字符",
   writeIoRepoRootUnavailable: "仓库目录不存在或不可访问",
 
@@ -226,7 +227,7 @@ const errors = {
   gateSummaryBranchRemoteDelete:
     "将删除本地分支 {{branch}} 并删除远程 origin/{{branch}}；远程删除影响协作者且不可逆",
   outcomeBranchRemoteDeleted: "已删除远程分支 {{branch}}，图谱已刷新",
-  outcomeRemoteRefMissing: "远程分支不存在或已删除；本地删除已生效",
+  outcomeRemoteRefMissing: "远程分支 origin/{{branch}} 已不存在，无需再删除",
   gateRemoteUnborn: "当前分支尚无提交",
   gateRemoteDetached: "detached HEAD 不支持 pull / push，请先切换本地分支",
   gateRemoteNoUpstream: "当前分支没有上游分支，请先在终端设置 upstream",
@@ -244,6 +245,7 @@ const errors = {
   gateBranchRenameSame: "新旧分支名相同",
   gateTagExists: "本地标签 {{tag}} 已存在",
   gateTagTargetInvalid: "标签目标不存在或不是提交对象",
+  gateTagNotCommit: "标签 {{tag}} 未指向提交对象，无法把附注消息作为描述",
   gateUnbornHeadTag: "当前分支尚无提交，无法创建标签",
   gateTagMissing: "本地标签 {{tag}} 不存在",
 
@@ -268,6 +270,8 @@ const errors = {
   gateSummaryTagCreate: "将创建轻量标签 {{tag}}",
   gateSummaryTagCreateAnnotated: "将创建附注标签 {{tag}}",
   gateSummaryTagDelete: "将删除本地标签 {{tag}}",
+  gateSummaryTagDescription: "将重写标签 {{tag}} 的附注描述（标签对象会重建）",
+  gateSummaryTagDescriptionCleared: "将清除标签 {{tag}} 的附注描述，并把标签改为轻量标签",
   gateSummaryStashSave: "将保存当前工作区改动为 stash",
   gateSummaryStashApply: "将应用 {{selector}}，条目保留",
   gateSummaryStashPop: "将应用 {{selector}} 并从列表移除",
@@ -311,6 +315,8 @@ const errors = {
   outcomeBranchRenamed: "已将本地分支 {{branch}} 重命名为 {{new_name}}，图谱已刷新",
   outcomeTagCreated: "已创建本地标签 {{tag}}，图谱已刷新",
   outcomeTagDeleted: "已删除本地标签 {{tag}}，图谱已刷新",
+  outcomeTagDescriptionUpdated: "已更新标签 {{tag}} 的附注描述",
+  outcomeTagDescriptionCleared: "已清除标签 {{tag}} 的附注描述，改为轻量标签",
   outcomeStashSaved: "已保存当前工作区改动为 stash",
   outcomeStashApplied: "已应用 {{selector}}，条目保留",
   outcomeStashPopped: "已应用并移除 {{selector}}",

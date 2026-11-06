@@ -45,6 +45,7 @@ const repository = {
   branchValidating: "检查中…",
   tags: "标签",
   noTags: "没有本地标签",
+  tagMenuEditDescription: "编辑描述",
   tagMenuDelete: "删除标签",
   deleteRef: "删除",
   refDeleting: "删除中…",

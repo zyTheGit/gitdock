@@ -39,6 +39,14 @@ fn delete_request(tag: &str) -> WriteRequest {
     }
 }
 
+fn description_request(tag: &str, description: &str) -> WriteRequest {
+    WriteRequest {
+        branch: Some(tag.to_owned()),
+        description: Some(description.to_owned()),
+        ..base_request(WriteKind::SetTagDescription)
+    }
+}
+
 fn issue_codes(report: &GateReportDto) -> Vec<&str> {
     report
         .issues
@@ -178,4 +186,132 @@ fn delete_missing_tag_is_rejected() {
     let report = module.validate(&delete_request("v1")).expect("Gate");
     assert!(!report.ok);
     assert!(issue_codes(&report).contains(&"gate_tag_missing"));
+}
+
+#[test]
+fn description_rewrites_annotated_tag_message() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    commit(dir, "a.txt", "one\n", "c1");
+    git_ok(dir, &["tag", "-a", "v1", "-m", "旧说明"]);
+    let old_tag_oid = git_ok(dir, &["rev-parse", "refs/tags/v1"]);
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+    let text = "新说明\n第二行";
+
+    let gate = module
+        .validate(&description_request("v1", text))
+        .expect("Gate");
+    assert!(gate.ok, "{:?}", gate.issues);
+    assert_eq!(
+        gate.summary_key.as_deref(),
+        Some("errors.gateSummaryTagDescription")
+    );
+
+    let outcome = module
+        .execute(&description_request("v1", text))
+        .expect("执行");
+    assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
+    assert_eq!(
+        outcome.key.as_deref(),
+        Some("errors.outcomeTagDescriptionUpdated")
+    );
+    // 附注标签重建后对象 OID 变化，指向的提交不变，内容保真。
+    assert_ne!(git_ok(dir, &["rev-parse", "refs/tags/v1"]), old_tag_oid);
+    assert_eq!(git_ok(dir, &["cat-file", "-t", "refs/tags/v1"]), "tag");
+    assert_eq!(
+        git_ok(dir, &["rev-parse", "refs/tags/v1^{commit}"]),
+        git_ok(dir, &["rev-parse", "HEAD"])
+    );
+    assert_eq!(
+        git_ok(
+            dir,
+            &["for-each-ref", "--format=%(contents)", "refs/tags/v1"]
+        )
+        .trim_end(),
+        text
+    );
+}
+
+#[test]
+fn description_promotes_lightweight_tag() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    let head = commit(dir, "a.txt", "one\n", "c1");
+    git_ok(dir, &["tag", "v1"]);
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+
+    let outcome = module
+        .execute(&description_request("v1", "发布说明"))
+        .expect("执行");
+    assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
+    assert_eq!(git_ok(dir, &["cat-file", "-t", "refs/tags/v1"]), "tag");
+    assert_eq!(git_ok(dir, &["rev-parse", "refs/tags/v1^{commit}"]), head);
+    assert_eq!(
+        git_ok(
+            dir,
+            &["for-each-ref", "--format=%(contents)", "refs/tags/v1"]
+        )
+        .trim_end(),
+        "发布说明"
+    );
+}
+
+#[test]
+fn clearing_description_downgrades_to_lightweight() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    let head = commit(dir, "a.txt", "one\n", "c1");
+    git_ok(dir, &["tag", "-a", "v1", "-m", "说明"]);
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+
+    let outcome = module
+        .execute(&description_request("v1", "   "))
+        .expect("执行");
+    assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
+    assert_eq!(
+        outcome.key.as_deref(),
+        Some("errors.outcomeTagDescriptionCleared")
+    );
+    assert_eq!(git_ok(dir, &["cat-file", "-t", "refs/tags/v1"]), "commit");
+    assert_eq!(git_ok(dir, &["rev-parse", "refs/tags/v1"]), head);
+}
+
+#[test]
+fn description_gate_rejects_missing_and_non_commit_tag() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    commit(dir, "a.txt", "one\n", "c1");
+    git_ok(dir, &["tag", "treetag", "HEAD^{tree}"]);
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+
+    let report = module
+        .validate(&description_request("missing", "说明"))
+        .expect("Gate");
+    assert!(issue_codes(&report).contains(&"gate_tag_missing"));
+
+    let report = module
+        .validate(&description_request("treetag", "说明"))
+        .expect("Gate");
+    assert!(
+        issue_codes(&report).contains(&"gate_tag_not_commit"),
+        "{:?}",
+        report.issues
+    );
+}
+
+#[test]
+fn description_rejects_control_characters() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    commit(dir, "a.txt", "one\n", "c1");
+    git_ok(dir, &["tag", "v1"]);
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+
+    let error = module
+        .validate(&description_request("v1", "bad\u{0}text"))
+        .expect_err("控制字符应被拒绝");
+    assert_eq!(
+        error.key.as_deref(),
+        Some("errors.tagDescriptionControlChars")
+    );
 }

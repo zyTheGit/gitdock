@@ -39,3 +39,7 @@ ADR-0008 的删除只使用安全形态 `git branch -d`，明确不提供远程�
 3. 远程删除失败（无权限/网络）：提示保留对话框，本地分支已删除的文案可见。
 4. 本地未合并的分支：第一段被 Git 拒绝，远程不删除。
 5. `npm run check` 全绿；实机验收按 GUI 验收清单 2.8。
+
+## 6. 修订记录
+
+- 2026-11-06：远端引用已不存在时按成功收尾。用户反馈「删除本地和远程分支时，远程分支不存在的话，不需要再次弹框提示」。执行阶段 `push --delete` 返回 `remote ref does not exist` 时，`execute.rs` 将该结果标记为 `WriteStatus::Succeeded`（保留 `errors.outcomeRemoteRefMissing` key 与 `branch` 参数、清空 stderr），使 `DeleteRefDialog` 走成功路径直接关闭，而不是停留在失败提示。Gate 的本地缓存判断不变，缓存过期仍由执行阶段兜底。

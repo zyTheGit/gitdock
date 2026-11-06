@@ -45,6 +45,8 @@ function writeLabel(kind: WriteKind): string {
       return i18next.t("write.labelCreateTag");
     case "delete_tag":
       return i18next.t("write.labelDeleteTag");
+    case "set_tag_description":
+      return i18next.t("write.labelSetTagDescription");
     case "stash_save":
       return i18next.t("write.labelStashSave");
     case "stash_apply":
