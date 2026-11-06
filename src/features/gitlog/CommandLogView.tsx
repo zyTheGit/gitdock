@@ -156,7 +156,7 @@ export function CommandLogView({ active }: CommandLogViewProps) {
                   title={copiedId === entry.id ? t("gitlog.copied") : t("gitlog.copyCommand")}
                   aria-label={t("gitlog.copyCommandAria", { command: commandText(entry) })}
                 >
-                  <Icon name="copy" />
+                  <Icon name={copiedId === entry.id ? "check" : "copy"} />
                 </button>
               </div>
               {expandedId === entry.id && (
@@ -165,7 +165,7 @@ export function CommandLogView({ active }: CommandLogViewProps) {
                   <dd className="mono gitlog-cwd">
                     <span className="gitlog-cwd-text">{entry.cwd || "—"}</span>
                     {entry.cwd && (
-                      <button
+                       <button
                         type="button"
                         className={
                           copiedCwdId === entry.id ? "gitlog-copy-path copied" : "gitlog-copy-path"
@@ -174,7 +174,7 @@ export function CommandLogView({ active }: CommandLogViewProps) {
                         title={copiedCwdId === entry.id ? t("gitlog.copied") : t("gitlog.copyPath")}
                         aria-label={t("gitlog.copyPath")}
                       >
-                        <Icon name="copy" />
+                        <Icon name={copiedCwdId === entry.id ? "check" : "copy"} />
                       </button>
                     )}
                   </dd>

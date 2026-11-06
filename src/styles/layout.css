@@ -227,9 +227,8 @@
   min-width: 0;
 }
 
-/* 状态栏右侧的图标按钮（终端开关、命令日志入口）：透明底、悬浮浮起；开启态用强调色。 */
-.terminal-status-button,
-.gitlog-status-button {
+/* 状态栏右侧的终端开关图标按钮：透明底、悬浮浮起；开启态用强调色。 */
+.terminal-status-button {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -242,8 +241,7 @@
   color: var(--muted);
 }
 
-.terminal-status-button:hover:not(:disabled),
-.gitlog-status-button:hover:not(:disabled) {
+.terminal-status-button:hover:not(:disabled) {
   border-color: transparent;
   background: var(--bg-elevated);
   color: var(--text);
@@ -255,8 +253,7 @@
   color: var(--accent);
 }
 
-.terminal-status-button svg,
-.gitlog-status-button svg {
+.terminal-status-button svg {
   width: 15px;
   height: 15px;
 }

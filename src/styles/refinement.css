@@ -154,12 +154,8 @@
 }
 .settings-nav button:hover:not(:disabled) { background: var(--row-hover); color: var(--text); border-color: transparent; }
 .settings-nav button.active { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600; }
-.settings-nav-mark { width: 7px; height: 7px; flex: none; border: 1.5px solid currentColor; border-radius: 2px; opacity: .85; }
-.mark-appearance { border-radius: 50%; }
-.mark-terminal { width: 9px; height: 7px; border-radius: 2px; }
-.mark-tools { transform: rotate(45deg); border-radius: 1px; }
-.mark-about { border-radius: 50%; }
-.mark-git-config { border-radius: 50% 2px 50% 2px; }
+/* 分区图标：currentColor 描边随按钮文字色（含 active 态强调色）联动。 */
+.settings-nav-icon { width: 15px; height: 15px; flex: none; opacity: .9; }
 
 .settings-body {
   flex: 1;
@@ -468,7 +464,7 @@ kbd { display: inline-block; padding: 1px 5px; border: 1px solid var(--border); 
   .settings-content { flex-direction: column; gap: 0; }
   .settings-nav { flex: none; flex-direction: row; gap: 3px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 10px; background: transparent; }
   .settings-nav button { flex: none; min-height: 30px; padding: 4px 8px; }
-  .settings-nav-mark { display: none; }
+  .settings-nav-icon { display: none; }
   .settings-body { min-height: 0; padding: 14px 14px 16px; }
   /* 窄窗口下压缩标签列与来源列，把宽度让给取值控件。 */
   .settings-dialog .git-config-list li {

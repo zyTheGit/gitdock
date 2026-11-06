@@ -33,7 +33,7 @@ const gitlog = {
   failedBadge: "Failed",
   launchFailed: "Failed to start",
   noStderr: "No error output",
-  openButtonTitle: "View Git command log",
+
 } satisfies GitlogMessages;
 
 export default gitlog;

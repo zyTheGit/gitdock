@@ -296,13 +296,11 @@ export default function App() {
     settings,
     fontScale: zoom.fontScale,
     terminalActive: panel.panelOpen && panel.activeTab === "terminal",
-    logActive: panel.panelOpen && panel.activeTab === "log",
     terminalRunning: panel.terminalRunning,
     terminalShortcut: displaySpec(bindings["terminal.toggle"]),
     updateVersion,
     onToggleTerminal: panel.toggleTerminal,
     onOpenUpdate: () => void openAvailableUpdate(),
-    onToggleCommandLog: panel.toggleCommandLog,
   };
 
   return (

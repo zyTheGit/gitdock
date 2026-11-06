@@ -29,6 +29,12 @@ import { download } from "./download";
 import { upload } from "./upload";
 import { copy } from "./copy";
 import { trash } from "./trash";
+import { check } from "./check";
+import { rocket } from "./rocket";
+import { palette } from "./palette";
+import { keyboard } from "./keyboard";
+import { gitBranch } from "./git-branch";
+import { info } from "./info";
 
 /**
  * 应用内所有 SVG 图标的注册表。单个图标定义在同目录的独立文件中；图标统一
@@ -63,6 +69,12 @@ const ICONS = {
   upload,
   copy,
   trash,
+  check,
+  rocket,
+  palette,
+  keyboard,
+  gitBranch,
+  info,
 } satisfies Record<string, IconSpec>;
 
 export type IconName = keyof typeof ICONS;

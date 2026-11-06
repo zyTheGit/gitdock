@@ -35,6 +35,8 @@ interface BottomPanelProps {
   terminalShortcut: string;
   onCollapse: () => void;
   onTabChange: (tab: BottomPanelTab) => void;
+  /** 面板未打开时经标签快捷键直达：打开面板并激活指定标签。 */
+  onOpenTab: (tab: BottomPanelTab) => void;
   /** 终端内容视图；挂载后由面板以 hidden 切换保活（卸载会结束 PTY）。 */
   terminalView: ReactNode;
   /** 命令日志内容视图。 */
@@ -53,6 +55,7 @@ export function BottomPanel({
   terminalShortcut,
   onCollapse,
   onTabChange,
+  onOpenTab,
   terminalView,
   logView,
 }: BottomPanelProps) {
@@ -90,19 +93,21 @@ export function BottomPanel({
     }
   }, [open, activeTab]);
 
-  // 全屏还原（Esc）与终端全屏切换（Ctrl/Cmd+Shift+Enter）沿用原终端面板行为；
-  // 标签切换 Ctrl/Cmd+PageUp/PageDown 为新增固定键位，弹窗打开时不触发。
+  // 全屏还原（Esc）与终端全屏切换（Ctrl/Cmd+Shift+Enter）沿用原终端面板行为，仅面板打开时生效；
+  // 标签切换 Ctrl/Cmd+PageUp/PageDown 在面板未打开时也生效（直接打开面板并切标签），
+  // 弹窗打开时不触发。onOpenTab 与 onTabChange 区分：前者确保面板展开。
   useEffect(() => {
-    if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      // 放大 diff 已消费的 Esc 不再还原面板全屏，一次按键只退出一层。
-      if (event.key === "Escape" && fullscreen && !isEscConsumed(event)) {
-        setFullscreen(false);
-      }
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "enter") {
-        if (activeTab === "terminal") {
-          event.preventDefault();
-          setFullscreen((current) => !current);
+      if (open) {
+        // 放大 diff 已消费的 Esc 不再还原面板全屏，一次按键只退出一层。
+        if (event.key === "Escape" && fullscreen && !isEscConsumed(event)) {
+          setFullscreen(false);
+        }
+        if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "enter") {
+          if (activeTab === "terminal") {
+            event.preventDefault();
+            setFullscreen((current) => !current);
+          }
         }
       }
       if ((event.ctrlKey || event.metaKey) && (event.key === "PageUp" || event.key === "PageDown")) {
@@ -110,12 +115,17 @@ export function BottomPanel({
           return;
         }
         event.preventDefault();
-        onTabChange(event.key === "PageUp" ? "terminal" : "log");
+        const tab = event.key === "PageUp" ? "terminal" : "log";
+        if (open) {
+          onTabChange(tab);
+        } else {
+          onOpenTab(tab);
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, fullscreen, activeTab, onTabChange]);
+  }, [open, fullscreen, activeTab, onTabChange, onOpenTab]);
 
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (fullscreen) return;

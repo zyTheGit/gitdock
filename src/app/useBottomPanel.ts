@@ -30,11 +30,19 @@ export function useBottomPanel() {
     localStorage.setItem(ACTIVE_TAB_KEY, tab);
   }, []);
 
+  /** 打开面板并激活指定标签（标签切换快捷键在面板未打开时的直达入口）。 */
+  const openTab = useCallback(
+    (tab: BottomPanelTab) => {
+      selectTab(tab);
+      setPanelOpen(true);
+    },
+    [selectTab],
+  );
+
   /** 打开面板并激活终端标签（暂存区入口等「确保打开」语义）。 */
   const openTerminal = useCallback(() => {
-    selectTab("terminal");
-    setPanelOpen(true);
-  }, [selectTab]);
+    openTab("terminal");
+  }, [openTab]);
 
   /** 终端标签已激活时收起面板，否则打开面板并切到终端标签。 */
   const toggleTerminal = useCallback(() => {
@@ -51,9 +59,8 @@ export function useBottomPanel() {
       setPanelOpen(false);
       return;
     }
-    selectTab("log");
-    setPanelOpen(true);
-  }, [panelOpen, activeTab, selectTab]);
+    openTab("log");
+  }, [panelOpen, activeTab, openTab]);
 
   const collapse = useCallback(() => setPanelOpen(false), []);
 
@@ -65,6 +72,7 @@ export function useBottomPanel() {
     terminalRunning,
     setTerminalRunning,
     selectTab,
+    openTab,
     openTerminal,
     toggleTerminal,
     toggleCommandLog,

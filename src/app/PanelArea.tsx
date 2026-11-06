@@ -45,6 +45,7 @@ export function PanelArea({
       terminalShortcut={terminalShortcut}
       onCollapse={panel.collapse}
       onTabChange={panel.selectTab}
+      onOpenTab={panel.openTab}
       terminalView={
         repo && panel.terminalMounted ? (
           <TerminalView
