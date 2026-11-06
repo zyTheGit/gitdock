@@ -48,6 +48,8 @@ const FIXED_SHORTCUTS: { keys: string[]; textKey: SettingsKey }[] = [
   { keys: ["Enter"], textKey: "settings.fixedEnter" },
   { keys: ["Ctrl", "点击"], textKey: "settings.fixedCtrlClick" },
   { keys: ["Ctrl", ","], textKey: "settings.fixedSettings" },
+  { keys: ["Ctrl", "PageDown"], textKey: "settings.fixedPanelTabNext" },
+  { keys: ["Ctrl", "PageUp"], textKey: "settings.fixedPanelTabPrev" },
   { keys: ["Shift", "点击"], textKey: "settings.fixedShiftClick" },
   { keys: ["Alt", "点击"], textKey: "settings.fixedAltClick" },
 ];

@@ -115,24 +115,45 @@ fn shell_profile_roundtrips_when_saved() {
 }
 
 #[test]
-fn missing_shell_profile_defaults_to_default() {
+fn missing_shell_profile_defaults_to_platform_default() {
     let dir = temp_dir();
     std::fs::write(
         settings_path(dir.path()),
         br#"{"schema_version":1,"recent_repositories":[],"external_tools":[],"restore_last_repository":true}"#,
     )
     .expect("写入旧版设置失败");
-    assert_eq!(load(dir.path()).shell_profile, "default");
+    let expected = if cfg!(windows) { "git_bash" } else { "default" };
+    assert_eq!(load(dir.path()).shell_profile, expected);
 }
 
 #[test]
-fn invalid_shell_profile_falls_back_on_load() {
+fn invalid_shell_profile_falls_back_to_platform_default_on_load() {
     let dir = temp_dir();
     std::fs::write(
         settings_path(dir.path()),
         br#"{"schema_version":1,"recent_repositories":[],"external_tools":[],"restore_last_repository":true,"shell_profile":"powershell_core"}"#,
     )
     .expect("写入无效启动器失败");
+    let expected = if cfg!(windows) { "git_bash" } else { "default" };
+    assert_eq!(load(dir.path()).shell_profile, expected);
+}
+
+#[test]
+fn default_settings_use_platform_shell_profile() {
+    let expected = if cfg!(windows) { "git_bash" } else { "default" };
+    assert_eq!(SettingsDto::default().shell_profile, expected);
+}
+
+#[test]
+fn explicitly_saved_default_profile_survives_reload() {
+    // Windows 新默认是 git_bash，但显式保存过 default 的设置不被平台默认改写。
+    let dir = temp_dir();
+    let settings = SettingsDto {
+        shell_profile: "default".to_string(),
+        ..Default::default()
+    };
+    let saved = save(dir.path(), &settings).expect("保存设置失败");
+    assert_eq!(saved.shell_profile, "default");
     assert_eq!(load(dir.path()).shell_profile, "default");
 }
 

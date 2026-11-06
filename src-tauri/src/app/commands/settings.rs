@@ -57,6 +57,13 @@ pub async fn set_language(
     Ok(saved)
 }
 
+/// Shell 启动器即时生效并持久化；仅此命令修改 shell_profile 字段。
+#[tauri::command]
+pub async fn set_shell_profile(state: State<'_, Shared>, profile: String) -> Result<SettingsDto> {
+    let state = Arc::clone(&state);
+    blocking(move || state.set_shell_profile(profile)).await
+}
+
 /// 仅从最近仓库列表移除展示项，不删除磁盘上的仓库。
 #[tauri::command]
 pub async fn forget_recent_repository(

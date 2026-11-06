@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useI18n } from "../../i18n";
 import { FileDiffView } from "../diff/FileDiffView";
-import { isEscConsumed, isEventInTerminal } from "../../shared/esc";
+import { isEscConsumed, isEventInBottomPanel } from "../../shared/esc";
 import { errorText, outcomeText, warningText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type {
@@ -185,7 +185,7 @@ export function StagingView({
       if (isEscConsumed(event)) {
         return;
       }
-      if (isEventInTerminal(event)) {
+      if (isEventInBottomPanel(event)) {
         return;
       }
       onExitRef.current();

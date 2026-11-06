@@ -44,13 +44,9 @@ const settings = {
 
   // 终端
   terminalTitle: "终端",
-  terminalHint: "GitDock 不捆绑 LazyGit。留空时从 PATH 查找；填写后只使用该文件，找不到会在终端面板提示。终端以当前用户权限、在当前打开的仓库目录中运行。",
+  terminalHint: "GitDock 不捆绑 LazyGit。留空时从 PATH 查找；填写后只使用该文件，找不到会在终端面板提示。终端以当前用户权限、在当前打开的仓库目录中运行。Shell 启动器在底部面板的终端工具栏切换。",
   terminalLazygitLabel: "LazyGit 可执行文件",
   terminalLazygitPlaceholder: "可执行文件完整路径（如 lazygit）",
-  terminalShellProfileLabel: "Shell 模式启动器",
-  terminalShellProfileDefault: "系统默认（PowerShell）",
-  terminalShellProfileGitBash: "Git Bash（Git for Windows 自带）",
-  terminalShellProfileGitBashMissing: "未探测到 Git Bash：请确认已安装 Git for Windows，或改用系统默认。",
 
   // 外部对比工具（$LOCAL / $REMOTE 等参数与命令示例原文，在组件内以 code 标签渲染）
   toolsTitle: "外部文件对比工具",
@@ -103,7 +99,9 @@ const settings = {
   fixedArrows: "仓库切换器、搜索建议里移动高亮；拖拽分隔条时调整栏宽，按住 Shift 步长更大",
   fixedEnter: "确认仓库切换器 / 搜索输入框里的高亮项",
   fixedCtrlClick: "{{modifier}}+点击：把提交放进对比双槽，第二次点击换到另一个槽位",
-  fixedSettings: "{{modifier}}+逗号：打开设置（入口统一在菜单栏）",
+  fixedSettings: "{{modifier}}+逗号：打开设置（入口在顶栏设置按钮）",
+  fixedPanelTabNext: "{{modifier}}+PageDown：切到底部面板的下一个标签",
+  fixedPanelTabPrev: "{{modifier}}+PageUp：切到底部面板的上一个标签",
   fixedShiftClick:
     "Shift+点击：按当前视图顺序批量选择提交区间；多选后右键只显示批量操作",
   fixedAltClick: "{{alt}}+点击：从批量选择中单独加入或移除一个提交",

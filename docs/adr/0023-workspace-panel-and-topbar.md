@@ -1,7 +1,7 @@
 # ADR 0023：工作区面板与顶栏改造（多标签底部面板 + 顶栏精简 + Shell 下拉）
 
-- 状态：已接受（2026-11-05 用户逐项裁决确认）
-- 日期：2026-11-05
+- 状态：PR-2 主体已实现（2026-11-06，分支 `feature/bottom-panel`，待 GUI 实机验收）
+- 日期：2026-11-05（裁决）、2026-11-06（实施）
 - 影响范围：`src/features/terminal/`（面板容器与工具栏）、`src/features/gitlog/`（日志组件挂载形态）、`src/app/TopBar.tsx`、`src/app/StatusBar.tsx`、设置分区（Shell Profile 入口）、`src-tauri/src/app/menu/`（ADR-0012 设置入菜单栏）、i18n（terminal/gitlog/shell 域）、`docs/verification/GUI-实机验收清单.md`
 - 关联：ADR-0012（设置入口收进应用菜单栏，已裁决继续实施）
 
@@ -75,3 +75,16 @@ PR-2 依赖 PR-1 的设置入口落位，避免顶栏设置按钮悬空。
 3. Shell 下拉默认 Git Bash（Windows），切换后当前会话重启为新 Shell 并持久化；设置中无 Shell Profile 入口。
 4. 顶栏保留搜索/暂存区/对比/刷新/设置；终端按钮消失；状态栏终端图标与 `Ctrl+,` 设置快捷键正常；Windows/Linux 无原生菜单栏（深色模式无白色横条），macOS 应用菜单正常。
 5. `npm run check` 全绿；GUI 实机验收按清单补测（面板切换、Shell 切换重启、顶栏精简）。
+## 6. 实施记录（2026-11-06，分支 feature/bottom-panel）
+
+- **共享外框 `BottomPanel`**（`src/features/panel/BottomPanel.tsx` + `panel.css`）：标签栏（ARIA tablist、roving tabindex、方向键/Home/End）、高度拖拽（沿用 `gitdock.terminal.height` 与 140 下限）、面板级全屏（仅终端标签可用，切日志/收起自动退出）、收起按钮；`Ctrl+PageUp/PageDown` 切标签为新增固定键位（弹窗打开时不触发，已进设置固定键位说明）。
+- **面板状态 `useBottomPanel`**（`src/app/useBottomPanel.ts`）：面板开合不持久化，活动标签持久化到 `gitdock.bottomPanel.activeTab`；首次打开某标签才挂载对应 View，此后收起只 hidden 保活（终端 PTY 不杀、日志筛选状态保留）。
+- **`TerminalView`**（`src/features/terminal/TerminalView.tsx`）：原 TerminalPanel 的内容部分迁入，外框职责上交 BottomPanel；根类改 `.terminal-view`。切标签期间 View 持续挂载，`visible = 面板开 && 终端标签活动` 驱动 xterm fit/focus 生命周期。
+- **`CommandLogView` + `useCommandLog`**（`src/features/gitlog/`）：命令日志从 Modal 弹窗迁入面板标签；每次标签激活重拉快照、切换保留搜索/筛选/展开状态；删除 `CommandLogDialog.tsx`；gitlog.css 去弹窗宽高改填充式。
+- **Shell 下拉 `ShellProfileSelect`**（仅 Windows 渲染，`src/features/terminal/ShellProfileSelect.tsx`）：会话运行中两段确认（对齐日志清空模式，3 秒超时回落）；LazyGit 运行中禁用并提示，绝不静默杀进程；未启动时只保存。
+- **`set_shell_profile` command**（对齐 set_language 模式）：后端读最新设置只改单字段，复用白名单校验与原子保存，返回完整 SettingsDto；不触发 watcher 重启。前端保存成功后仅 Shell 模式下 `start("shell")` 重启（start 内含旧会话清理与迟到会话防护）。
+- **默认值**：`default_shell_profile()` 平台化（Windows→git_bash，其余→default）；显式保存过 `"default"` 的老设置不改写（测试锁定）；Git Bash 探测失败时 `resolve_shell` 自动回退 PowerShell（不再报错，错误 key 保留供异常场景）。
+- **设置分区**：移除 Shell Profile Select 与草稿字段（`TerminalSection.tsx`/`useSettingsDraft.ts`/`SettingsDialog.tsx`），`...settings` 透传面板内保存的最新值。
+- **Esc 分层**：`TERMINAL_PANEL_SELECTOR` 升级为 `BOTTOM_PANEL_SELECTOR`（`.bottom-panel`），焦点在面板内（终端或日志视图）时界面层统一让路；终端全屏 Esc 还原上移至 BottomPanel。
+- **状态栏**：终端与日志按钮均为「活动则收起、否则切标签并展开」语义，日志按钮补 active/aria-pressed 态。
+- 验证：`npm run check` 七项全绿（含 cargo test 65 通过、clippy 0 警告）；release 构建 exe 启动、进程存活正常。CDP 深度 DOM 验证受本机环境干扰未稳定连通，交互项（标签切换保活、Shell 重启、全屏、窄窗口）按 GUI 清单留待实机验收。

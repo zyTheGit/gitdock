@@ -45,14 +45,9 @@ const settings = {
   // Terminal
   terminalTitle: "Terminal",
   terminalHint:
-    "GitDock does not bundle LazyGit. When empty, it is looked up on PATH; once set, only that file is used, and a missing file is reported in the terminal panel. The terminal runs with the current user's privileges, inside the currently opened repository.",
+    "GitDock does not bundle LazyGit. When empty, it is looked up on PATH; once set, only that file is used, and a missing file is reported in the terminal panel. The terminal runs with the current user's privileges, inside the currently opened repository. The shell launcher is switched from the terminal toolbar in the bottom panel.",
   terminalLazygitLabel: "LazyGit executable",
   terminalLazygitPlaceholder: "Full path to the executable (e.g. lazygit)",
-  terminalShellProfileLabel: "Shell mode launcher",
-  terminalShellProfileDefault: "System default (PowerShell)",
-  terminalShellProfileGitBash: "Git Bash (bundled with Git for Windows)",
-  terminalShellProfileGitBashMissing:
-    "Git Bash was not detected: make sure Git for Windows is installed, or use the system default.",
 
   // External compare tools ($LOCAL / $REMOTE and command examples stay verbatim, rendered as code)
   toolsTitle: "External file compare tools",
@@ -112,7 +107,9 @@ const settings = {
   fixedEnter: "Confirms the highlighted item in the repository switcher / search input",
   fixedCtrlClick:
     "{{modifier}}+click: puts the commit into the compare slots; a second click switches to the other slot",
-  fixedSettings: "{{modifier}}+comma: open settings (entry lives in the menu bar)",
+  fixedSettings: "{{modifier}}+comma: open settings (entry is the top-bar settings button)",
+  fixedPanelTabNext: "{{modifier}}+PageDown: switch to the next tab of the bottom panel",
+  fixedPanelTabPrev: "{{modifier}}+PageUp: switch to the previous tab of the bottom panel",
   fixedShiftClick:
     "Shift+click: selects a range of commits in the current view order; right-click then shows batch actions only",
   fixedAltClick: "{{alt}}+click: adds or removes a single commit from the batch selection",

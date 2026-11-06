@@ -108,6 +108,13 @@ impl AppState {
         self.save_settings(next)
     }
 
+    /// Shell 启动器独立保存：面板内切换即时生效，不经过设置弹窗的整体「保存」。
+    pub fn set_shell_profile(&self, profile: String) -> Result<SettingsDto> {
+        let mut next = self.settings()?;
+        next.shell_profile = profile;
+        self.save_settings(next)
+    }
+
     pub fn remember_repository(&self, path: &Path) -> Result<SettingsDto> {
         let current = self.settings()?;
         let saved = config::remember(&self.paths.config_dir, &current, path)?;

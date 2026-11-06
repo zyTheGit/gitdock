@@ -1,0 +1,115 @@
+/* 底部多标签面板（ADR-0023）：高度由内联样式给出，拖动顶部把手调整；
+   终端与命令日志内容 View 的样式分别在 terminal.css 与 gitlog.css。 */
+
+.bottom-panel {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 140px;
+  max-height: calc(100vh - 240px);
+  background: var(--terminal-bg);
+  border-top: 1px solid var(--terminal-border);
+}
+
+.bottom-panel.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  width: 100vw;
+  height: 100vh !important;
+  max-height: none;
+  border: 1px solid var(--terminal-border);
+}
+
+.bottom-panel.fullscreen .bottom-panel-resizer {
+  display: none;
+}
+
+/* class 选择器优先级高于 UA 的 [hidden]，需显式关闭。 */
+.bottom-panel[hidden] {
+  display: none;
+}
+
+.bottom-panel-resizer {
+  height: 6px;
+  cursor: ns-resize;
+  background: transparent;
+}
+
+.bottom-panel-resizer:hover {
+  background: var(--terminal-resizer-hover);
+}
+
+.bottom-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--terminal-header-border);
+}
+
+.bottom-panel-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bottom-panel-tab {
+  padding: 6px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--terminal-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.bottom-panel-tab:hover:not(:disabled) {
+  color: var(--terminal-running);
+}
+
+.bottom-panel-tab.active {
+  color: var(--terminal-running);
+  border-bottom-color: var(--terminal-running);
+}
+
+.bottom-panel-tab:focus-visible {
+  outline: 2px solid var(--terminal-running);
+  outline-offset: -2px;
+}
+
+.bottom-panel-tab:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.bottom-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.bottom-panel-pane {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bottom-panel-pane[hidden] {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .bottom-panel-header {
+    gap: 8px;
+  }
+
+  .bottom-panel-tab {
+    padding: 6px 8px;
+  }
+}

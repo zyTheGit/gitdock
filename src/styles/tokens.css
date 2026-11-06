@@ -213,7 +213,8 @@
   .graph-empty,
   .context-menu,
   .repo-menu,
-  .terminal-panel {
+  .bottom-panel,
+  .terminal-view {
     border-color: CanvasText;
   }
 }

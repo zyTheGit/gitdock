@@ -38,7 +38,7 @@ impl ShellProfile {
 /// 父进程当前目录解析，从仓库目录启动应用时仓库内伪造的 powershell.exe 会
 /// 先于系统执行；PowerShell 还需显式设 UTF-8，否则 ConPTY 下中文按 GBK
 /// 输出成乱码。Git Bash 启动器在 Windows 上解析 `bin\bash.exe`（探测不到
-/// 时报错回默认路径的指引），其余平台一律回落系统默认。
+/// 时自动回退 PowerShell），其余平台一律回落系统默认。
 pub(crate) fn resolve_shell(profile: ShellProfile) -> Result<ShellProgram> {
     #[cfg(windows)]
     {
@@ -52,34 +52,10 @@ pub(crate) fn resolve_shell(profile: ShellProfile) -> Result<ShellProgram> {
                     args: vec!["--login".to_owned(), "-i".to_owned()],
                 });
             }
-            // 探测不到 Git Bash：settings 允许保存该值（旧机器装了、新机器没装），
-            // 启动时报「未找到」比静默换回 PowerShell 更可解释。
-            return Err(UserVisibleError::new(
-                ErrorCode::ExternalToolFailed,
-                "未找到 Git Bash：请确认已安装 Git for Windows，或切回系统默认 Shell",
-            )
-            .with_key("errors.terminalGitBashNotFound"));
+            // 探测不到 bash.exe（未安装或保存后 Git 被卸载）：自动回退 PowerShell
+            // 而非报 GitBashNotFound；该错误 key 保留给后续显式提示场景。
         }
-        let system_root = std::env::var("SystemRoot").map_err(|_| {
-            UserVisibleError::new(
-                ErrorCode::ExternalToolFailed,
-                "未找到 PowerShell：缺少 SystemRoot 环境变量",
-            )
-            .with_key("errors.terminalPowershellNotFound")
-        })?;
-        Ok(ShellProgram {
-            path: PathBuf::from(system_root)
-                .join(r"System32\WindowsPowerShell\v1.0\powershell.exe"),
-            args: vec![
-                "-NoLogo".to_owned(),
-                "-NoExit".to_owned(),
-                "-Command".to_owned(),
-                "[Console]::InputEncoding=[Text.UTF8Encoding]::new($false);\
-                 [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);\
-                 $OutputEncoding=[Text.UTF8Encoding]::new($false)"
-                    .to_owned(),
-            ],
-        })
+        windows_powershell()
     }
     #[cfg(not(windows))]
     {
@@ -98,6 +74,31 @@ pub(crate) fn resolve_shell(profile: ShellProfile) -> Result<ShellProgram> {
             args: vec!["-l".to_owned()],
         })
     }
+}
+
+/// Windows 系统默认 Shell：System32 绝对路径 PowerShell。
+/// Default 启动器与 Git Bash 探测失败后的回退共用此构造。
+#[cfg(windows)]
+fn windows_powershell() -> Result<ShellProgram> {
+    let system_root = std::env::var("SystemRoot").map_err(|_| {
+        UserVisibleError::new(
+            ErrorCode::ExternalToolFailed,
+            "未找到 PowerShell：缺少 SystemRoot 环境变量",
+        )
+        .with_key("errors.terminalPowershellNotFound")
+    })?;
+    Ok(ShellProgram {
+        path: PathBuf::from(system_root).join(r"System32\WindowsPowerShell\v1.0\powershell.exe"),
+        args: vec![
+            "-NoLogo".to_owned(),
+            "-NoExit".to_owned(),
+            "-Command".to_owned(),
+            "[Console]::InputEncoding=[Text.UTF8Encoding]::new($false);\
+             [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);\
+             $OutputEncoding=[Text.UTF8Encoding]::new($false)"
+                .to_owned(),
+        ],
+    })
 }
 
 /// 探测 Git for Windows 自带的 bash.exe；全程只做 `is_file()` 检查、不启动进程
@@ -188,6 +189,29 @@ mod tests {
             assert!(
                 path.to_string_lossy().to_lowercase().ends_with("bash.exe"),
                 "探测结果应是 bash.exe"
+            );
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn git_bash_falls_back_to_powershell_when_not_detected() {
+        // 探测不到 bash.exe 时不再报 GitBashNotFound，而是回退 PowerShell。
+        let shell = resolve_shell(ShellProfile::GitBash).expect("解析 Git Bash 失败");
+        assert!(shell.path.is_absolute());
+        assert!(shell.path.is_file(), "{} 应存在", shell.path.display());
+        let path = shell.path.to_string_lossy().to_lowercase();
+        if detect_git_bash().is_some() {
+            assert!(
+                path.ends_with("bash.exe"),
+                "探测到 Git Bash 时应使用 bash.exe，实际：{}",
+                shell.path.display()
+            );
+        } else {
+            assert!(
+                path.ends_with("powershell.exe"),
+                "未探测到 Git Bash 时应回退 PowerShell，实际：{}",
+                shell.path.display()
             );
         }
     }

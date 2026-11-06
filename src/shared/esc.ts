@@ -8,8 +8,8 @@
  * 标记只约束界面退出层，且随事件对象生命周期销毁，无跨按键泄漏。
  */
 
-/** 终端面板容器选择器：焦点在终端内时 Esc 归终端程序，界面层统一让路。 */
-export const TERMINAL_PANEL_SELECTOR = ".terminal-panel";
+/** 底部面板容器选择器：焦点在面板内时 Esc 归面板（终端程序或日志视图），界面层统一让路。 */
+export const BOTTOM_PANEL_SELECTOR = ".bottom-panel";
 
 const escConsumedFlag = Symbol("gitdockEscConsumed");
 
@@ -25,7 +25,7 @@ export function consumeEsc(event: KeyboardEvent): void {
   (event as EscMarkedEvent)[escConsumedFlag] = true;
 }
 
-/** 事件目标是否位于终端面板内（终端聚焦时按键归终端程序）。 */
-export function isEventInTerminal(event: KeyboardEvent): boolean {
-  return (event.target as HTMLElement | null)?.closest(TERMINAL_PANEL_SELECTOR) != null;
+/** 事件目标是否位于底部面板内（终端聚焦时按键归终端程序，日志视图内不穿透）。 */
+export function isEventInBottomPanel(event: KeyboardEvent): boolean {
+  return (event.target as HTMLElement | null)?.closest(BOTTOM_PANEL_SELECTOR) != null;
 }

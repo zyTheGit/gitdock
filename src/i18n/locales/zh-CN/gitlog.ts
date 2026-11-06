@@ -1,8 +1,9 @@
 import type { MessageShape } from "../messages";
 
-/** gitlog 域：git CLI 命令日志对话框与状态栏入口。 */
+/** gitlog 域：git CLI 命令日志视图（底部面板标签）与状态栏入口。 */
 const gitlog = {
-  dialogTitle: "Git 命令日志",
+  tabLabel: "命令日志",
+
   dialogSubtitle: "记录本次运行期间 GitDock 代执行的全部 git 命令，重启后清空。",
   refresh: "刷新",
   refreshing: "刷新中…",
@@ -21,7 +22,7 @@ const gitlog = {
   copied: "已复制",
   copyCommandAria: "复制命令：{{command}}",
   copyFailed: "复制失败，请手动选中命令行复制",
-  closeAria: "关闭命令日志",
+
   empty: "还没有执行过任何 git 命令",
   filterFailed: "只看失败",
   exitCodeLabel: "退出码",

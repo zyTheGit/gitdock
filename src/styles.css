@@ -12,5 +12,7 @@
 @import "./styles/controls.css";
 @import "./styles/dialogs.css";
 @import "./styles/write.css";
+@import "./styles/terminal.css";
+@import "./styles/panel.css";
 @import "./styles/gitlog.css";
 @import "./styles/refinement.css";

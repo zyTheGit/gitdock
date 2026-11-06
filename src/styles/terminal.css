@@ -1,26 +1,11 @@
-/* 底部终端面板：高度由内联样式给出，拖动顶部把手调整。 */
+/* 底部面板的终端内容 View（ADR-0023）：外框（标签栏/高度/全屏）见 panel.css。 */
 
-.terminal-panel {
+.terminal-view {
   display: flex;
-  flex: 0 0 auto;
+  flex: 1;
+  min-height: 0;
   flex-direction: column;
-  min-height: 140px;
-  max-height: calc(100vh - 240px);
-  background: var(--terminal-bg);
-  border-top: 1px solid var(--terminal-border);
 }
-
-.terminal-panel.fullscreen {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  width: 100vw;
-  height: 100vh !important;
-  max-height: none;
-  border: 1px solid var(--terminal-border);
-}
-
-.terminal-panel.fullscreen .terminal-resizer { display: none; }
 
 .terminal-fullscreen-button {
   display: inline-flex;
@@ -40,20 +25,6 @@
 
 .terminal-fullscreen-button svg { width: 14px; height: 14px; }
 
-/* class 选择器优先级高于 UA 的 [hidden]，需显式关闭。 */
-.terminal-panel[hidden] {
-  display: none;
-}
-
-.terminal-resizer {
-  height: 6px;
-  cursor: ns-resize;
-  background: transparent;
-}
-
-.terminal-resizer:hover {
-  background: var(--terminal-resizer-hover);
-}
 
 .terminal-header {
   display: flex;
@@ -89,6 +60,44 @@
   display: flex;
   align-items: center;
   gap: 7px;
+}
+
+/* Shell 下拉（ADR-0023）：仅 Windows 渲染，紧凑排布在终端工具栏。 */
+.terminal-shell-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.terminal-shell-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--terminal-muted);
+  white-space: nowrap;
+}
+
+.terminal-shell-label-text {
+  white-space: nowrap;
+}
+
+.terminal-shell-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--terminal-warning);
+  white-space: nowrap;
+}
+
+.terminal-shell-blocked {
+  font-size: 11px;
+  color: var(--terminal-muted);
+  white-space: nowrap;
 }
 
 .terminal-launch-button {
