@@ -10,12 +10,10 @@ export interface StatusBarProps {
   fontScale: number;
   /** 底部面板打开且终端标签活动；按钮按下则收起面板，否则切到终端标签。 */
   terminalActive: boolean;
-  logActive: boolean;
   terminalRunning: boolean;
   terminalShortcut: string;
   updateVersion: string | null;
   onToggleTerminal: () => void;
-  onToggleCommandLog: () => void;
   onOpenUpdate: () => void;
 }
 
@@ -26,12 +24,10 @@ export function StatusBar({
   settings,
   fontScale,
   terminalActive,
-  logActive,
   terminalRunning,
   terminalShortcut,
   updateVersion,
   onToggleTerminal,
-  onToggleCommandLog,
   onOpenUpdate,
 }: StatusBarProps) {
   const { t } = useI18n();
@@ -55,15 +51,6 @@ export function StatusBar({
             {t("shell.updateAvailable")}
           </button>
         )}
-        <button
-          className={logActive ? "gitlog-status-button active" : "gitlog-status-button"}
-          onClick={onToggleCommandLog}
-          aria-label={t("gitlog.openButtonTitle")}
-          title={logActive ? t("shell.collapsePanel") : t("gitlog.openButtonTitle")}
-          aria-pressed={logActive}
-        >
-          <Icon name="commandLog" />
-        </button>
         {repo && (
           <button
             className={terminalActive ? "terminal-status-button active" : "terminal-status-button"}

@@ -59,6 +59,8 @@ impl AppState {
         // 命令执行日志的 recorder 依赖应用日志已就绪，紧随其后注入；
         // 全局槽只认首次注入，后续（含测试重复装配）不会重复生效。
         gitlog::init();
+        // 实时刷新事件发射器：日志标签激活期间前端订阅 gitlog://changed 重拉快照。
+        gitlog::set_emitter(handle.clone());
         logging::info(&format!(
             "启动 GitDock {}（{}）",
             env!("CARGO_PKG_VERSION"),

@@ -1,9 +1,8 @@
 import type { MessageShape } from "../messages";
 
-/** gitlog 域：git CLI 命令日志视图（底部面板标签）与状态栏入口。 */
+/** gitlog 域：git CLI 命令日志视图（底部面板标签）。 */
 const gitlog = {
   tabLabel: "命令日志",
-
   dialogSubtitle: "记录本次运行期间 GitDock 代执行的全部 git 命令，重启后清空。",
   refresh: "刷新",
   refreshing: "刷新中…",
@@ -33,7 +32,7 @@ const gitlog = {
   failedBadge: "失败",
   launchFailed: "启动失败",
   noStderr: "无错误输出",
-  openButtonTitle: "查看 Git 命令日志",
+
 } as const;
 
 export default gitlog;

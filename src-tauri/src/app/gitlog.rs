@@ -4,11 +4,14 @@
 //! git-core 执行 seam，无法访问 AppState（依赖方向：git-core 不依赖 src-tauri），
 //! 全局槽是唯一注入通道；AppState 只在启动时调用 `init` 注入，command 层经
 //! `snapshot` 读取。缓冲生命周期与进程一致，单窗口应用不存在多实例问题。
+//! 前端实时刷新：每条记录入队后经 `CHANGED_EVENT` 通知前端重拉快照，
+//! emitter 同样走全局槽注入（AppHandle 在启动装配时提供）。
 
 use std::collections::VecDeque;
 use std::sync::{Mutex, OnceLock};
 
 use git_core::{CommandLogEntry, CommandRecorder};
+use tauri::{AppHandle, Emitter};
 
 use super::config::strip_verbatim_text;
 use super::logging;
@@ -16,10 +19,25 @@ use super::logging;
 /// 环形缓冲上限：保留最近的命令，超出弹头部。
 const MAX_ENTRIES: usize = 500;
 
+/// 命令日志变更事件：前端在日志标签激活期间订阅，收到后重拉快照。
+pub const CHANGED_EVENT: &str = "gitlog://changed";
+
 static BUFFER: OnceLock<Mutex<VecDeque<CommandLogEntry>>> = OnceLock::new();
+static EMITTER: OnceLock<Mutex<Option<AppHandle>>> = OnceLock::new();
 
 fn buffer() -> &'static Mutex<VecDeque<CommandLogEntry>> {
     BUFFER.get_or_init(|| Mutex::new(VecDeque::with_capacity(MAX_ENTRIES)))
+}
+
+fn emitter() -> &'static Mutex<Option<AppHandle>> {
+    EMITTER.get_or_init(|| Mutex::new(None))
+}
+
+/// 注入事件发射器（AppHandle）；重复调用覆盖旧值（测试重复装配安全）。
+pub fn set_emitter(handle: AppHandle) {
+    if let Ok(mut slot) = emitter().lock() {
+        *slot = Some(handle);
+    }
 }
 
 /// 注入全局 recorder；应在 `logging::init` 之后调用，摘要才能落入应用日志。
@@ -43,8 +61,21 @@ impl CommandRecorder for CommandLogRecorder {
                 buffer.pop_front();
             }
             buffer.push_back(entry);
+            emit_changed();
         }
     }
+}
+
+/// 通知前端日志已更新；发射失败静默忽略，与缓冲写入的观测通道语义一致。
+fn emit_changed() {
+    let handle = match emitter().lock() {
+        Ok(slot) => match slot.as_ref() {
+            Some(handle) => handle.clone(),
+            None => return,
+        },
+        Err(_) => return,
+    };
+    let _ = handle.emit(CHANGED_EVENT, ());
 }
 
 /// 应用日志同步写一行摘要：成功 info、失败 warn，便于用户报告问题时对时间线。

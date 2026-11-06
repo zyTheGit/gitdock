@@ -1,3 +1,4 @@
+import { Icon } from "../../assets/icons";
 import { useI18n } from "../../i18n";
 import { SETTINGS_SECTIONS, type SettingsSectionKey } from "./settingsSections";
 
@@ -10,15 +11,15 @@ export function SettingsNav({ active, onChange }: SettingsNavProps) {
   const { t } = useI18n();
   return (
     <nav className="settings-nav" aria-label={t("settings.navAria")}>
-      {SETTINGS_SECTIONS.map(({ key, labelKey }) => (
+      {SETTINGS_SECTIONS.map(({ key, labelKey, icon }) => (
         <button
           key={key}
           className={active === key ? "active" : ""}
           aria-current={active === key ? "page" : undefined}
           onClick={() => onChange(key)}
         >
-          <span className={`settings-nav-mark mark-${key}`} aria-hidden="true" />
-          {t(labelKey)}
+          <Icon name={icon} className="settings-nav-icon" />
+          <span className="settings-nav-label">{t(labelKey)}</span>
         </button>
       ))}
     </nav>

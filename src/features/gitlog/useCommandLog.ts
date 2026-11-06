@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { useI18n } from "../../i18n";
 import { copyText } from "../../shared/clipboard";
 import { errorText } from "../../shared/error";
@@ -119,6 +120,36 @@ export function useCommandLog(active: boolean) {
     if (active) {
       void load();
     }
+  }, [active, load]);
+
+  // 实时刷新：日志标签激活期间订阅 gitlog://changed（Rust 每条命令入队后发出），
+  // 收到即重拉快照；loadPending 去重并发请求，避免批量写操作时请求堆积。
+  const loadPendingRef = useRef(false);
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen("gitlog://changed", () => {
+      if (disposed || loadPendingRef.current) {
+        return;
+      }
+      loadPendingRef.current = true;
+      void load().finally(() => {
+        loadPendingRef.current = false;
+      });
+    }).then((fn) => {
+      if (disposed) {
+        fn();
+      } else {
+        unlisten = fn;
+      }
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
   }, [active, load]);
 
   useEffect(
