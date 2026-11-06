@@ -186,6 +186,31 @@ fn gate_rejects_detached_pull() {
 }
 
 #[test]
+fn remote_delete_succeeds_when_remote_ref_already_gone() {
+    let (local, remote) = setup("remote-delete-gone");
+    git_ok(&local, &["branch", "topic"]);
+    // 推送后本地缓存存在 origin/topic，Gate 因此放行。
+    git_ok(&local, &["push", "-u", "origin", "topic"]);
+    let other = clone_remote(&remote, "remote-delete-gone-other");
+    git_ok(&other, &["push", "origin", "--delete", "topic"]);
+    let module = GitWriteModule::new(&local).expect("打开写模块");
+
+    let outcome = module
+        .execute(&WriteRequest {
+            branch: Some("topic".to_owned()),
+            ..base_request(WriteKind::DeleteBranchRemote)
+        })
+        .expect("删除远程分支");
+    // 远端已不存在视为目标达成：按成功收尾，前端不再停留失败提示。
+    assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
+    assert_eq!(
+        outcome.key.as_deref(),
+        Some("errors.outcomeRemoteRefMissing")
+    );
+    assert!(outcome.stderr.is_none());
+}
+
+#[test]
 fn classifies_auth_and_direction_failures() {
     assert_eq!(
         remote_failure(

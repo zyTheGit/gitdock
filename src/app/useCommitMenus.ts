@@ -52,6 +52,7 @@ interface UseCommitMenusParams {
   onBatchCherryPick: (commits: CommitSummaryDto[]) => void;
   onBatchRevert: (commits: CommitSummaryDto[]) => void;
   onEditDescription: (shortName: string) => void;
+  onEditTagDescription: (tag: RefDto) => void;
   onSelectCommit: (oid: string) => void;
 }
 
@@ -81,6 +82,7 @@ export function useCommitMenus({
   onBatchCherryPick,
   onBatchRevert,
   onEditDescription,
+  onEditTagDescription,
   onSelectCommit,
 }: UseCommitMenusParams) {
   const commitActions: CommitMenuActions = {
@@ -143,7 +145,12 @@ export function useCommitMenus({
     : [];
 
   const activeTagMenuItems = tagMenu
-    ? tagMenuItems(tagMenu.tag, { writeDisabled, onDeleteTag })
+    ? tagMenuItems(tagMenu.tag, {
+        writeDisabled,
+        descriptionDisabled,
+        onEditDescription: onEditTagDescription,
+        onDeleteTag,
+      })
     : [];
 
   return {

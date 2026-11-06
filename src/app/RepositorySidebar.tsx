@@ -123,7 +123,11 @@ export function RepositorySidebar({
                 <li key={tag.full_name}>
                   <button
                     className="branch-item tag-item"
-                    title={tag.short_name}
+                    title={
+                      tag.description
+                        ? `${tag.short_name} — ${tag.description}`
+                        : tag.short_name
+                    }
                     onContextMenu={(event) => {
                       event.preventDefault();
                       onTagMenu(event, tag);
@@ -131,6 +135,9 @@ export function RepositorySidebar({
                   >
                     <span className="branch-text">
                       <span className="branch-name">{tag.short_name}</span>
+                      {tag.description && (
+                        <span className="branch-desc">{tag.description}</span>
+                      )}
                     </span>
                   </button>
                 </li>

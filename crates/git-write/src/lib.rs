@@ -13,6 +13,7 @@ mod execute;
 mod gate;
 mod history;
 mod interruption_outcome;
+mod probe;
 mod remote;
 mod staging;
 mod stash;

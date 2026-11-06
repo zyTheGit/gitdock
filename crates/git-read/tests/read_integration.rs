@@ -73,6 +73,8 @@ fn linear_state_refs_and_head() {
         ],
     );
     assert_eq!(tag.created_at, tagger.parse::<i64>().ok());
+    // 附注标签的 message 即界面上的「描述」。
+    assert_eq!(tag.description.as_deref(), Some("release 1.0"));
 
     let lightweight = state
         .refs
@@ -90,6 +92,8 @@ fn linear_state_refs_and_head() {
         ],
     );
     assert_eq!(lightweight.created_at, commit_time.parse::<i64>().ok());
+    // 轻量标签没有附注消息，也就没有描述。
+    assert_eq!(lightweight.description, None);
 
     // generation 对同一仓库状态是稳定的。
     assert_eq!(

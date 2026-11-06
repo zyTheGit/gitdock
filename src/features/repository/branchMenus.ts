@@ -80,12 +80,19 @@ export function branchMenuItems(branch: RefDto, actions: BranchMenuActions): Men
 }
 export interface TagMenuActions {
   writeDisabled: boolean;
+  descriptionDisabled: boolean;
+  onEditDescription: (tag: RefDto) => void;
   onDeleteTag: (name: string) => void;
 }
 
-/** 标签右键菜单：删除入口与分支统一，避免侧栏堆叠「删除」链接。 */
+/** 标签右键菜单：编辑描述与分支对称；删除入口保持单一，避免侧栏堆叠链接。 */
 export function tagMenuItems(tag: RefDto, actions: TagMenuActions): MenuItem[] {
   return [
+    {
+      label: i18next.t("repository.tagMenuEditDescription"),
+      disabled: actions.descriptionDisabled || !tag.commit_oid,
+      onSelect: () => actions.onEditDescription(tag),
+    },
     {
       label: i18next.t("repository.tagMenuDelete"),
       disabled: actions.writeDisabled,

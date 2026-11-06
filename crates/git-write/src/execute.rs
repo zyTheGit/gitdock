@@ -227,6 +227,28 @@ impl GitWriteModule {
                         args_map(&[("tag", tag)]),
                     )
                 }
+                WriteKind::SetTagDescription => {
+                    let tag = request.branch.as_deref().unwrap_or_default();
+                    let cleared = request
+                        .description
+                        .as_deref()
+                        .unwrap_or("")
+                        .trim()
+                        .is_empty();
+                    (
+                        if cleared {
+                            format!("已清除标签 {tag} 的附注描述，改为轻量标签")
+                        } else {
+                            format!("已更新标签 {tag} 的附注描述")
+                        },
+                        if cleared {
+                            "errors.outcomeTagDescriptionCleared"
+                        } else {
+                            "errors.outcomeTagDescriptionUpdated"
+                        },
+                        args_map(&[("tag", tag)]),
+                    )
+                }
                 WriteKind::StashSave => (
                     "已保存当前工作区改动为 stash".to_owned(),
                     "errors.outcomeStashSaved",
@@ -419,13 +441,27 @@ impl GitWriteModule {
                 "远程操作失败，请检查网络与远端配置",
                 "errors.outcomeRemoteFailed",
             ));
+            // 远端分支已不存在：删除目标已达成，按成功收尾；前端不再停在失败提示上。
+            let remote_ref_missing = key == "errors.outcomeRemoteRefMissing";
             return Ok(WriteOutcomeDto {
                 key: Some(key.into()),
-                args: None,
-                status: WriteStatus::Failed,
+                args: if remote_ref_missing {
+                    args_map(&[("branch", request.branch.as_deref().unwrap_or_default())])
+                } else {
+                    None
+                },
+                status: if remote_ref_missing {
+                    WriteStatus::Succeeded
+                } else {
+                    WriteStatus::Failed
+                },
                 message: message.to_owned(),
                 exit_code,
-                stderr: stderr_option(&stderr),
+                stderr: if remote_ref_missing {
+                    None
+                } else {
+                    stderr_option(&stderr)
+                },
                 conflict_files: Vec::new(),
                 interruption: Some(self.inspect_interruption()?),
                 generation: None,

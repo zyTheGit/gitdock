@@ -250,6 +250,7 @@ export type WriteKind =
   | "rename_branch"
   | "create_tag"
   | "delete_tag"
+  | "set_tag_description"
   | "stash_save"
   | "stash_apply"
   | "stash_pop"

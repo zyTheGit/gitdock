@@ -24,7 +24,7 @@ pub(crate) fn remote_failure(
             if lower.contains("remote ref does not exist") =>
         {
             Some((
-                "远程分支不存在或已删除；本地删除已生效",
+                "远程分支不存在或已删除，无需再删除",
                 "errors.outcomeRemoteRefMissing",
             ))
         }

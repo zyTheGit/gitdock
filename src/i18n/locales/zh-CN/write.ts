@@ -19,6 +19,7 @@ const write = {
   labelRenameBranch: "重命名分支",
   labelCreateTag: "创建标签",
   labelDeleteTag: "删除标签",
+  labelSetTagDescription: "更新标签描述",
   labelStashSave: "保存 stash",
   labelStashApply: "应用 stash",
   labelStashPop: "弹出 stash",
@@ -85,6 +86,14 @@ const write = {
   descriptionPlaceholder: "为该分支写一段说明（可留空）",
   descriptionSharedHint:
     "该仓库是 linked worktree：描述写入共享的仓库级 local config，同仓库其他 worktree 也会看到。",
+  // 标签描述弹窗：描述即附注标签消息。
+  descriptionTagTitle: "编辑标签描述",
+  descriptionTagCloseAria: "关闭标签描述编辑器",
+  descriptionTagHintPrefix: "写入 ",
+  descriptionTagHintSuffix: "；留空保存将改为轻量标签。",
+  descriptionTagRewriteHint:
+    "改写会生成新的标签对象；已推送到远程的标签不会自动更新，需要时请在终端执行 git push --force origin <tag>。",
+  descriptionTagPlaceholder: "为该标签写一段说明（可留空）",
   saving: "保存中…",
   save: "保存",
 } as const;

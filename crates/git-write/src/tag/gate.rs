@@ -7,6 +7,8 @@ use git_core::{ErrorCode, GateIssueDto, Result, UserVisibleError, WriteKind, Wri
 use crate::command::HeadInfo;
 use crate::GitWriteModule;
 
+use super::validate_description;
+
 /// 标签类 Gate 校验结果：`issues` 并入 Gate 报告，summary 三元组用于确认框。
 pub(crate) struct RefGateResult {
     pub(crate) issues: Vec<GateIssueDto>,
@@ -28,6 +30,7 @@ pub(crate) fn validate_tag_change(
     match request.kind {
         WriteKind::CreateTag => validate_create(module, tag, request, head),
         WriteKind::DeleteTag => validate_delete(module, tag),
+        WriteKind::SetTagDescription => validate_set_description(module, tag, request),
         other => unreachable!("非标签操作进入 tag::gate: {other:?}"),
     }
 }
@@ -103,6 +106,47 @@ fn validate_delete(module: &GitWriteModule, tag: &str) -> Result<RefGateResult> 
         issues,
         summary: format!("将删除本地标签 {tag}；不会删除远程同名标签"),
         summary_key: "errors.gateSummaryTagDelete",
+        summary_args: args_map(&[("tag", tag)]),
+    })
+}
+
+/// 标签描述对应附注消息：标签必须存在且可 peel 到提交，写入值非空时校验字符。
+fn validate_set_description(
+    module: &GitWriteModule,
+    tag: &str,
+    request: &WriteRequest,
+) -> Result<RefGateResult> {
+    let mut issues = Vec::new();
+
+    if !module.tag_exists(tag)? {
+        issues
+            .push(issue("gate_tag_missing", format!("本地标签 {tag} 不存在")).with_arg("tag", tag));
+    } else if !module.commit_exists(&format!("refs/tags/{tag}"))? {
+        issues.push(
+            issue(
+                "gate_tag_not_commit",
+                format!("标签 {tag} 未指向提交对象，无法把附注消息作为描述"),
+            )
+            .with_arg("tag", tag),
+        );
+    }
+
+    let description = request.description.as_deref().unwrap_or("");
+    validate_description(description)?;
+    let cleared = description.trim().is_empty();
+
+    Ok(RefGateResult {
+        issues,
+        summary: if cleared {
+            format!("将清除标签 {tag} 的附注描述，并把标签改为轻量标签")
+        } else {
+            format!("将重写标签 {tag} 的附注描述（标签对象会重建）")
+        },
+        summary_key: if cleared {
+            "errors.gateSummaryTagDescriptionCleared"
+        } else {
+            "errors.gateSummaryTagDescription"
+        },
         summary_args: args_map(&[("tag", tag)]),
     })
 }

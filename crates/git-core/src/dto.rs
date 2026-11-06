@@ -466,6 +466,7 @@ pub enum WriteKind {
     RenameBranch,
     CreateTag,
     DeleteTag,
+    SetTagDescription,
     StashSave,
     StashApply,
     StashPop,
