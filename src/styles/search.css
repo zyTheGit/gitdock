@@ -73,6 +73,12 @@
   font-size: 12px;
 }
 
+.search-path-hint {
+  flex: none;
+  margin: 0;
+  font-size: 12px;
+}
+
 .search-results {
   list-style: none;
   margin: 0;

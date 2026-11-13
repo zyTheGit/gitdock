@@ -31,6 +31,7 @@ export function ToolsSection({
         {t("settings.toolsHintTemplateHead")}
         <code>$LOCAL</code> / <code>$REMOTE</code>
         {t("settings.toolsHintTemplateTail")}
+        {t("settings.toolsHintDirVars")}
         {t("settings.toolsHintDetect")}
       </p>
       <p className="muted settings-hint">

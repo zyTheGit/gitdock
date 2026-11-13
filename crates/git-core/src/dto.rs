@@ -24,9 +24,8 @@ pub struct RefDto {
     pub target_oid: Oid,
     /// peel 后的 commit OID；tag 指向非 commit 对象时为 None。
     pub commit_oid: Option<Oid>,
-    /// tag 的创建时间（Unix 秒）：annotated tag 取 tagger 时间；轻量 tag 没有
-    /// 真实创建时间，回退到指向提交的 committer 时间（与 `git for-each-ref`
-    /// 的 creatordate 语义一致）。非 tag ref 为 None。
+    /// tag 的创建时间（Unix 秒）：annotated tag 取 tagger 时间；轻量 tag 没有真实创建时间，
+    /// 回退到指向提交的 committer 时间（与 `git for-each-ref` 的 creatordate 语义一致）。非 tag ref 为 None。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<i64>,
     pub is_head: bool,
@@ -466,6 +465,7 @@ pub enum WriteKind {
     RenameBranch,
     CreateTag,
     DeleteTag,
+    DeleteTagRemote,
     SetTagDescription,
     StashSave,
     StashApply,

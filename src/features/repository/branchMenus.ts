@@ -81,11 +81,14 @@ export function branchMenuItems(branch: RefDto, actions: BranchMenuActions): Men
 export interface TagMenuActions {
   writeDisabled: boolean;
   descriptionDisabled: boolean;
+  /** 本地缓存里存在 origin 远程引用；决定「删除本地和远程标签」是否可用。 */
+  hasOriginRemote: boolean;
   onEditDescription: (tag: RefDto) => void;
   onDeleteTag: (name: string) => void;
+  onDeleteTagRemote: (name: string) => void;
 }
 
-/** 标签右键菜单：编辑描述与分支对称；删除入口保持单一，避免侧栏堆叠链接。 */
+/** 标签右键菜单：编辑描述与分支对称；删除分「仅本地」与「本地和远程」（ADR 0022 增补）。 */
 export function tagMenuItems(tag: RefDto, actions: TagMenuActions): MenuItem[] {
   return [
     {
@@ -97,6 +100,11 @@ export function tagMenuItems(tag: RefDto, actions: TagMenuActions): MenuItem[] {
       label: i18next.t("repository.tagMenuDelete"),
       disabled: actions.writeDisabled,
       onSelect: () => actions.onDeleteTag(tag.short_name),
+    },
+    {
+      label: i18next.t("repository.tagMenuDeleteRemote"),
+      disabled: actions.writeDisabled || !actions.hasOriginRemote,
+      onSelect: () => actions.onDeleteTagRemote(tag.short_name),
     },
   ];
 }

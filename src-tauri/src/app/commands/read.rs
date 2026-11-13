@@ -220,6 +220,35 @@ pub async fn launch_external_diff(
     .await
 }
 
+/// 目录级对比（ADR-0025）：导出两侧提交的完整树到临时容器并启动外部工具。
+#[tauri::command]
+pub async fn launch_external_dir_diff(
+    state: State<'_, Shared>,
+    tool_index: usize,
+    base: String,
+    compare: String,
+) -> Result<()> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        let tool = state
+            .settings()?
+            .external_tools
+            .get(tool_index)
+            .cloned()
+            .ok_or_else(|| {
+                UserVisibleError::new(ErrorCode::InvalidArgument, "外部工具不存在，请重新配置")
+                    .with_key("errors.externalToolNotFound")
+            })?;
+        let base = parse_oid(&base)?;
+        let compare = parse_oid(&compare)?;
+        // 导出可能耗时数秒，不占用会话读锁：按当前仓库路径新开只读模块。
+        let path = state.with_session(|session| Ok(session.read.path().to_path_buf()))?;
+        let read = git_read::GitReadModule::open(&path, None)?;
+        crate::app::dir_diff::run(&read, &tool, &base, &compare, &state.paths.external_tmp_dir)
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn cancel_search(state: State<'_, Shared>, search_id: String) -> Result<()> {
     let state = Arc::clone(&state);

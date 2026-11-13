@@ -99,6 +99,9 @@ export const ipc = {
     threeDot: boolean,
   ) =>
     call<void>("launch_external_diff", { toolIndex, left, right, path, threeDot }),
+  /** 目录级对比：导出两侧提交的完整树到临时目录后再交给同一工具（ADR-0025）。 */
+  launchExternalDirDiff: (toolIndex: number, base: string, compareOid: string) =>
+    call<void>("launch_external_dir_diff", { toolIndex, base, compareOid }),
   validateWrite: (request: WriteRequest) => call<GateReportDto>("validate_write", { request }),
   executeWrite: (request: WriteRequest) => call<WriteOutcomeDto>("execute_write", { request }),
   inspectInterruption: () => call<InterruptionDto>("inspect_interruption"),

@@ -12,6 +12,7 @@ const search = {
   scopeWithResults:
     'Scope: {{repo}} · refs in current view · file paths matched by "appears in changes" · {{n}} results returned',
   canceled: "Search canceled; results already returned are kept, no more will be appended.",
+  pathScanHint: "Path matching scans at most the first {{n}} commits per page.",
   noResults: "No matching commits. Hash prefix must be at least 7 characters.",
   hintEnter: "Type a keyword and press Enter to search; ",
   hintPick: " pick a suggestion,",

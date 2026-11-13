@@ -118,6 +118,7 @@ pub fn run() {
             commands::search,
             commands::cancel_search,
             commands::launch_external_diff,
+            commands::launch_external_dir_diff,
             commands::validate_write,
             commands::execute_write,
             commands::inspect_interruption,

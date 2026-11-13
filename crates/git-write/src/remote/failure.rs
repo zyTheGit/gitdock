@@ -28,6 +28,10 @@ pub(crate) fn remote_failure(
                 "errors.outcomeRemoteRefMissing",
             ))
         }
+        WriteKind::DeleteTagRemote if lower.contains("remote ref does not exist") => Some((
+            "远程标签不存在或已删除，无需再删除",
+            "errors.outcomeRemoteTagRefMissing",
+        )),
         WriteKind::Pull if lower.contains("not possible to fast-forward") => Some((
             "远端有本地没有的提交，pull --ff-only 无法快进；请先 fetch，并在终端 merge/rebase（批次 5）",
             "errors.outcomePullNotFastForward",

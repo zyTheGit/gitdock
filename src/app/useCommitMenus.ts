@@ -45,6 +45,7 @@ interface UseCommitMenusParams {
   onDeleteBranch: (shortName: string) => void;
   onDeleteBranchRemote: (name: string) => void;
   onDeleteTag: (name: string) => void;
+  onDeleteTagRemote: (name: string) => void;
   onMergeBranch: (shortName: string) => void;
   onRebaseBranch: (shortName: string) => void;
   onCherryPick: (commit: CommitSummaryDto) => void;
@@ -75,6 +76,7 @@ export function useCommitMenus({
   onDeleteBranch,
   onDeleteBranchRemote,
   onDeleteTag,
+  onDeleteTagRemote,
   onMergeBranch,
   onRebaseBranch,
   onCherryPick,
@@ -148,8 +150,15 @@ export function useCommitMenus({
     ? tagMenuItems(tagMenu.tag, {
         writeDisabled,
         descriptionDisabled,
+        // 前端没有 remote 列表契约，用本地缓存的 origin/* 引用近似「存在 origin 远程」；
+        // 无缓存时菜单项禁用，避免把配置缺失留给执行阶段。
+        hasOriginRemote:
+          repo?.refs.some(
+            (ref) => ref.kind === "remote_branch" && ref.short_name.startsWith("origin/"),
+          ) ?? false,
         onEditDescription: onEditTagDescription,
         onDeleteTag,
+        onDeleteTagRemote,
       })
     : [];
 

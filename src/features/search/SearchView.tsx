@@ -199,6 +199,9 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
             ? t("search.scopeWithResults", { repo: repoName, n: search.results.length })
             : t("search.scopeHint", { repo: repoName })}
         </p>
+        {search.text && (
+          <p className="muted search-path-hint">{t("search.pathScanHint", { n: 2000 })}</p>
+        )}
 
         {search.error && <div className="banner danger">{search.error}</div>}
         {search.canceled && (

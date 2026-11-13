@@ -48,6 +48,7 @@ const repository = {
   noTags: "No local tags",
   tagMenuEditDescription: "Edit description",
   tagMenuDelete: "Delete tag",
+  tagMenuDeleteRemote: "Delete local & remote tag",
   deleteRef: "Delete",
   refDeleting: "Deleting…",
   createTag: "New tag",
@@ -68,6 +69,9 @@ const repository = {
   deleteTagTitle: "Delete local tag",
   deleteTagWarning:
     "The local tag will be deleted; the remote tag with the same name is not affected. Recreate it to restore.",
+  deleteTagRemoteTitle: "Delete local & remote tag",
+  deleteTagRemoteWarning:
+    "Deletes the local tag first, then the same-name tag on origin; removing a remote tag can break other people's builds or version traceability, so it must be recreated and pushed again.",
 } satisfies RepositoryMessages;
 
 export default repository;

@@ -25,6 +25,7 @@ interface CompareViewProps {
   commitMenu: (commit: CommitSummaryDto) => MenuItem[];
   onOpenCommit: (oid: string) => void;
   onExternalDiff: (toolIndex: number, path: string) => void;
+  onDirectoryDiff: (toolIndex: number) => void;
   onBack: () => void;
 }
 
@@ -42,6 +43,7 @@ export function CompareView({
   commitMenu,
   onOpenCommit,
   onExternalDiff,
+  onDirectoryDiff,
   onBack,
 }: CompareViewProps) {
   const { t } = useI18n();
@@ -127,6 +129,8 @@ export function CompareView({
         result={result}
         totalAdd={totalAdd}
         totalDel={totalDel}
+        toolCount={tools.length}
+        onDirectoryDiff={() => onDirectoryDiff(safeToolIndex)}
         onBack={onBack}
       />
 

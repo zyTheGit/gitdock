@@ -3,12 +3,9 @@ import { errorText } from "../shared/error";
 import { ipc } from "../shared/ipc";
 import type { UpdateCheckDto, UpdateCheckOutcome, UpdateCheckState } from "../shared/types";
 
-// 检查节流与「跳过此版本」放在 localStorage：settings.json 的保存会连带重写工具
-// 配置，一次后台网络检查不该产生那种副作用。
-const LAST_CHECKED_KEY = "gitdock.update.lastCheckedAt";
+// 「跳过此版本」放在 localStorage：settings.json 的保存会连带重写工具配置，
+// 一次后台网络检查不该产生那种副作用。
 const SKIPPED_VERSION_KEY = "gitdock.update.skippedVersion";
-const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
-
 
 let state: UpdateCheckState = {
   status: "idle",
@@ -23,28 +20,18 @@ function setState(next: UpdateCheckState) {
   listeners.forEach((listener) => listener());
 }
 
-/** 距上次成功检查不足 24 小时时跳过自动检查；手动检查不受限。 */
-function recentlyChecked(): boolean {
-  const last = Number(localStorage.getItem(LAST_CHECKED_KEY));
-  return Number.isFinite(last) && last > 0 && Date.now() - last < CHECK_INTERVAL_MS;
-}
-
-export async function runUpdateCheck(force = false): Promise<UpdateCheckOutcome> {
+/** 启动时由 App 调用一次；不做时间节流，否则重启后在窗口期内看不到新版本。 */
+export async function runUpdateCheck(): Promise<UpdateCheckOutcome> {
   if (state.status === "checking") {
-    return { kind: "throttled" };
-  }
-  if (!force && recentlyChecked()) {
-    return { kind: "throttled" };
+    return { kind: "ignored" };
   }
   setState({ ...state, status: "checking" });
   try {
     const result = await ipc.checkForUpdate();
-    localStorage.setItem(LAST_CHECKED_KEY, String(Date.now()));
     setState({ ...state, status: "settled", result });
     return { kind: "checked", result };
   } catch (error) {
-    // 保留上一次成功结果：网络抖动不该让已经发现的更新凭空消失，
-    // 下一次自动检查还要等 24 小时。
+    // 保留上一次成功结果：网络抖动不该让已经发现的更新凭空消失。
     setState({ ...state, status: "failed" });
     return { kind: "failed", message: errorMessage(error) };
   }
@@ -77,10 +64,11 @@ export function clearSkippedUpdate() {
   setState({ ...state, skippedVersion: null });
 }
 
-export async function openAvailableUpdate(): Promise<UpdateCheckOutcome> {
-  const result = pendingUpdate(state);
+/** 打开最近一次检查拿到的 Release 页：正常更新与“版本号被误标”两种提示共用。 */
+export async function openReleasePage(): Promise<UpdateCheckOutcome> {
+  const result = state.result;
   if (!result) {
-    return { kind: "throttled" };
+    return { kind: "ignored" };
   }
   try {
     await ipc.openReleasePage(result.page_url);

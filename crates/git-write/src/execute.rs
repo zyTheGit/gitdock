@@ -202,6 +202,14 @@ impl GitWriteModule {
                         args_map(&[("branch", branch)]),
                     )
                 }
+                WriteKind::DeleteTagRemote => {
+                    let tag = request.branch.as_deref().unwrap_or_default();
+                    (
+                        format!("已删除远程标签 {tag}，图谱已刷新"),
+                        "errors.outcomeTagRemoteDeleted",
+                        args_map(&[("tag", tag)]),
+                    )
+                }
                 WriteKind::RenameBranch => {
                     let branch = request.branch.as_deref().unwrap_or_default();
                     let new_name = request.new_name.as_deref().unwrap_or_default();
@@ -435,18 +443,28 @@ impl GitWriteModule {
 
         if matches!(
             request.kind,
-            WriteKind::Fetch | WriteKind::Pull | WriteKind::Push | WriteKind::DeleteBranchRemote
+            WriteKind::Fetch
+                | WriteKind::Pull
+                | WriteKind::Push
+                | WriteKind::DeleteBranchRemote
+                | WriteKind::DeleteTagRemote
         ) {
             let (message, key) = remote_failure(request.kind, &stderr).unwrap_or((
                 "远程操作失败，请检查网络与远端配置",
                 "errors.outcomeRemoteFailed",
             ));
-            // 远端分支已不存在：删除目标已达成，按成功收尾；前端不再停在失败提示上。
-            let remote_ref_missing = key == "errors.outcomeRemoteRefMissing";
+            // 远端引用已不存在：删除目标已达成，按成功收尾；前端不再停在失败提示上。
+            let remote_ref_missing = key == "errors.outcomeRemoteRefMissing"
+                || key == "errors.outcomeRemoteTagRefMissing";
+            let arg_name = if request.kind == WriteKind::DeleteTagRemote {
+                "tag"
+            } else {
+                "branch"
+            };
             return Ok(WriteOutcomeDto {
                 key: Some(key.into()),
                 args: if remote_ref_missing {
-                    args_map(&[("branch", request.branch.as_deref().unwrap_or_default())])
+                    args_map(&[(arg_name, request.branch.as_deref().unwrap_or_default())])
                 } else {
                     None
                 },

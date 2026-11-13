@@ -14,6 +14,12 @@ use crate::read::{commit_summary, read_head, read_refs, GitReadModule, DEFAULT_P
 const MAX_SCAN: usize = 20_000;
 /// 路径搜索需要逐提交 diff，单独限制扫描量，避免拖垮交互。
 const MAX_PATH_SCAN: usize = 2_000;
+/// 文档 F4：hash 前缀至少 7 位；更短的十六进制串只按其他字段匹配。
+const MIN_HASH_PREFIX: usize = 7;
+
+fn is_hash_prefix(text: &str) -> bool {
+    text.len() >= MIN_HASH_PREFIX && text.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
 
 impl GitReadModule {
     pub fn search(&self, request: &SearchRequest, cursor: Option<&str>) -> Result<SearchPageDto> {
@@ -116,7 +122,7 @@ impl GitReadModule {
             if message.to_lowercase().contains(text) {
                 fields.push(SearchField::Message);
             }
-            if oid.as_str().starts_with(text) {
+            if is_hash_prefix(text) && oid.as_str().starts_with(text) {
                 fields.push(SearchField::Hash);
             }
             let author_name = crate::util::lossy(author.name).to_lowercase();

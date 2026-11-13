@@ -518,6 +518,37 @@ fn search_matches_message_author_and_path() {
 }
 
 #[test]
+fn hash_search_requires_seven_char_prefix() {
+    let set = fixtures();
+    let repo = set.forked();
+    let read = module(&repo);
+    let head = current_head(&repo);
+
+    let request = |id: &str, text: &str| SearchRequest {
+        search_id: id.to_owned(),
+        scope: GraphScope::All,
+        text: text.to_owned(),
+        highlight: text.to_owned(),
+    };
+
+    // 不足 7 位的十六进制串不得按 hash 命中。
+    let short = read
+        .search(&request("h1", &head[..6]), None)
+        .expect("短前缀搜索");
+    assert!(short
+        .results
+        .iter()
+        .all(|result| !result.fields.contains(&SearchField::Hash)));
+
+    let long = read
+        .search(&request("h2", &head[..7]), None)
+        .expect("7 位前缀搜索");
+    assert!(long.results.iter().any(|result| {
+        result.commit.oid.as_str() == head && result.fields.contains(&SearchField::Hash)
+    }));
+}
+
+#[test]
 fn sha256_repository_uses_64_char_oids() {
     let set = fixtures();
     let read = module(&set.sha256());

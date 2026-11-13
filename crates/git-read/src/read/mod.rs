@@ -5,11 +5,14 @@
 
 mod compare;
 mod detail;
+mod export;
 mod graph;
 mod message;
 mod probe;
 mod refs;
 mod stash;
+
+pub use export::{TreeExport, TreeSink};
 
 use std::collections::HashMap;
 use std::collections::HashSet;

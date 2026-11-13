@@ -210,6 +210,99 @@ fn remote_delete_succeeds_when_remote_ref_already_gone() {
     assert!(outcome.stderr.is_none());
 }
 
+/// 标签远程删除（ADR 0022 增补）：无 remote 时 Gate 拒绝。
+#[test]
+fn tag_remote_delete_gate_rejects_missing_remote() {
+    let temp = init_temp_repo();
+    commit(temp.path(), "a.txt", "base\n", "c1");
+    let module = GitWriteModule::new(temp.path()).expect("打开写模块");
+
+    let report = module
+        .validate(&WriteRequest {
+            branch: Some("v1".to_owned()),
+            ..base_request(WriteKind::DeleteTagRemote)
+        })
+        .expect("Gate");
+    assert!(!report.ok);
+    assert!(issue_codes(&report).contains(&"gate_remote_missing"));
+}
+
+/// 第一段已删除本地标签，第二段 Gate 不得再要求本地标签存在，只要求 remote 存在。
+#[test]
+fn tag_remote_delete_gate_passes_with_remote_only() {
+    let (local, _remote) = setup("tag-remote-gate");
+    let module = GitWriteModule::new(&local).expect("打开写模块");
+
+    let report = module
+        .validate(&WriteRequest {
+            branch: Some("v1".to_owned()),
+            ..base_request(WriteKind::DeleteTagRemote)
+        })
+        .expect("Gate");
+    assert!(report.ok, "{:?}", report.issues);
+    assert_eq!(
+        report.summary_key.as_deref(),
+        Some("errors.gateSummaryTagRemoteDelete")
+    );
+}
+
+/// 两段式：先 delete_tag 再 delete_tag_remote，本地与远程标签均消失。
+#[test]
+fn tag_remote_delete_removes_local_and_remote_tag() {
+    let (local, remote) = setup("tag-remote-delete");
+    git_ok(&local, &["tag", "-a", "v1", "-m", "release"]);
+    git_ok(&local, &["push", "origin", "refs/tags/v1:refs/tags/v1"]);
+    let module = GitWriteModule::new(&local).expect("打开写模块");
+
+    let local_outcome = module
+        .execute(&WriteRequest {
+            branch: Some("v1".to_owned()),
+            ..base_request(WriteKind::DeleteTag)
+        })
+        .expect("删除本地标签");
+    assert_eq!(
+        local_outcome.status,
+        WriteStatus::Succeeded,
+        "{local_outcome:?}"
+    );
+
+    let outcome = module
+        .execute(&WriteRequest {
+            branch: Some("v1".to_owned()),
+            ..base_request(WriteKind::DeleteTagRemote)
+        })
+        .expect("删除远程标签");
+    assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
+    assert_eq!(
+        outcome.key.as_deref(),
+        Some("errors.outcomeTagRemoteDeleted")
+    );
+    assert!(!git_ok(&remote, &["tag", "--list"]).contains("v1"));
+}
+
+/// 远端标签已被他人删除：`remote ref does not exist` 按成功收尾。
+#[test]
+fn tag_remote_delete_succeeds_when_remote_tag_already_gone() {
+    let (local, remote) = setup("tag-remote-gone");
+    git_ok(&local, &["tag", "v1"]);
+    git_ok(&local, &["push", "origin", "refs/tags/v1:refs/tags/v1"]);
+    git_ok(&remote, &["tag", "-d", "v1"]);
+    let module = GitWriteModule::new(&local).expect("打开写模块");
+
+    let outcome = module
+        .execute(&WriteRequest {
+            branch: Some("v1".to_owned()),
+            ..base_request(WriteKind::DeleteTagRemote)
+        })
+        .expect("删除远程标签");
+    assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
+    assert_eq!(
+        outcome.key.as_deref(),
+        Some("errors.outcomeRemoteTagRefMissing")
+    );
+    assert!(outcome.stderr.is_none());
+}
+
 #[test]
 fn classifies_auth_and_direction_failures() {
     assert_eq!(
@@ -235,5 +328,13 @@ fn classifies_auth_and_direction_failures() {
         )
         .map(|(_, key)| key),
         Some("errors.outcomePushRejected")
+    );
+    assert_eq!(
+        remote_failure(
+            WriteKind::DeleteTagRemote,
+            "error: unable to delete 'v1': remote ref does not exist"
+        )
+        .map(|(_, key)| key),
+        Some("errors.outcomeRemoteTagRefMissing")
     );
 }

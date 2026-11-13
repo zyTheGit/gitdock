@@ -8,6 +8,7 @@ import { WelcomePane } from "./app/WelcomePane";
 import { useCommitMenus, type BranchMenuState, type RowMenuState, type TagMenuState } from "./app/useCommitMenus";
 import { useGlobalEsc, type ViewMode } from "./app/useGlobalEsc";
 import { useBottomPanel } from "./app/useBottomPanel";
+import { useDirectoryDiff } from "./app/useDirectoryDiff";
 import { formatHeadLabel } from "./app/headLabel";
 import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
 import { useFontScale } from "./app/useFontScale";
@@ -20,7 +21,7 @@ import { useRepositorySession } from "./app/useRepositorySession";
 import { useSettingsEntry } from "./app/useSettingsEntry";
 import {
   clearSkippedUpdate,
-  openAvailableUpdate,
+  openReleasePage,
   pendingUpdate,
   runUpdateCheck,
   skipAvailableUpdate,
@@ -154,17 +155,16 @@ export default function App() {
     if (info) initPlatform(info.platform);
   }, [info]);
 
-  // 更新检查要等启动数据（appInfo + settings）落地、且首次仓库加载收尾后再补发一次：
-  // 它是一次外网请求，既不能推迟 uiReady 开窗，也不该与恢复仓库抢 IPC。
-  // 24 小时节流由 useUpdateCheck 内部负责，这里只保证一个会话内只发起一次。
+  // 更新检查在启动数据（appInfo）落地后立刻发起：它只依赖版本号，不必等仓库恢复，
+  // 也不该排在首屏之后——用户要求进入软件就先知道有没有新版本。会话内只发一次。
   const updateChecked = useRef(false);
   useEffect(() => {
-    if (!info || !settings || busy || updateChecked.current) {
+    if (!info || updateChecked.current) {
       return;
     }
     updateChecked.current = true;
     void runUpdateCheck();
-  }, [info, settings, busy]);
+  }, [info]);
 
   // 两个槽位齐全时自动进入对比视图；用户点“查看图谱”后保持图谱，直到再次选择。
   useEffect(() => {
@@ -192,6 +192,8 @@ export default function App() {
     },
     [settings, setError, setToast, t],
   );
+
+  const launchDirectoryDiff = useDirectoryDiff(slots.base, slots.compare, tools, setError, setToast);
 
   const copyDescription = useCallback(
     async (oid: string) => {
@@ -309,7 +311,7 @@ export default function App() {
     terminalShortcut: displaySpec(bindings["terminal.toggle"]),
     updateVersion,
     onToggleTerminal: panel.toggleTerminal,
-    onOpenUpdate: () => void openAvailableUpdate(),
+    onOpenUpdate: () => void openReleasePage(),
   };
 
   return (
@@ -399,6 +401,7 @@ export default function App() {
                     );
                   }
                 }}
+                onDirectoryDiff={launchDirectoryDiff}
                 onBack={() => setMode("graph")}
               />
             ) : mode === "staging" ? (
@@ -547,7 +550,6 @@ export default function App() {
           busy={write.busy}
           onCancel={write.cancel}
           onConfirm={() => void write.run()}
-          onOpenStash={() => { write.cancel(); stash.openStash(); }}
         />
       )}
       {refs.dialogs}
@@ -578,8 +580,8 @@ export default function App() {
           fontScale={zoom.fontScale}
           updateCheck={updateState}
           updateOffer={pendingUpdate(updateState)}
-          onCheckUpdate={() => runUpdateCheck(true)}
-          onOpenDownloadPage={openAvailableUpdate}
+          onCheckUpdate={() => runUpdateCheck()}
+          onOpenDownloadPage={openReleasePage}
           onSkipUpdate={skipAvailableUpdate}
           onClearSkippedUpdate={clearSkippedUpdate}
           onZoomIn={zoom.zoomIn}

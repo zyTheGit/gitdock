@@ -164,13 +164,9 @@ impl GitWriteModule {
                     UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
                         .with_key("errors.commandMissingBranch")
                 })?;
-                vec![
-                    "push".into(),
-                    "origin".into(),
-                    "--delete".into(),
-                    name.into(),
-                ]
+                remote::delete_remote_branch_args(name)
             }
+            WriteKind::DeleteTagRemote => remote::delete_remote_tag_args(require_tag(request)?),
             WriteKind::RenameBranch => {
                 let name = request.branch.as_deref().ok_or_else(|| {
                     UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")

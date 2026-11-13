@@ -19,6 +19,7 @@ const write = {
   labelRenameBranch: "Rename branch",
   labelCreateTag: "Create tag",
   labelDeleteTag: "Delete tag",
+  labelDeleteTagRemote: "Delete local & remote tag",
   labelSetTagDescription: "Update tag description",
   labelStashSave: "Save stash",
   labelStashApply: "Apply stash",
@@ -62,7 +63,6 @@ const write = {
     "Merges the selected branch into the current branch (--no-edit); this may create a merge commit.",
   actionHintRebase:
     "Rebases the current branch onto the selected branch; this rewrites history and can be restored with git rebase --abort.",
-  stashBeforeSwitch: "Stash current changes first",
   confirmContinue: "Continue and complete",
   confirmAbort: "Abort and discard resolutions",
   confirmExecute: "Run {{label}}",

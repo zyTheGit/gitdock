@@ -19,6 +19,28 @@ pub fn build_args(
     local: &str,
     remote: &str,
 ) -> Result<Vec<String>, UserVisibleError> {
+    build_args_vars(template, &[("$LOCAL", local), ("$REMOTE", remote)])
+}
+
+/// 目录级对比的参数：`$LEFT_DIR` / `$RIGHT_DIR` 是目录语义的别名，
+/// 同时接受 `$LOCAL` / `$REMOTE`，让已配置的文件模板无需改动即可比较目录。
+pub fn build_dir_args(
+    template: &str,
+    left: &str,
+    right: &str,
+) -> Result<Vec<String>, UserVisibleError> {
+    build_args_vars(
+        template,
+        &[
+            ("$LOCAL", left),
+            ("$REMOTE", right),
+            ("$LEFT_DIR", left),
+            ("$RIGHT_DIR", right),
+        ],
+    )
+}
+
+fn build_args_vars(template: &str, vars: &[(&str, &str)]) -> Result<Vec<String>, UserVisibleError> {
     let template = if template.trim().is_empty() {
         DEFAULT_TEMPLATE
     } else {
@@ -44,7 +66,7 @@ pub fn build_args(
             }
             None if ch.is_whitespace() => {
                 if started {
-                    args.push(substitute(&current, local, remote)?);
+                    args.push(substitute(&current, vars)?);
                     current.clear();
                     started = false;
                 }
@@ -63,7 +85,7 @@ pub fn build_args(
         .with_key("errors.externalTemplateUnclosedQuote"));
     }
     if started {
-        args.push(substitute(&current, local, remote)?);
+        args.push(substitute(&current, vars)?);
     }
     if args.is_empty() {
         return Err(
@@ -74,19 +96,17 @@ pub fn build_args(
     Ok(args)
 }
 
-fn substitute(token: &str, local: &str, remote: &str) -> Result<String, UserVisibleError> {
-    match token {
-        "$LOCAL" => Ok(local.to_owned()),
-        "$REMOTE" => Ok(remote.to_owned()),
-        other if other.contains("$LOCAL") || other.contains("$REMOTE") => {
-            Err(UserVisibleError::new(
-                ErrorCode::InvalidArgument,
-                "模板变量 $LOCAL / $REMOTE 必须独占一个参数",
-            )
-            .with_key("errors.externalVariableNotStandalone"))
-        }
-        other => Ok(other.to_owned()),
+fn substitute(token: &str, vars: &[(&str, &str)]) -> Result<String, UserVisibleError> {
+    if let Some((_, value)) = vars.iter().find(|(name, _)| token == *name) {
+        return Ok((*value).to_owned());
     }
+    if vars.iter().any(|(name, _)| token.contains(name)) {
+        return Err(
+            UserVisibleError::new(ErrorCode::InvalidArgument, "模板变量必须独占一个参数")
+                .with_key("errors.externalVariableNotStandalone"),
+        );
+    }
+    Ok(token.to_owned())
 }
 
 /// 为一次外部 diff 调用创建独立的临时目录。
@@ -184,6 +204,29 @@ pub fn launch(
         &local.display().to_string(),
         &remote.display().to_string(),
     )?;
+    spawn(tool, args, local.parent().map(Path::to_path_buf))
+}
+
+/// 目录级对比：两侧目录共用一个临时容器，工具退出后整容器删除。
+pub fn launch_dirs(
+    tool: &ExternalToolConfig,
+    left: &Path,
+    right: &Path,
+) -> Result<(), UserVisibleError> {
+    let args = build_dir_args(
+        &tool.args_template,
+        &left.display().to_string(),
+        &right.display().to_string(),
+    )?;
+    // 容器目录 = left/left 与 left/right 的父目录；两者由调用方保证同源。
+    spawn(tool, args, left.parent().map(Path::to_path_buf))
+}
+
+fn spawn(
+    tool: &ExternalToolConfig,
+    args: Vec<String>,
+    cleanup: Option<PathBuf>,
+) -> Result<(), UserVisibleError> {
     let mut command = std::process::Command::new(&tool.executable);
     // 从 VS Code / Electron 环境继承 ELECTRON_RUN_AS_NODE 时，VS Code、Zed 等
     // Electron 工具会按纯 Node 进程启动并立即退出，表现为“打开无反应”。
@@ -200,15 +243,14 @@ pub fn launch(
         .with_arg("name", tool.name.as_str())
         .with_detail(e.to_string())
     })?;
-    // 临时目录即两个参数文件所在目录；等待外部工具退出后再删除，
+    // 临时目录即两个参数文件（或目录）所在容器；等待外部工具退出后再删除，
     // 缩短工作副本内容在缓存目录的留盘时间。
-    let dir = local.parent().map(Path::to_path_buf);
     let cleaner = std::thread::Builder::new()
         .name("external-diff-cleanup".to_owned())
         .stack_size(64 * 1024)
         .spawn(move || {
             let _ = child.wait();
-            if let Some(dir) = dir.as_deref() {
+            if let Some(dir) = cleanup.as_deref() {
                 remove_entry_logged(dir, true);
             }
         });
@@ -231,6 +273,25 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
+
+    #[test]
+    fn dir_variables_substitute_each_as_one_argument() {
+        let args =
+            build_dir_args(r#"--left "$LEFT_DIR" --right "$RIGHT_DIR""#, "L 1", "R 2").unwrap();
+        assert_eq!(args, vec!["--left", "L 1", "--right", "R 2"]);
+    }
+
+    /// 已配置的文件模板（$LOCAL $REMOTE）无需改动即可用于目录对比。
+    #[test]
+    fn file_template_variables_also_accept_directories() {
+        let args = build_dir_args("$LOCAL $REMOTE", r"C:\tmp\左", r"C:\tmp\右").unwrap();
+        assert_eq!(args, vec![r"C:\tmp\左", r"C:\tmp\右"]);
+    }
+
+    #[test]
+    fn embedded_dir_variable_is_rejected() {
+        assert!(build_dir_args("--dir=$LEFT_DIR $RIGHT_DIR", "a", "b").is_err());
+    }
 
     #[test]
     fn empty_template_defaults_to_both_paths() {

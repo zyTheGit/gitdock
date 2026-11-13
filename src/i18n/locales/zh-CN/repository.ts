@@ -47,6 +47,7 @@ const repository = {
   noTags: "没有本地标签",
   tagMenuEditDescription: "编辑描述",
   tagMenuDelete: "删除标签",
+  tagMenuDeleteRemote: "删除本地和远程标签",
   deleteRef: "删除",
   refDeleting: "删除中…",
   createTag: "新建标签",
@@ -66,6 +67,9 @@ const repository = {
     "先删除本地分支（安全形态 git branch -d，未合并会被拒绝），再删除远程 origin 同名分支；远程删除影响协作者且不可逆。",
   deleteTagTitle: "删除本地标签",
   deleteTagWarning: "将删除本地标签，不会删除远程同名标签；删除后如需恢复需重新创建。",
+  deleteTagRemoteTitle: "删除本地和远程标签",
+  deleteTagRemoteWarning:
+    "先删除本地标签，再删除远程 origin 上的同名标签；远程标签回退会使他人构建失败或版本追溯中断，删除后需重新创建并推送。",
 } as const;
 
 export default repository;

@@ -59,6 +59,9 @@ const compare = {
   modeTwoDotHint: "git diff base compare: shows the full snapshot difference between the two commits",
   sideCounts: "Base only on left {{baseOnly}} · Compare only on right {{compareOnly}}",
   viewGraph: "View graph",
+  directoryDiff: "Compare directories",
+  directoryDiffHint:
+    "Export both commits' full directory trees to temporary folders and open them in the external tool",
 
   // Commit list
   resizeHandle: "Resize commit list",

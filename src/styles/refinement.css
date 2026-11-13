@@ -382,6 +382,7 @@
   background: color-mix(in srgb, var(--accent) 7%, var(--bg-panel));
 }
 .settings-dialog .update-row.is-failed .update-row-status { color: var(--warning); }
+.settings-dialog .update-row-warning { color: var(--warning); }
 .settings-dialog .update-row-note { font-size: 12px; }
 .settings-dialog .update-row-actions { flex: none; }
 .settings-dialog .update-row-actions button { min-height: 30px; padding: 4px 13px; font-size: 12px; }

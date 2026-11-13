@@ -19,6 +19,7 @@ const write = {
   labelRenameBranch: "重命名分支",
   labelCreateTag: "创建标签",
   labelDeleteTag: "删除标签",
+  labelDeleteTagRemote: "删除本地和远程标签",
   labelSetTagDescription: "更新标签描述",
   labelStashSave: "保存 stash",
   labelStashApply: "应用 stash",
@@ -57,7 +58,6 @@ const write = {
   actionHintMerge: "将把所选分支 merge 到当前分支（--no-edit），可能产生合并提交。",
   actionHintRebase:
     "将把当前分支 rebase 到所选分支；这会改写提交历史，可用 git rebase --abort 恢复。",
-  stashBeforeSwitch: "先 stash 当前改动",
   confirmContinue: "继续并完成操作",
   confirmAbort: "中止并丢弃冲突解决",
   confirmExecute: "执行 {{label}}",

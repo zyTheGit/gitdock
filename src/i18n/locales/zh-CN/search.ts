@@ -17,6 +17,7 @@ const search = {
   scopeWithResults:
     "搜索范围：{{repo}} · 当前视图 ref 范围 · 文件路径按“改动中出现”匹配 · 已返回 {{n}} 条",
   canceled: "搜索已取消；已有结果保留，不再继续追加。",
+  pathScanHint: "路径匹配每页最多扫描前 {{n}} 个提交。",
   noResults: "没有匹配的提交。hash 前缀至少 7 位。",
 
   // 快捷键提示（kbd 按键符号为原文，句子分段拼接）

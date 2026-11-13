@@ -8,6 +8,7 @@ const shell = {
   sidebarResizeLabel: "Resize sidebar",
   detailResizeLabel: "Resize detail pane",
   externalDiffLaunched: "Opened diff with {{name}}",
+  externalDirDiffLaunched: "Opened directory comparison with {{name}}",
   externalToolFallback: "external tool",
   terminalProcessEnded: "Terminal process of the previous repository has ended",
   headBranchFallback: "branch",

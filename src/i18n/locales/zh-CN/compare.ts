@@ -55,6 +55,8 @@ const compare = {
   modeTwoDotHint: "git diff base compare：显示两个提交的完整快照差异",
   sideCounts: "左侧 Base 独有 {{baseOnly}} · 右侧 Compare 独有 {{compareOnly}}",
   viewGraph: "查看图谱",
+  directoryDiff: "目录对比",
+  directoryDiffHint: "把两侧提交的完整目录树导出到临时文件夹，再交给外部工具对比",
 
   // 提交列表
   resizeHandle: "调整提交列表高度",

@@ -8,7 +8,6 @@ pub mod cursor;
 pub mod diff_limit;
 pub mod dto;
 pub mod error;
-pub mod external_tool;
 pub mod interruption;
 pub mod language;
 pub mod oid;
@@ -21,7 +20,6 @@ pub use diff_limit::{
 };
 pub use dto::*;
 pub use error::{ErrorCode, Result, UserVisibleError};
-pub use external_tool::{render_args_template, split_args_template};
 pub use interruption::{
     detect_kinds, interruption_dto, is_marker, kind_names, terminal_hint, MARKERS,
 };

@@ -34,3 +34,26 @@ pub(crate) fn pull_args(mode: PullMode) -> Vec<String> {
 pub(crate) fn push_args() -> Vec<String> {
     vec!["push".to_owned()]
 }
+
+/// 删除远程分支（ADR 0022）：显式 `<branch>` 由调用方保证非选项注入形态。
+pub(crate) fn delete_remote_branch_args(branch: &str) -> Vec<String> {
+    vec![
+        "push".to_owned(),
+        "origin".to_owned(),
+        "--delete".to_owned(),
+        branch.to_owned(),
+    ]
+}
+
+/// 删除远程标签（ADR 0022 标签章节）：`push origin --delete <tag>`。
+///
+/// 使用裸标签名与 Git 交互一致：远端标签不存在时 Git 报 `remote ref does not exist`，
+/// 由执行层按成功收尾；同名分支与标签并存时 Git 拒绝（不会误删分支）。
+pub(crate) fn delete_remote_tag_args(tag: &str) -> Vec<String> {
+    vec![
+        "push".to_owned(),
+        "origin".to_owned(),
+        "--delete".to_owned(),
+        tag.to_owned(),
+    ]
+}

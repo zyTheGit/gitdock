@@ -10,6 +10,8 @@ interface CompareHeaderProps {
   result: CompareResultDto | null;
   totalAdd: number;
   totalDel: number;
+  toolCount: number;
+  onDirectoryDiff: () => void;
   onBack: () => void;
 }
 
@@ -21,6 +23,8 @@ export function CompareHeader({
   result,
   totalAdd,
   totalDel,
+  toolCount,
+  onDirectoryDiff,
   onBack,
 }: CompareHeaderProps) {
   const { t } = useI18n();
@@ -69,6 +73,13 @@ export function CompareHeader({
             <span className="diff-del">-{totalDel}</span>
           </>
         )}
+        <button
+          onClick={onDirectoryDiff}
+          disabled={!result || toolCount === 0}
+          title={toolCount === 0 ? t("compare.noExternalTool") : t("compare.directoryDiffHint")}
+        >
+          {t("compare.directoryDiff")}
+        </button>
         <button onClick={onBack}>{t("compare.viewGraph")}</button>
       </div>
     </header>

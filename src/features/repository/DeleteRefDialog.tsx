@@ -11,7 +11,7 @@ export type DeleteKind = Extract<WriteKind, "delete_branch" | "delete_tag">;
 interface DeleteRefDialogProps {
   kind: DeleteKind;
   name: string;
-  /** 分支删除时同时删除远程同名分支（ADR 0022）：本地成功后再执行 push --delete。 */
+  /** 同时删除远程同名引用（ADR 0022）：本地成功后再执行 push --delete。 */
   remote?: boolean;
   onCancel: () => void;
   onMutated: (message: string) => Promise<void>;
@@ -67,7 +67,10 @@ export function DeleteRefDialog({ kind, name, remote, onCancel, onMutated }: Del
         return;
       }
       // 第二段（ADR 0022）：本地已删除，远程失败必须明确告知恢复方式。
-      const remoteRequest: WriteRequest = { kind: "delete_branch_remote", branch: name };
+      const remoteRequest: WriteRequest = {
+        kind: kind === "delete_branch" ? "delete_branch_remote" : "delete_tag_remote",
+        branch: name,
+      };
       const remoteGate = await ipc.validateWrite(remoteRequest);
       if (!remoteGate.ok) {
         setError([localMessage, joinIssues(remoteGate.issues)].filter(Boolean).join("\n\n"));
@@ -92,13 +95,14 @@ export function DeleteRefDialog({ kind, name, remote, onCancel, onMutated }: Del
   }, [kind, name, remote, onCancel, onMutated]);
 
   const isBranch = kind === "delete_branch";
+  // 远程删除的标题/警告按引用类型分开：标签与分支的语义与可恢复性不同。
   const title = remote
-    ? t("repository.deleteBranchRemoteTitle")
+    ? t(isBranch ? "repository.deleteBranchRemoteTitle" : "repository.deleteTagRemoteTitle")
     : isBranch
       ? t("repository.deleteBranchTitle")
       : t("repository.deleteTagTitle");
   const warning = remote
-    ? t("repository.deleteBranchRemoteWarning")
+    ? t(isBranch ? "repository.deleteBranchRemoteWarning" : "repository.deleteTagRemoteWarning")
     : isBranch
       ? t("repository.deleteBranchWarning")
       : t("repository.deleteTagWarning");

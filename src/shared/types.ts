@@ -250,6 +250,7 @@ export type WriteKind =
   | "rename_branch"
   | "create_tag"
   | "delete_tag"
+  | "delete_tag_remote"
   | "set_tag_description"
   | "stash_save"
   | "stash_apply"
@@ -505,6 +506,8 @@ export interface UpdateCheckDto {
   current_version: string;
   latest_version: string;
   available: boolean;
+  /** 当前版本高于线上最新版：安装包版本号被误标，界面需单独提示而不是说“已是最新”。 */
+  current_newer: boolean;
   /** Release 页面地址，只用于交给系统浏览器。 */
   page_url: string;
   published_at?: string | null;
@@ -522,7 +525,7 @@ export interface UpdateCheckState {
 /** 手动检查 / 打开下载页的返回：调用方据 kind 决定是否提示失败。 */
 export type UpdateCheckOutcome =
   | { kind: "checked"; result: UpdateCheckDto }
-  | { kind: "throttled" }
+  | { kind: "ignored" }
   | { kind: "failed"; message: string };
 
 export interface UserVisibleError {

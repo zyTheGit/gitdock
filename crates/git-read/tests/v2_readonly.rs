@@ -545,6 +545,7 @@ fn git_read_source_has_no_write_or_mutation_calls() {
         ("read/compare.rs", include_str!("../src/read/compare.rs")),
         ("read/refs.rs", include_str!("../src/read/refs.rs")),
         ("read/probe.rs", include_str!("../src/read/probe.rs")),
+        ("read/export.rs", include_str!("../src/read/export.rs")),
         ("diff.rs", include_str!("../src/diff.rs")),
         ("search.rs", include_str!("../src/search.rs")),
         ("util.rs", include_str!("../src/util.rs")),

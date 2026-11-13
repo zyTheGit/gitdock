@@ -53,6 +53,8 @@ const settings = {
   toolsTitle: "External file compare tools",
   toolsHintTemplateHead: "In the argument template, ",
   toolsHintTemplateTail: " must each stand as a separate argument; the program is launched with an argument array, never through a shell.",
+  toolsHintDirVars:
+    "Directory compare also accepts $LEFT_DIR / $RIGHT_DIR ($LOCAL / $REMOTE point to the left/right directory too); the temporary directory is removed when the tool exits.",
   toolsHintDetect:
     "Installed VS Code / Beyond Compare / Zed are detected on the current system (fill in the path manually if none is found).",
   toolsHintExampleHead: "Example: VS Code / Zed uses ",
@@ -199,6 +201,8 @@ const settings = {
   aboutCheckFailed: "Update check failed",
   aboutSkipped: "Skipped",
   aboutUpToDate: "Up to date",
+  aboutCurrentAhead:
+    "The latest release is v{{version}}, older than the installed build — its version label may be wrong; reinstalling the latest package is recommended.",
   aboutNotChecked: "Update check hasn't run yet.",
   aboutSkipVersion: "Skip this version",
   aboutOpenDownload: "Open download page",

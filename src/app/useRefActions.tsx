@@ -90,6 +90,15 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
     [available],
   );
 
+  const openDeleteTagRemote = useCallback(
+    (name: string) => {
+      if (available) {
+        setDeleteTarget({ kind: "delete_tag", name, remote: true });
+      }
+    },
+    [available],
+  );
+
   const dialogs = (
     <>
       {repo && createBranchOpen && (
@@ -134,12 +143,14 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
     openDeleteBranch,
     openDeleteBranchRemote,
     openDeleteTag,
+    openDeleteTagRemote,
     menuActions: {
       onNewBranch: openCreateBranch,
       onNewTag: openCreateTag,
       onRenameBranch: openRenameBranch,
       onDeleteBranch: openDeleteBranch,
       onDeleteBranchRemote: openDeleteBranchRemote,
+      onDeleteTagRemote: openDeleteTagRemote,
     },
     dialogs,
   };

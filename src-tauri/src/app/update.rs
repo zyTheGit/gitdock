@@ -23,6 +23,9 @@ pub struct UpdateCheckDto {
     pub current_version: String,
     pub latest_version: String,
     pub available: bool,
+    /// 当前版本高于线上最新版。正常发版不会出现，出现即说明安装包的版本号被误标
+    /// （例如误 bump 的 3.0.1-rc-2 后来退回了 0.2.x），界面不能只说“已是最新”。
+    pub current_newer: bool,
     /// Release 页面（不是安装包直链）：由系统浏览器打开，用户自己选择下载。
     pub page_url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -106,6 +109,7 @@ fn parse_release(body: &str, current_version: &str) -> Result<UpdateCheckDto> {
         current_version: current.to_string(),
         latest_version: latest.to_string(),
         available: latest > current,
+        current_newer: latest < current,
         page_url: release.html_url,
         published_at: normalize_published_at(release.published_at),
     })
@@ -181,6 +185,7 @@ mod tests {
     fn newer_tag_strips_prefix_and_reports_update_available() {
         let dto = parse_release(&payload("v0.2.0", PAGE), "0.1.0").expect("解析失败");
         assert!(dto.available);
+        assert!(!dto.current_newer);
         assert_eq!(dto.latest_version, "0.2.0");
         assert_eq!(dto.current_version, "0.1.0");
         assert_eq!(dto.page_url, PAGE);
@@ -191,12 +196,25 @@ mod tests {
     fn same_version_reports_no_update() {
         let dto = parse_release(&payload("0.1.0", PAGE), "0.1.0").expect("解析失败");
         assert!(!dto.available);
+        assert!(!dto.current_newer);
     }
 
     #[test]
     fn older_tag_never_prompts_downgrade() {
         let dto = parse_release(&payload("v0.1.0", PAGE), "0.2.0").expect("解析失败");
         assert!(!dto.available);
+        assert!(dto.current_newer);
+    }
+
+    /// 3.0.1-rc-2 是误 bump 后又被退回 0.2.x 的版本：语义比较会认为它比线上最新
+    /// 还新。这类安装包必须被单独标出来，界面才能提示“版本号可能标注有误”，
+    /// 而不是显示“已是最新版本”——后者会让人误以为不需要重装。
+    #[test]
+    fn mislabeled_installed_version_is_flagged_as_newer_than_latest() {
+        let dto = parse_release(&payload("v0.2.3", PAGE), "3.0.1-rc-2").expect("解析失败");
+        assert!(!dto.available);
+        assert!(dto.current_newer);
+        assert_eq!(dto.latest_version, "0.2.3");
     }
 
     #[test]

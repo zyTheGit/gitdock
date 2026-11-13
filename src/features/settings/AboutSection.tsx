@@ -32,6 +32,9 @@ export function AboutSection({
 }: AboutSectionProps) {
   const { t } = useI18n();
   const [updateNotice, setUpdateNotice] = useState<string | null>(null);
+  const result = updateCheck.result;
+  // 当前版本比线上最新还新：正常发版不会出现，只可能是安装包版本号被误标。
+  const currentNewer = Boolean(result && !result.available && result.current_newer);
 
   const manualUpdateCheck = async () => {
     setUpdateNotice(null);
@@ -84,7 +87,11 @@ export function AboutSection({
           ) : updateCheck.status === "failed" ? (
             t("settings.aboutCheckFailed")
           ) : updateCheck.result ? (
-            updateCheck.result.available ? (
+            currentNewer ? (
+              <span className="update-row-warning">
+                {t("settings.aboutCurrentAhead", { version: updateCheck.result.latest_version })}
+              </span>
+            ) : updateCheck.result.available ? (
               <>
                 {t("settings.aboutSkipped")}{" "}
                 <span className="mono">v{updateCheck.result.latest_version}</span>
@@ -102,15 +109,16 @@ export function AboutSection({
         {updateNotice && <span className="update-row-note muted">{updateNotice}</span>}
         <span className="update-row-actions">
           {updateOffer ? (
-            <>
-              <button type="button" className="link" onClick={onSkipUpdate}>
-                {t("settings.aboutSkipVersion")}
-              </button>
-              <button type="button" className="primary" onClick={() => void openDownloadPage()}>
-                {t("settings.aboutOpenDownload")}
-              </button>
-            </>
-          ) : (
+            <button type="button" className="link" onClick={onSkipUpdate}>
+              {t("settings.aboutSkipVersion")}
+            </button>
+          ) : null}
+          {updateOffer || currentNewer ? (
+            <button type="button" className="primary" onClick={() => void openDownloadPage()}>
+              {t("settings.aboutOpenDownload")}
+            </button>
+          ) : null}
+          {updateOffer ? null : (
             <>
               {updateCheck.skippedVersion && updateCheck.result?.available ? (
                 <button type="button" className="link" onClick={onClearSkippedUpdate}>

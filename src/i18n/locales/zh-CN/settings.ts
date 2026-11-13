@@ -52,6 +52,7 @@ const settings = {
   toolsTitle: "外部文件对比工具",
   toolsHintTemplateHead: "参数模板中 ",
   toolsHintTemplateTail: " 必须各自独立成段；程序按参数数组启动，不经过 shell。",
+  toolsHintDirVars: "目录对比时还可使用 $LEFT_DIR / $RIGHT_DIR（$LOCAL / $REMOTE 同样指向左右目录）；工具退出后临时目录即删除。",
   toolsHintDetect: "将按当前系统探测已安装的 VS Code / Beyond Compare / Zed（探测不到时手动填写）。",
   toolsHintExampleHead: "示例：VS Code / Zed 用 ",
   toolsHintExampleMid: "，Beyond Compare 用 ",
@@ -176,6 +177,8 @@ const settings = {
   aboutCheckFailed: "检查更新未成功",
   aboutSkipped: "已跳过",
   aboutUpToDate: "已是最新版本",
+  aboutCurrentAhead:
+    "线上最新版为 v{{version}}，低于当前安装版本；可能是版本号标注有误，建议重新下载最新安装包。",
   aboutNotChecked: "尚未检查新版本。",
   aboutSkipVersion: "跳过此版本",
   aboutOpenDownload: "打开下载页",

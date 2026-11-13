@@ -150,6 +150,36 @@ pub(crate) fn validate_delete_branch_remote(
     })
 }
 
+/// 删除远程标签的 Gate 校验（ADR 0022「标签远程删除」增补）。
+///
+/// 只要求存在 remote：标签在第一步 `delete_tag` 中已被删除，此时不能再要求本地
+/// 标签存在；远端同名标签是否存在由执行阶段的 `remote ref does not exist` 兜底。
+pub(crate) fn validate_delete_tag_remote(
+    module: &GitWriteModule,
+    request: &WriteRequest,
+) -> Result<RemoteGateResult> {
+    let mut issues = Vec::new();
+    let tag = request.branch.as_deref().ok_or_else(|| {
+        UserVisibleError::new(ErrorCode::InvalidArgument, "缺少标签名")
+            .with_key("errors.commandMissingTag")
+    })?;
+
+    if tag.is_empty() || tag.starts_with('-') || tag.chars().any(char::is_control) {
+        issues.push(issue("gate_invalid_tag_name", "标签名不合法").with_arg("tag", tag));
+    }
+    if module.remote_count()? == 0 {
+        issues.push(issue("gate_remote_missing", "仓库没有配置远程"));
+    }
+
+    let summary = format!("将删除远程 origin 上的标签 {tag}；远程删除影响协作者且不可逆");
+    Ok(RemoteGateResult {
+        issues,
+        summary,
+        summary_key: "errors.gateSummaryTagRemoteDelete",
+        summary_args: args_map(&[("tag", tag)]),
+    })
+}
+
 fn args_map(pairs: &[(&str, &str)]) -> Option<BTreeMap<String, String>> {
     Some(
         pairs

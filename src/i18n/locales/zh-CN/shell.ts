@@ -8,6 +8,7 @@ const shell = {
   sidebarResizeLabel: "调整左侧栏宽度",
   detailResizeLabel: "调整详情面板宽度",
   externalDiffLaunched: "已调用 {{name}} 打开对比文件",
+  externalDirDiffLaunched: "已调用 {{name}} 打开目录对比",
   externalToolFallback: "外部工具",
   terminalProcessEnded: "已结束原仓库的终端进程",
   headBranchFallback: "分支",

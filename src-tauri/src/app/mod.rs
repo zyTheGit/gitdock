@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod config;
+pub mod dir_diff;
 pub mod external;
 
 pub mod gitlog;
