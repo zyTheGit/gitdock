@@ -294,7 +294,11 @@
 .split-pane {
   min-width: 0;
   overflow: auto;
-  overscroll-behavior: contain;
+  /* 横向仍 contain（两栏各自横滚，不外溢）；纵向必须 auto：
+     unified 模式下栏内不纵向溢出，contain 会吞掉滚轮，
+     导致只有悬停在外层滚动条上才能滚。 */
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
 }
 
 .split-divider {
