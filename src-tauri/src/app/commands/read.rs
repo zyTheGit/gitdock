@@ -226,7 +226,7 @@ pub async fn launch_external_dir_diff(
     state: State<'_, Shared>,
     tool_index: usize,
     base: String,
-    compare: String,
+    compare_oid: String,
 ) -> Result<()> {
     let state = Arc::clone(&state);
     blocking(move || {
@@ -240,7 +240,7 @@ pub async fn launch_external_dir_diff(
                     .with_key("errors.externalToolNotFound")
             })?;
         let base = parse_oid(&base)?;
-        let compare = parse_oid(&compare)?;
+        let compare = parse_oid(&compare_oid)?;
         // 导出可能耗时数秒，不占用会话读锁：按当前仓库路径新开只读模块。
         let path = state.with_session(|session| Ok(session.read.path().to_path_buf()))?;
         let read = git_read::GitReadModule::open(&path, None)?;
