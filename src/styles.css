@@ -1,6 +1,7 @@
 /* 样式入口：仅保留 @import，顺序即原 styles.css 的级联顺序，勿随意调整。 */
 
 @import "./styles/tokens.css";
+@import "./styles/scrollbar.css";
 @import "./styles/shell.css";
 @import "./styles/layout.css";
 @import "./styles/graph.css";
