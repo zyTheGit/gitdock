@@ -57,7 +57,7 @@
   --diff-insert-gutter-strong: #283831;
   --diff-delete-gutter-strong: #3b2b31;
 
-  /* 终端内容固定深色，避免浅色背景下 ANSI 亮色不可读。 */
+  /* 终端外壳与配色随主题；浅色值在下方浅色块覆盖，xterm ANSI 调色板见 terminalTheme.ts。 */
   --terminal-bg: #111318;
   --terminal-border: #2a2f38;
   --terminal-header-border: #22262e;
@@ -126,6 +126,20 @@
     --diff-delete-edit: rgba(198, 40, 40, 0.24);
     --diff-insert-gutter-strong: #e3f2e6;
     --diff-delete-gutter-strong: #fbe7e9;
+
+    /* 终端随浅色主题：白底深字，外壳与面板浅色一致。 */
+    --terminal-bg: #ffffff;
+    --terminal-border: #d4d9e3;
+    --terminal-header-border: #e3e7ee;
+    --terminal-muted: #5b6472;
+    --terminal-warning: #8a5a00;
+    --terminal-notice-text: #6b5320;
+    --terminal-notice-bg: #fdf3e2;
+    --terminal-error-text: #b3261e;
+    --terminal-error-bg: #fdecea;
+    --terminal-code-bg: #f3e7c9;
+    --terminal-running: #2f6fdd;
+    --terminal-resizer-hover: #dbe7fb;
   }
 }
 
@@ -183,6 +197,20 @@
   --diff-delete-edit: rgba(198, 40, 40, 0.24);
   --diff-insert-gutter-strong: #e3f2e6;
   --diff-delete-gutter-strong: #fbe7e9;
+
+  /* 终端随浅色主题：白底深字，外壳与面板浅色一致。 */
+  --terminal-bg: #ffffff;
+  --terminal-border: #d4d9e3;
+  --terminal-header-border: #e3e7ee;
+  --terminal-muted: #5b6472;
+  --terminal-warning: #8a5a00;
+  --terminal-notice-text: #6b5320;
+  --terminal-notice-bg: #fdf3e2;
+  --terminal-error-text: #b3261e;
+  --terminal-error-bg: #fdecea;
+  --terminal-code-bg: #f3e7c9;
+  --terminal-running: #2f6fdd;
+  --terminal-resizer-hover: #dbe7fb;
 }
 
 :root[data-theme="dark"] { color-scheme: dark; }

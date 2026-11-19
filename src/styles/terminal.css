@@ -118,26 +118,25 @@
 .terminal-launch-button svg { width: 15px; height: 15px; flex: none; }
 
 .terminal-launch-button.secondary {
-  color: #c7ccd5;
-  background: #1b1e24;
-  border-color: #3a404c;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border-color: var(--border);
 }
 
 .terminal-launch-button.secondary:hover:not(:disabled) {
-  color: #f0f3f8;
-  background: #252a34;
-  border-color: #596273;
+  background: var(--bg-panel);
+  border-color: var(--remote-border);
 }
 
 .terminal-launch-button.danger {
   color: var(--terminal-error-text);
   background: var(--terminal-error-bg);
-  border-color: #5a2b26;
+  border-color: var(--danger-border);
 }
 
 .terminal-launch-button.danger:hover:not(:disabled) {
-  color: #ffb4a4;
-  border-color: var(--terminal-error-text);
+  color: var(--danger-text);
+  border-color: var(--danger-text);
 }
 
 .terminal-launch-button:focus-visible,

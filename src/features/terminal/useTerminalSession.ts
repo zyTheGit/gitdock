@@ -6,7 +6,9 @@ import "@xterm/xterm/css/xterm.css";
 import { i18next } from "../../i18n";
 import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
+import { useResolvedTheme } from "../../shared/theme";
 import type { TerminalEvent } from "../../shared/types";
+import { buildTerminalTheme } from "./terminalTheme";
 
 export type TerminalMode = "lazygit" | "shell";
 export type TerminalStatus = "idle" | "starting" | "running" | "exited" | "failed";
@@ -77,6 +79,7 @@ export function useTerminalSession({
   const [message, setMessage] = useState<string | null>(null);
   const [lazygitPath, setLazygitPath] = useState<string | null | undefined>(undefined);
   const [gitBashPath, setGitBashPath] = useState<string | null | undefined>(undefined);
+  const resolvedTheme = useResolvedTheme();
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<XTerm | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -164,6 +167,13 @@ export function useTerminalSession({
     }
   }, [repoPath, stop, onRunningChange, onRepoChanged]);
 
+  // 终端配色跟随设置主题（浅色/深色/跟随系统）：运行中的 xterm 直接换主题并重绘。
+  useEffect(() => {
+    if (termRef.current) {
+      termRef.current.options.theme = buildTerminalTheme(resolvedTheme);
+    }
+  }, [resolvedTheme]);
+
   // 重新显示时隐藏期间尺寸为 0，必须重新 fit 并恢复焦点。
   useEffect(() => {
     if (!visible) {
@@ -193,6 +203,7 @@ export function useTerminalSession({
         fontSize: 13,
         cursorBlink: true,
         scrollback: 5000,
+        theme: buildTerminalTheme(resolvedTheme),
       });
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
@@ -256,7 +267,7 @@ export function useTerminalSession({
           });
       });
     },
-    [fit, stop],
+    [fit, stop, resolvedTheme],
   );
 
   useEffect(() => {
