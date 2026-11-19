@@ -205,7 +205,9 @@
 .terminal-body {
   flex: 1;
   min-height: 0;
-  padding: 6px 8px;
+  /* 留白用 margin 而非 padding：FitAddon 按父元素 computed 尺寸算行列，
+     border-box 下 padding 会被计入可用空间，多出半行/两列被裁掉（lazygit 底栏被遮挡）。 */
+  margin: 6px 8px;
   overflow: hidden;
 }
 
