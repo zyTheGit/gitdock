@@ -44,6 +44,15 @@ fn normalize(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
+/// 临时目录与 Git 报告的路径可能只差短路径或符号链接
+/// （Windows `RUNNER~1`、macOS `/private/var`），比较前统一解析真实路径。
+fn real(path: &str) -> String {
+    let resolved = std::fs::canonicalize(path)
+        .map(|real| real.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| path.to_owned());
+    normalize(Path::new(&resolved))
+}
+
 fn repo_with_branch(prefix: &str) -> (tempfile::TempDir, PathBuf, String) {
     let temp = init_temp_repo();
     let dir = temp.path().to_path_buf();
@@ -65,13 +74,13 @@ fn list_worktrees_reports_main_and_linked_entries() {
     assert!(main.is_main);
     assert!(!main.detached);
     assert_eq!(main.branch.as_deref(), Some("main"));
-    assert_eq!(normalize(Path::new(&main.path)), normalize(&dir));
+    assert_eq!(real(&main.path), real(&normalize(&dir)));
 
     let linked = &entries[1];
     assert!(!linked.is_main);
     assert_eq!(linked.branch.as_deref(), Some("feat"));
     assert!(linked.head_oid.is_some());
-    assert_eq!(linked.path, target);
+    assert_eq!(real(&linked.path), real(&target));
 }
 
 #[test]
@@ -92,7 +101,7 @@ fn create_worktree_executes_and_is_listed() {
     let entries = module.list_worktrees().expect("列出 worktree");
     let created = entries
         .iter()
-        .find(|entry| entry.path == target)
+        .find(|entry| real(&entry.path) == real(&target))
         .expect("新 worktree 应在列表中");
     assert_eq!(created.branch.as_deref(), Some("feat"));
     assert!(!created.is_main);
@@ -164,7 +173,7 @@ fn remove_gate_rejects_main_locked_and_dirty_then_removes_clean_entry() {
 
     // 主 worktree 不可移除。
     let main = module
-        .validate(&remove_request(&normalize(&dir)))
+        .validate(&remove_request(&real(&normalize(&dir))))
         .expect("remove Gate");
     assert!(issue_codes(&main).contains(&"gate_worktree_is_main".to_owned()));
 

@@ -267,11 +267,18 @@ fn worktree_branch_owner(module: &GitWriteModule, branch: &str) -> Result<Option
 }
 
 /// 路径比较：分隔符与大小写归一后比较，避免前端选择器的写法差异导致漏配。
+/// 能解析到真实路径时再按真实路径比较，消除 Windows 短路径（`RUNNER~1`）
+/// 与 macOS `/var` → `/private/var` 这类别名差异。
 fn same_path(left: &str, right: &str) -> bool {
     fn normalize(path: &str) -> String {
         path.replace('\\', "/").trim_end_matches('/').to_lowercase()
     }
-    normalize(left) == normalize(right)
+    fn resolved(path: &str) -> String {
+        std::fs::canonicalize(path)
+            .map(|real| real.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| path.to_owned())
+    }
+    normalize(left) == normalize(right) || normalize(&resolved(left)) == normalize(&resolved(right))
 }
 
 fn invalid(path: &str, reason: &str) -> GateIssueDto {
