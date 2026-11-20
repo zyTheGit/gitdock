@@ -7,6 +7,10 @@ const common = {
   languageOptionZhCn: "简体中文",
   languageOptionEn: "English",
   languageHint: "Applies immediately and persists across restarts.",
+  close: "Close",
+  fileListModeLabel: "File list view",
+  fileListModeFlat: "Flat list",
+  fileListModeTree: "Directory tree",
 } satisfies CommonMessages;
 
 export default common;

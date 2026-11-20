@@ -10,6 +10,7 @@ const detail = {
   loading: "正在读取提交详情…",
   commitMessage: "提交说明",
   parents: "父提交",
+  parentJumpTitle: "定位并选中父提交 {{oid}}",
   rootCommit: "（根提交）",
   containingBranches: "所在分支",
   noContainingBranches: "（无本地分支包含此提交）",
@@ -21,6 +22,8 @@ const detail = {
   selectFileHint: "选择左侧文件查看 diff。",
   noExternalTool: "尚未配置外部工具",
   openWithTool: "用 {{name}} 打开",
+  signatureSigned: "已签名（{{kind}}）",
+  signatureTitle: "提交携带 {{kind}} 签名；本应用只标注签名类型，不验证签名有效性",
 } as const;
 
 export default detail;

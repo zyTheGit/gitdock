@@ -9,6 +9,9 @@ const compare = {
   clearSlot: "Clear {{title}}",
   barLabel: "Compare selection",
   swapSides: "Swap Base and Compare",
+  slotWorktree: "Working tree",
+  worktreeShort: "Working tree",
+  useWorktree: "Fill this side with the working tree",
   hintActive: "Changes of Compare against the common ancestor of Base · {{modifier}}+click to replace",
   hintIdle: '{{modifier}}+click a commit to fill Compare, or pick branches with "Compare branches…"',
   replaceWhichSide: "Replace which side?",
@@ -18,14 +21,17 @@ const compare = {
   cancel: "Cancel",
 
   // Branch compare dialog
-  dialogTitle: "Compare branches",
-  closeDialog: "Close branch compare",
+  dialogTitle: "Compare refs",
+  closeDialog: "Close ref compare",
   fieldBase: "Base (reference)",
   fieldCompare: "Compare (target)",
+  groupLocal: "Local branches",
+  groupRemote: "Remote branches",
+  groupTags: "Tags",
   modeHint:
     "Compares with three-point diff by default (common ancestor of Base and Compare → Compare); you can switch to a two-point snapshot in the compare view.",
-  sameBranchError: "Base and Compare cannot be the same branch.",
-  sameCommitHint: "Both branches currently point to the same commit; the comparison will be empty.",
+  sameBranchError: "Base and Compare cannot be the same ref.",
+  sameCommitHint: "Both refs currently point to the same commit; the comparison will be empty.",
   currentBranchOption: "{{branch}} (current)",
   startCompare: "Start compare",
 
@@ -47,6 +53,11 @@ const compare = {
   clearFilter: "Clear",
   changedFilesCount: "Changed files: {{n}}",
   selectTool: "Select external compare tool",
+  statusFilter: "Filter by file status",
+  filterAll: "All",
+  filterEmpty: "No files match the current status filter.",
+  externalWorktreeUnavailable:
+    "The working tree side is not a commit; external tools are unavailable",
 
   // Result header
   titleThreeDot: "Changes of Compare against the common ancestor of Base",
@@ -55,13 +66,18 @@ const compare = {
   modeThreeDot: "Three-point diff",
   modeTwoDot: "Two-point snapshot",
   modeTwoDotFallback: "Two-point snapshot (fallback)",
+  modeWorktree: "Working tree snapshot",
   modeThreeDotHint: "git diff base...compare: shows only the changes of Compare against the common ancestor",
   modeTwoDotHint: "git diff base compare: shows the full snapshot difference between the two commits",
+  modeWorktreeHint:
+    "The working tree has no commit history, so there is no common ancestor; only a two-point snapshot is possible",
   sideCounts: "Base only on left {{baseOnly}} · Compare only on right {{compareOnly}}",
   viewGraph: "View graph",
   directoryDiff: "Compare directories",
   directoryDiffHint:
     "Export both commits' full directory trees to temporary folders and open them in the external tool",
+  directoryDiffWorktreeHint:
+    "The working tree side is not a commit, so a directory tree cannot be exported; compare two commits instead",
 
   // Commit list
   resizeHandle: "Resize commit list",

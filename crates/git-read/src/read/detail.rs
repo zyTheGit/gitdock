@@ -7,8 +7,8 @@ use git_core::{
 };
 
 use super::{
-    commit_summary, gix_error, reachable_set, read_head, read_refs, tree_oid_of_commit,
-    tree_oid_of_object, GitReadModule, RefBadges,
+    commit_summary, gix_error, reachable_set, tree_oid_of_commit, tree_oid_of_object,
+    GitReadModule, RefBadges,
 };
 use crate::diff::{collect_changes, diff_file};
 use crate::util::{find_commit, gix_oid, lossy, oid_from_gix, oid_from_id};
@@ -20,6 +20,7 @@ impl GitReadModule {
     /// commit 详情：首父/空树基线与文件列表。
     pub fn read_commit(&self, oid: &Oid) -> Result<CommitDetailDto> {
         let repo = self.repo()?;
+        let generation = self.fingerprint(&repo)?;
         let commit = find_commit(&repo, oid)?;
         let parents: Vec<Oid> = commit.parent_ids().map(|id| oid_from_id(&id)).collect();
         let (baseline, baseline_note) = match parents.len() {
@@ -47,11 +48,13 @@ impl GitReadModule {
                 .with_arg("n", files.len().to_string()),
             );
         }
-        let (_, badges) = read_refs(&repo, &read_head(&repo)?)?;
+        let snapshot = self.refs_snapshot(&repo, generation)?;
         let message = lossy(commit.message_raw().map_err(gix_error)?.as_ref());
-        let summary = commit_summary(&repo, oid, &badges)?;
+        let summary = commit_summary(&repo, oid, &snapshot.badges)?;
+        // 签名标注（ADR-0034）：只判断头类型，不验签、不传签名体。
+        let signature_kind = super::signature::signature_kind(&commit);
         Ok(CommitDetailDto {
-            generation: self.current_generation()?,
+            generation,
             commit: summary,
             message,
             parents,
@@ -59,6 +62,7 @@ impl GitReadModule {
             baseline,
             baseline_note,
             warnings,
+            signature_kind,
         })
     }
 
@@ -109,10 +113,10 @@ impl GitReadModule {
     /// 优先展示 tip 正好是该提交的分支，其次按 tip 提交时间倒序。
     pub fn commit_branch_context(&self, oid: &Oid, limit: usize) -> Result<CommitBranchContextDto> {
         let repo = self.repo()?;
+        let generation = self.fingerprint(&repo)?;
         let _ = find_commit(&repo, oid)?;
-        let head = read_head(&repo)?;
-        let (refs, _) = read_refs(&repo, &head)?;
-        let head_set = match &head.oid {
+        let snapshot = self.refs_snapshot(&repo, generation)?;
+        let head_set = match &snapshot.head.oid {
             Some(head_oid) => Some(reachable_set(&repo, head_oid)?),
             None => None,
         };
@@ -120,7 +124,8 @@ impl GitReadModule {
         let containing = self.branches_containing(oid)?;
         let mut ordered: Vec<(&RefDto, i64)> = Vec::new();
         for name in &containing {
-            let reference = refs
+            let reference = snapshot
+                .refs
                 .iter()
                 .find(|reference| {
                     reference.kind == RefKind::LocalBranch && &reference.short_name == name
@@ -149,7 +154,7 @@ impl GitReadModule {
                 .then_with(|| left.short_name.cmp(&right.short_name))
         });
 
-        let current = head.branch.clone();
+        let current = snapshot.head.branch.clone();
         let mut gaps = Vec::new();
         let mut gaps_omitted = 0u32;
         for (reference, _) in &ordered {
@@ -167,16 +172,16 @@ impl GitReadModule {
                 &repo,
                 &reference.short_name,
                 tip,
-                head.oid.as_ref(),
+                snapshot.head.oid.as_ref(),
                 head_set.as_ref(),
                 limit,
             )?);
         }
 
         Ok(CommitBranchContextDto {
-            generation: self.current_generation()?,
+            generation,
             oid: oid.clone(),
-            head: head.oid.clone(),
+            head: snapshot.head.oid.clone(),
             current_branch: current,
             branches: containing,
             gaps,
@@ -185,7 +190,13 @@ impl GitReadModule {
     }
 
     /// 单文件 diff：二进制、超大文件、gitlink 与编码问题均结构化降级。
-    pub fn read_file_diff(&self, oid: &Oid, path: &str) -> Result<FileDiffDto> {
+    /// `ignore_whitespace` 为真时按 `git diff -w` 语义忽略空白差异（ADR-0030）。
+    pub fn read_file_diff(
+        &self,
+        oid: &Oid,
+        path: &str,
+        ignore_whitespace: bool,
+    ) -> Result<FileDiffDto> {
         let repo = self.repo()?;
         let commit = find_commit(&repo, oid)?;
         let parents: Vec<Oid> = commit.parent_ids().map(|id| oid_from_id(&id)).collect();
@@ -194,7 +205,13 @@ impl GitReadModule {
             None => None,
         };
         let new_tree = Some(tree_oid_of_object(&commit)?);
-        let mut dto = diff_file(&repo, old_tree.as_ref(), new_tree.as_ref(), path)?;
+        let mut dto = diff_file(
+            &repo,
+            old_tree.as_ref(),
+            new_tree.as_ref(),
+            path,
+            ignore_whitespace,
+        )?;
         dto.generation = self.current_generation()?;
         Ok(dto)
     }

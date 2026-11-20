@@ -33,6 +33,40 @@ const staging = {
   conflictFiles: "冲突文件",
   conflictHint: "先解决冲突并 git add，再回到暂存区继续；也可在终端中完成。",
   openTerminalForConflicts: "打开终端处理冲突",
+  // 冲突解决（ADR-0033）：整文件取一侧与标记已解决都必须显式确认；
+  // rebase 下 ours / theirs 语义反转，只影响文案（ADR-0033 §3.1）。
+  conflictResolveOurs: "采用{{side}}（Ours）",
+  conflictResolveTheirs: "采用{{side}}（Theirs）",
+  conflictMarkResolved: "标记已解决",
+  conflictOverwriteBusy: "覆盖中…",
+  conflictMarkBusy: "标记中…",
+  conflictChecking: "正在检查…",
+  conflictExecuting: "执行中…",
+  conflictTitleOurs: "确认采用 Ours 一侧",
+  conflictTitleTheirs: "确认采用 Theirs 一侧",
+  conflictTitleMark: "确认标记为已解决",
+  conflictKeepOurs: "保留：{{side}}（ours）",
+  conflictKeepTheirs: "保留：{{side}}（theirs）",
+  conflictOverwriteHint:
+    "{{path}} 的工作区文件会被该侧内容整体覆盖，另一侧在本文件中的冲突块内容随之丢弃；索引不变，该文件仍处于冲突状态，需要再「标记已解决」才会离开冲突分组。",
+  conflictMarkHint:
+    "将把 {{path}} 标记为已解决（git add）：索引写入工作区当前内容，文件内容不会被修改，该文件随即离开冲突分组。",
+  conflictRebaseNote:
+    "Rebase 中断时 Git 语义反转：ours 是目标分支（上游）一侧，theirs 是正在重放的提交（通常是你自己的改动）。",
+  conflictSideCurrent: "当前分支",
+  conflictSideIncoming: "传入改动",
+  conflictSideUpstream: "目标分支（上游）侧",
+  conflictSideReplayed: "正在重放的提交",
+  conflictTargetTitle: "目标文件",
+  conflictConfirmOurs: "确认覆盖（保留 Ours）",
+  conflictConfirmTheirs: "确认覆盖（保留 Theirs）",
+  conflictConfirmMark: "确认标记为已解决",
+  conflictMarkerTitle: "文件仍包含冲突标记",
+  conflictMarkerHint:
+    "文件仍包含冲突标记，确认继续标记为已解决？这些标记会原样暂存并进入提交，请确认已手工处理。",
+  conflictMarkerPathsTitle: "仍含标记的文件（{{n}}）：",
+  conflictMarkerConfirm: "仍要标记为已解决",
+  conflictCloseAria: "关闭冲突处理确认框",
   readingDiff: "正在读取 diff…",
   diffPlaceholder: "选择一个文件查看 staged/unstaged diff",
   watchFailedPrefix: "监听仓库变更失败：",
@@ -40,9 +74,36 @@ const staging = {
   submodule: "子模块",
   binary: "二进制",
   selectFile: "选择 {{path}}",
-  // 提交消息对话框（ADR 0007）。
-  openCommitDialog: "提交",
+  selectDirFiles: "勾选 {{path}} 下的全部文件",
+  copyRelativePath: "复制相对路径",
+  revealInFileManager: "在文件管理器中显示",
+  // 丢弃未暂存改动（ADR 0026）：仅未暂存一侧可见的破坏性入口与确认框。
+  actionDiscard: "丢弃改动…",
+  discardSelectedCount: "丢弃所选改动 ({{n}})…",
+  discardConfirmTitle: "确认丢弃改动（永久删除）",
+  discardConfirmHint:
+    "工作区中的未暂存改动与未跟踪文件将被永久删除，无法通过 git reflog 恢复；如需保留，请先使用 Stash。",
+  discardPathsTitle: "将被永久删除的内容（{{n}}）：",
+  discardGroupTracked: "已跟踪文件（{{n}}，回退到 index 内容）",
+  discardGroupUntracked: "未跟踪文件（{{n}}，直接从磁盘删除）",
+  discardOpenStash: "去 Stash 保留改动",
+  discardConfirm: "永久丢弃",
+  discardValidating: "正在检查…",
+  discardSubmitting: "丢弃中…",
+  discardCloseAria: "关闭丢弃确认框",
+  // hunk 级丢弃（ADR 0027）：一次只丢一块，必须显式确认。
+  hunkDiscardConfirmTitle: "确认丢弃这一块改动（永久删除）",
+  hunkDiscardConfirmHint:
+    "仅这一块未暂存改动会从工作区消失，同文件其他块与已暂存内容保持不变。该改动无法通过 git reflog 恢复；如需保留，请先使用 Stash。",
+  hunkDiscardTargetLabel: "目标文件与块序号",
+  hunkDiscardOrdinal: "第 {{n}} 块（共 {{total}} 块）",
+  hunkDiscardConfirm: "永久丢弃此块",
+  hunkDiscardCloseAria: "关闭 hunk 丢弃确认框",
+  hunkStaleHint: "diff 已重新读取，块序号可能已变化，请确认后重试。",
+  // 内嵌提交表单（ADR 0007，T03 起常驻暂存区左栏）。
   commitTitle: "创建提交",
+  commitComposerLabel: "提交表单",
+  commitShortcutHint: "{{modifier}} + Enter 提交",
   commitCloseAria: "关闭提交对话框",
   commitMessageLabel: "提交消息",
   commitMessagePlaceholder: "填写提交消息（支持多行）",
@@ -83,6 +144,17 @@ const staging = {
   stashConflictHint: "应用产生冲突：stash 条目仍在，请到暂存区解决冲突。",
   stashSaveFailed: "保存 stash 失败",
   stashActionFailed: "stash 操作失败",
+  // Stash 内容预览（ADR-0030）：左栏选中条目，右栏预览文件清单与 diff。
+  stashSelectEntry: "查看 {{selector}} 的内容",
+  stashPreviewLabel: "Stash 内容预览",
+  stashPreviewLoading: "正在读取 stash 内容…",
+  stashPreviewEmpty: "这条 stash 没有文件改动。",
+  stashPreviewSelect: "选择左侧一条 stash 查看改动。",
+  stashFileListLabel: "Stash 改动文件",
+  stashFileCount: "改动文件 {{n}} 个",
+  stashIncludesUntracked: "包含未跟踪文件",
+  stashTruncated: "文件过多，清单已截断。",
+  commitTemplateHint: "已按仓库的 commit.template 预填提交消息",
 } as const;
 
 export default staging;

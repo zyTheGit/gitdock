@@ -6,13 +6,21 @@
 mod compare;
 mod detail;
 mod export;
+mod file_blame;
+mod file_history;
 mod graph;
 mod message;
 mod probe;
+mod reflog;
 mod refs;
+mod signature;
 mod stash;
+mod upstream;
+mod worktree_compare;
 
 pub use export::{TreeExport, TreeSink};
+pub use reflog::{DEFAULT_REFLOG_LIMIT, MAX_REFLOG_LIMIT};
+pub use worktree_compare::{is_worktree_ref, WORKTREE_REF};
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -21,8 +29,8 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use git_core::{
-    interruption_dto, ErrorCode, ObjectFormat, Oid, RepoStateDto, Result, UserVisibleError,
-    WarningDto, MARKERS,
+    interruption_dto, ErrorCode, HeadDto, ObjectFormat, Oid, RefDto, RepoStateDto, Result,
+    UserVisibleError, WarningDto, MARKERS,
 };
 use graph_layout::GraphLayoutModule;
 use parking_lot::Mutex;
@@ -50,6 +58,9 @@ pub struct GitReadModule {
     pub(crate) git_version: Option<String>,
     pub(crate) git_version_supported: bool,
     pub(crate) layout: Mutex<LayoutCache>,
+    /// 引用快照缓存（代际 → HEAD/refs/徽章）：同一代际内所有读取共享一次解析，
+    /// upstream ahead/behind 的逐分支 merge-base 只算一次。
+    pub(crate) refs_cache: Mutex<Option<(u64, Arc<RefsSnapshot>)>>,
     pub(crate) searches: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
@@ -64,6 +75,13 @@ pub(crate) struct LayoutCache {
     pub(crate) view_key: Option<String>,
     pub(crate) generation: u64,
     pub(crate) layout: GraphLayoutModule,
+}
+
+/// 单代际的引用快照：HEAD、引用列表与提交徽章索引。
+pub(crate) struct RefsSnapshot {
+    pub(crate) head: HeadDto,
+    pub(crate) refs: Vec<RefDto>,
+    pub(crate) badges: RefBadges,
 }
 
 impl GitReadModule {
@@ -104,6 +122,7 @@ impl GitReadModule {
             git_version,
             git_version_supported,
             layout: Mutex::new(LayoutCache::default()),
+            refs_cache: Mutex::new(None),
             searches: Mutex::new(HashMap::new()),
         })
     }
@@ -111,6 +130,16 @@ impl GitReadModule {
     /// 工作区根目录；bare 仓库没有工作区时回退到 git 目录。
     pub fn path(&self) -> &Path {
         &self.repo_root
+    }
+
+    /// per-worktree Git 目录（linked worktree 下独立于共享目录）。
+    pub fn git_dir(&self) -> &Path {
+        &self.git_dir
+    }
+
+    /// 共享 Git 目录：主 worktree 的 `.git`，linked worktree 共享 refs/objects。
+    pub fn common_dir(&self) -> &Path {
+        &self.common_dir
     }
 
     pub fn object_format(&self) -> ObjectFormat {
@@ -129,14 +158,14 @@ impl GitReadModule {
     pub fn state(&self) -> Result<RepoStateDto> {
         let repo = self.repo()?;
         let generation = self.fingerprint(&repo)?;
-        let head = read_head(&repo)?;
-        let (refs, _) = read_refs(&repo, &head)?;
+        // 顺带填充引用快照缓存：打开/切换仓库后的首页图谱无需再解析一遍 refs。
+        let snapshot = self.refs_snapshot(&repo, generation)?;
         let warnings = self.warnings(&repo);
         Ok(RepoStateDto {
             path: self.repo_root.to_string_lossy().into_owned(),
             object_format: self.object_format,
-            head,
-            refs,
+            head: snapshot.head.clone(),
+            refs: snapshot.refs.clone(),
             generation,
             is_bare: repo.is_bare(),
             is_linked_worktree: self.git_dir != self.common_dir,
@@ -147,6 +176,25 @@ impl GitReadModule {
             minimum_git_version: MINIMUM_GIT_VERSION.to_owned(),
             warnings,
         })
+    }
+
+    /// 某代际的引用快照：按代际缓存，代际变化后自然失效。
+    pub(crate) fn refs_snapshot(
+        &self,
+        repo: &gix::Repository,
+        generation: u64,
+    ) -> Result<Arc<RefsSnapshot>> {
+        let mut cache = self.refs_cache.lock();
+        if let Some((cached, snapshot)) = cache.as_ref() {
+            if *cached == generation {
+                return Ok(Arc::clone(snapshot));
+            }
+        }
+        let head = read_head(repo)?;
+        let (refs, badges) = read_refs(repo, &head)?;
+        let snapshot = Arc::new(RefsSnapshot { head, refs, badges });
+        *cache = Some((generation, Arc::clone(&snapshot)));
+        Ok(snapshot)
     }
 
     /// 当前仓库的 generation 指纹。refs、HEAD、对象格式或中断态变化都会递增语义。
@@ -208,7 +256,8 @@ impl GitReadModule {
         view_key: &str,
         generation: u64,
     ) -> Result<crate::index::GraphIndex> {
-        let tips = graph::scope_tips(repo, scope)?;
+        let snapshot = self.refs_snapshot(repo, generation)?;
+        let tips = graph::scope_tips(repo, scope, &snapshot)?;
         index::build(repo, &tips, view_key, generation, self.cache_dir.as_deref())
     }
 
@@ -261,7 +310,7 @@ pub(crate) fn tree_oid_of_commit(repo: &gix::Repository, oid: &Oid) -> Result<Oi
     tree_oid_of_object(&commit)
 }
 
-fn tree_oid_of_object(commit: &gix::Commit<'_>) -> Result<Oid> {
+pub(crate) fn tree_oid_of_object(commit: &gix::Commit<'_>) -> Result<Oid> {
     let id = commit.tree_id().map_err(gix_error)?;
     Ok(oid_from_id(&id))
 }

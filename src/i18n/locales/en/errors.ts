@@ -15,6 +15,10 @@ const errors = {
     "{{total}} files have local changes ({{parts}}). Nothing is auto-stashed, reset or cleaned: changes stay in the worktree and may carry over to the target branch; if the target branch would overwrite them, Git will refuse the switch and leave things as they are.",
   stagingBareEmpty: "Bare repository has no worktree; the staging area is empty",
   conflictedIndex: "{{n}} unresolved conflict files; staging operations are disabled. Resolve them in the terminal first",
+  discardDestructive:
+    "{{total}} files of unstaged changes ({{tracked}} tracked, {{untracked}} untracked) will be permanently discarded; this cannot be recovered via git reflog. Stash first if you need to keep them",
+  hunkDiscardDestructive:
+    "This hunk of worktree changes in {{path}} will be permanently discarded; it cannot be recovered via git reflog, so stash first if you need to keep it",
   interruptionDetected: "Unfinished Git operation detected: {{names}}",
   kindMerge: "unfinished merge",
   kindCherryPick: "unfinished cherry-pick",
@@ -39,6 +43,20 @@ const errors = {
   stagingReadFileFailed: "Failed to read {{path}}",
   stagingUntrackedDiffFailed: "Failed to generate diff for untracked file",
   stagingDiffFailed: "Failed to generate file diff",
+  discardRemoveFailed: "Failed to delete untracked file {{path}}",
+  hunkPathRequired: "Missing the target file path for the hunk operation",
+  hunkIndexRequired: "Missing the hunk index",
+  hunkKindInvalid: "Invalid hunk operation kind",
+  hunkUntrackedNotSupported:
+    "{{path}} is untracked and has no index baseline to align with; stage the whole file instead",
+  hunkBinaryNotSupported:
+    "{{path}} is binary and does not support hunk-level operations; stage the whole file or handle it in the terminal",
+  hunkNoChanges: "{{path}} has no text hunk to operate on right now; refresh and retry",
+  hunkIndexOutOfRange:
+    "Hunk index {{index}} exceeds the current hunk count of {{path}} ({{total}}); the diff may have changed, refresh and retry",
+  hunkDiffFailed: "Failed to generate the live diff for {{path}}",
+  hunkApplyFailed:
+    "Git refused the patch for this hunk of {{path}}; refresh the diff and retry",
   commandMissingOid: "Missing commit OID",
   commandMissingBranch: "Missing branch name",
   commandHeadUnreadable: "Failed to read HEAD",
@@ -143,6 +161,10 @@ const errors = {
   feedbackTooLong: "Feedback is too long; please shorten it before submitting",
   feedbackUrlInvalid: "Invalid feedback URL: {{error}}",
   windowShowFailed: "Failed to show main window",
+  revealPathInvalid: "Only relative paths inside the current repository can be revealed",
+  revealRootMissing: "Failed to resolve the repository root",
+  revealFileMissing: "The file does not exist or is not accessible",
+  revealLaunchFailed: "Failed to launch the system file manager",
   oidFormatInvalid: "Invalid OID format",
   paginationCursorInvalid: "Invalid pagination cursor; please refresh the graph",
   diffTooLarge: "File exceeds 2 MB; no text diff was generated",
@@ -178,6 +200,25 @@ const errors = {
   gateNothingToStage: "{{path}} has no unstaged changes",
   gateNothingToUnstage: "{{path}} has no staged changes",
   gateConflictedIndexStage: "Unresolved conflict files exist; resolve them in the terminal before staging",
+  gateConflictedIndexDiscard:
+    "The index still has {{n}} unresolved conflict files; conflicted content cannot be discarded, resolve or abort the operation first",
+  gateNothingToDiscard: "{{path}} has no unstaged changes (unstage staged changes first)",
+  gateHunkPathRequired: "Missing the target file path for the hunk operation",
+  gateHunkIndexRequired: "Missing the hunk index",
+  gateHunkUntracked:
+    "{{path}} is untracked and has no index baseline to align with; stage the whole file instead",
+  gateHunkRename:
+    "{{path}} was renamed or copied; hunk-level operations must be handled in the terminal",
+  gateHunkBinary:
+    "{{path}} is binary; stage the whole file or handle hunk-level operations in the terminal",
+  gateHunkGitlink: "{{path}} is a submodule (gitlink) change; hunk-level operations are not supported",
+  gateHunkNoChanges: "{{path}} has no text hunk to operate on right now; refresh and retry",
+  gateHunkIndexOutOfRange:
+    "Hunk index {{index}} exceeds the current hunk count of {{path}} ({{total}}); the diff may have changed, refresh and retry",
+  gateConflictedIndexHunk:
+    "The index still has {{n}} unresolved conflict files; conflicted content cannot be handled at hunk level. Resolve or abort the operation first",
+  gateUntrackedDirectory: "{{path}} is an untracked directory; removing it is not supported, clean it in the terminal",
+  gateGitDirPath: "Refusing to touch a path inside .git: {{path}}",
   gateInterruptionInvalid:
     "Only cherry-pick, revert, merge, or rebase interruptions support continue/abort",
   gateInterruptionRequired: "The {{verb}} operation requires an interruption type (cherry_pick or revert)",
@@ -211,6 +252,15 @@ const errors = {
   gateRemoteUnborn: "The current branch has no commits",
   gateRemoteDetached: "Detached HEAD does not support pull / push; switch to a local branch first",
   gateRemoteNoUpstream: "The current branch has no upstream; set one in the terminal first",
+  gatePushBranchNotCurrent:
+    "An upstream can only be set for the checked-out branch; the current branch is {{current}}, not {{branch}}",
+  gatePushUpstreamExists:
+    "Branch {{branch}} already has upstream {{upstream}}; use Push directly",
+  gateRemoteAmbiguous:
+    "Multiple remotes are configured and none is named origin; specify one explicitly: {{options}}",
+  gateRemoteUnknown: "Remote {{remote}} is not configured; configured remotes: {{options}}",
+  gateInvalidRemoteBranch:
+    "Invalid remote branch name: {{branch}} (expected form origin/<branch>)",
   gateRemoteDirtyPull: "The working tree is dirty; commit or stash before pull --ff-only",
   gateRemoteBranchMissing: "Local branch {{branch}} does not exist",
   gateRemoteBranchSelf: "Cannot integrate the current branch into itself",
@@ -228,6 +278,53 @@ const errors = {
   gateTagNotCommit: "Tag {{tag}} does not point to a commit; its annotation cannot be used as a description",
   gateUnbornHeadTag: "The current branch has no commits; cannot create a tag",
   gateTagMissing: "Local tag {{tag}} does not exist",
+  // ---- Reset (ADR-0029) ----
+  gateResetModeRequired: "Select a reset mode (soft / mixed / hard)",
+  gateConflictedIndexReset:
+    "The index still has {{n}} unresolved conflict files; resolve or abort the current operation before resetting",
+  gateResetTargetRequired: "Missing the reset target commit",
+  gateResetTargetInvalid: "{{oid}} does not exist or is not a commit; cannot reset to it",
+  gateResetNoop: "The target {{oid}} is the current HEAD; {{mode}} mode has nothing to reset",
+  resetHardDestructive:
+    "Hard reset permanently discards staged and worktree changes in {{total}} files ({{staged}} staged, {{tracked}} modified); {{untracked}} untracked files are not deleted. Uncommitted changes cannot be recovered via the Reflog",
+  resetDivergesUpstream:
+    "The target {{oid}} is behind upstream {{upstream}}: the reset drops commits already pushed, so the local branch will diverge from the remote (the remote still has them; pull or recover via the Reflog)",
+  resetModeRequired: "Missing reset mode (soft / mixed / hard)",
+  // ---- Conflict resolution (ADR-0033) ----
+  gateConflictPathRequired: "Missing the conflict file path",
+  gateConflictPathNotConflicted: "{{path}} is not a conflicted file right now; refresh and retry",
+  conflictMarkersPresent:
+    "{{path}} still contains conflict markers ({{marker}}); they will be committed as-is, so confirm they were handled by hand",
+  gateSummaryResolveConflictOurs:
+    "The selected side (ours) will overwrite the working tree copy of {{path}}; nothing is staged automatically",
+  gateSummaryResolveConflictTheirs:
+    "The selected side (theirs) will overwrite the working tree copy of {{path}}; nothing is staged automatically",
+  gateSummaryMarkConflictResolved:
+    "{{path}} will be marked as resolved (git add); the current working tree content is staged as-is",
+  resolveConflictOursDone:
+    "Overwrote {{path}} with the selected side (ours); the file is still unstaged, mark it resolved when ready",
+  resolveConflictTheirsDone:
+    "Overwrote {{path}} with the selected side (theirs); the file is still unstaged, mark it resolved when ready",
+  markConflictResolvedDone: "{{path}} is now marked as resolved",
+
+  // ---- worktree (ADR-0034) ----
+  gateWorktreePathRequired: "Missing worktree path",
+  gateWorktreePathInvalid: "Invalid path: {{path}}",
+  gateWorktreePathGitDir: "Refusing to create a worktree inside .git: {{path}}",
+  gateWorktreeTargetExists: "The target exists and is not a directory: {{path}}",
+  gateWorktreeTargetNotEmpty: "The target directory exists and is not empty: {{path}}",
+  gateWorktreeParentMissing: "The parent directory is missing or not a directory: {{path}}",
+  gateWorktreePathInaccessible: "The target path is not accessible: {{path}}",
+  gateWorktreeNotFound: "The path is not in the worktree list: {{path}}; reload and retry",
+  gateWorktreeIsMain: "Refusing to remove the main worktree: {{path}}",
+  gateWorktreeLocked: "Worktree {{path}} is locked; unlock it in the terminal first",
+  gateWorktreeUnavailable:
+    "The worktree directory is not accessible: {{path}}; if it was deleted by hand, run git worktree prune in the terminal",
+  worktreeRemoveDirty:
+    "Worktree {{path}} has uncommitted changes or untracked files, so Git will refuse to remove it; commit or clean it first, or handle it in the terminal (this app never uses --force)",
+  gateSummaryCreateWorktree: "Will create a worktree at {{path}} with branch {{branch}} checked out",
+  gateSummaryRemoveWorktree: "Will remove worktree {{path}} (uncommitted changes are not preserved)",
+  gateSummaryWorktreeUnavailable: "Cannot handle the worktree path {{path}}",
   gateSummaryBare: "Bare repositories do not support write operations",
   gateSummaryCherryPick: "Will {{action}} {{oid}} onto the current branch {{branch}}",
   gateSummaryCherryPickWithBase:
@@ -237,6 +334,12 @@ const errors = {
   gateSummaryDescription: "Will update the local description of branch {{branch}}",
   gateSummaryStage: "Will stage {{n}} files",
   gateSummaryUnstage: "Will unstage {{n}} files",
+  gateSummaryHunkStage: "Will stage hunk {{n}} of {{total}} in {{path}}",
+  gateSummaryHunkUnstage: "Will unstage hunk {{n}} of {{total}} in {{path}}",
+  gateSummaryHunkDiscard:
+    "Will discard hunk {{n}} of {{total}} in {{path}}; this cannot be recovered via git reflog",
+  gateSummaryDiscard:
+    "Will permanently discard unstaged changes in {{total}} files ({{tracked}} tracked, {{untracked}} untracked); this cannot be recovered via git reflog",
   gateSummaryCommit: "Will create a new commit",
   gateSummaryAmend: "Will replace the last commit {{oid}} ({{subject}}) with a new commit identity",
   gateSummaryAmendUnavailable: "Cannot amend the HEAD commit",
@@ -257,12 +360,21 @@ const errors = {
   gateSummaryFetch: "Will fetch remote updates",
   gateSummaryPull: "Will pull --ff-only ({{upstream}})",
   gateSummaryPush: "Will push the current branch ({{upstream}})",
+  gateSummaryFetchPrune:
+    "Will fetch remote updates and prune local remote-tracking refs of branches deleted remotely",
+  gateSummaryCheckoutRemote:
+    "Will check out remote branch {{branch}} as local branch {{local}} tracking it; modified files stay in the worktree",
+  gateSummaryPushSetUpstream:
+    "Will set upstream for local branch {{branch}} and push it to {{remote}}/{{branch}} (git push -u)",
+  gateSummaryTagPush: "Will push local tag {{tag}} to remote {{remote}} (refs/tags/{{tag}})",
   gateSummaryMerge: "Will merge {{branch}} into the current branch {{current}} (--no-edit)",
   gateSummaryRebase:
     "Will rebase the current branch {{current}} onto {{branch}}; restore with git rebase --abort",
   gateSummaryContinue: "Will run git {{action}} --continue to finish the current {{action}} operation",
   gateSummaryAbort:
     "Will run git {{action}} --abort to return to the pre-operation state; conflict resolutions made manually will be lost",
+  gateSummaryReset:
+    "Will reset {{branch}} to {{oid}} ({{mode}} mode, affecting {{total}} files; hard permanently discards uncommitted changes)",
   outcomeRejected: "Operation rejected: {{issues}}",
   outcomeDescriptionRemoved: "Removed the local description of branch {{branch}}",
   outcomeDescriptionUpdated: "Updated the local description of branch {{branch}}",
@@ -280,6 +392,13 @@ const errors = {
   outcomeSwitchedWithChanges: "Switched to branch {{branch}}; worktree changes in {{n}} files were kept",
   outcomeStaged: "Staged {{n}} files",
   outcomeUnstaged: "Unstaged {{n}} files",
+  outcomeHunkStaged: "Staged hunk {{n}} of {{path}}",
+  outcomeHunkUnstaged: "Unstaged hunk {{n}} of {{path}}",
+  outcomeHunkDiscarded: "Discarded hunk {{n}} of {{path}}",
+  outcomeDiscarded:
+    "Discarded unstaged changes in {{total}} files ({{tracked}} tracked restored, {{untracked}} untracked deleted)",
+  outcomeDiscardRejected: "Git refused to discard the unstaged changes; the worktree is unchanged",
+  outcomeDiscardFailed: "Failed to delete a file while discarding; deletions already done are not rolled back",
   outcomeCommitSucceeded: "Commit succeeded ({{oid}}); graph refreshed",
   outcomeAmendSucceeded: "Commit amended ({{oid}}); graph refreshed",
   outcomeCompleted: "Operation completed; graph refreshed",
@@ -303,8 +422,25 @@ const errors = {
   outcomeFetchSucceeded: "Fetched remote updates; graph refreshed",
   outcomePullSucceeded: "Pulled and fast-forwarded the current branch; worktree refreshed",
   outcomePushSucceeded: "Pushed the current branch",
+  outcomeFetchPruned:
+    "Fetched remote updates and pruned local remote-tracking refs of branches deleted remotely; graph refreshed",
+  outcomeCheckedOutRemoteBranch:
+    "Checked out remote branch {{branch}} as local branch {{local}} (tracking {{branch}}); graph refreshed",
+  outcomePushUpstreamSet: "Pushed {{branch}} and set upstream {{upstream}}",
+  outcomeTagPushed: "Pushed tag {{tag}} to remote {{remote}}",
+  outcomeCheckoutRemoteRejected:
+    "Git rejected checking out the remote branch (the local branch may exist but was not switched to); no stash / reset / clean was run. Handle it based on the diagnostics",
+  outcomeTagPushRejected:
+    "A tag with the same name already exists on the remote and points to another commit; this app does not provide force push, handle it in the terminal",
   outcomeMergeSucceeded: "Merged {{branch}} into the current branch",
   outcomeRebaseSucceeded: "Rebased the current branch onto {{branch}}",
+  outcomeResetSoft: "Soft reset to {{oid}}: the branch pointer moved back and all staged/worktree changes were kept; graph refreshed",
+  outcomeResetMixed:
+    "Mixed reset to {{oid}}: the branch pointer moved back and previously staged changes are now unstaged in the worktree; graph refreshed",
+  outcomeResetHard:
+    "Hard reset to {{oid}}: uncommitted changes were discarded and the previous commit can be recovered from the Reflog; graph refreshed",
+  outcomeResetRejected:
+    "Git rejected the reset ({{mode}} to {{oid}}); the branch pointer was not moved. Refresh and retry",
   outcomeRemoteAuthFailed:
     "Remote authentication failed; this app never accepts passwords. Run fetch/push once in the built-in terminal to authorize, or configure a system credential helper / SSH agent and retry",
   outcomePullNotFastForward:
@@ -317,6 +453,8 @@ const errors = {
   outcomeGitRejected: "Git rejected this operation",
   outcomeStdinWriteFailed: "Failed to write the path list to git",
   outcomeWaitFailed: "Failed while waiting for the git command to finish",
+  worktreeCreated: "Created worktree at {{path}} with branch {{branch}} checked out",
+  worktreeRemoved: "Removed worktree {{path}}",
 } satisfies ErrorsMessages;
 
 export default errors;

@@ -54,7 +54,7 @@ MVP 的写前 Gate 对 cherry-pick、revert 和切换分支一律要求工作区
 - 文件级 staged/unstaged diff 通过 Git CLI 生成（staged 用 `git diff --cached`，unstaged 用 `git diff`，未跟踪用 `git diff --no-index`）；对重命名同时传入旧路径与新路径。
 - stage 使用 `git add -A --pathspec-from-file=- --pathspec-file-nul`；unstage 在已有 HEAD 时使用 `git restore --staged`，unborn HEAD 时使用 `git rm --cached`；均只接受当前状态列表中存在的路径。
 - 暂存写操作沿用全局互斥、Gate、`WriteOutcomeDto` 状态机与写后刷新；失败不执行回滚，Git 自身保证不丢数据。
-- 首期不做部分行暂存、交互式暂存、自动 stash。
+- 首期不做部分行暂存、交互式暂存、自动 stash。（2026-11-20 由 [ADR-0027](0027-hunk-staging.md) 修订：hunk 级暂存 / 取消暂存 / 丢弃已开放；行级暂存与交互式暂存仍不提供，自动 stash 仍禁止。）
 
 ## 4. 验收（暂存区）
 

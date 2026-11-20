@@ -11,6 +11,7 @@ const detail = {
   loading: "Loading commit details…",
   commitMessage: "Commit message",
   parents: "Parents",
+  parentJumpTitle: "Locate and select parent commit {{oid}}",
   rootCommit: "(root commit)",
   containingBranches: "Contained in",
   noContainingBranches: "(no local branch contains this commit)",
@@ -22,6 +23,9 @@ const detail = {
   selectFileHint: "Select a file on the left to view its diff.",
   noExternalTool: "No external tool configured",
   openWithTool: "Open with {{name}}",
+  signatureSigned: "Signed ({{kind}})",
+  signatureTitle:
+    "This commit carries a {{kind}} signature; this app only labels the signature type and does not verify it",
 } satisfies DetailMessages;
 
 export default detail;

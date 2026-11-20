@@ -1,69 +1,45 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { AppMenus } from "./app/AppMenus";
-import { Banners } from "./app/Banners";
-import { RepositorySidebar } from "./app/RepositorySidebar";
-import { StatusBar, type StatusBarProps } from "./app/StatusBar";
-import { TopBar } from "./app/TopBar";
-import { WelcomePane } from "./app/WelcomePane";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppShell } from "./app/AppShell";
 import { useCommitMenus, type BranchMenuState, type RowMenuState, type TagMenuState } from "./app/useCommitMenus";
-import { useGlobalEsc, type ViewMode } from "./app/useGlobalEsc";
+import { useGlobalEsc } from "./app/useGlobalEsc";
+import { useGlobalShortcuts } from "./app/useGlobalShortcuts";
 import { useBottomPanel } from "./app/useBottomPanel";
 import { useDirectoryDiff } from "./app/useDirectoryDiff";
 import { formatHeadLabel } from "./app/headLabel";
-import { DETAIL_WIDTH, SIDEBAR_WIDTH, usePaneWidths } from "./app/usePaneWidths";
+import { usePaneWidths } from "./app/usePaneWidths";
 import { useFontScale } from "./app/useFontScale";
 import { useAppLanguage } from "./i18n/useAppLanguage";
-import { toLanguagePreference, useI18n } from "./i18n";
+import { useI18n } from "./i18n";
 import { useRefActions } from "./app/useRefActions";
+import { useRefNavigation } from "./app/useRefNavigation";
 import { useRemoteActions } from "./app/useRemoteActions";
 import { useStashActions } from "./app/useStashActions";
 import { useRepositorySession } from "./app/useRepositorySession";
+import { useRepoTabs, type RepoOpenResult } from "./app/useRepoTabs";
+import { useRepoTabState, useTabSelectionGuard } from "./app/useRepoTabState";
 import { useSettingsEntry } from "./app/useSettingsEntry";
-import {
-  clearSkippedUpdate,
-  openReleasePage,
-  pendingUpdate,
-  runUpdateCheck,
-  skipAvailableUpdate,
-  useUpdateCheck,
-} from "./app/useUpdateCheck";
+import { useStartupRestore } from "./app/useStartupRestore";
+import { useTabController } from "./app/useTabController";
+import { openReleasePage, runUpdateCheck, useUpdateCheck } from "./app/useUpdateCheck";
 import { useWriteFlow } from "./app/useWriteFlow";
-import { BranchCompareDialog } from "./features/compare/BranchCompareDialog";
-import { CompareBar } from "./features/compare/CompareBar";
-import { CompareView } from "./features/compare/CompareView";
 import { useCompareResult, useCompareSlots } from "./features/compare/useCompare";
-import { CommitDetailPane } from "./features/detail/CommitDetailPane";
-
-import { GraphPane } from "./features/graph/GraphPane";
-import { commitMenuItems } from "./features/graph/menus";
 import { branchSlot } from "./features/repository/branchMenus";
-import { SearchView } from "./features/search/SearchView";
 import { useSearch } from "./features/search/useSearch";
-import { SettingsDialog } from "./features/settings/SettingsDialog";
-
-import { StagingView } from "./features/staging/StagingView";
-import { PanelArea } from "./app/PanelArea";
-import { BranchDescriptionDialog } from "./features/write/BranchDescriptionDialog";
-import { TagDescriptionDialog } from "./features/write/TagDescriptionDialog";
-import { ConfirmWriteDialog } from "./features/write/ConfirmWriteDialog";
-import { PaneSplitter } from "./shared/PaneSplitter";
-import { displaySpec, useBindings, useKeybindings } from "./shared/keybindings";
 import { copyText } from "./shared/clipboard";
 import { errorText } from "./shared/error";
 import { ipc } from "./shared/ipc";
 import { initPlatform } from "./shared/platform";
-import type { CommitSummaryDto, GraphScope, RefDto } from "./shared/types";
+import type { RefDto } from "./shared/types";
 
 export default function App() {
   const { t } = useI18n();
-  const [scope, setScope] = useState<GraphScope>({ kind: "head" });
-  const [selectedOid, setSelectedOid] = useState<string | null>(null);
+  // 每标签视图态（scope / 选中 / 模式 / 过滤 / 滚动）；切标签时先快照再恢复（ADR-0032）。
+  const tabState = useRepoTabState();
+  const { scope, setScope, selectedOid, setSelectedOid, mode, setMode } = tabState;
+  const { pathFilter, twoDot } = tabState;
   // 搜索定位请求：seq 递增，保证同一提交再次定位时也会重新滚动一次。
   const focusSeq = useRef(0);
   const [focusTarget, setFocusTarget] = useState<{ oid: string; seq: number } | null>(null);
-  const [mode, setMode] = useState<ViewMode>("graph");
-  const [pathFilter, setPathFilter] = useState("");
-  const [twoDot, setTwoDot] = useState(false);
 
   const panel = useBottomPanel();
   const [branchCompareOpen, setBranchCompareOpen] = useState(false);
@@ -75,28 +51,42 @@ export default function App() {
   const [stagingBusy, setStagingBusy] = useState(false);
   const writeBusyRef = useRef(false);
 
-  const resetView = useCallback(() => {
-    setScope({ kind: "head" });
-    setSelectedOid(null);
+  const tabs = useRepoTabs();
+
+  const resetOverlays = useCallback(() => {
     setFocusTarget(null);
-    setPathFilter("");
-    setTwoDot(false);
-    setMode("graph");
     setRowMenu(null);
     setBranchMenu(null);
+    setTagMenu(null);
+    setBranchCompareOpen(false);
     setDescriptionBranch(null);
     setDescriptionTag(null);
   }, []);
 
-  const session = useRepositorySession({ scope, onOpened: resetView, writeBusyRef });
-  const { repo, info, settings, workspace, busy, error, diagnostic, toast, graph } = session;
-  const { setSettings, setError, setDiagnostic, setToast } = session;
-  const zoom = useFontScale({ settings, setSettings, onError: setError });
-  const language = useAppLanguage(settings, setSettings, setError);
+  // 打开或激活成功后：新标签归零视图态，已有标签恢复历史视图态。
+  const handleOpened = useCallback(
+    (result: RepoOpenResult) => {
+      tabState.switchTo(result.repoId, !result.wasOpen);
+      resetOverlays();
+    },
+    [tabState.switchTo, resetOverlays],
+  );
+
+  const session = useRepositorySession({
+    scope,
+    activeRepoId: tabs.activeId,
+    openTab: tabs.open,
+    onOpened: handleOpened,
+    onBackgroundChange: tabs.markDirty,
+    writeBusyRef,
+  });
+  const { repo, info, settings, busy, graph } = session;
+  const { setError, setDiagnostic, setToast } = session;
+  const zoom = useFontScale({ settings, setSettings: session.setSettings, onError: setError });
+  const language = useAppLanguage(settings, session.setSettings, setError);
 
   const panes = usePaneWidths();
   const updateState = useUpdateCheck();
-  const updateVersion = pendingUpdate(updateState)?.latest_version ?? null;
   const write = useWriteFlow({
     repo,
     info,
@@ -109,18 +99,25 @@ export default function App() {
     setToast,
   });
   writeBusyRef.current = write.busy || stagingBusy;
+  const remoteClearRef = useRef<() => void>(() => undefined);
 
-
-  // 切仓库时 Rust 已结束旧会话；收起面板并提示，避免误以为旧终端仍在。
-  const handleTerminalRepoChanged = useCallback(() => {
-    panel.collapse();
-    setToast(t("shell.terminalProcessEnded"));
-  }, [panel.collapse, setToast, t]);
+  useStartupRestore({
+    info,
+    settings,
+    open: session.open,
+    restore: tabs.restore,
+    switchTo: tabState.switchTo,
+    applyActiveState: session.applyActiveState,
+    reloadSettings: session.reloadSettings,
+    resetOverlays,
+    setToast,
+    setError,
+  });
 
   const settingsEntry = useSettingsEntry({ onOpenRepository: () => void session.pick() });
 
   const generation = repo?.generation ?? 0;
-  const slots = useCompareSlots(repo);
+  const slots = useCompareSlots(repo, tabs.activeId);
   const compare = useCompareResult(slots.base, slots.compare, generation, pathFilter, twoDot);
   const search = useSearch(generation, scope);
   // 搜索候选只从已加载的图谱页提取，避免为候选额外查询历史。
@@ -128,11 +125,10 @@ export default function App() {
     () => graph.view.rows.flatMap((row) => (row.commit ? [row.commit] : [])),
     [graph.view],
   );
-  // 关闭搜索框即丢弃本次搜索与输入，下次打开从空白开始。
+  // 关闭搜索只退回图谱：关键词与结果保留，直到显式「清空」或切换仓库/范围。
   const closeSearch = useCallback(() => {
     setMode("graph");
-    search.reset();
-  }, [search.reset]);
+  }, []);
   // 搜索结果直接在主图谱定位：关闭弹框、载入目标页，成功后再选中并居中。
   // 等目标页落地才发出滚动请求，避免对旧页的行先滚一次。
   const locateFromSearch = useCallback(
@@ -150,6 +146,34 @@ export default function App() {
     [closeSearch, graph.jumpTo],
   );
   const tools = settings?.external_tools ?? [];
+  // 侧栏/右键菜单的只读导航：单击定位提交、过滤图谱与复制 OID，不进入写流程。
+  const refNav = useRefNavigation({
+    scope, graph, setScope, setMode, setSelectedOid, setFocusTarget, setToast,
+  });
+
+  // 标签切换/关闭与每标签终端常驻（ADR-0032），细节见 useTabController。
+  const tabCtrl = useTabController({
+    tabs,
+    tabState,
+    panel,
+    forgetCompareTab: slots.forgetTab,
+    resetOverlays,
+    applyActiveState: session.applyActiveState,
+    reloadSettings: session.reloadSettings,
+    setError,
+    setToast,
+    terminalEndedMessage: t("shell.terminalProcessEnded"),
+  });
+
+  // 切回标签后若选中提交已不在新页（被改写/丢弃），清空选中而不是留着指向不存在的行。
+  const clearMissingSelection = useCallback(() => setSelectedOid(null), [setSelectedOid]);
+  useTabSelectionGuard(
+    graph,
+    repo?.path ?? null,
+    tabState.pendingSelection,
+    clearMissingSelection,
+    tabState.consumeSelection,
+  );
 
   useEffect(() => {
     if (info) initPlatform(info.platform);
@@ -210,26 +234,17 @@ export default function App() {
   // 全局 Esc 分层退出（放大 diff 已消费的按键让路），细节见 useGlobalEsc。
   useGlobalEsc({ closeSearch, mode, slots, setMode });
 
-  // 全局快捷键：终端开合与界面缩放，键位可在设置「快捷键」分区改。
-  // 在捕获阶段派发，终端里的按键也由窗口层接管，避免误发给 Shell。
-  const bindings = useBindings();
-  useKeybindings({
-    "terminal.toggle": repo ? panel.toggleTerminal : undefined,
-    "zoom.in": zoom.zoomIn,
-    "zoom.out": zoom.zoomOut,
-    "zoom.reset": zoom.resetZoom,
-  });
-
   // 描述编辑只依赖 Git CLI；不受中断态、bare 工作区写限制影响。
   const descriptionDisabled = busy || write.busy || !repo || !info?.git_version_supported;
 
-  const descriptionSaved = useCallback(
+  // 暂存区、分支/标签/stash 等写操作成功后刷新仓库快照与图谱。
+  const stagingMutated = useCallback(
     async (message: string) => {
       const repoPath = repo?.path;
-      setDescriptionBranch(null);
-      setDescriptionTag(null);
       setToast(message);
       setError(null);
+      setDiagnostic(null);
+      remoteClearRef.current();
       try {
         const [state, status] = await session.readSnapshot();
         if (!repoPath || state.path === repoPath) {
@@ -241,359 +256,130 @@ export default function App() {
       }
     },
     // 快照函数来自 session 且引用稳定，只在仓库路径或 reload 变化时重建。
-    [repo?.path, session.readSnapshot, session.applySnapshot, graph.reload, setToast, setError],
+    [repo?.path, session.readSnapshot, session.applySnapshot, graph.reload, setToast, setError, setDiagnostic],
   );
 
-  // 暂存区写成功后刷新仓库快照与图谱；暂存列表由 StagingView 自行重载。
-  const stagingMutated = useCallback(
+  const descriptionSaved = useCallback(
     async (message: string) => {
-      const repoPath = repo?.path;
-      setToast(message);
-      setError(null);
-      try {
-        const [state, status] = await session.readSnapshot();
-        if (!repoPath || state.path === repoPath) {
-          session.applySnapshot(state, status);
-          await graph.reload({ keepRows: true });
-        }
-      } catch (err) {
-        setError(errorText(err));
-      }
+      setDescriptionBranch(null);
+      setDescriptionTag(null);
+      await stagingMutated(message);
     },
-    [repo?.path, session.readSnapshot, session.applySnapshot, graph.reload, setToast, setError],
+    [stagingMutated],
   );
 
-  const localBranches = repo ? repo.refs.filter((ref) => ref.kind === "local_branch") : [];
-  const tags = repo ? repo.refs.filter((ref) => ref.kind === "tag") : [];
-  const refs = useRefActions({ repo, writeDisabled: write.disabled, onMutated: stagingMutated });
+  // 可导航引用：本地分支、远程分支与标签（HEAD/other 不参与侧栏、过滤与对比）。
+  const refs = repo ? repo.refs.filter((ref) => ref.kind !== "head" && ref.kind !== "other") : [];
+  const refActions = useRefActions({ repo, writeDisabled: write.disabled, onMutated: stagingMutated });
   const stash = useStashActions({ writeDisabled: write.disabled, onMutated: stagingMutated });
-  const remote = useRemoteActions({ writeDisabled: write.disabled, onMutated: stagingMutated });
+  const remote = useRemoteActions({ repo, writeDisabled: write.disabled, onMutated: stagingMutated });
+  remoteClearRef.current = remote.clearError;
+  // 全局快捷键：终端/缩放（可改键）、搜索、刷新与视图切换，细节见 useGlobalShortcuts。
+  useGlobalShortcuts({
+    repoOpen: Boolean(repo),
+    panel,
+    zoom,
+    refresh: session.refresh,
+    clearRemoteError: remote.clearError,
+    setMode,
+  });
   // 右键菜单条目组装（提交行/分支/标签共享写与对比动作），细节见 useCommitMenus。
-  const { commitActions, activeRowMenuItems, activeBranchMenuItems, activeTagMenuItems } =
-    useCommitMenus({
-      rowMenu,
-      branchMenu,
-      tagMenu,
-      repo,
-      slots,
-      writeDisabled: write.disabled,
-      descriptionDisabled,
-      onCopyMessage: copyDescription,
-      ...write.menuWriteActions,
-      onDeleteTag: (name) => refs.openDeleteTag(name),
-      onEditDescription: (shortName) => {
-        setError(null);
-        setDiagnostic(null);
-        setDescriptionBranch(shortName);
-      },
-      onEditTagDescription: (tag) => {
-        setError(null);
-        setDiagnostic(null);
-        setDescriptionTag(tag);
-      },
-      onSelectCommit: (oid) => {
-        setSelectedOid(oid);
-        setMode("graph");
-      },
-      ...refs.menuActions,
-    });
+  const commitMenus = useCommitMenus({
+    rowMenu,
+    branchMenu,
+    tagMenu,
+    repo,
+    slots,
+    writeDisabled: write.disabled,
+    descriptionDisabled,
+    onCopyMessage: copyDescription,
+    ...write.menuWriteActions,
+    onDeleteTag: (name) => refActions.openDeleteTag(name),
+    onEditDescription: (shortName) => {
+      setError(null);
+      setDiagnostic(null);
+      setDescriptionBranch(shortName);
+    },
+    onEditTagDescription: (tag) => {
+      setError(null);
+      setDiagnostic(null);
+      setDescriptionTag(tag);
+    },
+    onSelectCommit: (oid) => {
+      setSelectedOid(oid);
+      setMode("graph");
+    },
+    onSwitchBranch: (branch) => void write.start("switch_branch", { branch: branch.short_name }),
+    onRevealRef: refNav.navigate,
+    onFilterRef: refNav.filter,
+    ...refActions.menuActions,
+  });
 
   const headLabel = formatHeadLabel(repo, t("shell.headBranchFallback"), t("shell.unbornBranch"));
 
-  const statusBarProps: StatusBarProps = {
-    busy,
-    repo,
-    info,
-    settings,
-    fontScale: zoom.fontScale,
-    terminalActive: panel.panelOpen && panel.activeTab === "terminal",
-    terminalRunning: panel.terminalRunning,
-    terminalShortcut: displaySpec(bindings["terminal.toggle"]),
-    updateVersion,
-    onToggleTerminal: panel.toggleTerminal,
-    onOpenUpdate: () => void openReleasePage(),
-  };
-
   return (
-    <div className="app">
-      <TopBar
-        repo={repo}
-        workspace={workspace}
-        recent={settings?.recent_repositories ?? []}
-        busy={busy}
-        mode={mode}
-        compareReady={Boolean(slots.base && slots.compare)}
-        localBranchCount={localBranches.length}
-        onOpenRepo={(path) => void session.open(path)}
-        onForgetRepo={(path) => void session.forget(path)}
-        onPickRepo={() => void session.pick()}
-        onRefresh={() => void session.refresh()}
-        onOpenSettings={() => settingsEntry.openSettings()}
-        closeSearch={closeSearch}
-        setMode={setMode}
-        onOpenBranchCompare={() => setBranchCompareOpen(true)}
-      />
-
-      <div className="layout">
-        <RepositorySidebar
-          width={panes.sidebarWidth}
-          repo={repo}
-          headLabel={headLabel}
-          localBranches={localBranches}
-          tags={tags}
-          writeDisabled={write.disabled}
-          onCompareBranches={() => setBranchCompareOpen(true)}
-          onSwitchBranch={(branch) => void write.start("switch_branch", { branch: branch.short_name })}
-          onBranchMenu={(event, branch) => {
-            setBranchMenu({ x: event.clientX, y: event.clientY, branch });
-          }}
-          onCreateBranch={() => refs.openCreateBranch()}
-          onTagMenu={(event, tag) => setTagMenu({ x: event.clientX, y: event.clientY, tag })}
-        />
-        <PaneSplitter
-          label={t("shell.sidebarResizeLabel")}
-          width={panes.sidebarWidth}
-          min={SIDEBAR_WIDTH.min}
-          max={SIDEBAR_WIDTH.max}
-          defaultValue={SIDEBAR_WIDTH.reset}
-          onChange={panes.setSidebarWidth}
-        />
-
-        <main className="main">
-          <Banners
-            repo={repo}
-            info={info}
-            error={error}
-            diagnostic={diagnostic}
-            interruptionDisabled={write.interruptionDisabled}
-            onInterruptionAction={(kind, interruption) =>
-              void write.startInterruption(kind, interruption)
-            }
-            onCopyDiagnostic={() => void copyText(diagnostic ?? "")}
-          />
-
-          {repo ? (
-            mode === "compare" && slots.base && slots.compare ? (
-              <CompareView
-                repoGeneration={repo.generation}
-                base={slots.base}
-                compare={slots.compare}
-                loader={compare}
-                pathFilter={pathFilter}
-                onPathFilterChange={setPathFilter}
-                twoDot={twoDot}
-                onTwoDotChange={setTwoDot}
-                tools={tools}
-                defaultTool={settings?.default_tool ?? null}
-                commitMenu={(commit) => commitMenuItems(commit, commitActions)}
-                onOpenCommit={(oid) => {
-                  setSelectedOid(oid);
-                  setMode("graph");
-                }}
-                onExternalDiff={(toolIndex, path) => {
-                  if (slots.base && slots.compare) {
-                    void launchExternal(
-                      toolIndex,
-                      slots.base.oid,
-                      slots.compare.oid,
-                      path,
-                      !twoDot,
-                    );
-                  }
-                }}
-                onDirectoryDiff={launchDirectoryDiff}
-                onBack={() => setMode("graph")}
-              />
-            ) : mode === "staging" ? (
-              <StagingView
-                repo={repo}
-                writeDisabled={write.disabled}
-                onBusyChange={setStagingBusy}
-                onMutated={stagingMutated}
-                onOpenStash={stash.openStash}
-                onOpenTerminal={panel.openTerminal}
-                onExit={() => setMode("graph")}
-              />
-            ) : (
-              <>
-                <CompareBar
-                  repo={repo}
-                  base={slots.base}
-                  compare={slots.compare}
-                  pending={slots.pending}
-                  invalidRef={compare.invalidRef}
-                  onClear={slots.clear}
-                  onSwap={slots.swap}
-                  onResolvePending={slots.resolvePending}
-                />
-                <div className={selectedOid ? "workspace detail-open" : "workspace"}>
-                  <GraphPane
-                    repo={repo}
-                    scope={scope}
-                    onScopeChange={(next) => {
-                      setScope(next);
-                      setSelectedOid(null);
-                      setFocusTarget(null);
-                    }}
-                    graph={graph}
-                    selectedOid={selectedOid}
-                    focusedOid={focusTarget?.oid ?? null}
-                    focusSeq={focusTarget?.seq ?? null}
-                    onSelect={(oid) => {
-                      setSelectedOid(oid);
-                      setFocusTarget(null);
-                    }}
-                    onCtrlSelect={slots.ctrlSelect}
-                    onContextMenu={(event: MouseEvent, commit: CommitSummaryDto, selectedCommits: CommitSummaryDto[]) => {
-                      setRowMenu({ x: event.clientX, y: event.clientY, commit, selection: selectedCommits });
-                    }}
-                    remote={remote}
-                  />
-                  {selectedOid && (
-                    <>
-                      <PaneSplitter
-                        label={t("shell.detailResizeLabel")}
-                        width={panes.detailWidth}
-                        min={DETAIL_WIDTH.min}
-                        max={panes.detailMax}
-                        defaultValue={DETAIL_WIDTH.reset}
-                        invert
-                        onChange={panes.setDetailWidth}
-                      />
-                      <CommitDetailPane
-                        repo={repo}
-                        oid={selectedOid}
-                        tools={tools}
-                        width={panes.detailWidth}
-                        onClose={() => setSelectedOid(null)}
-                        onBranchJump={(branch) => {
-                          setScope({ kind: "branch", value: branch });
-                          setSelectedOid(null);
-                          setFocusTarget(null);
-                        }}
-                        onExternalDiff={(toolIndex, path, left) =>
-                          void launchExternal(toolIndex, left, selectedOid, path, false)
-                        }
-                      />
-                    </>
-                  )}
-                </div>
-              </>
-            )
-          ) : (
-            <WelcomePane busy={busy} onPick={() => void session.pick()} />
-          )}
-        </main>
-      </div>
-      <PanelArea
-        panel={panel}
-        repo={repo}
-        lazygitConfig={settings?.lazygit_path ?? ""}
-        shellProfile={settings?.shell_profile === "git_bash" ? "git_bash" : "default"}
-        onShellProfileSaved={setSettings}
-        onOpenSettings={() => settingsEntry.openSettings()}
-        onRepoChanged={handleTerminalRepoChanged}
-        terminalShortcut={displaySpec(bindings["terminal.toggle"])}
-      />
-      <StatusBar {...statusBarProps} />
-      {mode === "search" && repo && (
-        <SearchView
-          repo={repo}
-          search={search}
-          commits={searchCommits}
-          onLocateCommit={locateFromSearch}
-          onClose={closeSearch}
-        />
-      )}
-
-      <AppMenus
-        rowMenu={rowMenu}
-        branchMenu={branchMenu}
-        tagMenu={tagMenu}
-        rowItems={activeRowMenuItems}
-        branchItems={activeBranchMenuItems}
-        tagItems={activeTagMenuItems}
-        onRowClose={() => setRowMenu(null)}
-        onBranchClose={() => setBranchMenu(null)}
-        onTagClose={() => setTagMenu(null)}
-      />
-
-      {descriptionBranch && (
-        <BranchDescriptionDialog
-          branch={descriptionBranch}
-          onCancel={() => setDescriptionBranch(null)}
-          onSaved={(message) => void descriptionSaved(message)}
-        />
-      )}
-
-      {descriptionTag && (
-        <TagDescriptionDialog
-          tag={descriptionTag.short_name}
-          description={descriptionTag.description ?? ""}
-          onCancel={() => setDescriptionTag(null)}
-          onSaved={(message) => void descriptionSaved(message)}
-        />
-      )}
-
-      {write.prompt && (
-        <ConfirmWriteDialog
-          kind={write.prompt.kind}
-          commit={write.prompt.commit}
-          commits={write.prompt.commits}
-          branch={write.prompt.branch}
-          interruption={write.prompt.interruption}
-          gate={write.prompt.gate}
-          gateError={write.prompt.gateError}
-          validating={write.validating}
-          mainline={write.mainline}
-          onMainlineChange={write.changeMainline}
-          busy={write.busy}
-          onCancel={write.cancel}
-          onConfirm={() => void write.run()}
-        />
-      )}
-      {refs.dialogs}
-      {stash.dialog}
-      {toast && <div className="toast" role="status">{toast}</div>}
-      {branchCompareOpen && repo && localBranches.length >= 2 && (
-        <BranchCompareDialog
-          branches={localBranches}
-          headBranch={repo.head.branch ?? null}
-          initialBase={slots.base?.label}
-          initialCompare={slots.compare?.label}
-          onCancel={() => setBranchCompareOpen(false)}
-          onConfirm={(base, compare) => {
-            slots.setSide("base", branchSlot(base));
-            slots.setSide("compare", branchSlot(compare));
-            setBranchCompareOpen(false);
-          }}
-        />
-      )}
-
-      {settingsEntry.open && settings && (
-        <SettingsDialog
-          settings={settings}
-          initialSection={settingsEntry.section}
-          language={toLanguagePreference(settings.language)}
-          onLanguageChange={language.changeLanguage}
-          info={info}
-          fontScale={zoom.fontScale}
-          updateCheck={updateState}
-          updateOffer={pendingUpdate(updateState)}
-          onCheckUpdate={() => runUpdateCheck()}
-          onOpenDownloadPage={openReleasePage}
-          onSkipUpdate={skipAvailableUpdate}
-          onClearSkippedUpdate={clearSkippedUpdate}
-          onZoomIn={zoom.zoomIn}
-          onZoomOut={zoom.zoomOut}
-          onResetZoom={zoom.resetZoom}
-          onClose={settingsEntry.closeSettings}
-          onSaved={setSettings}
-          onError={setError}
-        />
-      )}
-
-
-    </div>
+    <AppShell
+      session={session}
+      tabs={tabs}
+      tabCtrl={tabCtrl}
+      tabState={tabState}
+      slots={slots}
+      compare={compare}
+      search={search}
+      searchCommits={searchCommits}
+      graph={graph}
+      panel={panel}
+      remote={remote}
+      stash={stash}
+      write={write}
+      refActions={refActions}
+      commitMenus={commitMenus}
+      panes={panes}
+      settingsEntry={settingsEntry}
+      zoom={zoom}
+      language={language}
+      updateState={updateState}
+      refs={refs}
+      tools={tools}
+      headLabel={headLabel}
+      selectedOid={selectedOid}
+      focusTarget={focusTarget}
+      pathFilter={pathFilter}
+      twoDot={twoDot}
+      rowMenu={rowMenu}
+      branchMenu={branchMenu}
+      tagMenu={tagMenu}
+      branchCompareOpen={branchCompareOpen}
+      descriptionBranch={descriptionBranch}
+      descriptionTag={descriptionTag}
+      launchExternal={launchExternal}
+      launchDirectoryDiff={launchDirectoryDiff}
+      stagingMutated={stagingMutated}
+      locateFromSearch={locateFromSearch}
+      closeSearch={closeSearch}
+      onNavigateRef={refNav.navigate}
+      onCopyOid={(oid) => void refNav.copyOid(oid)}
+      onOpenUpdate={() => void openReleasePage()}
+      onOpenBranchCompare={() => setBranchCompareOpen(true)}
+      onCloseBranchCompare={() => setBranchCompareOpen(false)}
+      onConfirmBranchCompare={(base, compare) => {
+        slots.setSide("base", branchSlot(base));
+        slots.setSide("compare", branchSlot(compare));
+        setBranchCompareOpen(false);
+      }}
+      onBranchMenu={(event, branch) => {
+        setBranchMenu({ x: event.clientX, y: event.clientY, branch });
+      }}
+      onTagMenu={(event, tag) => setTagMenu({ x: event.clientX, y: event.clientY, tag })}
+      onCloseRowMenu={() => setRowMenu(null)}
+      onCloseBranchMenu={() => setBranchMenu(null)}
+      onCloseTagMenu={() => setTagMenu(null)}
+      onCloseDescriptionBranch={() => setDescriptionBranch(null)}
+      onCloseDescriptionTag={() => setDescriptionTag(null)}
+      onDescriptionSaved={(message) => void descriptionSaved(message)}
+      onFocusTarget={setFocusTarget}
+      onRowMenu={setRowMenu}
+      onStagingBusy={setStagingBusy}
+    />
   );
 }

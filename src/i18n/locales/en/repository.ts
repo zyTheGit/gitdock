@@ -18,6 +18,8 @@ const repository = {
   pickDialogTitle: "Choose a Git repository",
   watchError: "Failed to watch repository changes: {{error}}",
   branchMenuEditDescription: "Edit description",
+  branchMenuSwitchTo: "Switch to this branch",
+  branchMenuFilterGraph: "Filter graph by this ref",
   branchMenuCompareWithHead: "Compare with HEAD",
   branchMenuSetBase: "Set as compare Base",
   branchMenuSetCompare: "Set as compare Compare",
@@ -26,6 +28,11 @@ const repository = {
   branchMenuRename: "Rename",
   branchMenuDelete: "Delete branch",
   branchMenuDeleteRemote: "Delete local & remote branch",
+  branchMenuCheckoutRemote: "Check out as local branch…",
+  syncAhead: "{{n}} commits ahead of upstream",
+  syncAheadWithUpstream: "{{n}} commits ahead of {{upstream}}",
+  syncBehind: "{{n}} commits behind upstream",
+  syncBehindWithUpstream: "{{n}} commits behind {{upstream}}",
   createBranch: "New branch",
   createBranchTitle: "Create local branch",
   branchNameLabel: "Branch name",
@@ -47,8 +54,43 @@ const repository = {
   tags: "Tags",
   noTags: "No local tags",
   tagMenuEditDescription: "Edit description",
+  tagMenuRevealCommit: "Reveal its commit",
   tagMenuDelete: "Delete tag",
   tagMenuDeleteRemote: "Delete local & remote tag",
+  tagMenuPush: "Push tag to remote…",
+  // ---- Remote sync dialogs (ADR-0028) ----
+  checkoutRemoteTitle: "Check out remote branch",
+  checkoutRemoteLocalLabel: "Local branch name",
+  checkoutRemoteHint:
+    "Runs git switch -c --track: creates a local branch tracking {{branch}}. Modified files are never stashed automatically; the pre-write check lists affected paths.",
+  checkoutRemoteLocalExists: "Local branch {{branch}} already exists; choose another name",
+  checkoutRemoteNameRequired: "Enter a non-empty local branch name",
+  checkoutRemoteConfirm: "Check out",
+  checkoutRemoteBusy: "Checking out…",
+  pushUpstreamTitle: "First push and set upstream",
+  pushUpstreamHint:
+    "Branch {{branch}} has no upstream; confirming runs git push -u {{remote}} {{branch}} and sets up tracking.",
+  pushUpstreamHintPick:
+    "Branch {{branch}} has no upstream; choose the push remote, then confirming runs git push -u and sets up tracking.",
+  pushUpstreamWarning:
+    "The push creates or updates the same-name branch on the remote; this app does not provide force push.",
+  pushUpstreamAmbiguous:
+    "This repository has multiple remotes and no origin; choose the push target below first.",
+  pushUpstreamConfirm: "Set upstream and push",
+  pushUpstreamBusy: "Pushing…",
+  pushTagTitle: "Push tag to remote",
+  pushTagHint: "Runs git push {{remote}} refs/tags/{{tag}}.",
+  pushTagHintPick:
+    "Tag {{tag}} will be pushed; choose the remote, then confirming runs git push refs/tags/{{tag}}.",
+  pushTagWarning:
+    "The tag becomes visible to collaborators immediately; this app provides neither force push nor remote tag deletion here.",
+  pushTagAmbiguous:
+    "This repository has multiple remotes and no origin; choose the push target below first.",
+  pushTagConfirm: "Push tag",
+  pushTagBusy: "Pushing…",
+  pushRemoteLabel: "Push remote",
+  pushRemotePlaceholder: "Choose a remote…",
+  pushRemoteResolved: "Push remote: {{remote}}",
   deleteRef: "Delete",
   refDeleting: "Deleting…",
   createTag: "New tag",
@@ -72,6 +114,16 @@ const repository = {
   deleteTagRemoteTitle: "Delete local & remote tag",
   deleteTagRemoteWarning:
     "Deletes the local tag first, then the same-name tag on origin; removing a remote tag can break other people's builds or version traceability, so it must be recreated and pushed again.",
+  // ---- Multi-repo tabs (ADR-0032) ----
+  tabBarAria: "Open repository tabs",
+  tabOpenTitle: "Open another repository",
+  tabOpenAria: "Open repository",
+  tabCloseTitle: "Close {{name}}",
+  tabCloseAria: "Close repository {{name}}",
+  tabDirtyTitle: "{{name}} has new changes",
+  tabDirtyAria: "{{name}} has new changes and refreshes when you switch back",
+  tabOpening: "Opening…",
+  tabRestoreFailed: "{{count}} repositories could not be restored: {{paths}}",
 } satisfies RepositoryMessages;
 
 export default repository;

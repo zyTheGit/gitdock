@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   verify:
-    # 三平台同一门禁（npm run check：i18n 完整性、前端构建、fmt、clippy、workspace 测试）。
+    # 三平台同一门禁（npm run check：i18n 完整性、IPC 契约、npm 许可证、前端构建、fmt、clippy、workspace 测试）。
     # Windows 为主平台；ubuntu-22.04 取 glibc 2.35 基线（产物向上兼容 24.04+）；
     # macos-latest 为 Apple Silicon，对齐 docs/08「优先 Apple Silicon」推荐。
     # macOS/Linux 属准入 Spike 验证，不代表正式支持（见 docs/09 差距清单）。

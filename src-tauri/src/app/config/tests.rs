@@ -490,3 +490,34 @@ fn invalid_external_tool_is_rejected() {
     let err = save(dir.path(), &settings).expect_err("应拒绝空名称");
     assert_eq!(err.code, ErrorCode::InvalidArgument);
 }
+
+#[test]
+fn open_repository_tabs_roundtrip_when_saved() {
+    let dir = temp_dir();
+    let settings = SettingsDto {
+        open_repositories: vec!["C:/work/a".to_string(), "C:/work/b".to_string()],
+        active_repository: Some("C:/work/b".to_string()),
+        ..Default::default()
+    };
+    let saved = save(dir.path(), &settings).expect("保存设置失败");
+    assert_eq!(saved.open_repositories, settings.open_repositories);
+    assert_eq!(saved.active_repository, settings.active_repository);
+
+    let loaded = load(dir.path());
+    assert_eq!(loaded.open_repositories, settings.open_repositories);
+    assert_eq!(loaded.active_repository.as_deref(), Some("C:/work/b"));
+}
+
+#[test]
+fn missing_open_repository_tabs_default_to_empty() {
+    let dir = temp_dir();
+    // 旧配置没有这两个字段：读取时回落为空列表与无活动仓库，且不报错。
+    std::fs::write(
+        settings_path(dir.path()),
+        br#"{"schema_version":1,"recent_repositories":[],"external_tools":[],"restore_last_repository":true}"#,
+    )
+    .expect("写入旧版设置失败");
+    let loaded = load(dir.path());
+    assert!(loaded.open_repositories.is_empty());
+    assert_eq!(loaded.active_repository, None);
+}

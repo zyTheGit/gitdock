@@ -3,6 +3,8 @@ import { useEffect } from "react";
 export interface MenuItem {
   label: string;
   disabled?: boolean;
+  /** 破坏性操作：label 用危险色显示（例如重写历史的重置）。 */
+  danger?: boolean;
   onSelect: () => void;
 }
 
@@ -42,6 +44,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         <button
           key={item.label}
           role="menuitem"
+          className={item.danger ? "danger-text" : undefined}
           disabled={item.disabled}
           onClick={() => {
             onClose();

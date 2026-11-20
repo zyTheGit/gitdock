@@ -95,9 +95,13 @@ const settings = {
   actionZoomIn: "界面放大一档",
   actionZoomOut: "界面缩小一档",
   actionZoomReset: "界面恢复 100%",
+  actionSearchOpen: "打开提交搜索",
+  actionRefresh: "手动刷新仓库",
+  actionViewGraph: "切换到图谱视图",
+  actionViewStaging: "切换到暂存区视图",
   fixedEsc: "逐层退出：取消待替换的槽位 → 退出搜索 → 退出对比 → 清空双槽；也用于收起放大的 diff、关闭菜单与仓库切换器",
   fixedTerminalZoom: "终端整窗放大 / 还原（只在终端面板内生效）",
-  fixedArrows: "仓库切换器、搜索建议里移动高亮；拖拽分隔条时调整栏宽，按住 Shift 步长更大",
+  fixedArrows: "图谱列表聚焦时上下移动选中提交；仓库切换器、搜索建议里移动高亮；拖拽分隔条时调整栏宽，按住 Shift 步长更大",
   fixedEnter: "确认仓库切换器 / 搜索输入框里的高亮项",
   fixedCtrlClick: "{{modifier}}+点击：把提交放进对比双槽，第二次点击换到另一个槽位",
   fixedSettings: "{{modifier}}+逗号：打开设置（入口在顶栏设置按钮）",
@@ -106,6 +110,8 @@ const settings = {
   fixedShiftClick:
     "Shift+点击：按当前视图顺序批量选择提交区间；多选后右键只显示批量操作",
   fixedAltClick: "{{alt}}+点击：从批量选择中单独加入或移除一个提交",
+  fixedSlashSearch: "非输入框聚焦时按斜杠：打开提交搜索",
+  fixedDiffFileSwitch: "{{alt}}+上 / 下方向键：在 diff 视图的变更文件间切换上一个 / 下一个",
 
   // Git 配置：通用
   gitConfigTitle: "Git 配置",

@@ -1,8 +1,17 @@
-import { useRef } from "react";
+import { useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Icon } from "../../assets/icons";
 import { useI18n } from "../../i18n";
+import {
+  buildFileTree,
+  collectFiles,
+  flattenVisibleTree,
+  type FileTreeNode,
+  type FileTreeRow,
+} from "../../shared/fileTree";
 import { STATUS_LETTER, statusLabelKey } from "../../shared/fileStatus";
 import type { StagingFileDto } from "../../shared/types";
+import { useFileListMode } from "../../shared/useFileListMode";
 
 /** 暂存区列别：未暂存或已暂存。 */
 export type Side = "staged" | "unstaged";
@@ -21,7 +30,6 @@ function pathLabel(file: StagingFileDto): string {
     : file.path;
 }
 
-
 interface StagingFileListProps {
   side: Side;
   files: StagingFileDto[];
@@ -31,7 +39,11 @@ interface StagingFileListProps {
   disabled: boolean;
   onSelect: (file: StagingFileDto, side: Side) => void;
   onToggleCheck: (side: Side, path: string) => void;
+  /** 目录行勾选：一次切换该目录下全部文件的勾选状态。 */
+  onToggleCheckGroup?: (side: Side, paths: string[], value: boolean) => void;
   onRowAction: (side: Side, path: string) => void;
+  /** 文件行右键：由调用方决定菜单项（扁平与目录树两种形态共用）。 */
+  onRowContextMenu?: (event: ReactMouseEvent, side: Side, path: string) => void;
 }
 
 /** 暂存区单列文件列表：虚拟化渲染，未暂存/已暂存两列各自实例化、独立滚动。 */
@@ -43,16 +55,66 @@ export function StagingFileList({
   disabled,
   onSelect,
   onToggleCheck,
+  onToggleCheckGroup,
   onRowAction,
+  onRowContextMenu,
 }: StagingFileListProps) {
   const { t } = useI18n();
+  const [mode] = useFileListMode();
+  const [collapsedDirs, setCollapsedDirs] = useState<ReadonlySet<string>>(() => new Set());
+  const tree = useMemo(() => buildFileTree(files), [files]);
+  const rows = useMemo<FileTreeRow<StagingFileDto>[]>(() => {
+    if (mode === "tree") {
+      return flattenVisibleTree(tree, collapsedDirs);
+    }
+    return files.map((file) => ({
+      kind: "file",
+      key: `f:${file.path}`,
+      path: file.path,
+      name: file.path,
+      depth: 0,
+      item: file,
+      dirPath: "",
+    }));
+  }, [mode, tree, files, collapsedDirs]);
+
+  // 目录路径 → 其下全部文件路径，供目录行三态勾选与整目录暂存使用。
+  const dirPaths = useMemo(() => {
+    const map = new Map<string, string[]>();
+    const walk = (nodes: FileTreeNode<StagingFileDto>[]) => {
+      for (const node of nodes) {
+        if (node.kind !== "dir") {
+          continue;
+        }
+        map.set(
+          node.path,
+          collectFiles(node).map((file) => file.path),
+        );
+        walk(node.children);
+      }
+    };
+    walk(tree);
+    return map;
+  }, [tree]);
+
+  const toggleDir = (path: string) =>
+    setCollapsedDirs((current) => {
+      const next = new Set(current);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
-    count: files.length,
+    count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_ESTIMATE,
     overscan: LIST_OVERSCAN,
-    getItemKey: (index) => files[index]?.path ?? index,
+    getItemKey: (index) => rows[index]?.key ?? index,
   });
   const action = side === "unstaged" ? t("staging.actionStage") : t("staging.actionUnstage");
 
@@ -74,15 +136,95 @@ export function StagingFileList({
     );
   };
 
+  const renderDirRow = (row: Extract<FileTreeRow<StagingFileDto>, { kind: "dir" }>) => {
+    const paths = dirPaths.get(row.path) ?? [];
+    const selected = paths.filter((path) => checked[sideKey(side, path)]);
+    const allChecked = paths.length > 0 && selected.length === paths.length;
+    const someChecked = selected.length > 0 && !allChecked;
+    return (
+      <div className="staging-row staging-dir-row" style={{ paddingLeft: 6 + row.depth * 12 }}>
+        {onToggleCheckGroup && (
+          <input
+            className="staging-check"
+            type="checkbox"
+            checked={allChecked}
+            disabled={disabled || paths.length === 0}
+            ref={(node) => {
+              if (node) {
+                node.indeterminate = someChecked;
+              }
+            }}
+            onChange={(event) => onToggleCheckGroup(side, paths, event.target.checked)}
+            onClick={(event) => event.stopPropagation()}
+            aria-label={t("staging.selectDirFiles", { path: row.path })}
+          />
+        )}
+        <button
+          className="staging-dir-toggle"
+          aria-expanded={!collapsedDirs.has(row.path)}
+          onClick={() => toggleDir(row.path)}
+          title={row.path}
+        >
+          <Icon name="chevronDown" className="file-tree-chevron" />
+          <span className="staging-path mono">{row.name}</span>
+          <span className="staging-stats muted">{row.fileCount}</span>
+        </button>
+      </div>
+    );
+  };
+
+  const renderFileRow = (row: Extract<FileTreeRow<StagingFileDto>, { kind: "file" }>) => {
+    const file = row.item;
+    const active = activePath === file.path;
+    return (
+      <div
+        className={active ? "staging-row active" : "staging-row"}
+        style={mode === "tree" ? { paddingLeft: 6 + row.depth * 12 } : undefined}
+        onClick={() => onSelect(file, side)}
+        onContextMenu={
+          onRowContextMenu ? (event) => onRowContextMenu(event, side, file.path) : undefined
+        }
+      >
+        <input
+          className="staging-check"
+          type="checkbox"
+          checked={Boolean(checked[sideKey(side, file.path)])}
+          onChange={() => onToggleCheck(side, file.path)}
+          onClick={(event) => event.stopPropagation()}
+          aria-label={t("staging.selectFile", { path: file.path })}
+        />
+        <span
+          className={`file-status file-status-${file.status}`}
+          title={t(statusLabelKey(file.status))}
+        >
+          {STATUS_LETTER[file.status]}
+        </span>
+        <span className="staging-path mono" title={pathLabel(file)}>
+          {mode === "tree" ? row.name : pathLabel(file)}
+        </span>
+        <span className="staging-stats">{fileMeta(file)}</span>
+        <button
+          className="staging-row-action"
+          disabled={disabled}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRowAction(side, file.path);
+          }}
+        >
+          {action}
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="staging-list" ref={scrollRef}>
       <ul className="staging-list-inner" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((item) => {
-          const file = files[item.index];
-          if (!file) {
+          const row = rows[item.index];
+          if (!row) {
             return null;
           }
-          const active = activePath === file.path;
           return (
             <li
               key={item.key}
@@ -96,39 +238,7 @@ export function StagingFileList({
                 transform: `translateY(${item.start}px)`,
               }}
             >
-              <div
-                className={active ? "staging-row active" : "staging-row"}
-                onClick={() => onSelect(file, side)}
-              >
-                <input
-                  className="staging-check"
-                  type="checkbox"
-                  checked={Boolean(checked[sideKey(side, file.path)])}
-                  onChange={() => onToggleCheck(side, file.path)}
-                  onClick={(event) => event.stopPropagation()}
-                  aria-label={t("staging.selectFile", { path: file.path })}
-                />
-                <span
-                  className={`file-status file-status-${file.status}`}
-                  title={t(statusLabelKey(file.status))}
-                >
-                  {STATUS_LETTER[file.status]}
-                </span>
-                <span className="staging-path mono" title={pathLabel(file)}>
-                  {pathLabel(file)}
-                </span>
-                <span className="staging-stats">{fileMeta(file)}</span>
-                <button
-                  className="staging-row-action"
-                  disabled={disabled}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onRowAction(side, file.path);
-                  }}
-                >
-                  {action}
-                </button>
-              </div>
+              {row.kind === "dir" ? renderDirRow(row) : renderFileRow(row)}
             </li>
           );
         })}

@@ -8,6 +8,7 @@ use serde::Serialize;
 use tauri::State;
 
 use super::{blocking, Shared};
+use crate::app::platform;
 use crate::app::update::{self, UpdateCheckDto};
 
 #[derive(Debug, Serialize)]
@@ -91,6 +92,18 @@ pub async fn check_for_update() -> Result<UpdateCheckDto> {
 pub fn open_release_page(url: String) -> Result<()> {
     update::ensure_release_page(&url)?;
     crate::app::external::open_url(&url)
+}
+
+/// 在系统文件管理器中定位当前仓库内的文件。
+/// 路径只接受当前会话仓库内的相对路径，解析与越界校验在平台适配层完成。
+#[tauri::command]
+pub async fn reveal_in_file_manager(state: State<'_, Shared>, path: String) -> Result<()> {
+    let root = state.with_session(|session| Ok(session.read.path().to_path_buf()))?;
+    blocking(move || {
+        let target = platform::resolve_in_repo(&root, &path)?;
+        platform::reveal(&target)
+    })
+    .await
 }
 
 /// 前端完成首帧后再显示主窗口：窗口在配置里保持隐藏，避免启动时先按默认尺寸

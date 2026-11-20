@@ -72,6 +72,12 @@
   min-width: 100%;
 }
 
+/* 键盘导航焦点：只在列表自身聚焦时画出内描边，不改变行布局。 */
+.graph-list:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .graph-row {
   position: absolute;
   top: 0;
@@ -384,6 +390,23 @@
   flex-wrap: nowrap;
   gap: 4px;
   margin-left: auto;
+}
+
+/* Reflog 恢复入口（ADR-0029）：低频救命功能，放在工具栏但不占主区空间。 */
+.graph-recovery {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 2px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.graph-recovery svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
 }
 
 .remote-actions button {

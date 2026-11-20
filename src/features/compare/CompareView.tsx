@@ -1,15 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { warningText } from "../../shared/error";
 import type { CommitSummaryDto, ExternalToolConfig, FileDiffDto } from "../../shared/types";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import { Select } from "../../shared/Select";
+import { fileHistoryMenuItems } from "../history/menuItems";
 import { CompareCommitList } from "./CompareCommitList";
 import { CompareDiffPane } from "./CompareDiffPane";
 import { CompareFileList } from "./CompareFileList";
 import { CompareHeader } from "./CompareHeader";
+import {
+  CompareStatusFilter,
+  matchesStatusBucket,
+  type CompareStatusFilterValue,
+} from "./CompareStatusFilter";
 import type { CompareLoader, CompareSlot } from "./useCompare";
-import { useCompareFileDiff } from "./useCompare";
+import { isWorktreeSlot, useCompareFileDiff } from "./useCompare";
 
 interface CompareViewProps {
   repoGeneration: number;
@@ -48,7 +54,11 @@ export function CompareView({
 }: CompareViewProps) {
   const { t } = useI18n();
   const result = loader.result;
-  const files = result?.files ?? [];
+  const [statusFilter, setStatusFilter] = useState<CompareStatusFilterValue>("all");
+  const files = useMemo(
+    () => (result?.files ?? []).filter((file) => matchesStatusBucket(file.status, statusFilter)),
+    [result, statusFilter],
+  );
   const [filePath, setFilePath] = useState<string | null>(null);
   const [expandedDiff, setExpandedDiff] = useState(false);
   // 放大视图内切换文件时保留上一份内容，等新 diff 到达再替换。
@@ -72,11 +82,16 @@ export function CompareView({
     setToolIndex(defaultToolIndex);
   }, [defaultToolIndex, tools.length]);
   const activeTool = tools[safeToolIndex];
+  // 工作区一侧没有提交对象：外部工具（单文件与目录对比）只接受提交，整组入口下线。
+  const worktreeInvolved = isWorktreeSlot(base) || isWorktreeSlot(compare);
   // Base 与 Compare 指向同一提交时优先给出明确提示，避免被误认为功能失效。
   const sameTip = Boolean(result && result.files.length === 0 && base.oid === compare.oid);
   // 三点 diff 为空（祖先关系或两端工作树一致）时解释原因并提供两点快照入口。
-  const emptyHint = Boolean(result && !twoDot && !sameTip && result.files.length === 0);
+  const emptyHint = Boolean(
+    result && result.mode === "three_dot" && !sameTip && result.files.length === 0,
+  );
 
+  // 状态筛选可能过滤掉当前打开的文件：此时回落到筛选后的第一个文件。
   useEffect(() => {
     setFilePath((current) => {
       if (current && files.some((file) => file.path === current)) {
@@ -84,7 +99,7 @@ export function CompareView({
       }
       return files[0]?.path ?? null;
     });
-  }, [result]);
+  }, [files]);
 
   useEffect(() => {
     if (diff.data) {
@@ -107,17 +122,27 @@ export function CompareView({
   const totalAdd = files.reduce((sum, file) => sum + file.additions, 0);
   const totalDel = files.reduce((sum, file) => sum + file.deletions, 0);
 
-  const menuItems: MenuItem[] =
-    tools.length === 0
-      ? [{ label: t("compare.noExternalTool"), disabled: true, onSelect: () => undefined }]
-      : tools.map((tool, index) => ({
-          label: t("compare.openWithTool", { name: tool.name }),
-          onSelect: () => {
-            if (menu) {
-              onExternalDiff(index, menu.path);
-            }
-          },
-        }));
+  // 文件右键：文件历史 / Blame 以对比侧的提交为起点，其后是外部工具。
+  const historyOid = isWorktreeSlot(compare) ? base.oid : compare.oid;
+  const menuItems: MenuItem[] = menu
+    ? [
+        ...fileHistoryMenuItems(menu.path, historyOid, "compare"),
+        ...(worktreeInvolved
+          ? [
+              {
+                label: t("compare.externalWorktreeUnavailable"),
+                disabled: true,
+                onSelect: () => undefined,
+              },
+            ]
+          : tools.length === 0
+            ? [{ label: t("compare.noExternalTool"), disabled: true, onSelect: () => undefined }]
+            : tools.map((tool, index) => ({
+                label: t("compare.openWithTool", { name: tool.name }),
+                onSelect: () => onExternalDiff(index, menu.path),
+              }))),
+      ]
+    : [];
 
   return (
     <section className="compare-view">
@@ -157,6 +182,9 @@ export function CompareView({
           {warningText(warning)}
         </div>
       ))}
+      {result && result.files.length > 0 && files.length === 0 && (
+        <div className="banner info compact">{t("compare.filterEmpty")}</div>
+      )}
 
       {result && (
         <>
@@ -174,6 +202,7 @@ export function CompareView({
                 {t("compare.clearFilter")}
               </button>
             )}
+            <CompareStatusFilter value={statusFilter} onChange={setStatusFilter} />
             <span className="muted">{t("compare.changedFilesCount", { n: files.length })}</span>
             {tools.length > 0 && (
               <span className="compare-tools">
@@ -185,7 +214,8 @@ export function CompareView({
                   options={tools.map((tool, index) => ({ value: index, label: tool.name }))}
                 />
                 <button
-                  disabled={!filePath}
+                  disabled={!filePath || worktreeInvolved}
+                  title={worktreeInvolved ? t("compare.externalWorktreeUnavailable") : undefined}
                   onClick={() => {
                     if (filePath) {
                       onExternalDiff(safeToolIndex, filePath);

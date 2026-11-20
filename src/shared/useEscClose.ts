@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { consumeEsc } from "./esc";
+import { consumeEsc, isEscConsumed } from "./esc";
 import { isCapturing } from "./keybindings";
 
 interface EscLayer {
@@ -12,6 +12,10 @@ let listening = false;
 
 function onKeyDown(event: KeyboardEvent) {
   if (event.key !== "Escape") {
+    return;
+  }
+  // 更内层（如弹框里的放大 diff）已在捕获阶段消费本次 Esc：本层让路。
+  if (isEscConsumed(event)) {
     return;
   }
   const layer = layers[layers.length - 1];

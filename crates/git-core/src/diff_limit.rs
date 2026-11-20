@@ -83,6 +83,9 @@ mod tests {
             note: None,
             note_code: None,
             note_args: None,
+            image_before: None,
+            image_after: None,
+            image_kind: None,
         }
     }
 

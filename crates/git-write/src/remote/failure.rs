@@ -32,11 +32,22 @@ pub(crate) fn remote_failure(
             "远程标签不存在或已删除，无需再删除",
             "errors.outcomeRemoteTagRefMissing",
         )),
+        // 远端已有同名标签且指向不同对象：push 拒绝（本应用不提供 --force）。
+        WriteKind::PushTag
+            if lower.contains("already exists")
+                || lower.contains("failed to push some refs")
+                || lower.contains("rejected") =>
+        {
+            Some((
+                "远端已存在同名标签且指向不同提交；本应用不提供 force push，请在终端确认后处理",
+                "errors.outcomeTagPushRejected",
+            ))
+        }
         WriteKind::Pull if lower.contains("not possible to fast-forward") => Some((
             "远端有本地没有的提交，pull --ff-only 无法快进；请先 fetch，并在终端 merge/rebase（批次 5）",
             "errors.outcomePullNotFastForward",
         )),
-        WriteKind::Push
+        WriteKind::Push | WriteKind::PushSetUpstream
             if lower.contains("non-fast-forward")
                 || lower.contains("failed to push some refs")
                 || lower.contains("rejected") =>

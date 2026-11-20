@@ -7,12 +7,14 @@ import enDiff from "./locales/en/diff";
 import enErrors from "./locales/en/errors";
 import enGitlog from "./locales/en/gitlog";
 import enGraph from "./locales/en/graph";
+import enHistory from "./locales/en/history";
 import enRepository from "./locales/en/repository";
 import enSearch from "./locales/en/search";
 import enSettings from "./locales/en/settings";
 import enShell from "./locales/en/shell";
 import enStaging from "./locales/en/staging";
 import enTerminal from "./locales/en/terminal";
+import enWorktree from "./locales/en/worktree";
 import enWrite from "./locales/en/write";
 import zhCnCommon from "./locales/zh-CN/common";
 import zhCnCompare from "./locales/zh-CN/compare";
@@ -21,12 +23,14 @@ import zhCnDiff from "./locales/zh-CN/diff";
 import zhCnErrors from "./locales/zh-CN/errors";
 import zhCnGitlog from "./locales/zh-CN/gitlog";
 import zhCnGraph from "./locales/zh-CN/graph";
+import zhCnHistory from "./locales/zh-CN/history";
 import zhCnRepository from "./locales/zh-CN/repository";
 import zhCnSearch from "./locales/zh-CN/search";
 import zhCnSettings from "./locales/zh-CN/settings";
 import zhCnShell from "./locales/zh-CN/shell";
 import zhCnStaging from "./locales/zh-CN/staging";
 import zhCnTerminal from "./locales/zh-CN/terminal";
+import zhCnWorktree from "./locales/zh-CN/worktree";
 import zhCnWrite from "./locales/zh-CN/write";
 
 export type AppLanguage = "zh-CN" | "en";
@@ -50,6 +54,8 @@ export const MESSAGE_NAMESPACES = [
   "write",
   "errors",
   "gitlog",
+  "history",
+  "worktree",
 ] as const;
 
 /** 把偏好（system 或具体语言）解析为实际语言：系统中文 → 简体中文，其余 → 英文。 */
@@ -102,6 +108,8 @@ export function initI18n(): void {
         write: zhCnWrite,
         errors: zhCnErrors,
         gitlog: zhCnGitlog,
+        history: zhCnHistory,
+        worktree: zhCnWorktree,
       },
       en: {
         common: enCommon,
@@ -118,6 +126,8 @@ export function initI18n(): void {
         write: enWrite,
         errors: enErrors,
         gitlog: enGitlog,
+        history: enHistory,
+        worktree: enWorktree,
       },
     },
     lng: language,

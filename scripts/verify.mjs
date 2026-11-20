@@ -12,6 +12,8 @@ const steps = [
   { name: 'i18n 完整性', command: 'node', args: ['scripts/check-i18n.mjs'] },
   // IPC 门禁：Tauri 命令名/实参写错只在运行时抛错，编译期完全无感。
   { name: 'IPC 契约', command: 'node', args: ['scripts/check-ipc-args.mjs'] },
+  // npm 许可证门禁：与 Rust deny.toml 白名单对齐，拦截 GPL/未知许可证。
+  { name: 'npm 许可证', command: 'node', args: ['scripts/check-npm-licenses.mjs'] },
   // npm 在 Windows 下是 .cmd，须经 shell 执行；参数静态，不涉及用户输入。
   ...(skipBuild
     ? []

@@ -82,6 +82,19 @@
   flex-wrap: wrap;
 }
 
+/* 签名徽标（ADR-0034）：只标注提交对象携带签名头，不代表验签通过。 */
+.signature-badge {
+  flex: none;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+  color: var(--ok);
+  background: var(--bg-elevated);
+  border: 1px solid var(--ok-border);
+  border-radius: 999px;
+}
+
 .detail-scroll {
   flex: 1;
   min-height: 0;
@@ -148,6 +161,28 @@
   border-radius: 4px;
   padding: 0 4px;
   color: var(--muted);
+}
+
+/* 父提交短哈希是可点击的定位入口，外观沿用 code 块，悬停时提示可点。 */
+.parent-oid {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.parent-oid:hover:not(:disabled),
+.parent-oid:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.parent-oid:disabled {
+  cursor: default;
 }
 
 .branch-list {
@@ -409,4 +444,74 @@
 
 .expanded-files .expanded-files-inner li + li {
   margin-top: 0;
+}
+
+/* 文件列表标题行：标题与「扁平 / 目录树」切换并排。 */
+.detail-files-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.detail-files-head h3 {
+  margin: 0;
+}
+
+.view-toggle.file-list-toggle {
+  flex: none;
+}
+
+.view-toggle.file-list-toggle button {
+  width: 24px;
+  height: 20px;
+}
+
+/* 目录树行：缩进由行内 paddingLeft 提供，避免嵌套 DOM。 */
+.file-tree-dir {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+}
+
+.file-tree-dir:hover {
+  background: var(--row-hover);
+}
+
+.file-tree-chevron {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
+  transition: transform 120ms ease;
+}
+
+.file-tree-dir[aria-expanded="false"] .file-tree-chevron,
+.staging-dir-toggle[aria-expanded="false"] .file-tree-chevron {
+  transform: rotate(-90deg);
+}
+
+.file-tree-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-tree-count {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }

@@ -6,7 +6,10 @@ import type {
   CommitBranchContextDto,
   CompareResultDto,
   CommitDetailDto,
+  CommitTemplateDto,
+  FileBlameDto,
   FileDiffDto,
+  FileHistoryPageDto,
   GateReportDto,
   GraphPageDto,
   GraphScope,
@@ -14,17 +17,24 @@ import type {
   GitConfigEntry,
   GitConfigScope,
   InterruptionDto,
+  RepoId,
+  RepoListDto,
+  RepoRestoreDto,
   RepoStateDto,
+  ReflogEntryDto,
   SearchPageDto,
   SearchRequest,
   SettingsDto,
   StagingStatusDto,
+  StashDetailDto,
   StashEntryDto,
   TerminalCapabilitiesDto,
   TerminalEvent,
   UpdateCheckDto,
   UserVisibleError,
   WorkspaceStatusDto,
+  WorktreeDto,
+  WriteKind,
   WriteOutcomeDto,
   WriteRequest,
 } from "./types";
@@ -56,6 +66,18 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
   }
 }
 
+/**
+ * worktree 系列共用同一 WriteRequest 形状（ADR-0034）：创建用 path + branch，
+ * 移除只用 path；写前检查仍走 validateWrite 预览，这里只统一执行请求。
+ */
+function worktreeRequest(
+  kind: Extract<WriteKind, "create_worktree" | "remove_worktree">,
+  path: string,
+  branch?: string,
+): WriteRequest {
+  return { kind, path, branch };
+}
+
 export const ipc = {
   uiReady: () => call<void>("ui_ready"),
   appInfo: () => call<AppInfoDto>("app_info"),
@@ -63,6 +85,7 @@ export const ipc = {
     call<void>("open_feedback_issue", { title, body }),
   checkForUpdate: () => call<UpdateCheckDto>("check_for_update"),
   openReleasePage: (url: string) => call<void>("open_release_page", { url }),
+  revealInFileManager: (path: string) => call<void>("reveal_in_file_manager", { path }),
   loadSettings: () => call<SettingsDto>("load_settings"),
   saveSettings: (settings: SettingsDto) => call<SettingsDto>("save_settings", { settings }),
   setLanguage: (language: string | null) => call<SettingsDto>("set_language", { language }),
@@ -73,8 +96,20 @@ export const ipc = {
     call<SettingsDto>("forget_recent_repository", { path }),
   startupRepository: () => call<string | null>("startup_repository"),
   openRepository: (path: string) => call<RepoStateDto>("open_repository", { path }),
+  /** 启动恢复：全部标签一次登记，仅活动仓库返回完整状态（ADR-0036）。 */
+  restoreRepositories: (paths: string[], active: string | null) =>
+    call<RepoRestoreDto>("restore_repositories", { paths, active }),
+  /** 标签栏与启动恢复的唯一来源（ADR-0032）。 */
+  listRepositories: () => call<RepoListDto>("list_repositories"),
+  /** 切换活动标签；命令缺省作用于活动仓库，因此不需要给其余 command 加参数。 */
+  activateRepository: (repoId: RepoId) =>
+    call<RepoStateDto>("activate_repository", { repoId }),
   repositoryState: () => call<RepoStateDto>("repository_state"),
-  closeRepository: () => call<void>("close_repository"),
+  /** 关闭标签；缺省 repoId 关闭活动标签，返回接替者状态或 null（没有剩余标签）。 */
+  closeRepository: (repoId?: RepoId) =>
+    repoId === undefined
+      ? call<RepoStateDto | null>("close_repository")
+      : call<RepoStateDto | null>("close_repository", { repoId }),
   readGraphPage: (scope: GraphScope, cursor: string | null, limit?: number) =>
     call<GraphPageDto>("read_graph_page", { scope, cursor, limit }),
   readGraphPageAround: (scope: GraphScope, oid: string, limit?: number) =>
@@ -83,11 +118,37 @@ export const ipc = {
   branchesContaining: (oid: string) => call<string[]>("branches_containing", { oid }),
   commitBranchContext: (oid: string, limit = 3) =>
     call<CommitBranchContextDto>("commit_branch_context", { oid, limit }),
-  readFileDiff: (oid: string, path: string) => call<FileDiffDto>("read_file_diff", { oid, path }),
+  readFileDiff: (oid: string, path: string, ignoreWhitespace = false) =>
+    call<FileDiffDto>("read_file_diff", { oid, path, ignoreWhitespace }),
   compare: (base: string, compareOid: string, pathFilter: string | undefined, twoDot: boolean) =>
     call<CompareResultDto>("compare_commits", { base, compareOid, pathFilter, twoDot }),
-  compareFileDiff: (base: string, compareOid: string, path: string, twoDot: boolean) =>
-    call<FileDiffDto>("compare_file_diff", { base, compareOid, path, twoDot }),
+  compareFileDiff: (
+    base: string,
+    compareOid: string,
+    path: string,
+    twoDot: boolean,
+    ignoreWhitespace = false,
+  ) =>
+    call<FileDiffDto>("compare_file_diff", {
+      base,
+      compareOid,
+      path,
+      twoDot,
+      ignoreWhitespace,
+    }),
+  /**
+   * 单文件提交历史（ADR-0031）：`oidOrScope` 缺省/null 表示 HEAD 可达提交，
+   * 传具体 OID 表示从该提交（含）向前追溯；`cursor` 为不透明游标。
+   */
+  readFileHistory: (
+    path: string,
+    oidOrScope: string | null,
+    cursor: string | null,
+    limit?: number,
+  ) => call<FileHistoryPageDto>("read_file_history", { path, oidOrScope, cursor, limit }),
+  /** 行级追溯：必须给出具体提交 OID；二进制/超大文件以标记降级而非报错。 */
+  readFileBlame: (oid: string, path: string) =>
+    call<FileBlameDto>("read_file_blame", { oid, path }),
   search: (request: SearchRequest, cursor: string | null) =>
     call<SearchPageDto>("search", { request, cursor }),
   cancelSearch: (searchId: string) => call<void>("cancel_search", { searchId }),
@@ -107,12 +168,32 @@ export const ipc = {
   inspectInterruption: () => call<InterruptionDto>("inspect_interruption"),
   workspaceStatus: () => call<WorkspaceStatusDto>("workspace_status"),
   stagingStatus: () => call<StagingStatusDto>("staging_status"),
-  readStagingDiff: (path: string, staged: boolean) =>
-    call<FileDiffDto>("read_staging_diff", { path, staged }),
+  readStagingDiff: (path: string, staged: boolean, ignoreWhitespace = false) =>
+    call<FileDiffDto>("read_staging_diff", { path, staged, ignoreWhitespace }),
   /** 当前 HEAD 提交消息（amend 预填）；unborn/空仓库返回 null。 */
   readHeadMessage: () => call<string | null>("read_head_message"),
+  /** worktree 列表（ADR-0034）：首条为主 worktree；只读，不经过 Gate。 */
+  readWorktrees: () => call<WorktreeDto[]>("read_worktrees"),
+  /** 仓库配置的 `commit.template`；未配置、文件缺失或超限时返回 null。 */
+  readCommitTemplate: () => call<CommitTemplateDto | null>("read_commit_template"),
+  /** 创建 linked worktree：执行 `git worktree add <path> <branch>`；写前检查用 validateWrite 预览。 */
+  createWorktree: (path: string, branch: string) => {
+    const request = worktreeRequest("create_worktree", path, branch);
+    return call<WriteOutcomeDto>("execute_write", { request });
+  },
+  /** 移除 linked worktree：执行 `git worktree remove <path>`，绝不 `--force`。 */
+  removeWorktree: (path: string) => {
+    const request = worktreeRequest("remove_worktree", path);
+    return call<WriteOutcomeDto>("execute_write", { request });
+  },
   /** 本地 stash 列表（index 0 最新）。 */
   readStashes: () => call<StashEntryDto[]>("read_stashes"),
+  /** 单条 stash 的改动文件清单（ADR-0030）；未跟踪文件来自第三个父提交。 */
+  readStashDetail: (oid: string) => call<StashDetailDto>("read_stash_detail", { oid }),
+  readStashFileDiff: (oid: string, path: string, ignoreWhitespace = false) =>
+    call<FileDiffDto>("read_stash_file_diff", { oid, path, ignoreWhitespace }),
+  /** HEAD reflog（只读，最新在前）；limit 缺省 200，服务端 clamp 到 [1, 1000]（ADR-0029）。 */
+  readReflog: (limit?: number) => call<ReflogEntryDto[]>("read_reflog", { limit }),
   readBranchDescription: (branch: string) =>
     call<BranchDescriptionDto>("read_branch_description", { branch }),
   readGitConfig: () => call<GitConfigDto>("read_git_config"),

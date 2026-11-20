@@ -1,0 +1,409 @@
+/* Review 增强：diff 搜索 / 图片预览 / 忽略空白 / Stash 双栏预览 / 对比状态筛选。
+   全部使用 tokens.css 的语义令牌，不写死浅深两套颜色。 */
+
+/* ------------------------------ diff 内搜索 ------------------------------ */
+
+.diff-search-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 4px 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.diff-search-input {
+  flex: 1;
+  min-width: 120px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+
+.diff-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.diff-search-count {
+  flex: none;
+  min-width: 44px;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-search-step {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.diff-search-step svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.diff-search-step-up svg {
+  transform: rotate(180deg);
+}
+
+/* 命中行：底色 + 描边；当前命中再加强描边，且不依赖颜色区分。 */
+.diff-search-hit {
+  background: var(--warning-weak);
+  box-shadow: inset 0 0 0 1px var(--warning-border);
+}
+
+.diff-search-hit-active {
+  background: var(--accent-weak);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* ------------------------------ 图片预览 ------------------------------ */
+
+.image-diff {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.image-diff.single {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 520px;
+}
+
+.image-diff-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--diff-bg);
+}
+
+.image-diff-pane figcaption {
+  font-size: 12px;
+}
+
+.image-diff-pane img {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  margin: 0 auto;
+  object-fit: contain;
+  background: repeating-conic-gradient(var(--bg-elevated) 0% 25%, var(--bg-panel) 0% 50%) 50% / 16px 16px;
+  border-radius: 4px;
+}
+
+@container (max-width: 520px) {
+  .image-diff {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------ Stash 双栏预览 ------------------------------ */
+
+.confirm-dialog.wide {
+  width: min(1080px, 94vw);
+}
+
+.confirm-dialog.stash-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 88vh;
+  overflow: hidden;
+}
+
+.stash-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.stash-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.stash-column .stash-list {
+  flex: none;
+}
+
+.stash-row.active {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+
+/* 信息区整块可点：选中后在右栏预览；动作按钮各自独立，避免嵌套按钮。 */
+.stash-row-select {
+  display: flex;
+  flex: 1 1 100%;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stash-row-select:hover:not(:disabled) {
+  border-color: transparent;
+  color: var(--text);
+}
+
+.stash-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.stash-preview-placeholder {
+  align-self: center;
+  margin: auto;
+}
+
+.stash-preview-hints {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.stash-preview-files {
+  flex: none;
+  max-height: 34%;
+  min-height: 60px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.stash-preview-files li + li {
+  border-top: 1px solid var(--row-divider);
+}
+
+.stash-file-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+}
+
+.stash-file-row:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--row-hover);
+}
+
+.stash-file-row.active {
+  background: var(--accent-weak);
+}
+
+.stash-file-row .file-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stash-file-row .file-stats {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.stash-preview-diff {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+/* 弹窗内放大 diff：越过 modal-backdrop（60）显示，仍低于底部面板（100）。 */
+.stash-dialog .file-diff-backdrop {
+  z-index: 69;
+}
+
+.stash-dialog .file-diff.expanded {
+  z-index: 70;
+}
+
+@media (max-width: 860px) {
+  .stash-layout {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  .stash-preview {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+}
+
+/* ------------------------------ 对比：工作区槽与状态筛选 ------------------------------ */
+
+.compare-slot-worktree {
+  flex: none;
+  padding: 1px 7px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.compare-slot-worktree:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.compare-status-filter {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 1px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.compare-status-filter button {
+  min-width: 26px;
+  padding: 1px 6px;
+  font-size: 11px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.compare-status-filter button:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.compare-status-filter button.active {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+@media (forced-colors: active) {
+  .compare-status-filter button.active,
+  .compare-slot-worktree:not(:disabled) {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+
+  .diff-search-hit,
+  .diff-search-hit-active {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+}
+
+/* ------------------------------ 冲突解决（ADR-0033） ------------------------------ */
+
+/* 冲突行在窄列里允许动作按钮换行到第二行；路径仍占满剩余宽度并省略。 */
+.staging-conflict-row {
+  flex-wrap: wrap;
+}
+
+.conflict-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.conflict-row-actions button {
+  padding: 1px 6px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.conflict-row-actions button:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* 覆盖工作区的一侧按钮保持危险色提示，避免误点。 */
+.conflict-row-actions button.danger:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.conflict-dialog .confirm-hint,
+.conflict-side-line {
+  margin: 0;
+}
+
+.conflict-side-line {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.conflict-dialog .gate-warning {
+  margin-top: 8px;
+}
+
+@media (forced-colors: active) {
+  .conflict-row-actions button:not(:disabled) {
+    outline: 1px solid ButtonText;
+    outline-offset: -1px;
+  }
+}

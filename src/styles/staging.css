@@ -67,6 +67,7 @@
 .staging-group-head {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
@@ -89,6 +90,17 @@
 .staging-row-action {
   padding: 2px 8px;
   font-size: 11px;
+}
+
+/* 组头部的破坏性入口（仅未暂存一侧）：文字与边框走 danger 语义令牌。 */
+.staging-group-actions button.danger {
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+.staging-group-actions button.danger:hover:not(:disabled) {
+  color: var(--danger-text);
+  border-color: var(--danger-text);
 }
 
 .staging-list {
@@ -332,4 +344,149 @@
 
 .stash-error {
   white-space: pre-wrap;
+}
+
+/* 目录树模式：目录行沿用文件行外观，勾选框与展开按钮分离（避免按钮嵌套）。 */
+.staging-dir-row {
+  padding-right: 6px;
+  cursor: default;
+}
+
+.staging-dir-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+}
+
+.staging-dir-toggle:hover {
+  color: var(--accent);
+}
+
+.staging-mode-toggle {
+  flex: none;
+}
+
+.staging-mode-toggle button {
+  width: 22px;
+  height: 18px;
+}
+
+/* 内嵌提交表单（T03）：常驻左栏底部、可折叠，不遮挡右侧 diff。 */
+.commit-composer {
+  flex: none;
+  position: sticky;
+  bottom: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+
+.commit-composer-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  text-align: left;
+}
+
+.commit-composer-toggle[aria-expanded="false"] .file-tree-chevron {
+  transform: rotate(-90deg);
+}
+
+.commit-composer-hint {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.commit-composer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px 8px;
+}
+
+.commit-composer-input {
+  min-height: 84px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.commit-composer-error {
+  margin: 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+/* 提交模板预填提示（ADR-0034）：只做一行轻提示，不抢占输入区高度。 */
+.commit-template-hint {
+  margin: 0;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.commit-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.commit-composer-actions button {
+  padding: 3px 12px;
+  font-size: 12px;
+}
+
+/* 丢弃改动确认框（ADR 0026）：沿用 .confirm-dialog 结构，只补路径清单与底部布局。 */
+.discard-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.discard-paths p {
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
+.discard-paths .gate-paths {
+  max-height: 140px;
+}
+
+.discard-outcome {
+  margin: 8px 0 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 次要引导（去 Stash）靠左，取消与危险确认靠右。 */
+.discard-stash {
+  margin-right: auto;
+  font-size: 12px;
+}
+
+/* 危险确认按钮：沿用 danger 语义令牌的实心变体，与 gitlog 的破坏性按钮一致。 */
+.discard-dialog footer button.danger {
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+.discard-dialog footer button.danger:hover:not(:disabled) {
+  background: var(--danger-weak);
+  border-color: var(--danger-text);
+  color: var(--danger-text);
 }

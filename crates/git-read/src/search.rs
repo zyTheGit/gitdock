@@ -9,7 +9,7 @@ use git_core::{
 };
 
 use crate::diff::changed_path_matching;
-use crate::read::{commit_summary, read_head, read_refs, GitReadModule, DEFAULT_PAGE_LIMIT};
+use crate::read::{commit_summary, GitReadModule, DEFAULT_PAGE_LIMIT};
 
 const MAX_SCAN: usize = 20_000;
 /// 路径搜索需要逐提交 diff，单独限制扫描量，避免拖垮交互。
@@ -87,7 +87,7 @@ impl GitReadModule {
             }
             None => 0,
         };
-        let badges = read_refs(&repo, &read_head(&repo)?)?.1;
+        let snapshot = self.refs_snapshot(&repo, generation)?;
         let mut results = Vec::new();
         let mut canceled = false;
         let mut scanned = 0usize;
@@ -141,7 +141,7 @@ impl GitReadModule {
                 continue;
             }
             results.push(SearchMatchDto {
-                commit: commit_summary(&repo, oid, &badges)?,
+                commit: commit_summary(&repo, oid, &snapshot.badges)?,
                 fields,
                 matched_path,
             });

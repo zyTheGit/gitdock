@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useIgnoreWhitespace } from "../diff/diffOptions";
 import { ipc } from "../../shared/ipc";
 import { useIpcResource } from "../../shared/useIpcResource";
 import type { CommitDetailDto, FileDiffDto } from "../../shared/types";
@@ -53,9 +54,10 @@ export function useFileDiff(
   path: string | null,
   generation: number,
 ): DetailLoader<FileDiffDto> {
+  const [ignoreWhitespace] = useIgnoreWhitespace();
   return useIpcResource(
-    [oid, path],
-    () => ipc.readFileDiff(oid!, path!),
+    [oid, path, ignoreWhitespace],
+    () => ipc.readFileDiff(oid!, path!, ignoreWhitespace),
     { enabled: oid !== null && path !== null, expectedGeneration: generation },
   );
 }

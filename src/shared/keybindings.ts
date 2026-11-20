@@ -8,13 +8,25 @@ import { currentPlatform, primaryModifierLabel } from "./platform";
  * （取消待替换 → 退出搜索 → 退出对比 → 清空双槽），改键会破坏这套顺序；
  * 控件内按键是无障碍基线，不该被配置掉。
  */
-export type BindableAction = "terminal.toggle" | "zoom.in" | "zoom.out" | "zoom.reset";
+export type BindableAction =
+  | "terminal.toggle"
+  | "zoom.in"
+  | "zoom.out"
+  | "zoom.reset"
+  | "app.search"
+  | "app.refresh"
+  | "view.graph"
+  | "view.staging";
 
 export const BINDABLE_ACTIONS: readonly BindableAction[] = [
   "terminal.toggle",
   "zoom.in",
   "zoom.out",
   "zoom.reset",
+  "app.search",
+  "app.refresh",
+  "view.graph",
+  "view.staging",
 ];
 
 export const DEFAULT_BINDINGS: Record<BindableAction, string> = {
@@ -22,6 +34,10 @@ export const DEFAULT_BINDINGS: Record<BindableAction, string> = {
   "zoom.in": "Ctrl+=",
   "zoom.out": "Ctrl+-",
   "zoom.reset": "Ctrl+0",
+  "app.search": "Ctrl+/",
+  "app.refresh": "F5",
+  "view.graph": "Alt+1",
+  "view.staging": "Alt+2",
 };
 
 /**

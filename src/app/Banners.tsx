@@ -30,6 +30,7 @@ interface BannersProps {
   interruptionDisabled: boolean;
   onInterruptionAction: (kind: InterruptionActionKind, interruption: SingleInterruption) => void;
   onCopyDiagnostic: () => void;
+  onDismissError: () => void;
 }
 
 /** 主区顶部横幅：中断态、仓库警告、Git 版本不足、错误与诊断。 */
@@ -41,6 +42,7 @@ export function Banners({
   interruptionDisabled,
   onInterruptionAction,
   onCopyDiagnostic,
+  onDismissError,
 }: BannersProps) {
   const { t } = useI18n();
   const single = repo ? singleInterruption(repo.interruption.kinds) : null;
@@ -97,13 +99,18 @@ export function Banners({
       )}
 
       {error && (
-        <div className="banner danger">
+        <div className="banner danger" role="alert">
           <span className="banner-text">{error}</span>
-          {diagnostic && (
-            <button className="link" onClick={onCopyDiagnostic}>
-              {t("shell.copyDiagnostic")}
+          <div className="banner-actions">
+            {diagnostic && (
+              <button className="link" onClick={onCopyDiagnostic}>
+                {t("shell.copyDiagnostic")}
+              </button>
+            )}
+            <button className="link" onClick={onDismissError}>
+              {t("common.close")}
             </button>
-          )}
+          </div>
         </div>
       )}
     </>

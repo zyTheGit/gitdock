@@ -79,6 +79,36 @@
   font-size: 12px;
 }
 
+/* 命中域筛选：前端收窄已返回结果，样式与结果行的标签保持同一套语义令牌。 */
+.search-filters {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.search-chip {
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.search-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.search-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--on-accent-soft);
+}
+
 .search-results {
   list-style: none;
   margin: 0;

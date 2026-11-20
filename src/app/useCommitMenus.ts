@@ -1,5 +1,6 @@
 import { rowMenuItems, type CommitMenuActions } from "../features/graph/menus";
 import { branchMenuItems, branchSlot, tagMenuItems } from "../features/repository/branchMenus";
+import { remoteNamesFromRefs } from "../features/repository/remotes";
 import { commitSlot, useCompareSlots } from "../features/compare/useCompare";
 import { copyText } from "../shared/clipboard";
 import type { CommitSummaryDto, RefDto, RepoStateDto } from "../shared/types";
@@ -44,17 +45,27 @@ interface UseCommitMenusParams {
   onRenameBranch: (shortName: string) => void;
   onDeleteBranch: (shortName: string) => void;
   onDeleteBranchRemote: (name: string) => void;
+  onCheckoutRemote: (branch: RefDto) => void;
   onDeleteTag: (name: string) => void;
   onDeleteTagRemote: (name: string) => void;
+  onPushTag: (tag: RefDto) => void;
   onMergeBranch: (shortName: string) => void;
   onRebaseBranch: (shortName: string) => void;
   onCherryPick: (commit: CommitSummaryDto) => void;
   onRevert: (commit: CommitSummaryDto) => void;
+  /** 重置当前分支到所选提交（ADR-0029）；由 useWriteFlow 的菜单动作集合提供。 */
+  onResetHere: (commit: CommitSummaryDto) => void;
   onBatchCherryPick: (commits: CommitSummaryDto[]) => void;
   onBatchRevert: (commits: CommitSummaryDto[]) => void;
   onEditDescription: (shortName: string) => void;
   onEditTagDescription: (tag: RefDto) => void;
   onSelectCommit: (oid: string) => void;
+  /** 分支双击/菜单「切换到此分支」：只允许本地分支，远程分支永不进入写流程。 */
+  onSwitchBranch: (branch: RefDto) => void;
+  /** 标签菜单「查看对应提交」：在图谱中定位并选中标签提交。 */
+  onRevealRef: (ref: RefDto) => void;
+  /** 远程分支菜单「按此引用过滤图谱」。 */
+  onFilterRef: (ref: RefDto) => void;
 }
 
 /**
@@ -75,17 +86,23 @@ export function useCommitMenus({
   onRenameBranch,
   onDeleteBranch,
   onDeleteBranchRemote,
+  onCheckoutRemote,
   onDeleteTag,
   onDeleteTagRemote,
+  onPushTag,
   onMergeBranch,
   onRebaseBranch,
   onCherryPick,
   onRevert,
+  onResetHere,
   onBatchCherryPick,
   onBatchRevert,
   onEditDescription,
   onEditTagDescription,
   onSelectCommit,
+  onSwitchBranch,
+  onRevealRef,
+  onFilterRef,
 }: UseCommitMenusParams) {
   const commitActions: CommitMenuActions = {
     writeDisabled,
@@ -94,6 +111,8 @@ export function useCommitMenus({
     onCherryPick,
     onRevert,
   };
+  // 远程名取自远程跟踪引用（前端没有独立的 remote 列表契约，ADR-0028）。
+  const remoteNames = remoteNamesFromRefs(repo?.refs ?? []);
 
   const activeRowMenuItems = rowMenu
     ? rowMenuItems(
@@ -105,6 +124,7 @@ export function useCommitMenus({
           onOpenDetail: (commit) => onSelectCommit(commit.oid),
           onNewBranch,
           onNewTag,
+          onResetHere,
           onBatchCherryPick,
           onBatchRevert,
         },
@@ -135,12 +155,15 @@ export function useCommitMenus({
             ref.short_name === `origin/${branchMenu.branch.short_name}`,
         ) ?? false,
         onEditDescription,
+        onSwitchBranch,
+        onFilterGraph: onFilterRef,
         onCompareWithHead: compareWithHead,
         onSetBase: (branch) => slots.setSide("base", branchSlot(branch)),
         onSetCompare: (branch) => slots.setSide("compare", branchSlot(branch)),
         onRenameBranch,
         onDeleteBranch,
         onDeleteBranchRemote,
+        onCheckoutRemote,
         onMergeBranch,
         onRebaseBranch,
       })
@@ -156,9 +179,14 @@ export function useCommitMenus({
           repo?.refs.some(
             (ref) => ref.kind === "remote_branch" && ref.short_name.startsWith("origin/"),
           ) ?? false,
+        hasRemote: remoteNames.length > 0,
         onEditDescription: onEditTagDescription,
+        onSetBase: (tag) => slots.setSide("base", branchSlot(tag)),
+        onSetCompare: (tag) => slots.setSide("compare", branchSlot(tag)),
+        onRevealCommit: onRevealRef,
         onDeleteTag,
         onDeleteTagRemote,
+        onPushTag,
       })
     : [];
 

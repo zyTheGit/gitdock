@@ -238,3 +238,14 @@
   color: var(--danger);
   border-color: var(--danger-border);
 }
+
+/* 徽标是进入暂存区的入口：保留胶囊外观，补 active 高亮与禁用光标。 */
+.workspace-badge.active {
+  color: var(--on-accent-soft);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.workspace-badge:disabled {
+  cursor: default;
+}

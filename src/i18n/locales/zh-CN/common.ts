@@ -7,6 +7,10 @@ const common = {
   languageOptionZhCn: "简体中文",
   languageOptionEn: "English",
   languageHint: "切换立即生效，重启后保持。",
+  close: "关闭",
+  fileListModeLabel: "文件列表视图",
+  fileListModeFlat: "扁平列表",
+  fileListModeTree: "目录树",
 } as const;
 
 export default common;

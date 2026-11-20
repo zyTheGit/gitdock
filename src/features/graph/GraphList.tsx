@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, type KeyboardEvent, type MouseEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useI18n } from "../../i18n";
 import type { CommitSummaryDto } from "../../shared/types";
@@ -10,6 +10,14 @@ import { useCommitHover } from "./useCommitHover";
 const ROW_HEIGHT = 34;
 const LOAD_MORE_THRESHOLD = 12;
 
+/** 标签切换后的图谱滚动恢复请求；新仓库首屏落地（loadedPath 对齐）后才消费。 */
+export interface GraphScrollRestore {
+  top: number | null;
+  ownerPath: string | null;
+  loadedPath: string | null;
+  onConsumed: () => void;
+}
+
 interface GraphListProps {
   view: GraphView;
   loading: boolean;
@@ -20,6 +28,10 @@ interface GraphListProps {
   focusedOid?: string | null;
   /** 定位请求序号：每次定位递增，用于只滚动一次。 */
   focusSeq?: number | null;
+  /** 标签切换时恢复滚动位置（ADR-0032）。 */
+  scrollRestore?: GraphScrollRestore | null;
+  /** 用户滚动时上报偏移，供标签快照保存。 */
+  onScrollTop?: (top: number) => void;
   onSelect: (oid: string) => void;
   onRangeSelect?: (oid: string) => void;
   onToggleSelect?: (oid: string) => void;
@@ -41,6 +53,8 @@ export function GraphList({
   selectedOids,
   focusedOid,
   focusSeq,
+  scrollRestore,
+  onScrollTop,
   onSelect,
   onRangeSelect,
   onToggleSelect,
@@ -73,6 +87,23 @@ export function GraphList({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [view.viewKey]);
+
+  // 标签切换的滚动恢复：必须等目标仓库的首屏落地（loadedPath 对齐）再滚，
+  // 否则会滚到上一个标签残留的行上并被旧内容吞掉。
+  const restoreTop = scrollRestore?.top ?? null;
+  const restoreLoadedPath = scrollRestore?.loadedPath ?? null;
+  const restoreOwnerPath = scrollRestore?.ownerPath ?? null;
+  const consumeRestore = scrollRestore?.onConsumed;
+  useEffect(() => {
+    if (restoreTop === null || view.rows.length === 0) {
+      return;
+    }
+    if (!restoreOwnerPath || restoreLoadedPath !== restoreOwnerPath) {
+      return;
+    }
+    scrollRef.current?.scrollTo({ top: restoreTop });
+    consumeRestore?.();
+  }, [restoreTop, restoreOwnerPath, restoreLoadedPath, view.rows.length, consumeRestore]);
 
   // 搜索结果定位：每个请求只滚动一次，避免后续追加页面时把用户拽回定位行。
   const scrolledFocus = useRef<number | null>(null);
@@ -196,7 +227,43 @@ export function GraphList({
   const handleListScroll = useCallback(() => {
     hoveredOidRef.current = null;
     cancelHover();
-  }, [cancelHover]);
+    onScrollTop?.(scrollRef.current?.scrollTop ?? 0);
+  }, [cancelHover, onScrollTop]);
+
+  // 键盘上下键：只在列表自身拥有焦点时移动选中行并滚动到可视区；
+  // 弹窗打开或有修饰键（终端/系统组合）时不拦截。焦点在底部面板内时事件
+  // 根本不会落到本容器，方向键自然归终端程序所有。
+  const handleListKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
+        return;
+      }
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      if (document.querySelector(".modal-backdrop")) {
+        return;
+      }
+      const rows = view.rows;
+      if (rows.length === 0) {
+        return;
+      }
+      const currentIndex = rows.findIndex(
+        (row) => (row.commit?.oid ?? row.layout.oid) === selectedOid,
+      );
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      const nextIndex =
+        currentIndex < 0 ? 0 : Math.min(rows.length - 1, Math.max(0, currentIndex + delta));
+      event.preventDefault();
+      if (nextIndex === currentIndex) {
+        return;
+      }
+      virtualizer.scrollToIndex(nextIndex, { align: "auto" });
+      const row = rows[nextIndex];
+      onSelect(row.commit?.oid ?? row.layout.oid);
+    },
+    [onSelect, selectedOid, view.rows, virtualizer],
+  );
 
   if (loading && view.rows.length === 0) {
     return <div className="graph-empty muted">{t("graph.loadingCommits")}</div>;
@@ -209,6 +276,11 @@ export function GraphList({
     <div
       className="graph-list"
       ref={scrollRef}
+      tabIndex={0}
+      role="listbox"
+      aria-label={t("graph.listAria")}
+      aria-activedescendant={selectedOid ? `graph-row-${selectedOid}` : undefined}
+      onKeyDown={handleListKeyDown}
 
       onClick={handleListClick}
       onContextMenu={handleListContextMenu}

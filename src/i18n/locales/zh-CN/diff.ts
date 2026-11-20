@@ -32,7 +32,9 @@ const diff = {
 
   // 文件导航
   previousFile: "上一个文件",
+  previousFileHint: "上一个文件（{{keys}}）",
   nextFile: "下一个文件",
+  nextFileHint: "下一个文件（{{keys}}）",
   switchFile: "切换对比文件",
   filePickerLabel: "{{index}}/{{total}} · {{path}}",
 
@@ -48,6 +50,35 @@ const diff = {
   // 空态与降级说明
   noHighlight: "未启用语法高亮（语言不在支持列表或变更行数过多），已保留行内差异标记。",
   noTextDiff: "该文件没有可显示的文本差异。",
+
+  // hunk 级操作（ADR 0027）：仅在暂存区传入 hunkActions 时出现在块头部。
+  hunkActionsGroup: "第 {{n}} 块操作",
+  hunkStage: "暂存此块",
+  hunkStageTitle: "只暂存第 {{n}} 块改动（共 {{total}} 块）",
+  hunkUnstage: "取消暂存此块",
+  hunkUnstageTitle: "只取消暂存第 {{n}} 块改动（共 {{total}} 块）",
+  hunkDiscard: "丢弃此块",
+  hunkDiscardTitle: "丢弃第 {{n}} 块改动（共 {{total}} 块），需二次确认",
+  hunkRunning: "处理中…",
+  hunkActionsWhitespaceHint:
+    "已忽略空白差异：diff 块序号与后端写路径不一致，hunk 操作暂时隐藏；关闭「忽略空白」后恢复。",
+
+  // 忽略空白（ADR 0030）
+  ignoreWhitespace: "忽略空白差异",
+  ignoreWhitespaceTitle: "忽略行内与行尾空白变化（git diff -w）",
+
+  // diff 内搜索（ADR 0030 §2.7）
+  searchLabel: "diff 内搜索",
+  searchTitle: "在 diff 中搜索（Esc 关闭）",
+  searchPlaceholder: "搜索 diff 内容",
+  searchPrevious: "上一个匹配",
+  searchNext: "下一个匹配",
+  searchClose: "关闭搜索",
+
+  // 图片预览（ADR 0030 §2.6）
+  imageBefore: "修改前",
+  imageAfter: "修改后",
+  imageAlt: "{{label}}（{{kind}} 图片）",
 } as const;
 
 export default diff;

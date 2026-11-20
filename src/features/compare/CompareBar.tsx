@@ -3,7 +3,12 @@ import { shortOid } from "../../shared/format";
 import { Modal } from "../../shared/Modal";
 import { primaryModifierLabel } from "../../shared/platform";
 import type { RepoStateDto } from "../../shared/types";
-import type { CompareSide, CompareSlot } from "./useCompare";
+import {
+  isWorktreeSlot,
+  worktreeSlot,
+  type CompareSide,
+  type CompareSlot,
+} from "./useCompare";
 
 interface CompareBarProps {
   repo: RepoStateDto;
@@ -12,6 +17,7 @@ interface CompareBarProps {
   pending: CompareSlot | null;
   invalidRef: boolean;
   onClear: (side: CompareSide) => void;
+  onSetSlot: (side: CompareSide, slot: CompareSlot) => void;
   onSwap: () => void;
   onResolvePending: (side: CompareSide | null) => void;
 }
@@ -20,36 +26,50 @@ function Slot({
   title,
   slot,
   invalid,
+  worktreeBlocked,
   onClear,
+  onPickWorktree,
 }: {
   title: string;
   slot: CompareSlot | null;
   invalid: boolean;
+  /** 另一侧已是工作区：两侧不能同时指向工作区。 */
+  worktreeBlocked: boolean;
   onClear: () => void;
+  onPickWorktree: () => void;
 }) {
   const { t } = useI18n();
-  if (!slot) {
-    return (
-      <div className="compare-slot empty">
-        <span className="compare-slot-title">{title}</span>
-        <span className="muted">{t("compare.slotUnselected")}</span>
-      </div>
-    );
-  }
+  const worktree = isWorktreeSlot(slot);
   return (
-    <div className={invalid ? "compare-slot invalid" : "compare-slot"}>
+    <div className={slot ? (invalid ? "compare-slot invalid" : "compare-slot") : "compare-slot empty"}>
       <span className="compare-slot-title">{title}</span>
-      <span className="compare-slot-label" title={slot.oid}>
-        {slot.label}
-      </span>
-      <span className="compare-slot-oid mono">{shortOid(slot.oid)}</span>
+      {slot ? (
+        <>
+          <span className="compare-slot-label" title={slot.oid}>
+            {slot.label}
+          </span>
+          {!worktree && <span className="compare-slot-oid mono">{shortOid(slot.oid)}</span>}
+        </>
+      ) : (
+        <span className="muted">{t("compare.slotUnselected")}</span>
+      )}
       <button
-        className="compare-slot-clear"
-        onClick={onClear}
-        aria-label={t("compare.clearSlot", { title })}
+        className="compare-slot-worktree"
+        onClick={onPickWorktree}
+        disabled={worktreeBlocked || worktree}
+        title={t("compare.useWorktree")}
       >
-        ×
+        {t("compare.worktreeShort")}
       </button>
+      {slot && (
+        <button
+          className="compare-slot-clear"
+          onClick={onClear}
+          aria-label={t("compare.clearSlot", { title })}
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }
@@ -62,17 +82,21 @@ export function CompareBar({
   pending,
   invalidRef,
   onClear,
+  onSetSlot,
   onSwap,
   onResolvePending,
 }: CompareBarProps) {
   const { t } = useI18n();
+  const worktree = worktreeSlot(t);
   return (
     <div className="compare-bar" aria-label={t("compare.barLabel")}>
       <Slot
         title={t("compare.slotBase")}
         slot={base}
         invalid={invalidRef}
+        worktreeBlocked={isWorktreeSlot(compare)}
         onClear={() => onClear("base")}
+        onPickWorktree={() => onSetSlot("base", worktree)}
       />
       <button
         className="compare-swap"
@@ -86,7 +110,9 @@ export function CompareBar({
         title={t("compare.slotCompare")}
         slot={compare}
         invalid={invalidRef}
+        worktreeBlocked={isWorktreeSlot(base)}
         onClear={() => onClear("compare")}
+        onPickWorktree={() => onSetSlot("compare", worktree)}
       />
       <div className="compare-hint muted">
         {compare

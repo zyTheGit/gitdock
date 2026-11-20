@@ -56,6 +56,9 @@ export function useWriteFlow({
   setToast,
 }: WriteFlowOptions) {
   const [prompt, setPrompt] = useState<WritePrompt | null>(null);
+  // 重置（ADR-0029）有独立的模式选择与 Gate 预览，这里只持有目标提交；
+  // ResetDialog 自己负责 validate/execute 与写后刷新，避免把模式塞进 WritePrompt。
+  const [resetTarget, setResetTarget] = useState<CommitSummaryDto | null>(null);
   const [mainline, setMainline] = useState(1);
   const [validating, setValidating] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -137,6 +140,18 @@ export function useWriteFlow({
     },
     [fetchGate, setDiagnostic, setError],
   );
+
+  /** 打开重置确认框：只记录目标提交，模式与 Gate 由 ResetDialog 内部维护。 */
+  const startReset = useCallback(
+    (commit: CommitSummaryDto) => {
+      setError(null);
+      setDiagnostic(null);
+      setResetTarget(commit);
+    },
+    [setDiagnostic, setError],
+  );
+
+  const closeReset = useCallback(() => setResetTarget(null), []);
 
   const changeMainline = useCallback(
     (next: number) => {
@@ -235,10 +250,13 @@ export function useWriteFlow({
     onBatchRevert: (commits: CommitSummaryDto[]) => void startBatch("revert", commits),
     onMergeBranch: (branch: string) => void start("merge", { branch }),
     onRebaseBranch: (branch: string) => void start("rebase", { branch }),
+    onResetHere: startReset,
   };
 
   return {
     prompt,
+    resetTarget,
+    closeReset,
     menuWriteActions,
     busy,
     validating,

@@ -17,7 +17,8 @@ interface TopBarProps {
   busy: boolean;
   mode: ViewMode;
   compareReady: boolean;
-  localBranchCount: number;
+  /** 可参与对比的引用数（本地分支 + 远程分支 + 标签）。 */
+  refCount: number;
   onOpenRepo: (path: string) => void;
   onForgetRepo: (path: string) => void;
   onPickRepo: () => void;
@@ -40,7 +41,7 @@ export function TopBar({
   busy,
   mode,
   compareReady,
-  localBranchCount,
+  refCount,
   onOpenRepo,
   onForgetRepo,
   onPickRepo,
@@ -61,7 +62,13 @@ export function TopBar({
         onForget={onForgetRepo}
         onPick={onPickRepo}
       />
-      {repo && workspace && <WorkspaceBadge workspace={workspace} />}
+      {repo && workspace && (
+        <WorkspaceBadge
+          workspace={workspace}
+          active={mode === "staging"}
+          onToggle={() => setMode(mode === "staging" ? "graph" : "staging")}
+        />
+      )}
       <div className="topbar-actions">
         {repo && (
           <>
@@ -88,7 +95,7 @@ export function TopBar({
                   onOpenBranchCompare();
                 }
               }}
-              disabled={!compareReady && localBranchCount < 2}
+              disabled={!compareReady && refCount < 2}
                 title={
                   compareReady
                     ? t("shell.compareReadyTitle")

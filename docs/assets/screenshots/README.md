@@ -9,6 +9,8 @@ docs/
   assets/
     screenshots/
       graph-overview-01.png
+      graph-overview-02.png
+      compare-overview-01.png
       diff-split-01.png
       staging-batch-01.png
       settings-gitconfig-01.png

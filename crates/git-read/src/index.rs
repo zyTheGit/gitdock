@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 const CACHE_VERSION: u8 = 1;
+/// 磁盘索引缓存保留的文件数上限；超出按写入时间淘汰最早的（ADR-0036）。
+const CACHE_KEEP_FILES: usize = 64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexNode {
@@ -144,7 +146,11 @@ fn finish(
         positions,
     };
     if let Some(path) = cache_path {
-        let _ = write_cache(path, &index);
+        if write_cache(path, &index).is_ok() {
+            if let Some(dir) = path.parent() {
+                prune_cache(dir);
+            }
+        }
     }
     index
 }
@@ -281,6 +287,32 @@ fn write_cache(path: &Path, index: &GraphIndex) -> std::io::Result<()> {
     std::fs::write(&tmp, serde_json::to_vec(&file)?)?;
     std::fs::rename(tmp, path)?;
     Ok(())
+}
+
+/// 缓存目录按「每仓 × 每视图 × 每代际」一文件，仓库与提交历史增长后必须淘汰，
+/// 否则会无限堆积。只在新文件落盘后执行，失败静默（缓存可再生成）。
+fn prune_cache(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let mut files: Vec<(std::time::SystemTime, PathBuf)> = entries
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let path = entry.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                return None;
+            }
+            let modified = entry.metadata().ok()?.modified().ok()?;
+            Some((modified, path))
+        })
+        .collect();
+    if files.len() <= CACHE_KEEP_FILES {
+        return;
+    }
+    files.sort_by_key(|a| std::cmp::Reverse(a.0));
+    for (_, path) in files.into_iter().skip(CACHE_KEEP_FILES) {
+        let _ = std::fs::remove_file(path);
+    }
 }
 
 fn internal(message: &str, err: impl std::fmt::Display) -> UserVisibleError {

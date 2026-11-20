@@ -26,10 +26,8 @@ pub async fn save_settings(
     let state = Arc::clone(&state);
     blocking(move || {
         let saved = state.save_settings(settings)?;
-        // 监听开关随设置即时生效；仅当仓库已打开时重启。
-        if let Ok(repo) = state.with_session(|session| Ok(session.read.path().to_path_buf())) {
-            state.restart_watcher(&app, &repo);
-        }
+        // 监听开关随设置即时生效：对全部已打开仓库重建监听，无仓库时为空操作。
+        state.restart_watchers(&app);
         Ok(saved)
     })
     .await

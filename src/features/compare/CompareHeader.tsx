@@ -1,6 +1,6 @@
 import { useI18n } from "../../i18n";
 import type { CompareResultDto } from "../../shared/types";
-import type { CompareSlot } from "./useCompare";
+import { isWorktreeSlot, type CompareSlot } from "./useCompare";
 
 interface CompareHeaderProps {
   base: CompareSlot;
@@ -28,30 +28,37 @@ export function CompareHeader({
   onBack,
 }: CompareHeaderProps) {
   const { t } = useI18n();
+  // 工作区没有提交历史，没有共同祖先可算：三点模式不可选，标题也按快照语义展示。
+  const worktree = isWorktreeSlot(base) || isWorktreeSlot(compare);
+  const snapshot = twoDot || worktree;
+  const slotText = (slot: CompareSlot) =>
+    isWorktreeSlot(slot) ? slot.label : `${slot.label} (${slot.oid.slice(0, 8)})`;
   const modeLabel: Record<CompareResultDto["mode"], string> = {
     three_dot: t("compare.modeThreeDot"),
     two_dot: t("compare.modeTwoDot"),
     two_dot_fallback: t("compare.modeTwoDotFallback"),
+    worktree: t("compare.modeWorktree"),
   };
   return (
     <header className="compare-header">
       <div>
-        <h2>{twoDot ? t("compare.titleTwoDot") : t("compare.titleThreeDot")}</h2>
+        <h2>{snapshot ? t("compare.titleTwoDot") : t("compare.titleThreeDot")}</h2>
         <div className="compare-sub mono" title={`${base.oid} → ${compare.oid}`}>
-          {base.label} ({base.oid.slice(0, 8)}) → {compare.label} ({compare.oid.slice(0, 8)})
+          {slotText(base)} → {slotText(compare)}
         </div>
       </div>
       <div className="compare-meta">
         <div className="diff-mode" role="group" aria-label={t("compare.modeGroup")}>
           <button
-            className={twoDot ? "" : "active"}
+            className={snapshot ? "" : "active"}
             onClick={() => onTwoDotChange(false)}
-            title={t("compare.modeThreeDotHint")}
+            disabled={worktree}
+            title={worktree ? t("compare.modeWorktreeHint") : t("compare.modeThreeDotHint")}
           >
             {t("compare.modeThreeDot")}
           </button>
           <button
-            className={twoDot ? "active" : ""}
+            className={snapshot ? "active" : ""}
             onClick={() => onTwoDotChange(true)}
             title={t("compare.modeTwoDotHint")}
           >
@@ -75,8 +82,14 @@ export function CompareHeader({
         )}
         <button
           onClick={onDirectoryDiff}
-          disabled={!result || toolCount === 0}
-          title={toolCount === 0 ? t("compare.noExternalTool") : t("compare.directoryDiffHint")}
+          disabled={!result || toolCount === 0 || worktree}
+          title={
+            worktree
+              ? t("compare.directoryDiffWorktreeHint")
+              : toolCount === 0
+                ? t("compare.noExternalTool")
+                : t("compare.directoryDiffHint")
+          }
         >
           {t("compare.directoryDiff")}
         </button>

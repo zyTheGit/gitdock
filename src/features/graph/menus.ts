@@ -39,6 +39,8 @@ export interface RowMenuActions extends CommitMenuActions {
   onOpenDetail: (commit: CommitSummaryDto) => void;
   onNewBranch: (commit: CommitSummaryDto) => void;
   onNewTag: (commit: CommitSummaryDto) => void;
+  /** 重置当前分支到该提交（ADR-0029）：只有破坏性确认框，不直接执行。 */
+  onResetHere: (commit: CommitSummaryDto) => void;
   onBatchCherryPick: (commits: CommitSummaryDto[]) => void;
   onBatchRevert: (commits: CommitSummaryDto[]) => void;
 }
@@ -99,6 +101,13 @@ export function rowMenuItems(
       label: i18next.t("graph.menuCreateTagHere"),
       disabled: actions.writeDisabled,
       onSelect: () => actions.onNewTag(commit),
+    },
+    {
+      // 危险项：重置会移动当前分支指针，由 ResetDialog 里的模式选择与确认兜底。
+      label: i18next.t("graph.menuResetHere"),
+      danger: true,
+      disabled: actions.writeDisabled,
+      onSelect: () => actions.onResetHere(commit),
     },
   ];
 }

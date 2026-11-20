@@ -1,9 +1,18 @@
+use std::sync::OnceLock;
+
 use git_core::run_git_output;
 
 use super::MINIMUM_GIT_VERSION;
 
+/// 进程内版本探测缓存：Git 版本不会在运行期变化，导入多个仓库不必反复启动子进程。
+static DETECTED: OnceLock<(Option<String>, bool)> = OnceLock::new();
+
 /// 探测系统 Git 版本与最低版本支持情况；供应用外壳展示能力。
 pub fn detect_git_version() -> (Option<String>, bool) {
+    DETECTED.get_or_init(probe).clone()
+}
+
+fn probe() -> (Option<String>, bool) {
     // 版本探测也走统一执行 seam，进入命令执行日志。
     let Ok(output) = run_git_output(None, &["--version"], &[]) else {
         return (None, false);

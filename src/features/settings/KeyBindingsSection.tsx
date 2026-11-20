@@ -52,6 +52,8 @@ const FIXED_SHORTCUTS: { keys: string[]; textKey: SettingsKey }[] = [
   { keys: ["Ctrl", "PageUp"], textKey: "settings.fixedPanelTabPrev" },
   { keys: ["Shift", "点击"], textKey: "settings.fixedShiftClick" },
   { keys: ["Alt", "点击"], textKey: "settings.fixedAltClick" },
+  { keys: ["/"], textKey: "settings.fixedSlashSearch" },
+  { keys: ["Alt", "↑", "↓"], textKey: "settings.fixedDiffFileSwitch" },
 ];
 
 /** 可改键动作的展示名 key；shared 的 ACTION_LABELS 供其内部消息使用，界面渲染走 i18n。 */
@@ -60,6 +62,10 @@ const ACTION_LABEL_KEYS: Record<BindableAction, SettingsKey> = {
   "zoom.in": "settings.actionZoomIn",
   "zoom.out": "settings.actionZoomOut",
   "zoom.reset": "settings.actionZoomReset",
+  "app.search": "settings.actionSearchOpen",
+  "app.refresh": "settings.actionRefresh",
+  "view.graph": "settings.actionViewGraph",
+  "view.staging": "settings.actionViewStaging",
 };
 
 /** 键位符号里需要翻译的词；Esc / Ctrl / ↑ / Enter 等其余符号保持原文。 */

@@ -25,6 +25,14 @@ function writeLabel(kind: WriteKind): string {
       return i18next.t("write.labelStageFiles");
     case "unstage_files":
       return i18next.t("write.labelUnstageFiles");
+    case "discard_files":
+      return i18next.t("write.labelDiscardFiles");
+    case "stage_hunk":
+      return i18next.t("write.labelStageHunk");
+    case "unstage_hunk":
+      return i18next.t("write.labelUnstageHunk");
+    case "discard_hunk":
+      return i18next.t("write.labelDiscardHunk");
     case "continue_operation":
       return i18next.t("write.labelContinueOperation");
     case "abort_operation":
@@ -63,10 +71,30 @@ function writeLabel(kind: WriteKind): string {
       return i18next.t("write.labelPull");
     case "push":
       return i18next.t("write.labelPush");
+    case "checkout_remote_branch":
+      return i18next.t("write.labelCheckoutRemoteBranch");
+    case "push_set_upstream":
+      return i18next.t("write.labelPushSetUpstream");
+    case "fetch_prune":
+      return i18next.t("write.labelFetchPrune");
+    case "push_tag":
+      return i18next.t("write.labelPushTag");
     case "merge":
       return i18next.t("write.labelMerge");
     case "rebase":
       return i18next.t("write.labelRebase");
+    case "reset":
+      return i18next.t("write.labelReset");
+    case "resolve_conflict_ours":
+      return i18next.t("write.labelResolveOurs");
+    case "resolve_conflict_theirs":
+      return i18next.t("write.labelResolveTheirs");
+    case "mark_conflict_resolved":
+      return i18next.t("write.labelMarkResolved");
+    case "create_worktree":
+      return i18next.t("write.labelCreateWorktree");
+    case "remove_worktree":
+      return i18next.t("write.labelRemoveWorktree");
   }
 }
 

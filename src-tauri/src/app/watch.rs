@@ -1,7 +1,8 @@
 //! 仓库文件监听：只监视 Git 目录（HEAD、refs、index 与操作态文件），
 //! 事件经防抖合并后比较仓库代际，变化时才通知前端刷新。
 //!
-//! 约束：监听线程只读仓库并发出事件，绝不写仓库；关闭监听或切换仓库时立即停止。
+//! 约束：监听线程只读仓库并发出事件，绝不写仓库；每个标签一个监听，
+//! 关闭标签或应用退出时立即停止。
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -10,14 +11,14 @@ use std::sync::{Arc, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use git_core::{interruption::is_marker, run_git_output};
+use git_core::interruption::is_marker;
 use notify::{RecursiveMode, Watcher};
 use refresh::RefreshReason;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 use super::logging;
-use super::state::AppState;
+use super::state::{AppState, RepoId};
 
 pub const EVENT_REPOSITORY_CHANGED: &str = "repository-changed";
 
@@ -26,6 +27,8 @@ const POLL: Duration = Duration::from_millis(200);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RepositoryChangedDto {
+    /// 事件来源标签；前端按此路由到对应标签页。
+    pub repo_id: RepoId,
     pub path: String,
     pub generation: u64,
 }
@@ -47,13 +50,16 @@ impl Drop for RepositoryWatcher {
     }
 }
 
-/// 启动监听；返回 `Err` 时调用方保留既有状态，仅记录警告。
+/// 启动监听；`dirs` 为待监听的 Git 目录（per-worktree 目录 + 共享目录），
+/// 由已打开的只读模块给出，避免再次启动 `git rev-parse` 子进程。
+/// 返回 `Err` 时调用方保留既有状态，仅记录警告。
 pub fn start(
     state: Weak<AppState>,
     app: AppHandle,
+    repo_id: RepoId,
     repo: PathBuf,
+    dirs: Vec<PathBuf>,
 ) -> std::result::Result<RepositoryWatcher, String> {
-    let dirs = git_dirs(&repo);
     if dirs.is_empty() {
         return Err("无法解析 Git 目录，未启动文件监听".to_owned());
     }
@@ -80,7 +86,7 @@ pub fn start(
     let stop = Arc::new(AtomicBool::new(false));
     let worker_stop = Arc::clone(&stop);
     let worker_repo = repo.clone();
-    let thread = thread::spawn(move || run_loop(rx, worker_stop, state, app, worker_repo));
+    let thread = thread::spawn(move || run_loop(rx, worker_stop, state, app, repo_id, worker_repo));
 
     Ok(RepositoryWatcher {
         _watcher: watcher,
@@ -94,6 +100,7 @@ fn run_loop(
     stop: Arc<AtomicBool>,
     state: Weak<AppState>,
     app: AppHandle,
+    repo_id: RepoId,
     repo: PathBuf,
 ) {
     while !stop.load(Ordering::Relaxed) {
@@ -124,60 +131,32 @@ fn run_loop(
         let Some(state) = state.upgrade() else {
             return;
         };
-        state.request_refresh(RefreshReason::Watch);
-        let generation = match state.with_session(|session| session.read.current_generation()) {
+        // 只操作事件所属仓库：非活动标签的变化不能污染活动仓库的代际。
+        state.request_refresh_for(repo_id, RefreshReason::Watch);
+        let generation = match state.with_entry(Some(repo_id), |entry| {
+            entry.session.read.current_generation()
+        }) {
             Ok(generation) => generation,
+            // 标签已关闭：注册表里找不到该仓库，等停止信号退出即可。
             Err(_) => continue,
         };
-        let generation_changed = state.observe_generation(generation);
+        let generation_changed = state.observe_generation_for(repo_id, generation);
         if !generation_changed && !metadata_touched {
             continue;
         }
         let payload = RepositoryChangedDto {
+            repo_id,
             path: repo.to_string_lossy().into_owned(),
             generation,
         };
         if let Err(err) = app.emit(EVENT_REPOSITORY_CHANGED, payload) {
             logging::warn(&format!("发送仓库变更事件失败：{err}"));
         }
-        state.accept_generation(generation);
+        state.accept_generation_for(repo_id, generation);
     }
 }
 
-/// 用 `git rev-parse` 解析 worktree 的 Git 目录与共享目录；两者在 linked worktree 中可能不同。
-fn git_dirs(repo: &Path) -> Vec<PathBuf> {
-    let mut dirs = Vec::new();
-    for arg in ["--absolute-git-dir", "--git-common-dir"] {
-        if let Some(dir) = rev_parse_dir(repo, arg) {
-            if !dirs.contains(&dir) {
-                dirs.push(dir);
-            }
-        }
-    }
-    dirs
-}
-
-fn rev_parse_dir(repo: &Path, arg: &str) -> Option<PathBuf> {
-    // 统一执行 seam：监听目录解析也进入命令执行日志；
-    // 以仓库目录为 cwd 等价于原 `git -C <repo> rev-parse <arg>`。
-    let output = run_git_output(Some(repo), &["rev-parse", arg], &[]).ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-    if text.is_empty() {
-        return None;
-    }
-    let path = PathBuf::from(&text);
-    let absolute = if path.is_absolute() {
-        path
-    } else {
-        repo.join(path)
-    };
-    Some(std::fs::canonicalize(&absolute).unwrap_or(absolute))
-}
-
-/// index / config 变化可能不改变 refs 指纹，但需要刷新工作区状态与分支描述。
+/// index / config 变化不一定改变 refs 指纹，但仍需刷新工作区状态与分支描述。
 fn is_metadata(path: &Path) -> bool {
     matches!(
         path.file_name().and_then(|name| name.to_str()),
@@ -204,4 +183,23 @@ fn is_relevant(path: &Path) -> bool {
     }
     path.components()
         .any(|part| part.as_os_str().eq_ignore_ascii_case("refs"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RepositoryChangedDto;
+
+    #[test]
+    fn changed_event_payload_carries_repo_id() {
+        let payload = RepositoryChangedDto {
+            repo_id: 7,
+            path: "C:/work/repo".to_owned(),
+            generation: 42,
+        };
+        let value = serde_json::to_value(&payload).expect("序列化仓库变更事件失败");
+        // 前端按 repo_id 路由标签页；字段名与 TS 镜像保持一致。
+        assert_eq!(value["repo_id"], 7);
+        assert_eq!(value["path"], "C:/work/repo");
+        assert_eq!(value["generation"], 42);
+    }
 }

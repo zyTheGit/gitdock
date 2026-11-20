@@ -426,3 +426,12 @@
   padding: 6px 0;
   background: var(--bg-panel);
 }
+
+/* 目录树模式：目录行与文件行等宽，缩进由行内 paddingLeft 提供。 */
+.compare-file-list .file-tree-dir {
+  width: 100%;
+}
+
+.compare-side .detail-files-head .view-toggle.file-list-toggle {
+  flex: none;
+}

@@ -93,7 +93,14 @@ impl GitWriteModule {
 
     /// 单文件 diff：staged 取索引对 HEAD，unstaged 取工作区对索引；
     /// 未跟踪文件用 `git diff --no-index` 生成新增 diff。
-    pub fn staging_file_diff(&self, path: &str, staged: bool) -> Result<FileDiffDto> {
+    /// `ignore_whitespace` 为真时命令追加 `--ignore-all-space`（ADR-0030）：
+    /// 只影响展示，hunk 级写操作仍按不带 `-w` 的实时 diff 定位，二者不可混用。
+    pub fn staging_file_diff(
+        &self,
+        path: &str,
+        staged: bool,
+        ignore_whitespace: bool,
+    ) -> Result<FileDiffDto> {
         if !safe_rel_path(path) {
             return Err(UserVisibleError::new(
                 ErrorCode::InvalidArgument,
@@ -130,7 +137,7 @@ impl GitWriteModule {
                 )
                 .with_key("errors.stagingUntrackedNotStaged"));
             }
-            return self.untracked_diff(entry);
+            return self.untracked_diff(entry, ignore_whitespace);
         }
         if staged && entry.index_code == '.' {
             return Err(UserVisibleError::new(
@@ -148,7 +155,7 @@ impl GitWriteModule {
             .with_key("errors.stagingNoUnstagedChanges")
             .with_arg("path", path));
         }
-        self.tracked_diff(entry, staged)
+        self.tracked_diff(entry, staged, ignore_whitespace)
     }
 
     fn numstat(&self, staged: bool) -> Result<HashMap<String, Numstat>> {
@@ -167,7 +174,7 @@ impl GitWriteModule {
         Ok(parse_numstat_z(&output.stdout))
     }
 
-    fn untracked_diff(&self, entry: &StatusEntry) -> Result<FileDiffDto> {
+    fn untracked_diff(&self, entry: &StatusEntry, ignore_whitespace: bool) -> Result<FileDiffDto> {
         let full = self.root.join(&entry.path);
         let meta = std::fs::symlink_metadata(&full).map_err(|err| {
             UserVisibleError::new(ErrorCode::Io, format!("无法读取 {}", entry.path))
@@ -201,16 +208,18 @@ impl GitWriteModule {
             dto.too_large = true;
             return Ok(dto);
         }
-        let output = self.run_readonly(&[
+        let mut args = vec![
             "diff",
             "--no-index",
             "--no-color",
             "--no-ext-diff",
             "--unified=3",
-            "--",
-            "/dev/null",
-            &entry.path,
-        ])?;
+        ];
+        if ignore_whitespace {
+            args.push("--ignore-all-space");
+        }
+        args.extend(["--", "/dev/null", entry.path.as_str()]);
+        let output = self.run_readonly(&args)?;
         // --no-index 在存在差异时返回 1，这不是失败。
         if !matches!(output.status.code(), Some(0) | Some(1)) {
             return Err(UserVisibleError::new(
@@ -225,25 +234,22 @@ impl GitWriteModule {
             None,
             FileStatus::Added,
             &output.stdout,
+            ignore_whitespace,
         ))
     }
 
-    fn tracked_diff(&self, entry: &StatusEntry, staged: bool) -> Result<FileDiffDto> {
-        let mut args = vec!["diff", "--no-color", "--no-ext-diff", "--unified=3", "-M"];
-        if staged {
-            args.push("--cached");
+    fn tracked_diff(
+        &self,
+        entry: &StatusEntry,
+        staged: bool,
+        ignore_whitespace: bool,
+    ) -> Result<FileDiffDto> {
+        let mut args = tracked_diff_args(entry, staged);
+        if ignore_whitespace {
+            args = insert_ignore_whitespace(args);
         }
-        args.push("--");
-        args.push(&entry.path);
-        // 已暂存的重命名只有同时传入旧路径才会显示为 rename，否则会被当成新增。
-        if staged {
-            if let Some(old_path) = entry.old_path.as_deref() {
-                if old_path != entry.path {
-                    args.push(old_path);
-                }
-            }
-        }
-        let output = self.run_readonly(&args)?;
+        let arg_refs = args.iter().map(String::as_str).collect::<Vec<_>>();
+        let output = self.run_readonly(&arg_refs)?;
         if !output.status.success() {
             return Err(
                 UserVisibleError::new(ErrorCode::GitCommandFailed, "无法生成文件 diff")
@@ -257,8 +263,50 @@ impl GitWriteModule {
             entry.worktree_code
         });
         let old_path = if staged { entry.old_path.clone() } else { None };
-        Ok(build_diff(&entry.path, old_path, status, &output.stdout))
+        Ok(build_diff(
+            &entry.path,
+            old_path,
+            status,
+            &output.stdout,
+            ignore_whitespace,
+        ))
     }
+}
+
+/// 单文件 tracked diff 的命令参数：`staged` 取索引对 HEAD（`--cached`），否则工作区对索引。
+///
+/// hunk 级操作（ADR-0027）必须复现**同一条命令**，才能保证后端切出的 `hunk_index`
+/// 与 `staging_file_diff` 返回给 UI 的块顺序严格一致；改动这里等于同时改动 hunk 契约。
+pub(crate) fn tracked_diff_args(entry: &StatusEntry, staged: bool) -> Vec<String> {
+    let mut args: Vec<String> = ["diff", "--no-color", "--no-ext-diff", "--unified=3", "-M"]
+        .iter()
+        .map(|arg| (*arg).to_owned())
+        .collect();
+    if staged {
+        args.push("--cached".to_owned());
+    }
+    args.push("--".to_owned());
+    args.push(entry.path.clone());
+    // 已暂存的重命名只有同时传入旧路径才会显示为 rename，否则会被当成新增。
+    if staged {
+        if let Some(old_path) = entry.old_path.as_deref() {
+            if old_path != entry.path {
+                args.push(old_path.to_owned());
+            }
+        }
+    }
+    args
+}
+
+/// 只用于展示的 `-w` 变体：把 `--ignore-all-space` 插到 `--` 之前，
+/// hunk 写操作仍使用不带该参数的 `tracked_diff_args`（ADR-0030）。
+fn insert_ignore_whitespace(mut args: Vec<String>) -> Vec<String> {
+    let position = args
+        .iter()
+        .position(|arg| arg == "--")
+        .unwrap_or(args.len());
+    args.insert(position, "--ignore-all-space".to_owned());
+    args
 }
 
 fn parse_numstat_z(bytes: &[u8]) -> HashMap<String, Numstat> {
@@ -341,6 +389,7 @@ fn build_diff(
     old_path: Option<String>,
     status: FileStatus,
     bytes: &[u8],
+    ignore_whitespace: bool,
 ) -> FileDiffDto {
     let encoding_fallback = std::str::from_utf8(bytes).is_err();
     let patch_text = text(bytes);
@@ -370,6 +419,9 @@ fn build_diff(
         note: None,
         note_code: None,
         note_args: None,
+        image_before: None,
+        image_after: None,
+        image_kind: None,
     };
     if binary {
         dto.set_note("diff_binary", binary_note());
@@ -380,7 +432,11 @@ fn build_diff(
         return dto;
     }
     if patch_text.trim().is_empty() {
-        dto.set_note("staging_no_text_diff", "没有可显示的文本差异");
+        if ignore_whitespace {
+            dto.set_note("diff_ignore_whitespace", "忽略空白差异后没有可见变更");
+        } else {
+            dto.set_note("staging_no_text_diff", "没有可显示的文本差异");
+        }
         return dto;
     }
     apply_patch_limit(&mut dto, patch_text);
@@ -407,6 +463,9 @@ fn note_diff(path: &str, status: FileStatus, code: &str, note: &str) -> FileDiff
         note: None,
         note_code: None,
         note_args: None,
+        image_before: None,
+        image_after: None,
+        image_kind: None,
     };
     dto.set_note(code, note);
     dto

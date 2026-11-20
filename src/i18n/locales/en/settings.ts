@@ -101,11 +101,15 @@ const settings = {
   actionZoomIn: "Zoom in one step",
   actionZoomOut: "Zoom out one step",
   actionZoomReset: "Reset zoom to 100%",
+  actionSearchOpen: "Open commit search",
+  actionRefresh: "Refresh the repository",
+  actionViewGraph: "Switch to graph view",
+  actionViewStaging: "Switch to staging view",
   fixedEsc:
     "Exits one level at a time: cancel the pending replace slot → exit search → exit compare → clear both slots; also collapses the zoomed diff and closes menus and the repository switcher",
   fixedTerminalZoom: "Zoom the terminal to the full window / restore it (only inside the terminal panel)",
   fixedArrows:
-    "Moves the highlight in the repository switcher and search suggestions; adjusts column widths while dragging splitters, with larger steps when Shift is held",
+    "Moves the selection up and down while the graph list is focused; moves the highlight in the repository switcher and search suggestions; adjusts column widths while dragging splitters, with larger steps when Shift is held",
   fixedEnter: "Confirms the highlighted item in the repository switcher / search input",
   fixedCtrlClick:
     "{{modifier}}+click: puts the commit into the compare slots; a second click switches to the other slot",
@@ -115,6 +119,9 @@ const settings = {
   fixedShiftClick:
     "Shift+click: selects a range of commits in the current view order; right-click then shows batch actions only",
   fixedAltClick: "{{alt}}+click: adds or removes a single commit from the batch selection",
+  fixedSlashSearch: "Slash while no input is focused: open commit search",
+  fixedDiffFileSwitch:
+    "{{alt}}+Up / Down: switch to the previous / next changed file in the diff view",
 
   // Git configuration: shared
   gitConfigTitle: "Git configuration",

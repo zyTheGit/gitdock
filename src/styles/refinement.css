@@ -68,6 +68,106 @@
 .branch-item { min-height: 30px; padding: 4px 7px; font-size: 12px; }
 .branch-item.active { border-color: transparent; }
 
+/* 侧栏仓库摘要：HEAD 徽标 + 可复制短 OID，内部调试字段收进 <details>。 */
+.repo-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.repo-summary-row { display: flex; flex: 1 1 100%; align-items: center; gap: 6px; min-width: 0; }
+.head-badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+}
+.repo-oid {
+  padding: 1px 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 18px;
+}
+.repo-oid:hover:not(:disabled) { color: var(--accent); border-color: var(--border); background: var(--bg-elevated); }
+.repo-details { flex: 1 1 100%; color: var(--muted); font-size: 11px; }
+.repo-details summary { cursor: pointer; }
+.repo-details summary:hover { color: var(--text); }
+.repo-details dl { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 3px 8px; margin: 6px 0 0; }
+.repo-details dt { color: var(--muted); }
+.repo-details dd { margin: 0; overflow-wrap: anywhere; color: var(--text); }
+
+/* 引用过滤与可折叠分组（本地分支/远程分支/标签）。 */
+.ref-filter { display: flex; align-items: center; gap: 2px; margin: 8px 0 2px; }
+.ref-filter input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  outline: none;
+}
+.ref-filter input:focus { border-color: var(--accent); }
+.ref-filter input::placeholder { color: var(--muted); }
+.ref-filter-clear { padding: 0 6px; font-size: 14px; line-height: 24px; }
+
+.ref-section { padding-top: 6px; }
+/* 分组之间用细分隔线，配合各自图标区分本地分支 / 远程分支 / 标签 / Worktree。 */
+.ref-section + .ref-section { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+.ref-section-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+/* 分组操作独占一行：窄侧栏下不再与标题/计数挤在一起。 */
+.ref-section-actions { display: flex; justify-content: flex-end; gap: 2px; padding: 0 4px 3px; }
+.ref-section-actions .link { padding: 2px 4px; font-size: 12px; }
+.ref-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 3px 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+.ref-toggle:hover:not(:disabled) { color: var(--text); background: var(--row-hover); border-color: transparent; }
+.ref-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.ref-toggle .ref-count { margin-left: auto; }
+.ref-section-title { flex: 0 1 auto; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ref-section-icon { flex: none; width: 13px; height: 13px; color: var(--muted); }
+/* 用实心三角（▶/▼）对齐「仓库详情」原生三角：小三角字形（▸/▾）在 9~11px 下仍显小。 */
+.ref-caret { flex: none; width: 12px; color: var(--muted); font-size: 10px; line-height: 1; text-align: center; }
+.ref-count { flex: none; font-size: 11px; }
+.ref-tree { list-style: none; margin: 0; padding: 0; }
+.ref-tree li { margin-bottom: 2px; }
+/* 同名前缀目录（feature / release / origin…）：字号与分支名一致，强调它是父节点而非次要信息。 */
+.ref-group-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text); }
+.ref-empty { margin: 2px 0 4px; padding-left: 6px; font-size: 11px; }
+/* 行尾标记组：上游领先/落后计数 + 当前分支徽标，紧凑不改变行高。 */
+.ref-trailing { display: flex; flex: none; align-items: center; gap: 4px; }
+.ref-sync {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .main { gap: 6px; padding: 8px 10px; }
 .statusbar { flex: none; height: 30px; align-items: center; padding: 0 12px; }
 .pane-splitter::after { inset: 0 2px; }

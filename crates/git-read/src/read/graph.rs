@@ -1,14 +1,10 @@
-use std::collections::HashSet;
-
 use git_core::{
     decode_cursor, encode_cursor, ErrorCode, GraphPageDto, GraphScope, Oid, ResolvedEdgeDto,
     Result, RowLayoutDto, UserVisibleError, WarningDto,
 };
 use graph_layout::LayoutCommit;
 
-use super::{
-    commit_summary, read_head, read_refs, GitReadModule, DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT,
-};
+use super::{commit_summary, GitReadModule, RefsSnapshot, DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT};
 use crate::index::GraphIndex;
 use crate::util::oid_from_id;
 
@@ -100,10 +96,10 @@ impl GitReadModule {
             ));
         }
         let (rows, resolved) = self.ensure_layout(index, &view_key, generation, start, end);
-        let (_, badges) = read_refs(repo, &read_head(repo)?)?;
+        let snapshot = self.refs_snapshot(repo, generation)?;
         let mut commits = Vec::with_capacity(end.saturating_sub(start));
         for oid in index.order_slice(start, limit) {
-            commits.push(commit_summary(repo, oid, &badges)?);
+            commits.push(commit_summary(repo, oid, &snapshot.badges)?);
         }
         let has_more = end < index.order.len();
         let next_cursor = if has_more {
@@ -185,24 +181,19 @@ impl GitReadModule {
     }
 }
 
-pub(super) fn scope_tips(repo: &gix::Repository, scope: &GraphScope) -> Result<Vec<Oid>> {
+pub(super) fn scope_tips(
+    repo: &gix::Repository,
+    scope: &GraphScope,
+    snapshot: &RefsSnapshot,
+) -> Result<Vec<Oid>> {
     match scope {
         GraphScope::Head => match repo.head_id() {
             Ok(id) => Ok(vec![oid_from_id(&id)]),
             Err(_) => Ok(Vec::new()),
         },
         GraphScope::All => {
-            let (refs, _) = read_refs(repo, &read_head(repo)?)?;
-            let mut seen = HashSet::new();
-            let mut tips = Vec::new();
-            for reference in refs {
-                if let Some(oid) = reference.commit_oid {
-                    if seen.insert(oid.clone()) {
-                        tips.push(oid);
-                    }
-                }
-            }
-            Ok(tips)
+            // 徽章索引的键就是各引用 peel 后的提交且已去重，可直接作为遍历起点。
+            Ok(snapshot.badges.keys().cloned().collect())
         }
         GraphScope::Branch(name) => {
             let candidates = [

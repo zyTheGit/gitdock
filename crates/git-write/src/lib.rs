@@ -8,25 +8,35 @@ mod branch;
 mod command;
 mod commit;
 pub mod config;
+mod conflict;
 mod description;
+mod discard;
 mod execute;
 mod gate;
 mod history;
+mod hunk;
 mod interruption_outcome;
+mod outcome;
 mod probe;
 mod remote;
+mod reset;
 mod staging;
 mod stash;
 mod status;
 mod tag;
+mod worktree;
 
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use git_core::{ErrorCode, Result, UserVisibleError};
 use parking_lot::Mutex;
 
 pub struct GitWriteModule {
     root: PathBuf,
+    /// per-worktree Git 目录缓存：一次 `rev-parse` 解析后复用，
+    /// 打开/切换仓库与写前检查不再重复启动子进程。
+    git_dir_cache: OnceLock<Option<PathBuf>>,
     /// 全局互斥：同一仓库同一时刻最多一个写操作。
     write_lock: Mutex<()>,
 }
@@ -40,6 +50,7 @@ impl GitWriteModule {
         })?;
         Ok(Self {
             root,
+            git_dir_cache: OnceLock::new(),
             write_lock: Mutex::new(()),
         })
     }

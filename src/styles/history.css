@@ -1,0 +1,419 @@
+/* 单文件历史与 Blame（ADR-0031）：宽幅双栏对话框、提交时间线与逐行追溯。
+   颜色只用语义令牌；Blame 分组色复用图谱泳道色并通过 color-mix 降低强度。 */
+
+.history-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(1180px, 94vw);
+  height: min(760px, 84vh);
+  padding: 14px 16px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 24px 64px var(--shadow-lg);
+  overflow: hidden;
+}
+
+.history-dialog > header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.history-heading h2 {
+  margin: 0;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.history-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.history-tabs {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-tabs button {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  padding: 5px 12px;
+  color: var(--muted);
+}
+
+.history-tabs button:hover:not(:disabled) {
+  border-bottom-color: var(--border);
+  color: var(--text);
+}
+
+.history-tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.history-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.history-body > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.history-foot {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.history-placeholder {
+  margin: 0;
+  padding: 14px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ------------------------------ 提交历史 ------------------------------ */
+
+.file-history-view {
+  display: flex;
+  gap: 8px;
+  min-height: 0;
+}
+
+.file-history-timeline {
+  flex: none;
+  width: 350px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.file-history-timeline > .banner {
+  margin: 6px;
+}
+
+.file-history-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.file-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.file-history-list > li {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.history-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-bottom: 1px solid var(--row-divider);
+  border-radius: 0;
+  background: none;
+  text-align: left;
+  overflow: hidden;
+}
+
+.history-entry:hover:not(:disabled) {
+  background: var(--row-hover);
+  border-color: var(--row-divider);
+}
+
+.history-entry.active {
+  background: var(--accent-weak);
+  box-shadow: inset 2px 0 var(--accent);
+}
+
+.history-entry .file-status {
+  flex: none;
+  margin-top: 1px;
+}
+
+.history-entry-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.history-entry-meta {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.history-entry-author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-entry-summary {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-history-more {
+  flex: none;
+  padding: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.file-history-more button {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* 右侧该次改动：文件头固定，diff 本体填满剩余高度自行滚动。 */
+.history-diff {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.history-detail-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.history-detail-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-detail-actions {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+
+.history-detail-actions button {
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.history-adjacent-note {
+  flex: none;
+  margin: 0;
+  padding: 3px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.history-diff-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 8px 10px 0;
+}
+
+.history-diff-body > p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.history-diff-body > .file-diff:not(.expanded) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-diff-body .file-diff:not(.expanded) .file-diff-body,
+.history-diff-body .file-diff:not(.expanded) .file-diff-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-diff-body .file-diff:not(.expanded) .file-diff-header,
+.history-diff-body .file-diff:not(.expanded) .file-diff-main > :not(.diff-view):not(.split-panes) {
+  flex: none;
+}
+
+.history-diff-body .diff-view,
+.history-diff-body .split-panes {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ------------------------------ Blame ------------------------------ */
+
+.file-blame {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.file-blame > .banner {
+  margin: 6px 8px 0;
+}
+
+.file-blame-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.file-blame-inner {
+  position: relative;
+  min-width: 100%;
+}
+
+/* 行背景取分组色的低强度混合；相邻分组撞色时前端顺移色号，保证可区分。 */
+.history-blame-row {
+  --blame-tone: var(--graph-lane-1);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+  background: color-mix(in srgb, var(--blame-tone) 8%, transparent);
+  font-size: 12px;
+}
+
+.history-blame-row.group-start {
+  box-shadow: inset 0 1px var(--row-divider);
+}
+
+.blame-tone-0 { --blame-tone: var(--graph-lane-1); }
+.blame-tone-1 { --blame-tone: var(--graph-lane-2); }
+.blame-tone-2 { --blame-tone: var(--graph-lane-3); }
+.blame-tone-3 { --blame-tone: var(--graph-lane-4); }
+.blame-tone-4 { --blame-tone: var(--graph-lane-5); }
+.blame-tone-5 { --blame-tone: var(--graph-lane-6); }
+.blame-tone-6 { --blame-tone: var(--graph-lane-7); }
+.blame-tone-7 { --blame-tone: var(--graph-lane-8); }
+
+.history-blame-gutter {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 232px;
+  padding: 0 8px;
+  border-left: 3px solid var(--blame-tone);
+  background: var(--bg-panel);
+}
+
+.history-blame-hash {
+  flex: none;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--blame-tone);
+  font-size: 11px;
+}
+
+.history-blame-hash:hover:not(:disabled) {
+  border-color: transparent;
+  text-decoration: underline;
+}
+
+.history-blame-author {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.history-blame-date {
+  flex: none;
+  font-size: 10px;
+}
+
+.history-blame-no {
+  flex: none;
+  width: 54px;
+  padding-right: 8px;
+  text-align: right;
+}
+
+.history-blame-code {
+  flex: none;
+  padding-right: 16px;
+  color: var(--diff-text);
+  white-space: pre;
+}

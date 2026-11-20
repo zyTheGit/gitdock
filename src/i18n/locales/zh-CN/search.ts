@@ -11,6 +11,8 @@ const search = {
   searchButton: "搜索",
   searching: "搜索中…",
   cancel: "取消",
+  clear: "清空",
+  clearTitle: "清空关键词与搜索结果",
 
   // 范围与状态
   scopeHint: "搜索范围：{{repo}} · 当前视图 ref 范围 · 文件路径按“改动中出现”匹配",
@@ -19,6 +21,11 @@ const search = {
   canceled: "搜索已取消；已有结果保留，不再继续追加。",
   pathScanHint: "路径匹配每页最多扫描前 {{n}} 个提交。",
   noResults: "没有匹配的提交。hash 前缀至少 7 位。",
+
+  // 命中域筛选（只过滤已返回结果）
+  filterAria: "按命中域筛选",
+  filterAll: "全部",
+  filterEmpty: "当前筛选没有命中的提交。",
 
   // 快捷键提示（kbd 按键符号为原文，句子分段拼接）
   hintEnter: "输入关键词后回车搜索；",

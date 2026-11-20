@@ -40,6 +40,29 @@ impl GitWriteModule {
             });
         }
 
+        // 丢弃未暂存改动 = `git restore --worktree` + 未跟踪路径逐条删除（ADR 0026）；
+        // 纯未跟踪请求不产生 git 命令，因此不进入下面的单命令管线。
+        if request.kind == WriteKind::DiscardFiles {
+            return crate::discard::execute::execute_discard(self, request);
+        }
+
+        // hunk 级操作（ADR 0027）：补丁由 hunk 模块按实时 diff 重建后经 stdin 交给
+        // `git apply`，成功文案仍由 outcome.rs 统一给出。
+        if matches!(
+            request.kind,
+            WriteKind::StageHunk | WriteKind::UnstageHunk | WriteKind::DiscardHunk
+        ) {
+            return crate::hunk::execute::execute_hunk(self, request, &gate);
+        }
+
+        // worktree 创建/移除（ADR-0034）：命令构造与结果判定都在 worktree 模块。
+        if matches!(
+            request.kind,
+            WriteKind::CreateWorktree | WriteKind::RemoveWorktree
+        ) {
+            return crate::worktree::execute::execute(self, request, &gate);
+        }
+
         let spec = self.command_for(request)?;
         let args = spec.args.iter().map(String::as_str).collect::<Vec<_>>();
         // 环境注入：禁用交互式编辑器与终端提示（交互都在 GUI 内完成）；
@@ -91,246 +114,8 @@ impl GitWriteModule {
         }
 
         if exit_code == Some(0) {
-            let (message, key, args) = match request.kind {
-                WriteKind::CherryPick => (
-                    "Cherry-pick 成功，图谱已刷新".to_owned(),
-                    "errors.outcomeCherryPickSucceeded",
-                    None,
-                ),
-                WriteKind::Revert => (
-                    "Revert 成功，图谱已刷新".to_owned(),
-                    "errors.outcomeRevertSucceeded",
-                    None,
-                ),
-                WriteKind::SwitchBranch => {
-                    let branch = request.branch.as_deref().unwrap_or_default();
-                    if gate.affected_total > 0 {
-                        (
-                            format!(
-                                "已切换到分支 {branch}，{} 个文件的工作区改动已保留",
-                                gate.affected_total
-                            ),
-                            "errors.outcomeSwitchedWithChanges",
-                            args_map(&[
-                                ("branch", branch),
-                                ("n", &gate.affected_total.to_string()),
-                            ]),
-                        )
-                    } else {
-                        (
-                            format!("已切换到分支 {branch}"),
-                            "errors.outcomeSwitched",
-                            args_map(&[("branch", branch)]),
-                        )
-                    }
-                }
-                WriteKind::SetBranchDescription => {
-                    let branch = request.branch.as_deref().unwrap_or_default();
-                    let removed = request
-                        .description
-                        .as_deref()
-                        .unwrap_or("")
-                        .trim()
-                        .is_empty();
-                    (
-                        description_message(request, false),
-                        if removed {
-                            "errors.outcomeDescriptionRemoved"
-                        } else {
-                            "errors.outcomeDescriptionUpdated"
-                        },
-                        args_map(&[("branch", branch)]),
-                    )
-                }
-                WriteKind::StageFiles => {
-                    let count = request.paths.as_deref().unwrap_or(&[]).len();
-                    (
-                        format!("已暂存 {count} 个文件"),
-                        "errors.outcomeStaged",
-                        args_map(&[("n", &count.to_string())]),
-                    )
-                }
-                WriteKind::UnstageFiles => {
-                    let count = request.paths.as_deref().unwrap_or(&[]).len();
-                    (
-                        format!("已取消暂存 {count} 个文件"),
-                        "errors.outcomeUnstaged",
-                        args_map(&[("n", &count.to_string())]),
-                    )
-                }
-                WriteKind::CreateCommit | WriteKind::AmendCommit => {
-                    // spec.message_file 随函数返回 drop，临时消息文件成败均被删除。
-                    let short = head_oid
-                        .as_ref()
-                        .map(|oid| oid.short(8).to_owned())
-                        .unwrap_or_default();
-                    if request.kind == WriteKind::CreateCommit {
-                        (
-                            format!("已创建提交 {short}，图谱已刷新"),
-                            "errors.outcomeCommitSucceeded",
-                            args_map(&[("oid", &short)]),
-                        )
-                    } else {
-                        (
-                            format!("已修改上一条提交，新提交 {short}；原提交可经 git reflog 找回"),
-                            "errors.outcomeAmendSucceeded",
-                            args_map(&[("oid", &short)]),
-                        )
-                    }
-                }
-                WriteKind::CreateBranch => {
-                    let branch = request.branch.as_deref().unwrap_or_default();
-                    (
-                        format!("已创建本地分支 {branch}，图谱已刷新"),
-                        "errors.outcomeBranchCreated",
-                        args_map(&[("branch", branch)]),
-                    )
-                }
-                WriteKind::DeleteBranch => {
-                    let branch = request.branch.as_deref().unwrap_or_default();
-                    (
-                        format!("已删除本地分支 {branch}，图谱已刷新"),
-                        "errors.outcomeBranchDeleted",
-                        args_map(&[("branch", branch)]),
-                    )
-                }
-                WriteKind::DeleteBranchRemote => {
-                    let branch = request.branch.as_deref().unwrap_or_default();
-                    (
-                        format!("已删除远程分支 origin/{branch}，图谱已刷新"),
-                        "errors.outcomeBranchRemoteDeleted",
-                        args_map(&[("branch", branch)]),
-                    )
-                }
-                WriteKind::DeleteTagRemote => {
-                    let tag = request.branch.as_deref().unwrap_or_default();
-                    (
-                        format!("已删除远程标签 {tag}，图谱已刷新"),
-                        "errors.outcomeTagRemoteDeleted",
-                        args_map(&[("tag", tag)]),
-                    )
-                }
-                WriteKind::RenameBranch => {
-                    let branch = request.branch.as_deref().unwrap_or_default();
-                    let new_name = request.new_name.as_deref().unwrap_or_default();
-                    (
-                        format!("已将本地分支 {branch} 重命名为 {new_name}，图谱已刷新"),
-                        "errors.outcomeBranchRenamed",
-                        args_map(&[("branch", branch), ("new_name", new_name)]),
-                    )
-                }
-                WriteKind::CreateTag => {
-                    let tag = request.branch.as_deref().unwrap_or_default();
-                    (
-                        format!("已创建本地标签 {tag}，图谱已刷新"),
-                        "errors.outcomeTagCreated",
-                        args_map(&[("tag", tag)]),
-                    )
-                }
-                WriteKind::DeleteTag => {
-                    let tag = request.branch.as_deref().unwrap_or_default();
-                    (
-                        format!("已删除本地标签 {tag}，图谱已刷新"),
-                        "errors.outcomeTagDeleted",
-                        args_map(&[("tag", tag)]),
-                    )
-                }
-                WriteKind::SetTagDescription => {
-                    let tag = request.branch.as_deref().unwrap_or_default();
-                    let cleared = request
-                        .description
-                        .as_deref()
-                        .unwrap_or("")
-                        .trim()
-                        .is_empty();
-                    (
-                        if cleared {
-                            format!("已清除标签 {tag} 的附注描述，改为轻量标签")
-                        } else {
-                            format!("已更新标签 {tag} 的附注描述")
-                        },
-                        if cleared {
-                            "errors.outcomeTagDescriptionCleared"
-                        } else {
-                            "errors.outcomeTagDescriptionUpdated"
-                        },
-                        args_map(&[("tag", tag)]),
-                    )
-                }
-                WriteKind::StashSave => (
-                    "已保存当前工作区改动为 stash".to_owned(),
-                    "errors.outcomeStashSaved",
-                    None,
-                ),
-                WriteKind::StashApply => {
-                    let selector = request.stash.as_deref().unwrap_or_default();
-                    (
-                        format!("已应用 {selector}，条目保留"),
-                        "errors.outcomeStashApplied",
-                        args_map(&[("selector", selector)]),
-                    )
-                }
-                WriteKind::StashPop => {
-                    let selector = request.stash.as_deref().unwrap_or_default();
-                    (
-                        format!("已应用并移除 {selector}"),
-                        "errors.outcomeStashPopped",
-                        args_map(&[("selector", selector)]),
-                    )
-                }
-                WriteKind::StashDrop => {
-                    let selector = request.stash.as_deref().unwrap_or_default();
-                    (
-                        format!("已删除 stash 条目 {selector}"),
-                        "errors.outcomeStashDropped",
-                        args_map(&[("selector", selector)]),
-                    )
-                }
-                WriteKind::Fetch => (
-                    "已 fetch 远程更新，图谱已刷新".to_owned(),
-                    "errors.outcomeFetchSucceeded",
-                    None,
-                ),
-                WriteKind::Pull => {
-                    let mode = request.pull_mode.unwrap_or(git_core::PullMode::FfOnly);
-                    (
-                        match mode {
-                            git_core::PullMode::FfOnly => "已拉取并快进当前分支，工作区已刷新",
-                            git_core::PullMode::Merge => "已拉取并合并远端更新，工作区已刷新",
-                            git_core::PullMode::Rebase => "已拉取并将当前分支 rebase 到远端",
-                        }
-                        .to_owned(),
-                        "errors.outcomePullSucceeded",
-                        None,
-                    )
-                }
-                WriteKind::Push => (
-                    "已推送当前分支".to_owned(),
-                    "errors.outcomePushSucceeded",
-                    None,
-                ),
-                WriteKind::Merge => {
-                    let branch = request.branch.as_deref().unwrap_or_default();
-                    (
-                        format!("已把 {branch} merge 到当前分支"),
-                        "errors.outcomeMergeSucceeded",
-                        args_map(&[("branch", branch)]),
-                    )
-                }
-                WriteKind::Rebase => {
-                    let branch = request.branch.as_deref().unwrap_or_default();
-                    (
-                        format!("已把当前分支 rebase 到 {branch}"),
-                        "errors.outcomeRebaseSucceeded",
-                        args_map(&[("branch", branch)]),
-                    )
-                }
-                WriteKind::ContinueOperation | WriteKind::AbortOperation => (
-                    "操作已完成，图谱已刷新".to_owned(),
-                    "errors.outcomeCompleted",
-                    None,
-                ),
-            };
+            let (message, key, args) =
+                crate::outcome::success_message(request, &gate, head_oid.as_ref());
             return Ok(WriteOutcomeDto {
                 key: Some(key.into()),
                 args,
@@ -444,8 +229,11 @@ impl GitWriteModule {
         if matches!(
             request.kind,
             WriteKind::Fetch
+                | WriteKind::FetchPrune
                 | WriteKind::Pull
                 | WriteKind::Push
+                | WriteKind::PushSetUpstream
+                | WriteKind::PushTag
                 | WriteKind::DeleteBranchRemote
                 | WriteKind::DeleteTagRemote
         ) {
@@ -513,6 +301,11 @@ impl GitWriteModule {
                 "errors.outcomeSwitchRejected",
                 None,
             ),
+            WriteKind::CheckoutRemoteBranch => (
+                "检出远程分支被 Git 拒绝（本地分支可能已创建但未切换），未执行 stash / reset / clean；请根据诊断信息处理",
+                "errors.outcomeCheckoutRemoteRejected",
+                args_map(&[("branch", request.branch.as_deref().unwrap_or_default())]),
+            ),
             WriteKind::DeleteBranch => (
                 "删除分支被 Git 拒绝（未完全合并的分支不会被删除）；如需强制删除，请在终端执行 git branch -D",
                 "errors.outcomeBranchDeleteRejected",
@@ -529,6 +322,31 @@ impl GitWriteModule {
                     .as_deref()
                     .map(|selector| args_map(&[("selector", selector)]))
                     .unwrap_or(None),
+            ),
+            WriteKind::Reset => {
+                // 重置非零退出时分支指针未移动（Git 先校验再动引用），结果按失败报告。
+                let oid = request
+                    .oid
+                    .as_ref()
+                    .map(|oid| oid.short(8).to_owned())
+                    .unwrap_or_default();
+                let mode = request
+                    .reset_mode
+                    .map(|mode| mode.as_str().to_owned())
+                    .unwrap_or_default();
+                (
+                    "重置被 Git 拒绝，未移动分支指针；请刷新后重试",
+                    "errors.outcomeResetRejected",
+                    args_map(&[("oid", oid.as_str()), ("mode", mode.as_str())]),
+                )
+            }
+            WriteKind::ResolveConflictOurs
+            | WriteKind::ResolveConflictTheirs
+            | WriteKind::MarkConflictResolved => (
+                // 工作区 / 索引可能已被外部改动；冲突状态以刷新后的 status 为准。
+                "冲突处理被 Git 拒绝，工作区未按预期更新；请刷新状态后重试，或在终端处理",
+                "errors.outcomeGitRejected",
+                args_map(&[("path", request.path.as_deref().unwrap_or_default())]),
             ),
             _ => ("Git 拒绝了本次操作", "errors.outcomeGitRejected", None),
         };

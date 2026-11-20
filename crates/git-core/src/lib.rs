@@ -8,6 +8,7 @@ pub mod cursor;
 pub mod diff_limit;
 pub mod dto;
 pub mod error;
+pub mod image;
 pub mod interruption;
 pub mod language;
 pub mod oid;
@@ -20,6 +21,7 @@ pub use diff_limit::{
 };
 pub use dto::*;
 pub use error::{ErrorCode, Result, UserVisibleError};
+pub use image::{image_data_uri, image_kind, image_media_type};
 pub use interruption::{
     detect_kinds, interruption_dto, is_marker, kind_names, terminal_hint, MARKERS,
 };

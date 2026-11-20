@@ -4,6 +4,7 @@
 @import "./styles/scrollbar.css";
 @import "./styles/shell.css";
 @import "./styles/layout.css";
+@import "./styles/tabs.css";
 @import "./styles/graph.css";
 @import "./styles/detail.css";
 @import "./styles/diff.css";
@@ -16,4 +17,7 @@
 @import "./styles/terminal.css";
 @import "./styles/panel.css";
 @import "./styles/gitlog.css";
+@import "./styles/history.css";
+@import "./styles/worktree.css";
 @import "./styles/refinement.css";
+@import "./styles/review.css";

@@ -51,6 +51,12 @@ pub struct SettingsDto {
     /// 非 Windows 平台上 git_bash 无意义，`resolve_shell` 回落系统默认。
     #[serde(default = "default_shell_profile")]
     pub shell_profile: String,
+    /// 上次打开的全部仓库路径（按打开顺序）；仅供前端启动恢复，后端不自动打开。
+    #[serde(default)]
+    pub open_repositories: Vec<String>,
+    /// 上次活动的仓库路径；None 表示没有活动仓库。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_repository: Option<String>,
 }
 
 /// 支持的语言。首期仅简体中文与英文。
@@ -95,6 +101,8 @@ impl Default for SettingsDto {
             font_scale: default_font_scale(),
             language: None,
             shell_profile: default_shell_profile(),
+            open_repositories: Vec::new(),
+            active_repository: None,
         }
     }
 }

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use git_core::{CommitSummaryDto, HeadDto, HeadKind, Oid, RefBadgeDto, RefDto, RefKind, Result};
 
 use super::gix_error;
+use super::upstream::{self, UpstreamState};
 use crate::util::{find_commit, lossy, oid_from_gix, oid_from_id, raw_time_seconds};
 
 pub(crate) fn read_head(repo: &gix::Repository) -> Result<HeadDto> {
@@ -32,6 +33,8 @@ pub(crate) fn read_refs(
         .as_ref()
         .map(|branch| format!("refs/heads/{branch}"));
     let descriptions = local_branch_descriptions(repo);
+    // 上游与 ahead/behind 只对本地分支计算（ADR-0028）；失败按「无上游」降级。
+    let upstreams = upstream::read_upstream_states(repo);
     let mut refs = Vec::new();
     for reference in repo
         .references()
@@ -56,6 +59,10 @@ pub(crate) fn read_refs(
             }
             _ => (None, None),
         };
+        let upstream_state = match kind {
+            RefKind::LocalBranch => upstreams.get(&short_name),
+            _ => None,
+        };
         refs.push(RefDto {
             is_head: head_ref.as_deref() == Some(full_name.as_str()),
             full_name,
@@ -65,6 +72,9 @@ pub(crate) fn read_refs(
             commit_oid,
             created_at,
             description,
+            upstream: upstream_state.and_then(|state: &UpstreamState| state.upstream.clone()),
+            ahead: upstream_state.and_then(|state| state.ahead),
+            behind: upstream_state.and_then(|state| state.behind),
         });
     }
     refs.sort_by(|a, b| {

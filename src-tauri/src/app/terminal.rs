@@ -21,7 +21,7 @@ use tauri::{AppHandle, Emitter};
 use super::config::SettingsDto;
 use super::logging;
 use super::platform::absolute_path_entries;
-use super::state::AppState;
+use super::state::{AppState, RepoId};
 use super::watch::{RepositoryChangedDto, EVENT_REPOSITORY_CHANGED};
 
 /// 终端输出与退出事件；数据用 base64 传输，避免 UTF-8 半个字符被截断。
@@ -42,15 +42,52 @@ pub struct TerminalCapabilitiesDto {
 }
 
 struct Session {
+    /// 所属仓库标签：关闭标签时按此回收对应 PTY（ADR-0032）。
+    repo_id: RepoId,
     writer: Mutex<Box<dyn Write + Send>>,
     master: Mutex<Box<dyn MasterPty + Send>>,
     child: Arc<Mutex<Box<dyn Child + Send + Sync>>>,
 }
 
-/// 单窗口内允许多个终端会话并存（例如 LazyGit 与 Shell 各一个）。
+/// PTY 会话到仓库标签的映射。单独成结构以便不启动 PTY 即可单元测试记账。
+#[derive(Default)]
+struct RepoIndex {
+    by_terminal: HashMap<u64, RepoId>,
+}
+
+impl RepoIndex {
+    fn insert(&mut self, terminal_id: u64, repo_id: RepoId) {
+        self.by_terminal.insert(terminal_id, repo_id);
+    }
+
+    fn remove(&mut self, terminal_id: u64) -> Option<RepoId> {
+        self.by_terminal.remove(&terminal_id)
+    }
+
+    /// 取出某仓库的全部 PTY id 并清除记账。
+    fn take_repo(&mut self, repo_id: RepoId) -> Vec<u64> {
+        let ids: Vec<u64> = self
+            .by_terminal
+            .iter()
+            .filter(|(_, owner)| **owner == repo_id)
+            .map(|(terminal_id, _)| *terminal_id)
+            .collect();
+        for id in &ids {
+            self.by_terminal.remove(id);
+        }
+        ids
+    }
+
+    fn clear(&mut self) {
+        self.by_terminal.clear();
+    }
+}
+
+/// 单窗口内允许多个终端会话并存（例如 LazyGit 与 Shell 各一个，跨仓库也并存）。
 #[derive(Default)]
 pub struct TerminalRegistry {
     sessions: Mutex<HashMap<u64, Session>>,
+    index: Mutex<RepoIndex>,
     next_id: AtomicU64,
 }
 
@@ -59,21 +96,49 @@ impl TerminalRegistry {
         Self::default()
     }
 
-    /// 结束全部会话；切换仓库、关闭窗口时调用，避免留下孤儿进程。
+    /// 结束全部会话：关闭窗口或应用退出时调用，避免留下孤儿进程。
+    /// 切换活动标签不再回收任何 PTY。
     pub fn close_all(&self) {
-        let Ok(mut sessions) = self.sessions.lock() else {
-            return;
-        };
-        for (id, session) in sessions.drain() {
+        let drained: Vec<(u64, Session)> = self
+            .sessions
+            .lock()
+            .map(|mut sessions| sessions.drain().collect())
+            .unwrap_or_default();
+        if let Ok(mut index) = self.index.lock() {
+            index.clear();
+        }
+        for (id, session) in drained {
             kill(&session);
             logging::info(&format!("已结束终端会话 {id}"));
         }
     }
 
+    /// 关闭某个仓库标签的终端；其他仓库的会话不受影响。
+    pub fn close_for_repo(&self, repo_id: RepoId) {
+        let ids = self
+            .index
+            .lock()
+            .map(|mut index| index.take_repo(repo_id))
+            .unwrap_or_default();
+        let Ok(mut sessions) = self.sessions.lock() else {
+            return;
+        };
+        for id in ids {
+            if let Some(session) = sessions.remove(&id) {
+                kill(&session);
+                logging::info(&format!("已结束仓库 {repo_id} 的终端会话 {id}"));
+            }
+        }
+    }
+
     fn insert(&self, session: Session) -> u64 {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed) + 1;
+        let repo_id = session.repo_id;
         if let Ok(mut sessions) = self.sessions.lock() {
             sessions.insert(id, session);
+        }
+        if let Ok(mut index) = self.index.lock() {
+            index.insert(id, repo_id);
         }
         id
     }
@@ -116,6 +181,9 @@ impl TerminalRegistry {
             .lock()
             .ok()
             .and_then(|mut sessions| sessions.remove(&id));
+        if let Ok(mut index) = self.index.lock() {
+            index.remove(id);
+        }
         if let Some(session) = session {
             kill(&session);
         }
@@ -170,7 +238,7 @@ fn detect_git_bash() -> Option<std::path::PathBuf> {
     None
 }
 
-/// 启动终端。工作目录固定为当前仓库，模式只接受 `lazygit` / `shell`。
+/// 启动终端。工作目录固定为活动仓库，模式只接受 `lazygit` / `shell`。
 pub fn open(
     state: &Arc<AppState>,
     app: &AppHandle,
@@ -179,7 +247,11 @@ pub fn open(
     rows: u16,
     channel: Channel<TerminalEvent>,
 ) -> Result<u64> {
-    let repo = state.with_session(|session| Ok(session.read.path().to_path_buf()))?;
+    // 打开瞬间捕获仓库 id 与路径；后续 spawn 不再持有注册表的 Arc 条目。
+    let (repo_id, repo) = {
+        let entry = state.active_entry()?;
+        (entry.id, entry.session.read.path().to_path_buf())
+    };
     let settings = state.settings()?;
 
     let (program, args) = match mode {
@@ -241,11 +313,15 @@ pub fn open(
 
     let child = Arc::new(Mutex::new(child));
     let id = state.terminals.insert(Session {
+        repo_id,
         writer: Mutex::new(writer),
         master: Mutex::new(master),
         child: Arc::clone(&child),
     });
-    logging::info(&format!("启动终端 {id}（{mode}，{}）", repo.display()));
+    logging::info(&format!(
+        "启动终端 {id}（{mode}，仓库 {repo_id}，{}）",
+        repo.display()
+    ));
 
     let app = app.clone();
     let repo_label = repo.to_string_lossy().into_owned();
@@ -293,14 +369,17 @@ pub fn open(
         };
         // 进程已结束；移除会话会释放 PTY 并解除 reader 阻塞。
         state.terminals.close(id);
-        // 终端可能改动了仓库；即使监听关闭，也让前端做一次刷新。
-        state.request_refresh(RefreshReason::Watch);
-        if let Ok(generation) = state.with_session(|session| session.read.current_generation()) {
-            state.observe_generation(generation);
-            state.accept_generation(generation);
+        // 终端可能改动了所属仓库；即使监听关闭、标签不在前台，也让前端做一次刷新。
+        state.request_refresh_for(repo_id, RefreshReason::Watch);
+        if let Ok(generation) = state.with_entry(Some(repo_id), |entry| {
+            entry.session.read.current_generation()
+        }) {
+            state.observe_generation_for(repo_id, generation);
+            state.accept_generation_for(repo_id, generation);
             let _ = app.emit(
                 EVENT_REPOSITORY_CHANGED,
                 RepositoryChangedDto {
+                    repo_id,
                     path: repo_label,
                     generation,
                 },
@@ -406,5 +485,25 @@ mod tests {
         let raw = std::env::join_paths([".", "relative", absolute]).expect("构造 PATH 值");
         let dirs = absolute_path_entries(&raw);
         assert_eq!(dirs, vec![PathBuf::from(absolute)]);
+    }
+
+    #[test]
+    fn repo_index_groups_sessions_by_repo_and_forgets_them() {
+        let mut index = RepoIndex::default();
+        index.insert(1, 10);
+        index.insert(2, 20);
+        index.insert(3, 10);
+
+        let mut taken = index.take_repo(10);
+        taken.sort();
+        assert_eq!(taken, vec![1, 3]);
+        // 已回收的记账不会重复取出，其他仓库不受影响。
+        assert!(index.take_repo(10).is_empty());
+        assert_eq!(index.remove(2), Some(20));
+        assert_eq!(index.remove(2), None);
+
+        index.insert(4, 30);
+        index.clear();
+        assert_eq!(index.remove(4), None);
     }
 }

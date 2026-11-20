@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { errorText, issueText, outcomeText } from "../../shared/error";
-import { formatDate } from "../../shared/format";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
 import { useEscClose } from "../../shared/useEscClose";
 import type { GateIssueDto, StashEntryDto, WriteKind, WriteRequest } from "../../shared/types";
+import { StashEntryRow } from "./StashEntryRow";
+import { StashPreviewPane } from "./StashPreviewPane";
 
 interface StashDialogProps {
   writeDisabled: boolean;
@@ -25,6 +26,7 @@ export function StashDialog({ writeDisabled, onClose, onMutated }: StashDialogPr
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<GateIssueDto[] | null>(null);
   const [pendingDrop, setPendingDrop] = useState<StashEntryDto | null>(null);
+  const [selectedOid, setSelectedOid] = useState<string | null>(null);
 
   const busyRef = useRef(false);
   const pendingDropRef = useRef<StashEntryDto | null>(null);
@@ -42,6 +44,18 @@ export function StashDialog({ writeDisabled, onClose, onMutated }: StashDialogPr
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 列表刷新后保持有效选择；被 pop/drop 的条目失效时回落到第一条。
+  useEffect(() => {
+    if (!entries) {
+      return;
+    }
+    setSelectedOid((current) =>
+      current && entries.some((entry) => entry.oid === current)
+        ? current
+        : entries[0]?.oid ?? null,
+    );
+  }, [entries]);
 
   useEscClose(() => {
     if (pendingDropRef.current) {
@@ -134,7 +148,7 @@ export function StashDialog({ writeDisabled, onClose, onMutated }: StashDialogPr
   const canSave = !busy && !writeDisabled;
 
   return (
-    <Modal className="confirm-dialog stash-dialog">
+    <Modal className="confirm-dialog stash-dialog wide">
       <header>
         <div>
           <h2>{t("staging.stashTitle")}</h2>
@@ -172,87 +186,73 @@ export function StashDialog({ writeDisabled, onClose, onMutated }: StashDialogPr
         </>
       ) : (
         <>
-          <section className="stash-save">
-            <label className="ref-field-label" htmlFor="stash-message">
-              {t("staging.stashMessageLabel")}
-            </label>
-            <input
-              id="stash-message"
-              className="ref-input"
-              type="text"
-              disabled={busy}
-              placeholder={t("staging.stashMessagePlaceholder")}
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-            />
-            <label className="stash-check">
-              <input
-                type="checkbox"
-                checked={includeUntracked}
-                disabled={busy}
-                onChange={(event) => setIncludeUntracked(event.target.checked)}
-              />
-              {t("staging.stashIncludeUntracked")}
-            </label>
-            <button className="primary" onClick={save} disabled={!canSave}>
-              {busy ? t("staging.stashSaving") : t("staging.stashSave")}
-            </button>
-          </section>
+          <div className="stash-layout">
+            <div className="stash-column">
+              <section className="stash-save">
+                <label className="ref-field-label" htmlFor="stash-message">
+                  {t("staging.stashMessageLabel")}
+                </label>
+                <input
+                  id="stash-message"
+                  className="ref-input"
+                  type="text"
+                  disabled={busy}
+                  placeholder={t("staging.stashMessagePlaceholder")}
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                />
+                <label className="stash-check">
+                  <input
+                    type="checkbox"
+                    checked={includeUntracked}
+                    disabled={busy}
+                    onChange={(event) => setIncludeUntracked(event.target.checked)}
+                  />
+                  {t("staging.stashIncludeUntracked")}
+                </label>
+                <button className="primary" onClick={save} disabled={!canSave}>
+                  {busy ? t("staging.stashSaving") : t("staging.stashSave")}
+                </button>
+              </section>
 
-          {issues && (
-            <div className="gate-report">
-              <p className="danger-text">{t("write.gateFailedPrefix")}</p>
-              <ul className="gate-issues">
-                {issues.map((issue) => (
-                  <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
-                ))}
-              </ul>
+              {issues && (
+                <div className="gate-report">
+                  <p className="danger-text">{t("write.gateFailedPrefix")}</p>
+                  <ul className="gate-issues">
+                    {issues.map((issue) => (
+                      <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {error && <p className="danger-text stash-error">{error}</p>}
+
+              <section className="stash-list" aria-label={t("staging.stashListLabel")}>
+                {entries === null ? (
+                  <p className="muted">{t("staging.stashBusy")}</p>
+                ) : entries.length === 0 ? (
+                  <p className="muted">{t("staging.stashEmpty")}</p>
+                ) : (
+                  <ul>
+                    {entries.map((entry) => (
+                      <StashEntryRow
+                        key={entry.oid}
+                        entry={entry}
+                        active={entry.oid === selectedOid}
+                        actionsDisabled={!canSave}
+                        onSelect={() => setSelectedOid(entry.oid)}
+                        onApply={() => act("stash_apply", entry)}
+                        onPop={() => act("stash_pop", entry)}
+                        onDrop={() => setPendingDrop(entry)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </section>
             </div>
-          )}
-          {error && <p className="danger-text stash-error">{error}</p>}
 
-          <section className="stash-list" aria-label={t("staging.stashListLabel")}>
-            {entries === null ? (
-              <p className="muted">{t("staging.stashBusy")}</p>
-            ) : entries.length === 0 ? (
-              <p className="muted">{t("staging.stashEmpty")}</p>
-            ) : (
-              <ul>
-                {entries.map((entry) => (
-                  <li key={entry.oid} className="stash-row">
-                    <div className="stash-row-info">
-                      <span className="mono">{entry.selector}</span>
-                      <span className="stash-row-message" title={entry.message}>
-                        {entry.message}
-                      </span>
-                      <span className="muted">
-                        {formatDate(Math.floor(entry.created_at / 1000))}
-                      </span>
-                    </div>
-                    <div className="stash-row-actions">
-                      <button disabled={!canSave} onClick={() => act("stash_apply", entry)}>
-                        {t("staging.stashApply")}
-                      </button>
-                      <button disabled={!canSave} onClick={() => act("stash_pop", entry)}>
-                        {t("staging.stashPop")}
-                      </button>
-                      <button
-                        className="danger"
-                        disabled={!canSave}
-                        onClick={() => setPendingDrop(entry)}
-                      >
-                        {t("staging.stashDrop")}
-                      </button>
-                    </div>
-                    <p className="muted stash-row-hints">
-                      {t("staging.stashApplyHint")} · {t("staging.stashPopHint")} ·{" "}
-                      {t("staging.stashDropHint")}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+            <StashPreviewPane oid={selectedOid} />
+          </div>
           <footer>
             <button onClick={onClose} disabled={busy}>
               {t("staging.close")}

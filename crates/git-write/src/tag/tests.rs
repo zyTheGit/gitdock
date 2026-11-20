@@ -20,6 +20,10 @@ fn base_request(kind: WriteKind) -> WriteRequest {
         include_untracked: None,
         pull_mode: None,
         oids: None,
+        path: None,
+        hunk_index: None,
+        remote: None,
+        reset_mode: None,
     }
 }
 

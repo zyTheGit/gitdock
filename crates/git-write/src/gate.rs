@@ -4,16 +4,13 @@ use std::collections::BTreeMap;
 
 use git_core::{
     kind_names, ErrorCode, GateIssueDto, GateReportDto, InterruptionKind, Result, UserVisibleError,
-    WarningDto, WriteKind, WriteRequest,
+    WriteKind, WriteRequest,
 };
 
 use crate::description::validate_branch_description;
 use crate::staging::{safe_rel_path, MAX_STAGING_PATHS};
-use crate::status::{StatusEntry, StatusSummary};
+use crate::status::dirty_issue;
 use crate::GitWriteModule;
-
-/// Gate 报告中受影响文件清单的上限；超出部分由 `affected_total` 说明。
-const MAX_AFFECTED_PATHS: usize = 50;
 
 impl GitWriteModule {
     /// 写前 Gate。`issues` 非空即拒绝执行；summary 用于确认框。
@@ -33,14 +30,9 @@ impl GitWriteModule {
             return Ok(GateReportDto {
                 ok: false,
                 issues,
-                warnings,
-                affected_paths,
-                affected_total,
                 summary: "bare 仓库不支持写操作".into(),
                 summary_key: Some("errors.gateSummaryBare".into()),
-                summary_args: None,
-                is_merge_commit,
-                parents: parent_options,
+                ..GateReportDto::default()
             });
         }
 
@@ -48,10 +40,13 @@ impl GitWriteModule {
             request.kind,
             WriteKind::ContinueOperation | WriteKind::AbortOperation
         );
+        // 冲突解决发生在中断态内部（merge / rebase / cherry-pick 未完成时），
+        // 不能被「存在未完成操作即拒绝」挡住（ADR-0033）。
+        let resolves_conflict = crate::conflict::is_conflict_kind(request.kind);
 
         // 继续/中止本身就是收尾中断态，只有其他操作才沿用「存在未完成操作即拒绝」。
         let interruption = self.inspect_interruption()?;
-        if !continues_interruption && interruption.is_active() {
+        if !continues_interruption && !resolves_conflict && interruption.is_active() {
             let kinds_text = kind_names(&interruption.kinds);
             let hint_text = interruption.terminal_hint;
             issues.push(
@@ -133,7 +128,7 @@ impl GitWriteModule {
                     "revert"
                 };
                 let branch = head.branch.as_deref().unwrap_or("（未知分支）");
-                let short = short_oid(oid.as_str());
+                let short = oid.as_str().get(..8).unwrap_or(oid.as_str());
                 match request.mainline {
                     Some(n) if is_merge_commit && n >= 1 && n <= parent_count => (
                         format!(
@@ -184,30 +179,11 @@ impl GitWriteModule {
                         .with_arg("n", status.conflicted.to_string()),
                     );
                 }
-                if status.staged > 0 || status.tracked > 0 || status.untracked > 0 {
-                    let dirty_files: Vec<&StatusEntry> = detail
-                        .entries
-                        .iter()
-                        .filter(|entry| !entry.conflicted)
-                        .collect();
-                    affected_total = dirty_files.len();
-                    affected_paths = dirty_files
-                        .iter()
-                        .take(MAX_AFFECTED_PATHS)
-                        .map(|entry| entry.path.clone())
-                        .collect();
-                    warnings.push(
-                        WarningDto::new(
-                            "worktree_dirty",
-                            format!(
-                                "工作区有 {affected_total} 个文件存在改动（{}）。不会自动 stash、reset 或 clean：改动会保留在工作区并可能带到目标分支；若目标分支会覆盖这些文件，Git 将拒绝切换并保持现状。",
-                                dirty_parts(status)
-                            ),
-                        )
-                        .with_arg("total", affected_total.to_string())
-                        .with_arg("parts", dirty_parts(status)),
-                    );
-                }
+                // dirty 语义复用 branch 模块的共享实现（checkout_remote_branch 同源，ADR-0002）。
+                let dirty = crate::branch::gate::dirty_switch_context(&detail);
+                affected_total = dirty.affected_total;
+                affected_paths = dirty.affected_paths;
+                warnings.extend(dirty.warnings);
                 if !self.local_branch_exists(branch)? {
                     issues.push(
                         issue(
@@ -353,16 +329,41 @@ impl GitWriteModule {
                     )
                 }
             }
+            WriteKind::DiscardFiles => {
+                // 丢弃校验按 ADR 0026 拆到 discard 模块；bare 与中断态已由上方前置拒绝。
+                let discard = crate::discard::gate::validate_discard(request, &detail);
+                issues.extend(discard.issues);
+                warnings.extend(discard.warnings);
+                affected_paths = discard.affected_paths;
+                affected_total = discard.affected_total;
+                (discard.summary, discard.summary_key, discard.summary_args)
+            }
+            WriteKind::StageHunk | WriteKind::UnstageHunk | WriteKind::DiscardHunk => {
+                // hunk 校验按 ADR 0027 拆到 hunk 模块；bare 与中断态已由上方前置拒绝。
+                let hunk = crate::hunk::gate::validate_hunk(self, request, &detail)?;
+                issues.extend(hunk.issues);
+                warnings.extend(hunk.warnings);
+                affected_paths = hunk.affected_paths;
+                affected_total = hunk.affected_total;
+                (hunk.summary, hunk.summary_key, hunk.summary_args)
+            }
             WriteKind::CreateCommit | WriteKind::AmendCommit => {
                 // 提交校验按 ADR 0007 拆到 commit 模块；bare 与中断态已由上方前置拒绝。
                 let commit = crate::commit::gate::validate_commit(self, request, &head, status)?;
                 issues.extend(commit.issues);
                 (commit.summary, commit.summary_key, commit.summary_args)
             }
-            WriteKind::CreateBranch | WriteKind::DeleteBranch | WriteKind::RenameBranch => {
-                // 分支校验按 ADR 0008 拆到 branch 模块；bare 与中断态已由上方前置拒绝。
-                let change = crate::branch::gate::validate_branch_change(self, request, &head)?;
+            WriteKind::CreateBranch
+            | WriteKind::DeleteBranch
+            | WriteKind::RenameBranch
+            | WriteKind::CheckoutRemoteBranch => {
+                // 分支校验按 ADR 0008 / ADR 0028 拆到 branch 模块；bare 与中断态已由上方前置拒绝。
+                let change =
+                    crate::branch::gate::validate_branch_change(self, request, &head, &detail)?;
                 issues.extend(change.issues);
+                warnings.extend(change.warnings);
+                affected_paths = change.affected_paths;
+                affected_total = change.affected_total;
                 (change.summary, change.summary_key, change.summary_args)
             }
             WriteKind::CreateTag | WriteKind::DeleteTag | WriteKind::SetTagDescription => {
@@ -383,9 +384,21 @@ impl GitWriteModule {
                 issues.extend(change.issues);
                 (change.summary, change.summary_key, change.summary_args)
             }
-            WriteKind::Fetch | WriteKind::Pull | WriteKind::Push => {
-                // 远程校验按 ADR 0010 拆到 remote 模块；bare 与中断态已由上方前置拒绝。
+            WriteKind::Fetch | WriteKind::FetchPrune | WriteKind::Pull | WriteKind::Push => {
+                // 远程校验按 ADR 0010 / ADR 0028 拆到 remote 模块；bare 与中断态已由上方前置拒绝。
                 let change = crate::remote::gate::validate_remote(self, request, &head, status)?;
+                issues.extend(change.issues);
+                (change.summary, change.summary_key, change.summary_args)
+            }
+            WriteKind::PushSetUpstream => {
+                // 首次推送并建立上游（ADR-0028）；bare 与中断态已由上方前置拒绝。
+                let change = crate::remote::gate::validate_push_set_upstream(self, request, &head)?;
+                issues.extend(change.issues);
+                (change.summary, change.summary_key, change.summary_args)
+            }
+            WriteKind::PushTag => {
+                // 推送本地标签（ADR-0028）；bare 与中断态已由上方前置拒绝。
+                let change = crate::remote::gate::validate_push_tag(self, request)?;
                 issues.extend(change.issues);
                 (change.summary, change.summary_key, change.summary_args)
             }
@@ -402,6 +415,37 @@ impl GitWriteModule {
                 // merge / rebase 校验按 ADR 0011 拆到 history 模块；bare 与中断态已由上方前置拒绝。
                 let change =
                     crate::history::gate::validate_history_change(self, request, &head, status)?;
+                issues.extend(change.issues);
+                (change.summary, change.summary_key, change.summary_args)
+            }
+            WriteKind::Reset => {
+                // 重置校验按 ADR-0029 拆到 reset 模块；bare 与中断态已由上方前置拒绝。
+                let reset = crate::reset::gate::validate_reset(self, request, &head, &detail)?;
+                issues.extend(reset.issues);
+                warnings.extend(reset.warnings);
+                affected_paths = reset.affected_paths;
+                affected_total = reset.affected_total;
+                (reset.summary, reset.summary_key, reset.summary_args)
+            }
+            WriteKind::ResolveConflictOurs
+            | WriteKind::ResolveConflictTheirs
+            | WriteKind::MarkConflictResolved => {
+                // 冲突解决校验按 ADR-0033 拆到 conflict 模块；bare 已由上方前置拒绝。
+                let conflict =
+                    crate::conflict::gate::validate_conflict(self, request, &head, &detail);
+                issues.extend(conflict.issues);
+                warnings.extend(conflict.warnings);
+                affected_paths = conflict.affected_paths;
+                affected_total = conflict.affected_total;
+                (
+                    conflict.summary,
+                    conflict.summary_key,
+                    conflict.summary_args,
+                )
+            }
+            WriteKind::CreateWorktree | WriteKind::RemoveWorktree => {
+                // worktree 校验按 ADR-0034 拆到 worktree 模块；bare 与中断态已由上方前置拒绝。
+                let change = crate::worktree::gate::validate_worktree(self, request, &head)?;
                 issues.extend(change.issues);
                 (change.summary, change.summary_key, change.summary_args)
             }
@@ -533,35 +577,8 @@ impl GitWriteModule {
     }
 }
 
-fn dirty_parts(status: &StatusSummary) -> String {
-    let mut parts = Vec::new();
-    if status.tracked > 0 {
-        parts.push(format!("{} 个已修改文件", status.tracked));
-    }
-    if status.staged > 0 {
-        parts.push(format!("{} 个已暂存文件", status.staged));
-    }
-    if status.untracked > 0 {
-        parts.push(format!("{} 个未跟踪文件", status.untracked));
-    }
-    parts.join("、")
-}
-
-fn dirty_issue(status: &StatusSummary) -> GateIssueDto {
-    let parts = dirty_parts(status);
-    issue(
-        "gate_worktree_dirty",
-        format!("工作区不干净（{parts}），请先提交或在终端处理"),
-    )
-    .with_arg("parts", parts)
-}
-
 fn issue(code: &str, message: impl Into<String>) -> GateIssueDto {
     GateIssueDto::new(code, message)
-}
-
-fn short_oid(oid: &str) -> &str {
-    oid.get(..8).unwrap_or(oid)
 }
 
 /// 插值参数表 → BTreeMap；仅用于带参数的 i18n 模板。

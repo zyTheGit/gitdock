@@ -4,23 +4,30 @@
 
 ## 产品展示
 
-![GitDock 提交图谱](docs/assets/screenshots/graph-overview-01.png)
+![GitDock 分支对比：三点/两点快照模式下的完整树差异与并排 diff](docs/assets/screenshots/compare-overview-01.png)
 
 ## 多分支对比
 
-- 任选两个本地/远程分支或提交作为 Base 与 Compare
+- 从分支对比弹窗任选两个本地分支，或在图谱中 `Ctrl/Cmd`+点击任意两个提交作为 Base 与 Compare
 - 支持两点与三点 diff，三点模式自动定位 merge-base
 - 展示 ahead/behind、文件级 diff、按路径过滤与语法高亮
-- 图谱支持范围切换与分支过滤，选中提交即可定位
+- 支持调用外部对比工具进行单文件或完整目录级对比（如 Beyond Compare、VS Code 等）
+- 图谱支持范围切换（当前分支 / 全量 / 指定本地分支）与提交搜索定位
 
 ## Git 功能操作
 
-- 提交：创建提交、amend；amend 有专门确认与 reflog 恢复说明
-- 提交级操作：cherry-pick、revert；merge commit 可选择基线父提交
-- 分支：切换、创建、重命名、安全删除；未合并分支的强制删除需到终端执行 `git branch -D`
-- 标签：创建轻量/附注标签、删除本地标签
+- 暂存与提交：文件级暂存/取消暂存、创建提交、amend；amend 有专门确认与 reflog 恢复说明
+- 提交级操作：单条与批量 cherry-pick / revert；merge commit 可选择基线父提交
+- 分支与历史整合：切换、创建、重命名、编辑描述、安全删除本地分支（可选同步删除远程 `origin` 分支）、merge、rebase；未合并分支的强制删除需到终端执行 `git branch -D`
+- 标签：创建轻量/附注标签、右键编辑标签描述、删除本地标签（可选同步删除远程 `origin` 标签）
 - stash：保存（可选包含未跟踪文件）、应用、弹出、删除；冲突时保留条目并进入冲突处理流程
-- 写前检查：工作区不干净、存在未完成操作、名称冲突等情况会先拦截；删除、drop 等破坏性操作需专门确认
+- 远程同步：fetch、pull（支持仅快进 / 合并）、push；凭据交由系统凭据管理器或 SSH agent，应用不记录密码
+- 写前检查与冲突收尾：工作区不干净、存在未完成操作、名称冲突等情况会先拦截；删除、drop、rebase 等破坏性或历史改写操作需专门确认；冲突后可在顶部横幅确认继续或中止，绝不自动 `--abort` / `--skip`
+
+## 内置面板与工具
+
+- 底部多标签面板内置终端（支持直接启动 LazyGit 或 Shell；Windows 支持在 Git Bash 与 PowerShell 间切换）与实时 Git 命令执行日志
+- 终端配色跟随应用浅/深色主题，面板支持高度拖拽与全屏切换
 
 ## 支持多平台
 

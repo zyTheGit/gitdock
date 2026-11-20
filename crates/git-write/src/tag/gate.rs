@@ -151,7 +151,9 @@ fn validate_set_description(
     })
 }
 
-fn invalid_tag_name(module: &GitWriteModule, tag: &str) -> Result<bool> {
+/// 标签名合法性：非空、无首尾空白、不以 `-` 开头、无控制字符，且通过 check-ref-format。
+/// 供标签域与 `push_tag`（ADR-0028，remote/gate.rs）共用。
+pub(crate) fn invalid_tag_name(module: &GitWriteModule, tag: &str) -> Result<bool> {
     if tag.is_empty() || tag.trim() != tag || tag.starts_with('-') {
         return Ok(true);
     }

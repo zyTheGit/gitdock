@@ -6,11 +6,13 @@
 //! PATH 只取绝对条目、绝不启动进程。
 
 mod paths;
+mod reveal;
 mod shell;
 mod tools;
 mod url;
 
 pub(crate) use paths::{absolute_path_entries, same_path};
+pub(crate) use reveal::{resolve_in_repo, reveal};
 #[cfg(windows)]
 pub(crate) use shell::detect_git_bash;
 pub(crate) use shell::{resolve_shell, ShellProfile};

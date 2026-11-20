@@ -1,17 +1,14 @@
-//! 仓库会话域 command：启动传参、打开/关闭仓库与会话状态读取。
+//! 仓库会话域 command：启动传参、标签页打开/切换/关闭与会话状态读取（ADR-0032）。
+//!
+//! 所有读写 command 仍缺省作用于活动标签；标签本身由四个 command 管理。
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
-use git_core::{ErrorCode, RepoStateDto, Result, UserVisibleError};
-use git_read::GitReadModule;
-use git_write::GitWriteModule;
-use refresh::RefreshReason;
+use git_core::{RepoStateDto, Result};
 use tauri::State;
 
 use super::{blocking, Shared};
-use crate::app::logging;
-use crate::app::state::Session;
+use crate::app::state::{RepoId, RepoListDto, RepoRestoreDto};
 
 #[tauri::command]
 pub fn startup_repository() -> Option<String> {
@@ -22,6 +19,7 @@ pub fn startup_repository() -> Option<String> {
         .map(|arg| arg.to_string_lossy().into_owned())
 }
 
+/// 打开或激活仓库标签；成功后成为活动仓库。标签数不设上限。
 #[tauri::command]
 pub async fn open_repository(
     app: tauri::AppHandle,
@@ -29,53 +27,49 @@ pub async fn open_repository(
     path: String,
 ) -> Result<RepoStateDto> {
     let state = Arc::clone(&state);
-    blocking(move || {
-        let dir = PathBuf::from(path);
-        let canonical = std::fs::canonicalize(&dir).map_err(|e| {
-            UserVisibleError::new(ErrorCode::RepositoryNotFound, "仓库目录不存在或不可访问")
-                .with_key("errors.repoDirNotFound")
-                .with_detail(e.to_string())
-        })?;
-        if !canonical.is_dir() {
-            return Err(
-                UserVisibleError::new(ErrorCode::InvalidArgument, "请选择仓库目录")
-                    .with_key("errors.repoDirectoryRequired"),
-            );
-        }
-        let open_path = PathBuf::from(crate::app::config::strip_verbatim(&canonical));
-        let read = GitReadModule::open(&open_path, Some(state.paths.index_cache_dir.clone()))?;
-        let write = GitWriteModule::new(&open_path)?;
-        let mut state_dto = read.state()?;
-        // 写前 Gate 与启动恢复共用同一检测来源，避免只读模块与写模块给出不同中断态。
-        state_dto.interruption = write.inspect_interruption()?;
-        logging::info(&format!(
-            "打开仓库 {}（{}，generation {}）",
-            state_dto.path,
-            state_dto.object_format.as_str(),
-            state_dto.generation
-        ));
-        // 切换仓库前结束旧终端，避免旧仓库的 LazyGit/Shell 继续运行并改动旧仓库。
-        state.terminals.close_all();
-        state.replace_session(Some(Session { read, write }))?;
-        state.request_refresh(RefreshReason::Manual);
-        state.accept_generation(state_dto.generation);
-        state.restart_watcher(&app, &open_path);
-        Ok(state_dto)
-    })
-    .await
+    blocking(move || state.open_repository(&app, &path)).await
 }
 
+/// 启动恢复：一次登记全部标签，只为活动仓库返回完整状态（ADR-0036）。
 #[tauri::command]
-pub async fn close_repository(state: State<'_, Shared>) -> Result<()> {
+pub async fn restore_repositories(
+    app: tauri::AppHandle,
+    state: State<'_, Shared>,
+    paths: Vec<String>,
+    active: Option<String>,
+) -> Result<RepoRestoreDto> {
     let state = Arc::clone(&state);
-    blocking(move || {
-        state.stop_watcher();
-        state.terminals.close_all();
-        state.close()?;
-        logging::info("关闭仓库");
-        Ok(())
-    })
-    .await
+    blocking(move || state.restore_repositories(&app, paths, active)).await
+}
+
+/// 启动恢复与标签栏初始化的唯一来源；顺序按打开时间。
+#[tauri::command]
+pub async fn list_repositories(state: State<'_, Shared>) -> Result<RepoListDto> {
+    let state = Arc::clone(&state);
+    blocking(move || state.list_repositories()).await
+}
+
+/// 切换活动标签；未知 id 返回 `repository_not_found`。
+#[tauri::command]
+pub async fn activate_repository(
+    app: tauri::AppHandle,
+    state: State<'_, Shared>,
+    repo_id: RepoId,
+) -> Result<RepoStateDto> {
+    let state = Arc::clone(&state);
+    blocking(move || state.activate_repository(&app, repo_id)).await
+}
+
+/// 关闭标签；`repo_id` 缺省（None）时关闭活动仓库。
+/// 返回接替成为活动仓库的状态；没有剩余标签时返回 `None`。
+#[tauri::command]
+pub async fn close_repository(
+    app: tauri::AppHandle,
+    state: State<'_, Shared>,
+    repo_id: Option<RepoId>,
+) -> Result<Option<RepoStateDto>> {
+    let state = Arc::clone(&state);
+    blocking(move || state.close_repository(&app, repo_id)).await
 }
 
 #[tauri::command]

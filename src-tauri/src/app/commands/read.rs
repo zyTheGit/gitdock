@@ -3,11 +3,12 @@
 use std::sync::Arc;
 
 use git_core::{
-    CommitBranchContextDto, CommitDetailDto, CompareResultDto, ErrorCode, FileDiffDto,
-    GraphPageDto, GraphScope, Oid, Result, SearchPageDto, SearchRequest, StashEntryDto,
-    UserVisibleError,
+    CommitBranchContextDto, CommitDetailDto, CommitTemplateDto, CompareResultDto, ErrorCode,
+    FileBlameDto, FileDiffDto, FileHistoryPageDto, GraphPageDto, GraphScope, Oid, ReflogEntryDto,
+    Result, SearchPageDto, SearchRequest, StashDetailDto, StashEntryDto, UserVisibleError,
+    WorktreeDto,
 };
-use git_read::DEFAULT_PAGE_LIMIT;
+use git_read::{DEFAULT_PAGE_LIMIT, DEFAULT_REFLOG_LIMIT};
 use tauri::State;
 
 use super::{blocking, Shared};
@@ -98,20 +99,125 @@ pub async fn read_stashes(state: State<'_, Shared>) -> Result<Vec<StashEntryDto>
     blocking(move || state.with_session(|session| session.read.read_stashes())).await
 }
 
+/// Worktree 列表（ADR-0034）：`git worktree list --porcelain` 的子进程查询落在
+/// git-write 的只读 seam 上，不经过 Gate、不持写锁。
+#[tauri::command]
+pub async fn read_worktrees(state: State<'_, Shared>) -> Result<Vec<WorktreeDto>> {
+    let state = Arc::clone(&state);
+    blocking(move || state.with_session(|session| session.write.list_worktrees())).await
+}
+
+/// 提交模板（ADR-0034）：未配置、文件缺失/不可读或超过 64 KiB 时返回 None。
+#[tauri::command]
+pub async fn read_commit_template(state: State<'_, Shared>) -> Result<Option<CommitTemplateDto>> {
+    let state = Arc::clone(&state);
+    blocking(move || state.with_session(|session| session.write.read_commit_template())).await
+}
+
+/// 单条 stash 的文件预览（ADR-0030）：只读合并 tracked 改动与 `-u` 未跟踪文件。
+#[tauri::command]
+pub async fn read_stash_detail(state: State<'_, Shared>, oid: String) -> Result<StashDetailDto> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        let oid = parse_oid(&oid)?;
+        state.with_session(|session| session.read.read_stash_detail(&oid))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn read_stash_file_diff(
+    state: State<'_, Shared>,
+    oid: String,
+    path: String,
+    ignore_whitespace: Option<bool>,
+) -> Result<FileDiffDto> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        let oid = parse_oid(&oid)?;
+        let ignore_whitespace = ignore_whitespace.unwrap_or(false);
+        state.with_session(|session| {
+            session
+                .read
+                .read_stash_file_diff(&oid, &path, ignore_whitespace)
+        })
+    })
+    .await
+}
+
+/// `HEAD` reflog（ADR-0029）：只读恢复视图，最新在前；`limit` 缺省 200 条。
+#[tauri::command]
+pub async fn read_reflog(
+    state: State<'_, Shared>,
+    limit: Option<usize>,
+) -> Result<Vec<ReflogEntryDto>> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        state.with_session(|session| {
+            session
+                .read
+                .read_reflog(limit.unwrap_or(DEFAULT_REFLOG_LIMIT))
+        })
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn read_file_diff(
     state: State<'_, Shared>,
     oid: String,
     path: String,
+    ignore_whitespace: Option<bool>,
 ) -> Result<FileDiffDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let oid = parse_oid(&oid)?;
-        state.with_session(|session| session.read.read_file_diff(&oid, &path))
+        let ignore_whitespace = ignore_whitespace.unwrap_or(false);
+        state.with_session(|session| session.read.read_file_diff(&oid, &path, ignore_whitespace))
     })
     .await
 }
 
+/// 单文件提交历史（ADR-0031）：`oid_or_scope` 支持 head / all / 分支名 / 完整 OID。
+#[tauri::command]
+pub async fn read_file_history(
+    state: State<'_, Shared>,
+    path: String,
+    oid_or_scope: Option<String>,
+    cursor: Option<String>,
+    limit: Option<usize>,
+) -> Result<FileHistoryPageDto> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        state.with_session(|session| {
+            session.read.read_file_history(
+                &path,
+                oid_or_scope.as_deref(),
+                cursor.as_deref(),
+                limit.unwrap_or(DEFAULT_PAGE_LIMIT),
+            )
+        })
+    })
+    .await
+}
+
+/// 行级追溯（Blame，ADR-0031）：二进制/超大文件返回降级标记而非错误。
+#[tauri::command]
+pub async fn read_file_blame(
+    state: State<'_, Shared>,
+    oid: String,
+    path: String,
+) -> Result<FileBlameDto> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        let oid = parse_oid(&oid)?;
+        state.with_session(|session| session.read.read_file_blame(&oid, &path))
+    })
+    .await
+}
+
+/// 对比（ADR-0030）：`base` / `compareOid` 均为「提交 OID 或 `worktree`」，
+/// 槽位语义由 git-read 解释，app 层只转发字符串。
 #[tauri::command]
 pub async fn compare_commits(
     state: State<'_, Shared>,
@@ -122,12 +228,10 @@ pub async fn compare_commits(
 ) -> Result<CompareResultDto> {
     let state = Arc::clone(&state);
     blocking(move || {
-        let base = parse_oid(&base)?;
-        let compare = parse_oid(&compare_oid)?;
         state.with_session(|session| {
             session
                 .read
-                .compare(&base, &compare, path_filter.as_deref(), two_dot)
+                .compare_sides(&base, &compare_oid, path_filter.as_deref(), two_dot)
         })
     })
     .await
@@ -140,15 +244,19 @@ pub async fn compare_file_diff(
     compare_oid: String,
     path: String,
     two_dot: bool,
+    ignore_whitespace: Option<bool>,
 ) -> Result<FileDiffDto> {
     let state = Arc::clone(&state);
     blocking(move || {
-        let base = parse_oid(&base)?;
-        let compare = parse_oid(&compare_oid)?;
+        let ignore_whitespace = ignore_whitespace.unwrap_or(false);
         state.with_session(|session| {
-            session
-                .read
-                .compare_file_diff(&base, &compare, &path, two_dot)
+            session.read.compare_sides_file_diff(
+                &base,
+                &compare_oid,
+                &path,
+                two_dot,
+                ignore_whitespace,
+            )
         })
     })
     .await

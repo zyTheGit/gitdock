@@ -33,6 +33,40 @@ const staging = {
   conflictFiles: "Conflicted files",
   conflictHint: "Resolve conflicts and run git add, then return to staging; you can also finish in the terminal.",
   openTerminalForConflicts: "Open terminal to resolve conflicts",
+  // Conflict resolution (ADR-0033): whole-file take-a-side and mark-resolved always confirm explicitly;
+  // during a rebase the ours / theirs semantics are inverted, which affects wording only (ADR-0033 §3.1).
+  conflictResolveOurs: "Take {{side}} (Ours)",
+  conflictResolveTheirs: "Take {{side}} (Theirs)",
+  conflictMarkResolved: "Mark resolved",
+  conflictOverwriteBusy: "Overwriting…",
+  conflictMarkBusy: "Marking…",
+  conflictChecking: "Checking…",
+  conflictExecuting: "Running…",
+  conflictTitleOurs: "Confirm taking the Ours side",
+  conflictTitleTheirs: "Confirm taking the Theirs side",
+  conflictTitleMark: "Confirm marking as resolved",
+  conflictKeepOurs: "Keeping: {{side}} (ours)",
+  conflictKeepTheirs: "Keeping: {{side}} (theirs)",
+  conflictOverwriteHint:
+    "The working tree copy of {{path}} will be replaced entirely by that side; the other side's conflicted hunks in this file are discarded. The index is untouched, so the file stays conflicted until you also mark it resolved.",
+  conflictMarkHint:
+    "{{path}} will be marked as resolved (git add): the current working tree content goes into the index. The file content is not modified and the file leaves the conflict group.",
+  conflictRebaseNote:
+    "During a rebase Git inverts the semantics: ours is the target (upstream) side and theirs is the commit being replayed (usually your own change).",
+  conflictSideCurrent: "current branch",
+  conflictSideIncoming: "incoming change",
+  conflictSideUpstream: "target (upstream) side",
+  conflictSideReplayed: "commit being replayed",
+  conflictTargetTitle: "Target file",
+  conflictConfirmOurs: "Overwrite (keep Ours)",
+  conflictConfirmTheirs: "Overwrite (keep Theirs)",
+  conflictConfirmMark: "Mark as resolved",
+  conflictMarkerTitle: "File still contains conflict markers",
+  conflictMarkerHint:
+    "The file still contains conflict markers. Continue marking it as resolved? The markers will be staged and committed as-is, so make sure they were handled by hand.",
+  conflictMarkerPathsTitle: "Files that still contain markers ({{n}}):",
+  conflictMarkerConfirm: "Mark as resolved anyway",
+  conflictCloseAria: "Close the conflict resolution dialog",
   readingDiff: "Reading diff…",
   diffPlaceholder: "Select a file to view its staged/unstaged diff",
   watchFailedPrefix: "Failed to watch repository changes: ",
@@ -40,9 +74,36 @@ const staging = {
   submodule: "submodule",
   binary: "binary",
   selectFile: "Select {{path}}",
-  // Commit message dialog (ADR 0007).
-  openCommitDialog: "Commit",
+  selectDirFiles: "Select all files under {{path}}",
+  copyRelativePath: "Copy relative path",
+  revealInFileManager: "Reveal in file manager",
+  // Discard unstaged changes (ADR 0026): destructive entry, unstaged side only.
+  actionDiscard: "Discard changes…",
+  discardSelectedCount: "Discard selected ({{n}})…",
+  discardConfirmTitle: "Confirm discard (permanent)",
+  discardConfirmHint:
+    "Unstaged changes and untracked files in the worktree will be permanently deleted and cannot be recovered via git reflog; stash them first if you need to keep them.",
+  discardPathsTitle: "Will be permanently deleted ({{n}}):",
+  discardGroupTracked: "Tracked files ({{n}}, reverted to the index content)",
+  discardGroupUntracked: "Untracked files ({{n}}, removed from disk)",
+  discardOpenStash: "Stash to keep changes",
+  discardConfirm: "Discard permanently",
+  discardValidating: "Checking…",
+  discardSubmitting: "Discarding…",
+  discardCloseAria: "Close discard confirmation",
+  // Hunk-level discard (ADR 0027): one hunk per request, always explicitly confirmed.
+  hunkDiscardConfirmTitle: "Confirm discarding this hunk (permanent)",
+  hunkDiscardConfirmHint:
+    "Only this unstaged hunk is removed from the worktree; the other hunks in the file and the staged content stay intact. It cannot be recovered via git reflog, so stash first if you need to keep it.",
+  hunkDiscardTargetLabel: "Target file and hunk",
+  hunkDiscardOrdinal: "Hunk {{n}} of {{total}}",
+  hunkDiscardConfirm: "Discard this hunk permanently",
+  hunkDiscardCloseAria: "Close hunk discard confirmation",
+  hunkStaleHint: "The diff was reloaded; hunk numbering may have changed, please check and retry.",
+  // Inline commit form (ADR 0007; pinned to the staging left column since T03).
   commitTitle: "Create commit",
+  commitComposerLabel: "Commit form",
+  commitShortcutHint: "{{modifier}} + Enter to commit",
   commitCloseAria: "Close commit dialog",
   commitMessageLabel: "Commit message",
   commitMessagePlaceholder: "Write the commit message (multi-line supported)",
@@ -84,6 +145,17 @@ const staging = {
   stashConflictHint: "The apply produced conflicts; the stash entry is kept. Resolve them in the staging view.",
   stashSaveFailed: "Failed to save the stash",
   stashActionFailed: "Stash operation failed",
+  // Stash preview (ADR-0030): select an entry on the left, preview its files and diff on the right.
+  stashSelectEntry: "Show the contents of {{selector}}",
+  stashPreviewLabel: "Stash preview",
+  stashPreviewLoading: "Reading stash contents…",
+  stashPreviewEmpty: "This stash has no file changes.",
+  stashPreviewSelect: "Select a stash on the left to inspect its changes.",
+  stashFileListLabel: "Files in this stash",
+  stashFileCount: "Changed files: {{n}}",
+  stashIncludesUntracked: "Includes untracked files",
+  stashTruncated: "Too many files; the list is truncated.",
+  commitTemplateHint: "Message prefilled from the repository commit.template",
 } satisfies StagingMessages;
 
 export default staging;

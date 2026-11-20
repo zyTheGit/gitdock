@@ -1,4 +1,4 @@
-//! 远程操作的 Gate 校验（ADR 0010 §2.3、ADR 0022 分支远程删除）。
+//! 远程操作的 Gate 校验（ADR 0010 §2.3、ADR 0022 分支远程删除、ADR 0028 同步增强）。
 
 use std::collections::BTreeMap;
 
@@ -7,6 +7,7 @@ use git_core::{
 };
 
 use crate::command::HeadInfo;
+use crate::remote::{select_remote, RemoteChoice};
 use crate::status::StatusSummary;
 use crate::GitWriteModule;
 
@@ -33,11 +34,13 @@ pub(crate) fn validate_remote(
         None
     };
 
-    if request.kind == WriteKind::Fetch && module.remote_count()? == 0 {
+    // fetch / fetch_prune 只要求存在 remote，不要求当前分支有上游。
+    let fetch_like = matches!(request.kind, WriteKind::Fetch | WriteKind::FetchPrune);
+    if fetch_like && module.remote_count()? == 0 {
         issues.push(issue("gate_remote_missing", "仓库没有配置远程"));
     }
 
-    if request.kind != WriteKind::Fetch {
+    if !fetch_like {
         if head.unborn {
             issues.push(issue("gate_remote_unborn", "当前分支尚无提交"));
         } else if head.detached || head.branch.is_none() {
@@ -69,6 +72,10 @@ pub(crate) fn validate_remote(
 
     let (summary, summary_key) = match request.kind {
         WriteKind::Fetch => ("将 fetch 远程更新".to_owned(), "errors.gateSummaryFetch"),
+        WriteKind::FetchPrune => (
+            "将 fetch 远程更新，并清理远端已删除分支的本地远程跟踪引用（--prune）".to_owned(),
+            "errors.gateSummaryFetchPrune",
+        ),
         WriteKind::Pull => (
             format!(
                 "将 pull{}（{}）{}",
@@ -178,6 +185,145 @@ pub(crate) fn validate_delete_tag_remote(
         summary_key: "errors.gateSummaryTagRemoteDelete",
         summary_args: args_map(&[("tag", tag)]),
     })
+}
+
+/// 首次推送并建立上游（ADR-0028）：当前分支检查 + 尚无上游 + remote 可解析。
+pub(crate) fn validate_push_set_upstream(
+    module: &GitWriteModule,
+    request: &WriteRequest,
+    head: &HeadInfo,
+) -> Result<RemoteGateResult> {
+    let branch = request.branch.as_deref().ok_or_else(|| {
+        UserVisibleError::new(ErrorCode::InvalidArgument, "缺少分支名")
+            .with_key("errors.commandMissingBranch")
+    })?;
+    let mut issues = Vec::new();
+
+    if head.unborn {
+        issues.push(issue("gate_remote_unborn", "当前分支尚无提交"));
+    } else if head.detached || head.branch.is_none() {
+        issues.push(issue(
+            "gate_remote_detached",
+            "detached HEAD 不支持设置上游，请先切换本地分支",
+        ));
+    } else if head.branch.as_deref() != Some(branch) {
+        issues.push(
+            issue(
+                "gate_push_branch_not_current",
+                format!("只能为当前检出的分支建立上游；当前分支不是 {branch}"),
+            )
+            .with_arg("branch", branch)
+            .with_arg("current", head.branch.as_deref().unwrap_or_default()),
+        );
+    } else if let Some(upstream) = module.upstream()? {
+        issues.push(
+            issue(
+                "gate_push_upstream_exists",
+                format!("分支 {branch} 已有上游 {upstream}，请直接使用 Push"),
+            )
+            .with_arg("branch", branch)
+            .with_arg("upstream", upstream),
+        );
+    }
+    if !module.local_branch_exists(branch)? {
+        issues.push(
+            issue("gate_branch_missing", format!("本地分支 {branch} 不存在"))
+                .with_arg("branch", branch),
+        );
+    }
+
+    let remote = resolve_remote_issue(module, request.remote.as_deref(), &mut issues);
+    Ok(RemoteGateResult {
+        issues,
+        summary: match &remote {
+            Some(remote) => format!(
+                "将为本地分支 {branch} 建立上游并首次推送到 {remote}/{branch}（git push -u）"
+            ),
+            None => format!("将为本地分支 {branch} 建立上游并首次推送"),
+        },
+        summary_key: "errors.gateSummaryPushSetUpstream",
+        summary_args: args_map(&[
+            ("branch", branch),
+            ("remote", remote.as_deref().unwrap_or_default()),
+        ]),
+    })
+}
+
+/// 推送本地标签（ADR-0028）：标签存在 + remote 可解析；不提供 `--force` / `--delete`。
+pub(crate) fn validate_push_tag(
+    module: &GitWriteModule,
+    request: &WriteRequest,
+) -> Result<RemoteGateResult> {
+    let tag = request.branch.as_deref().ok_or_else(|| {
+        UserVisibleError::new(ErrorCode::InvalidArgument, "缺少标签名")
+            .with_key("errors.commandMissingTag")
+    })?;
+    let mut issues = Vec::new();
+
+    if crate::tag::gate::invalid_tag_name(module, tag)? {
+        issues.push(
+            issue(
+                "gate_invalid_tag_name",
+                "标签名不合法：不能为空、不能以 \"-\" 开头，也不能包含空格或控制字符",
+            )
+            .with_arg("tag", tag),
+        );
+    } else if !module.tag_exists(tag)? {
+        issues
+            .push(issue("gate_tag_missing", format!("本地标签 {tag} 不存在")).with_arg("tag", tag));
+    }
+
+    let remote = resolve_remote_issue(module, request.remote.as_deref(), &mut issues);
+    Ok(RemoteGateResult {
+        issues,
+        summary: match &remote {
+            Some(remote) => format!("将推送本地标签 {tag} 到远程 {remote}（refs/tags/{tag}）"),
+            None => format!("将推送本地标签 {tag} 到远程"),
+        },
+        summary_key: "errors.gateSummaryTagPush",
+        summary_args: args_map(&[
+            ("tag", tag),
+            ("remote", remote.as_deref().unwrap_or_default()),
+        ]),
+    })
+}
+
+/// 按 ADR-0028 的策略选择 remote；无法唯一确定时把可选列表写进 issue args。
+fn resolve_remote_issue(
+    module: &GitWriteModule,
+    requested: Option<&str>,
+    issues: &mut Vec<GateIssueDto>,
+) -> Option<String> {
+    let available = module.remote_names().unwrap_or_default();
+    let options = available.join("、");
+    match select_remote(requested, &available) {
+        RemoteChoice::Selected(remote) => Some(remote),
+        RemoteChoice::Missing => {
+            issues.push(issue("gate_remote_missing", "仓库没有配置远程"));
+            None
+        }
+        RemoteChoice::Unknown(remote) => {
+            issues.push(
+                issue(
+                    "gate_remote_unknown",
+                    format!("远程 {remote} 未配置；已配置的远程：{options}"),
+                )
+                .with_arg("remote", remote)
+                .with_arg("options", options),
+            );
+            None
+        }
+        RemoteChoice::Ambiguous(names) => {
+            issues.push(
+                issue(
+                    "gate_remote_ambiguous",
+                    format!("仓库配置了多个远程且没有 origin，请显式指定：{options}"),
+                )
+                .with_arg("options", names.join("、")),
+            );
+            None
+        }
+    }
 }
 
 fn args_map(pairs: &[(&str, &str)]) -> Option<BTreeMap<String, String>> {

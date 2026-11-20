@@ -13,6 +13,11 @@ const FIELD_LABEL_KEY = {
   path: "search.fieldPath",
 } as const satisfies Record<SearchField, string>;
 
+// 命中域筛选：all 表示不筛选，其余按 match.fields 收窄。
+type FieldFilter = "all" | SearchField;
+
+const FIELD_FILTERS: readonly FieldFilter[] = ["all", "message", "author", "path", "hash"];
+
 // 结果行高度初值（12px 文本 + 上下 padding）；文本行高随字体而定，
 // 首帧后由 measureElement 按实际渲染高度修正。
 const RESULT_ROW_ESTIMATE = 32;
@@ -64,18 +69,39 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
   const [input, setInput] = useState(search.text);
   const [active, setActive] = useState(-1);
   const [suggestOpen, setSuggestOpen] = useState(true);
+  const [fieldFilter, setFieldFilter] = useState<FieldFilter>("all");
 
   const suggestions = useMemo(() => buildSuggestions(input, commits), [input, commits]);
+
+  // 搜索词变化（新查询 / 清空）或切换仓库后，输入框与命中域筛选跟着重置。
+  useEffect(() => {
+    setInput(search.text);
+    setFieldFilter("all");
+  }, [search.text, repo.generation]);
+
+  // 命中域筛选只在前端收窄已返回结果，不触发新查询；虚拟滚动按过滤后的行数渲染。
+  const filtered = useMemo(
+    () =>
+      fieldFilter === "all"
+        ? search.results
+        : search.results.filter((match) => match.fields.includes(fieldFilter)),
+    [fieldFilter, search.results],
+  );
 
   const resultsScrollRef = useRef<HTMLDivElement>(null);
   // 搜索结果虚拟化：无限追加数千条命中时只渲染可视行；「加载更多」按钮在列表外，不受影响。
   const resultsVirtualizer = useVirtualizer({
-    count: search.results.length,
+    count: filtered.length,
     getScrollElement: () => resultsScrollRef.current,
     estimateSize: () => RESULT_ROW_ESTIMATE,
     overscan: RESULT_LIST_OVERSCAN,
-    getItemKey: (index) => search.results[index]?.commit.oid ?? index,
+    getItemKey: (index) => filtered[index]?.commit.oid ?? index,
   });
+
+  // 切换命中域后行集合变化，回到列表顶部，避免停留在已被过滤掉的位置。
+  useEffect(() => {
+    resultsScrollRef.current?.scrollTo({ top: 0 });
+  }, [fieldFilter]);
 
   useEffect(() => {
     setActive(-1);
@@ -192,6 +218,19 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
               {t("search.cancel")}
             </button>
           )}
+          {(search.text || search.results.length > 0) && (
+            <button
+              onClick={() => {
+                search.cancel();
+                search.reset();
+                setInput("");
+                setSuggestOpen(true);
+              }}
+              title={t("search.clearTitle")}
+            >
+              {t("search.clear")}
+            </button>
+          )}
         </div>
 
         <p className="muted search-scope">
@@ -201,6 +240,22 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
         </p>
         {search.text && (
           <p className="muted search-path-hint">{t("search.pathScanHint", { n: 2000 })}</p>
+        )}
+
+        {search.results.length > 0 && (
+          <div className="search-filters" role="group" aria-label={t("search.filterAria")}>
+            {FIELD_FILTERS.map((field) => (
+              <button
+                key={field}
+                type="button"
+                className={fieldFilter === field ? "search-chip active" : "search-chip"}
+                aria-pressed={fieldFilter === field}
+                onClick={() => setFieldFilter(field)}
+              >
+                {t(field === "all" ? "search.filterAll" : FIELD_LABEL_KEY[field])}
+              </button>
+            ))}
+          </div>
         )}
 
         {search.error && <div className="banner danger">{search.error}</div>}
@@ -221,15 +276,18 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
         {search.results.length === 0 && !search.loading && search.text && !search.canceled && (
           <p className="muted">{t("search.noResults")}</p>
         )}
+        {search.results.length > 0 && filtered.length === 0 && (
+          <p className="muted">{t("search.filterEmpty")}</p>
+        )}
 
-        {search.results.length > 0 && (
+        {filtered.length > 0 && (
           <div className="search-results" ref={resultsScrollRef}>
             <ul
               className="search-results-inner"
               style={{ height: resultsVirtualizer.getTotalSize() }}
             >
               {resultsVirtualizer.getVirtualItems().map((item) => {
-                const match = search.results[item.index];
+                const match = filtered[item.index];
                 if (!match) {
                   return null;
                 }

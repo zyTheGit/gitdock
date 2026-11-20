@@ -58,6 +58,9 @@ export const GraphRow = memo(function GraphRow({
     <div
       className={classes.join(" ")}
       data-oid={oid}
+      id={`graph-row-${oid}`}
+      role="option"
+      aria-selected={selected && !batchActive}
       style={{ transform: `translateY(${start}px)`, height }}
     >
       <GraphCell layout={layout} laneCount={laneCount} height={height} />

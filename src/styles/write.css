@@ -256,3 +256,169 @@
 .tag-item {
   cursor: default;
 }
+
+/* 重置对话框（ADR-0029）：模式单选的说明文字与 hard 的强破坏性确认块。 */
+.reset-mode-picker {
+  margin: 10px 0 0;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.reset-mode-picker legend {
+  padding: 0 4px;
+  font-size: 12px;
+}
+
+/* hard 选中后整块标红：模式本身决定是否会丢数据。 */
+.reset-mode-picker.destructive {
+  border-color: var(--danger-border);
+  background: var(--danger-weak);
+}
+
+.reset-mode-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.reset-mode-option input {
+  accent-color: var(--accent);
+  grid-row: span 2;
+  align-self: center;
+}
+
+.reset-mode-desc {
+  font-size: 12px;
+}
+
+.reset-hard-confirm {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--danger-border);
+  border-radius: 6px;
+  background: var(--danger-weak);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reset-ack {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.reset-ack input {
+  accent-color: var(--danger);
+}
+
+/* Reflog 恢复视图（ADR-0029）：只读列表，行内动作走既有写流程。 */
+.reflog-dialog {
+  width: min(760px, 94vw);
+}
+
+.reflog-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.reflog-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.reflog-toolbar svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.reflog-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.reflog-list {
+  margin-top: 8px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.reflog-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reflog-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.reflog-row-info {
+  display: flex;
+  flex: 1 1 320px;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.reflog-selector {
+  color: var(--muted);
+}
+
+.reflog-time {
+  flex: none;
+  font-size: 12px;
+}
+
+.reflog-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.reflog-row-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.reflog-row-actions button {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.reflog-footer-hint {
+  margin-right: auto;
+  font-size: 11px;
+}
+
+.reflog-dialog footer {
+  align-items: center;
+}

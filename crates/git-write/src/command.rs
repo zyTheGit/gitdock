@@ -7,6 +7,7 @@ use git_core::{
 
 use crate::branch;
 use crate::commit::{commit_args, MessageFile};
+use crate::conflict::ConflictAction;
 use crate::description::validate_branch_description;
 use crate::history;
 use crate::remote;
@@ -219,10 +220,80 @@ impl GitWriteModule {
             WriteKind::StashPop => stash::pop_args(require_stash(request)?),
             WriteKind::StashDrop => stash::drop_args(require_stash(request)?),
             WriteKind::Fetch => remote::fetch_args(),
+            WriteKind::FetchPrune => remote::fetch_prune_args(),
             WriteKind::Pull => remote::pull_args(request.pull_mode.unwrap_or(PullMode::FfOnly)),
             WriteKind::Push => remote::push_args(),
+            WriteKind::CheckoutRemoteBranch => {
+                let remote_branch = request.branch.as_deref().ok_or_else(|| {
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "缺少远程分支名")
+                        .with_key("errors.commandMissingBranch")
+                })?;
+                // Gate 已校验；此处兜底拒绝选项注入与非法形态。
+                if !remote::is_safe_name(remote_branch) || !remote_branch.contains('/') {
+                    return Err(UserVisibleError::new(
+                        ErrorCode::InvalidArgument,
+                        "远程分支名不合法",
+                    )
+                    .with_key("errors.gateInvalidRemoteBranch"));
+                }
+                let local = remote::local_branch_name(remote_branch, request.new_name.as_deref());
+                if !remote::is_safe_name(local) {
+                    return Err(UserVisibleError::new(
+                        ErrorCode::InvalidArgument,
+                        "本地分支名不合法",
+                    )
+                    .with_key("errors.gateInvalidBranchName"));
+                }
+                remote::checkout_tracking_args(local, &format!("refs/remotes/{remote_branch}"))
+            }
+            WriteKind::PushSetUpstream => {
+                let branch = require_branch_name(request)?;
+                let remote = require_remote(self, request.remote.as_deref())?;
+                remote::push_set_upstream_args(&remote, branch)
+            }
+            WriteKind::PushTag => {
+                let tag = require_tag(request)?;
+                let remote = require_remote(self, request.remote.as_deref())?;
+                remote::push_tag_args(&remote, tag)
+            }
             WriteKind::Merge => history::merge_args(require_branch_name(request)?),
             WriteKind::Rebase => history::rebase_args(require_branch_name(request)?),
+            WriteKind::Reset => {
+                // 重置（ADR-0029）：模式显式必填，OID 必须是完整十六进制（Gate 已校验为 commit）。
+                let mode = crate::reset::require_mode(request)?;
+                crate::reset::reset_args(mode, crate::reset::require_target(request)?)
+            }
+            WriteKind::ResolveConflictOurs
+            | WriteKind::ResolveConflictTheirs
+            | WriteKind::MarkConflictResolved => {
+                // 冲突三件套（ADR-0033）：单命令单路径，路径放在 `--` 之后。
+                let path = crate::conflict::require_path(request)?;
+                match request.kind {
+                    WriteKind::ResolveConflictOurs => ConflictAction::Ours.args(path),
+                    WriteKind::ResolveConflictTheirs => ConflictAction::Theirs.args(path),
+                    _ => ConflictAction::MarkResolved.args(path),
+                }
+            }
+            WriteKind::DiscardFiles => {
+                // 兜底构造（正常路径在 execute 入口委托 discard 模块）：只回退工作区，索引不动。
+                let plan = crate::discard::plan(
+                    &self.status_detail()?.entries,
+                    request.paths.as_deref().unwrap_or(&[]),
+                );
+                spec.stdin = Some(crate::discard::nul_pathspec(&plan.tracked));
+                crate::discard::restore_args()
+            }
+            WriteKind::StageHunk | WriteKind::UnstageHunk | WriteKind::DiscardHunk => {
+                // 兜底构造（正常路径在 execute 入口委托 hunk 模块）：补丁由实时 diff 重建，
+                // 仅把「文件头 + 单个 hunk」经 stdin 交给 `git apply`，前端从不提供 patch。
+                let (args, patch) = crate::hunk::command(self, request)?;
+                spec.stdin = Some(patch);
+                args
+            }
+            WriteKind::CreateWorktree | WriteKind::RemoveWorktree => {
+                // 兜底构造（正常路径在 execute 入口委托 worktree 模块）：参数数组，路径不拼 shell。
+                crate::worktree::args_for(request)?
+            }
         };
         spec.description_write = request.kind == WriteKind::SetBranchDescription;
         spec.message_file = message_file;
@@ -282,6 +353,18 @@ fn require_tag(request: &WriteRequest) -> Result<&str> {
         );
     }
     Ok(tag)
+}
+
+/// 推送类操作的目标 remote：Gate 已按 ADR-0028 策略选定；这里兜底再解析一次。
+fn require_remote(module: &GitWriteModule, requested: Option<&str>) -> Result<String> {
+    let available = module.remote_names()?;
+    match crate::remote::select_remote(requested, &available) {
+        crate::remote::RemoteChoice::Selected(remote) => Ok(remote),
+        _ => Err(
+            UserVisibleError::new(ErrorCode::InvalidArgument, "无法确定推送目标远程")
+                .with_key("errors.commandRemoteUnresolved"),
+        ),
+    }
 }
 
 /// merge / rebase 的目标分支必须非空且不能是选项注入形态。

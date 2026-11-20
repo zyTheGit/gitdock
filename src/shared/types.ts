@@ -18,7 +18,9 @@ export type FileStatus =
   | "renamed"
   | "copied";
 export type DiffBaseline = "root" | "first_parent" | "merge_first_parent";
-export type CompareMode = "three_dot" | "two_dot" | "two_dot_fallback";
+export type CompareMode = "three_dot" | "two_dot" | "two_dot_fallback" | "worktree";
+/** 工作区对比中哪一侧是当前工作区（ADR-0030）。 */
+export type WorktreeSide = "base" | "compare";
 export type SearchField = "message" | "hash" | "author" | "path";
 
 export interface WarningDto {
@@ -38,6 +40,12 @@ export interface RefDto {
   created_at?: number;
   is_head: boolean;
   description?: string;
+  /** 本地分支配置的上游展示名（`origin/main`）；未配置上游或非本地分支不返回（ADR-0028）。 */
+  upstream?: string;
+  /** 本地分支领先上游的提交数；无上游、上游引用缺失或超出扫描上限时不返回（ADR-0028）。 */
+  ahead?: number;
+  /** 本地分支落后上游的提交数；缺失条件同 `ahead`（ADR-0028）。 */
+  behind?: number;
 }
 
 export interface HeadDto {
@@ -150,6 +158,11 @@ export interface CommitDetailDto {
   baseline: DiffBaseline;
   baseline_note: string;
   warnings: WarningDto[];
+  /**
+   * 提交携带 gpgsig 头时的签名类型（"gpg" / "ssh" / "x509" / "unknown" 等）；
+   * 缺失或 null = 未签名。只表示「已签名」，不代表验签通过（ADR-0034）。
+   */
+  signature_kind?: string | null;
 }
 
 export interface FileDiffDto {
@@ -173,6 +186,10 @@ export interface FileDiffDto {
   note_code?: string | null;
   /** 降级说明插值参数。 */
   note_args?: Record<string, string> | null;
+  /** 图片预览（data URI）与后缀；仅图片后缀且两侧都不超 2MB 时提供（ADR-0030）。 */
+  image_before?: string;
+  image_after?: string;
+  image_kind?: string;
 }
 
 export interface CompareResultDto {
@@ -188,6 +205,8 @@ export interface CompareResultDto {
   commits_truncated: boolean;
   title: string;
   warnings: WarningDto[];
+  /** 哪一侧是当前工作区；缺失表示两侧都是提交（ADR-0030）。 */
+  worktree_side?: WorktreeSide;
 }
 
 export interface BranchGapDto {
@@ -233,6 +252,16 @@ export interface SearchPageDto {
   canceled: boolean;
 }
 
+/* ------------------------------ 单文件历史与 Blame（ADR-0031） ------------------------------ */
+
+// 契约较多且独立成组，实体放在 historyTypes.ts；此处 re-export 保持单一导入入口。
+export type {
+  BlameLineDto,
+  FileBlameDto,
+  FileHistoryEntryDto,
+  FileHistoryPageDto,
+} from "./historyTypes";
+
 export type WriteKind =
   | "cherry_pick"
   | "revert"
@@ -260,10 +289,41 @@ export type WriteKind =
   | "pull"
   | "push"
   | "merge"
-  | "rebase";
+  | "rebase"
+  /** 丢弃所选路径的未暂存改动；未跟踪路径按删除处理（ADR-0026）。 */
+  | "discard_files"
+  /** 暂存单个 hunk；请求用 path + hunk_index，后端按实时 diff 重新生成补丁（ADR-0027）。 */
+  | "stage_hunk"
+  /** 取消暂存单个 hunk（ADR-0027）。 */
+  | "unstage_hunk"
+  /** 丢弃工作区中的单个 hunk；破坏性，需二次确认（ADR-0027）。 */
+  | "discard_hunk"
+  /**
+   * 把远程跟踪分支检出为跟踪它的本地分支；请求用 branch = `origin/feat-a`，
+   * 可用 new_name 指定本地名，缺省取去掉 remote 前缀的部分（ADR-0028）。
+   */
+  | "checkout_remote_branch"
+  /** 为当前本地分支建立上游并首次推送：`git push -u <remote> <branch>`（ADR-0028）。 */
+  | "push_set_upstream"
+  /** `git fetch --prune`：清理远端已删除分支的本地远程跟踪引用（ADR-0028）。 */
+  | "fetch_prune"
+  /** 推送本地标签：请求用 branch = 标签名，`git push <remote> refs/tags/<tag>`（ADR-0028）。 */
+  | "push_tag"
+  /** 把当前分支回退到指定提交（ADR-0029）；模式由 reset_mode 指定，缺失时 Gate 拒绝。 */
+  | "reset"
+  /** 冲突解决（ADR-0033）：取一侧覆盖工作区 / 把工作区当前内容标记为已解决；请求用单 path。 */
+  | "resolve_conflict_ours"
+  | "resolve_conflict_theirs"
+  | "mark_conflict_resolved"
+  /** 创建 linked worktree（ADR-0034）：path = 目标绝对路径，branch = 已有本地分支。 */
+  | "create_worktree"
+  /** 移除 linked worktree：只接 path，绝不 `--force`，工作区不干净时由 Git 拒绝。 */
+  | "remove_worktree";
 
 export type RemoteSyncKind = Extract<WriteKind, "fetch" | "pull" | "push">;
 export type PullMode = "ff_only" | "merge" | "rebase";
+/** 重置模式：soft 只移动指针，mixed 再清空索引，hard 还会永久丢弃已跟踪改动（ADR-0029）。 */
+export type ResetMode = "soft" | "mixed" | "hard";
 
 export interface WriteRequest {
   kind: WriteKind;
@@ -272,7 +332,7 @@ export interface WriteRequest {
   /** rename_branch 的新分支名；其他操作忽略。 */
   new_name?: string;
   description?: string;
-  /** stage/unstage 的文件路径；其他操作忽略。 */
+  /** stage/unstage/discard 的文件路径（仓库内相对路径）；其他操作忽略。 */
   paths?: string[];
   /** 继续/中止时指定的中断类型；必须与后端探测结果严格一致。 */
   interruption?: Exclude<InterruptionKind, "sequencer" | "index_lock">;
@@ -288,18 +348,30 @@ export interface WriteRequest {
   pull_mode?: PullMode;
   /** 批量 cherry-pick / revert 的提交列表；提供时优先于 oid。 */
   oids?: string[];
+  /** stage_hunk / unstage_hunk / discard_hunk 的目标文件（仓库内相对路径）；其他操作忽略。 */
+  path?: string;
+  /**
+   * hunk 在 `git diff … -- <path>` 输出中的 0 起始序号，与暂存区 diff 的块顺序一致；
+   * 一次请求只处理一块（ADR-0027）。
+   */
+  hunk_index?: number;
+  /**
+   * push_set_upstream / push_tag 的目标 remote；缺省按「origin → 唯一配置的 remote」
+   * 选择，多 remote 且无 origin 时 Gate 要求显式提供（ADR-0028）。其他操作忽略。
+   */
+  remote?: string;
+  /** reset 的模式（ADR-0029）；其他操作忽略。缺失时 Gate 返回 gate_reset_mode_required。 */
+  reset_mode?: ResetMode;
 }
 
-/** 单个本地 stash；index 0 为最新。 */
-export interface StashEntryDto {
-  index: number;
-  selector: string;
-  oid: string;
-  /** Git reflog 原始消息，不翻译。 */
-  message: string;
-  /** reflog 时间（Unix 秒）。 */
-  created_at: number;
-}
+/** HEAD reflog 条目（ADR-0029）：只读结构，实体在 reflogTypes.ts，此处 re-export 保持单一导入入口。 */
+export type { ReflogEntryDto } from "./reflogTypes";
+
+/** 本地 stash 条目与单条 stash 详情；实体在 stashTypes.ts，此处 re-export 保持单一导入入口。 */
+export type { StashDetailDto, StashEntryDto } from "./stashTypes";
+
+/** worktree 列表与提交模板（ADR-0034）；实体在 worktreeTypes.ts，此处 re-export 保持单一导入入口。 */
+export type { CommitTemplateDto, WorktreeDto } from "./worktreeTypes";
 
 export interface GateIssueDto {
   code: string;
@@ -389,11 +461,14 @@ export interface BranchDescriptionDto {
   shared_across_worktrees: boolean;
 }
 
-/** `repository-changed` 事件载荷。 */
-export interface RepositoryChangedDto {
-  path: string;
-  generation: number;
-}
+/** 标签页 DTO（RepoId / RepoTabDto / RepoListDto）与 `repository-changed` 载荷在 repoTypes.ts。 */
+export type {
+  RepoId,
+  RepoListDto,
+  RepoRestoreDto,
+  RepoTabDto,
+  RepositoryChangedDto,
+} from "./repoTypes";
 
 export interface TerminalCapabilitiesDto {
   lazygit_path?: string | null;
@@ -405,37 +480,12 @@ export type TerminalEvent =
   | { kind: "data"; data: string }
   | { kind: "exit"; code: number };
 
-export interface ExternalToolConfig {
-  name: string;
-  executable: string;
-  args_template: string;
-}
-
-export interface RecentRepository {
-  path: string;
-  last_opened_at: number;
-}
-
-export interface SettingsDto {
-  schema_version: number;
-  recent_repositories: RecentRepository[];
-  external_tools: ExternalToolConfig[];
-  restore_last_repository: boolean;
-  watch_enabled: boolean;
-  /** LazyGit 可执行文件路径；留空时从 PATH 查找。 */
-  lazygit_path?: string | null;
-  default_tool?: string | null;
-  /** 只读：保存时后端强制置 true，前端无需回写。 */
-  tools_seeded?: boolean;
-  window_width?: number;
-  window_height?: number;
-  /** 界面缩放比例，1.0 为 100%；后端正反校验 0.75–2.0。 */
-  font_scale: number;
-  /** 界面语言覆盖；空值跟随系统（"zh-CN" | "en"）。只经 set_language 命令修改。 */
-  language?: string | null;
-  /** 终端 Shell 启动器（"default" | "git_bash"）；缺省 Windows 为 git_bash、其余平台 default。经 set_shell_profile 面板内切换即时生效。 */
-  shell_profile: string;
-}
+/** 设置域 DTO（含 open_repositories / active_repository，ADR-0032）在 settingsTypes.ts。 */
+export type {
+  ExternalToolConfig,
+  RecentRepository,
+  SettingsDto,
+} from "./settingsTypes";
 
 /** Git 配置作用域：用户级（`--global`）或当前仓库（`--local`）。保存只写所选层。 */
 export type GitConfigScope = "user" | "repo";

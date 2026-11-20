@@ -12,6 +12,8 @@ export interface GraphLoader {
   loading: boolean;
   loadingMore: boolean;
   error: string | null;
+  /** 当前 view 数据所属的仓库路径；加载中为 null（标签切换时据此判断新页已落地）。 */
+  loadedRepo: string | null;
   reload: (options?: { keepRows?: boolean }) => Promise<void>;
   loadMore: () => Promise<void>;
   /** 载入包含指定提交的一页图谱；返回是否已切换到该页。 */
@@ -23,6 +25,7 @@ export function useGraph(repoPath: string | null, scope: GraphScope): GraphLoade
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadedRepo, setLoadedRepo] = useState<string | null>(null);
   const token = useRef(0);
   const viewRef = useRef<GraphView>(view);
   const scopeRef = useRef(scope);
@@ -40,6 +43,7 @@ export function useGraph(repoPath: string | null, scope: GraphScope): GraphLoade
         commitView(EMPTY_GRAPH_VIEW);
         setError(null);
         setLoading(false);
+        setLoadedRepo(null);
         return;
       }
       const current = ++token.current;
@@ -47,6 +51,7 @@ export function useGraph(repoPath: string | null, scope: GraphScope): GraphLoade
       setLoadingMore(false);
       setLoading(true);
       setError(null);
+      setLoadedRepo(null);
       if (!options?.keepRows) {
         commitView(EMPTY_GRAPH_VIEW);
       }
@@ -56,6 +61,7 @@ export function useGraph(repoPath: string | null, scope: GraphScope): GraphLoade
           return;
         }
         commitView(startView(page));
+        setLoadedRepo(repoPath);
       } catch (err) {
         if (current !== token.current) {
           return;
@@ -117,12 +123,14 @@ export function useGraph(repoPath: string | null, scope: GraphScope): GraphLoade
       setLoadingMore(false);
       setLoading(true);
       setError(null);
+      setLoadedRepo(null);
       try {
         const page = await ipc.readGraphPageAround(scopeRef.current, oid, PAGE_LIMIT);
         if (current !== token.current) {
           return false;
         }
         commitView(startView(page));
+        setLoadedRepo(repoPath);
         return true;
       } catch (err) {
         if (current !== token.current) {
@@ -147,5 +155,5 @@ export function useGraph(repoPath: string | null, scope: GraphScope): GraphLoade
     };
   }, [reload, scopeKey(scope)]);
 
-  return { view, loading, loadingMore, error, reload, loadMore, jumpTo };
+  return { view, loading, loadingMore, error, loadedRepo, reload, loadMore, jumpTo };
 }

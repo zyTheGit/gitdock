@@ -42,9 +42,15 @@ impl GitWriteModule {
             .is_some()
     }
 
-    /// per-worktree Git 目录；一次 `--absolute-git-dir` 解析后由标记探测共用，
+    /// per-worktree Git 目录；一次 `--absolute-git-dir` 解析后进程内缓存，
     /// 与旧版逐标记 `rev-parse --git-path` 的路径语义等价。
     fn git_dir(&self) -> Option<PathBuf> {
+        self.git_dir_cache
+            .get_or_init(|| self.resolve_git_dir())
+            .clone()
+    }
+
+    fn resolve_git_dir(&self) -> Option<PathBuf> {
         let output = self.run(&["rev-parse", "--absolute-git-dir"]).ok()?;
         if !output.status.success() {
             return None;
@@ -143,16 +149,23 @@ impl GitWriteModule {
         Ok(output.status.success())
     }
 
-    /// 已配置的 remote 数量；`git remote` 无输出时按 0 处理。
-    pub(crate) fn remote_count(&self) -> Result<u32> {
+    /// 已配置的 remote 名称列表；`git remote` 无输出或失败时为空（ADR-0028 远程选择复用）。
+    pub(crate) fn remote_names(&self) -> Result<Vec<String>> {
         let output = self.run_readonly(&["remote"])?;
         if !output.status.success() {
-            return Ok(0);
+            return Ok(Vec::new());
         }
         Ok(text(&output.stdout)
             .lines()
-            .filter(|line| !line.trim().is_empty())
-            .count() as u32)
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(str::to_owned)
+            .collect())
+    }
+
+    /// 已配置的 remote 数量；`git remote` 无输出时按 0 处理。
+    pub(crate) fn remote_count(&self) -> Result<u32> {
+        Ok(self.remote_names()?.len() as u32)
     }
 
     /// 本地缓存的远程跟踪引用是否存在（如 `refs/remotes/origin/main`）。
@@ -189,6 +202,24 @@ impl GitWriteModule {
         let object = format!("{oid}^{{commit}}");
         let output = self.run_readonly(&["rev-parse", "--verify", "--quiet", &object])?;
         Ok(output.status.success())
+    }
+
+    /// `git merge-base --is-ancestor <ancestor> <descendant>`：退出码 0 = 是祖先，
+    /// 1 = 不是祖先，其他（引用缺失、浅克隆边界、参数非法）= 无法判定，返回 None。
+    ///
+    /// 只读查询，供 reset 的「目标是否落后于上游」提示使用；判定失败不阻断写操作。
+    pub(crate) fn is_ancestor(&self, ancestor: &str, descendant: &str) -> Result<Option<bool>> {
+        for value in [ancestor, descendant] {
+            if value.is_empty() || value.starts_with('-') {
+                return Ok(None);
+            }
+        }
+        let output = self.run_readonly(&["merge-base", "--is-ancestor", ancestor, descendant])?;
+        Ok(match output.status.code() {
+            Some(0) => Some(true),
+            Some(1) => Some(false),
+            _ => None,
+        })
     }
 
     /// 返回占用目标分支的其他 worktree 路径（当前 worktree 的同名分支已单独判断）。

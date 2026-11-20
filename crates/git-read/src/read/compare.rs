@@ -6,13 +6,63 @@ use git_core::{
 };
 
 use super::{
-    commit_summary, gix_error, reachable_set, read_head, read_refs, tree_oid_of_commit,
+    commit_summary, gix_error, is_worktree_ref, reachable_set, tree_oid_of_commit,
     tree_oid_of_object, FileSides, GitReadModule, DEFAULT_PAGE_LIMIT,
 };
 use crate::diff::{collect_changes, diff_file};
-use crate::util::{find_commit, gix_oid, oid_from_gix, oid_from_id};
+use crate::util::{find_commit, gix_oid, oid_from_gix, oid_from_id, parse_oid};
 
 impl GitReadModule {
+    /// 对比槽位解析（ADR-0030）：两侧都可以是提交 OID 或保留字 `worktree`。
+    ///
+    /// 工作区没有提交历史，三点模式对它没有意义，此时忽略 `two_dot`。
+    pub fn compare_sides(
+        &self,
+        base: &str,
+        compare: &str,
+        path_filter: Option<&str>,
+        two_dot: bool,
+    ) -> Result<CompareResultDto> {
+        match (is_worktree_ref(base), is_worktree_ref(compare)) {
+            (true, true) => Err(worktree_both_sides()),
+            (true, false) => self.compare_worktree(&parse_oid(compare)?, true, path_filter),
+            (false, true) => self.compare_worktree(&parse_oid(base)?, false, path_filter),
+            (false, false) => self.compare(
+                &parse_oid(base)?,
+                &parse_oid(compare)?,
+                path_filter,
+                two_dot,
+            ),
+        }
+    }
+
+    /// 对比中的单文件 diff；`base` / `compare` 接受 `worktree` 保留字。
+    pub fn compare_sides_file_diff(
+        &self,
+        base: &str,
+        compare: &str,
+        path: &str,
+        two_dot: bool,
+        ignore_whitespace: bool,
+    ) -> Result<FileDiffDto> {
+        match (is_worktree_ref(base), is_worktree_ref(compare)) {
+            (true, true) => Err(worktree_both_sides()),
+            (true, false) => {
+                self.compare_worktree_file_diff(&parse_oid(compare)?, true, path, ignore_whitespace)
+            }
+            (false, true) => {
+                self.compare_worktree_file_diff(&parse_oid(base)?, false, path, ignore_whitespace)
+            }
+            (false, false) => self.compare_file_diff(
+                &parse_oid(base)?,
+                &parse_oid(compare)?,
+                path,
+                two_dot,
+                ignore_whitespace,
+            ),
+        }
+    }
+
     /// 三点对比；`two_dot` 为 true 时改为两端快照 diff，无 merge-base 时自动降级。
     pub fn compare(
         &self,
@@ -22,6 +72,7 @@ impl GitReadModule {
         two_dot: bool,
     ) -> Result<CompareResultDto> {
         let repo = self.repo()?;
+        let generation = self.fingerprint(&repo)?;
         let base_id = gix_oid(base)?;
         let compare_id = gix_oid(compare)?;
         let merge_base_id = repo.merge_base(base_id, compare_id).map_err(gix_error)?;
@@ -43,11 +94,11 @@ impl GitReadModule {
         let base_only = base_set.difference(&compare_set).count() as u32;
         let compare_only = compare_set.difference(&base_set).count() as u32;
 
-        let refs_for_badges = read_refs(&repo, &read_head(&repo)?)?.1;
         let stop: HashSet<Oid> = match &merge_base {
             Some(mb) => reachable_set(&repo, mb)?,
             None => HashSet::new(),
         };
+        let snapshot = self.refs_snapshot(&repo, generation)?;
         let mut commits = Vec::new();
         let mut commits_truncated = false;
         let walk = repo
@@ -67,7 +118,7 @@ impl GitReadModule {
                 commits_truncated = true;
                 break;
             }
-            commits.push(commit_summary(&repo, &oid, &refs_for_badges)?);
+            commits.push(commit_summary(&repo, &oid, &snapshot.badges)?);
         }
 
         let mut warnings = Vec::new();
@@ -84,7 +135,7 @@ impl GitReadModule {
             ));
         }
         Ok(CompareResultDto {
-            generation: self.current_generation()?,
+            generation,
             base: base.clone(),
             compare: compare.clone(),
             merge_base,
@@ -96,6 +147,7 @@ impl GitReadModule {
             commits_truncated,
             title: format!("{} → {}", base.short(7), compare.short(7)),
             warnings,
+            worktree_side: None,
         })
     }
 
@@ -106,12 +158,19 @@ impl GitReadModule {
         compare: &Oid,
         path: &str,
         two_dot: bool,
+        ignore_whitespace: bool,
     ) -> Result<FileDiffDto> {
         let repo = self.repo()?;
         if two_dot {
             let old_tree = Some(tree_oid_of_commit(&repo, base)?);
             let new_tree = Some(tree_oid_of_commit(&repo, compare)?);
-            let mut dto = diff_file(&repo, old_tree.as_ref(), new_tree.as_ref(), path)?;
+            let mut dto = diff_file(
+                &repo,
+                old_tree.as_ref(),
+                new_tree.as_ref(),
+                path,
+                ignore_whitespace,
+            )?;
             dto.generation = self.current_generation()?;
             return Ok(dto);
         }
@@ -123,7 +182,13 @@ impl GitReadModule {
             None => Some(tree_oid_of_commit(&repo, base)?),
         };
         let new_tree = Some(tree_oid_of_commit(&repo, compare)?);
-        let mut dto = diff_file(&repo, old_tree.as_ref(), new_tree.as_ref(), path)?;
+        let mut dto = diff_file(
+            &repo,
+            old_tree.as_ref(),
+            new_tree.as_ref(),
+            path,
+            ignore_whitespace,
+        )?;
         dto.generation = self.current_generation()?;
         Ok(dto)
     }
@@ -176,4 +241,9 @@ impl GitReadModule {
             new: new.unwrap_or_default(),
         })
     }
+}
+
+fn worktree_both_sides() -> UserVisibleError {
+    UserVisibleError::new(ErrorCode::InvalidArgument, "对比两侧不能同时是当前工作区")
+        .with_key("errors.readWorktreeBothSides")
 }

@@ -29,9 +29,12 @@ pub async fn execute_write(
 ) -> Result<WriteOutcomeDto> {
     let state = Arc::clone(&state);
     blocking(move || {
-        let outcome = state.with_session(|session| {
-            let mut outcome = session.write.execute(&request)?;
-            match session.read.state() {
+        // 写互斥按仓库生效：整段写操作与写后刷新都固定在发起写的标签上，
+        // 即使中途切换了活动标签，也不会把这次的变更记到别的仓库。
+        let entry = state.active_entry()?;
+        let outcome = state.with_entry(Some(entry.id), |entry| {
+            let mut outcome = entry.session.write.execute(&request)?;
+            match entry.session.read.state() {
                 Ok(repo) => {
                     outcome.generation = Some(repo.generation);
                     outcome.head_oid = repo.head.oid;
@@ -48,9 +51,9 @@ pub async fn execute_write(
         ));
         // 写操作强制失效：先登记新代际，避免监听线程对同一变化重复通知。
         if let Some(generation) = outcome.generation {
-            state.request_refresh(RefreshReason::Write);
-            state.observe_generation(generation);
-            state.accept_generation(generation);
+            state.request_refresh_for(entry.id, RefreshReason::Write);
+            state.observe_generation_for(entry.id, generation);
+            state.accept_generation_for(entry.id, generation);
         }
         Ok(outcome)
     })
@@ -83,16 +86,21 @@ pub async fn staging_status(state: State<'_, Shared>) -> Result<StagingStatusDto
     .await
 }
 
+/// 暂存区单文件 diff；`ignore_whitespace` 只影响展示，不参与 hunk 定位（ADR-0030）。
 #[tauri::command]
 pub async fn read_staging_diff(
     state: State<'_, Shared>,
     path: String,
     staged: bool,
+    ignore_whitespace: Option<bool>,
 ) -> Result<FileDiffDto> {
     let state = Arc::clone(&state);
     blocking(move || {
+        let ignore_whitespace = ignore_whitespace.unwrap_or(false);
         state.with_session(|session| {
-            let mut dto = session.write.staging_file_diff(&path, staged)?;
+            let mut dto = session
+                .write
+                .staging_file_diff(&path, staged, ignore_whitespace)?;
             dto.generation = session.read.current_generation()?;
             Ok(dto)
         })

@@ -1,0 +1,161 @@
+/* 侧栏 Worktree 分区与创建 / 移除对话框（ADR-0034）。只用语义令牌，深浅两套由 tokens.css 提供。 */
+
+.worktree-section {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.worktree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.worktree-item {
+  margin-bottom: 2px;
+}
+
+.worktree-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
+/* 行主体：两行（分支 + 路径），整块可点击打开。 */
+.worktree-open {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 6px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+
+.worktree-open:hover:not(:disabled) {
+  background: var(--row-hover);
+  border-color: transparent;
+}
+
+.worktree-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.worktree-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.worktree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.worktree-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.worktree-badge {
+  flex: none;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 15px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--muted);
+}
+
+.worktree-badge-locked {
+  color: var(--warning);
+  border-color: var(--warning-border);
+  background: var(--warning-weak);
+}
+
+.worktree-badge-prunable {
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+  background: var(--danger-weak);
+}
+
+.worktree-remove {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+}
+
+.worktree-remove:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger-border);
+  background: var(--danger-weak);
+}
+
+.worktree-remove-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.worktree-notice,
+.worktree-error {
+  margin: 4px 0 2px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+/* 对话框：源分支 + 目录选择 + 命令预览。 */
+.worktree-dialog .worktree-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.worktree-path-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.worktree-path-box {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font-size: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worktree-command {
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}

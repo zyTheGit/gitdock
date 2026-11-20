@@ -12,6 +12,15 @@ pub(crate) fn gix_oid(oid: &Oid) -> Result<gix::hash::ObjectId> {
     })
 }
 
+/// 解析外部传入的 OID 文本（20/32 字节十六进制）。
+pub(crate) fn parse_oid(value: &str) -> Result<Oid> {
+    Oid::new(value).map_err(|e| {
+        UserVisibleError::new(ErrorCode::InvalidArgument, "OID 格式无效")
+            .with_key("errors.readInvalidOid")
+            .with_detail(e.to_string())
+    })
+}
+
 pub(crate) fn oid_from_gix(id: &gix::oid) -> Oid {
     Oid::new(id.to_string()).expect("gix 生成的 OID 长度合法")
 }
@@ -40,6 +49,19 @@ pub(crate) fn find_tree<'repo>(
 ) -> Result<gix::Tree<'repo>> {
     let id = gix_oid(oid)?;
     repo.find_tree(id).map_err(internal)
+}
+
+/// 归一化仓库内路径：去掉首尾分隔符，反斜杠转正斜杠，拒绝空路径。
+pub(crate) fn normalize_repo_path(path: &str) -> Result<String> {
+    let normalized = path.trim().replace('\\', "/");
+    let trimmed = normalized.trim_matches('/');
+    if trimmed.is_empty() {
+        return Err(
+            UserVisibleError::new(ErrorCode::InvalidArgument, "文件路径不能为空")
+                .with_key("errors.readFilePathRequired"),
+        );
+    }
+    Ok(trimmed.to_owned())
 }
 
 /// 读取原始对象内容；不存在时返回 None（例如 gitlink 指向未拉取的子模块提交）。

@@ -1,23 +1,36 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Icon } from "../../assets/icons";
 import { useI18n } from "../../i18n";
 import { warningText } from "../../shared/error";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
+import { FileListModeToggle } from "../../shared/FileListModeToggle";
+import { buildFileTree, flattenVisibleTree, type FileTreeRow } from "../../shared/fileTree";
 import { STATUS_LETTER } from "../../shared/fileStatus";
 import { formatDate, shortOid } from "../../shared/format";
 import type {
+  ChangedFileDto,
   CommitSummaryDto,
   ExternalToolConfig,
   FileDiffDto,
   RepoStateDto,
 } from "../../shared/types";
+import { useFileListMode } from "../../shared/useFileListMode";
 import { FileDiffView } from "../diff/FileDiffView";
+import { fileHistoryMenuItems } from "../history/menuItems";
 import { useBranchesContaining, useCommitDetail, useFileDiff } from "./useCommitDetail";
 
 // 文件行高度初值（12px 文本 + 上下 padding 与边框）；文本行高随字体而定，
 // 首帧后由 measureElement 按实际渲染高度修正。
 const FILE_ROW_ESTIMATE = 26;
 const FILE_LIST_OVERSCAN = 12;
+
+/** 已知签名类型的展示名；未识别的类型原样展示（ADR-0034）。 */
+const SIGNATURE_LABELS: Record<string, string> = { gpg: "GPG", ssh: "SSH", x509: "X.509" };
+
+function signatureLabel(kind: string): string {
+  return SIGNATURE_LABELS[kind] ?? kind;
+}
 
 function RefBadges({ commit }: { commit: CommitSummaryDto }) {
   if (commit.refs.length === 0) {
@@ -52,6 +65,8 @@ interface CommitDetailPaneProps {
   width: number;
   onClose: () => void;
   onBranchJump: (branch: string) => void;
+  /** 点击父提交短哈希：定位并选中该提交（必要时切换范围）。 */
+  onSelectCommit?: (oid: string) => void;
   onExternalDiff: (toolIndex: number, path: string, left: string | null) => void;
 }
 
@@ -62,6 +77,7 @@ export function CommitDetailPane({
   width,
   onClose,
   onBranchJump,
+  onSelectCommit,
   onExternalDiff,
 }: CommitDetailPaneProps) {
   const { t } = useI18n();
@@ -105,27 +121,58 @@ export function CommitDetailPane({
   const shownDiff = fileDiff.data ?? (expandedDiff ? lastDiff : null);
   const baseOid = detail.data?.parents[0] ?? null;
 
+  const [listMode, setListMode] = useFileListMode();
+  const [collapsedDirs, setCollapsedDirs] = useState<ReadonlySet<string>>(() => new Set());
+  const fileTree = useMemo(() => buildFileTree(files), [files]);
+  // 扁平 / 目录树统一成扁平行：虚拟滚动只按行索引取数据，不递归挂载 DOM。
+  const rows = useMemo<FileTreeRow<ChangedFileDto>[]>(() => {
+    if (listMode === "tree") {
+      return flattenVisibleTree(fileTree, collapsedDirs);
+    }
+    return files.map((file) => ({
+      kind: "file",
+      key: `f:${file.path}`,
+      path: file.path,
+      name: file.path,
+      depth: 0,
+      item: file,
+      dirPath: "",
+    }));
+  }, [listMode, fileTree, files, collapsedDirs]);
+
+  const toggleDir = (path: string) =>
+    setCollapsedDirs((current) => {
+      const next = new Set(current);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+
   const fileScrollRef = useRef<HTMLDivElement>(null);
   // 变更文件列表虚拟化：大合并提交数千文件时只渲染可视行。
   const fileVirtualizer = useVirtualizer({
-    count: files.length,
+    count: rows.length,
     getScrollElement: () => fileScrollRef.current,
     estimateSize: () => FILE_ROW_ESTIMATE,
     overscan: FILE_LIST_OVERSCAN,
-    getItemKey: (index) => files[index]?.path ?? index,
+    getItemKey: (index) => rows[index]?.key ?? index,
   });
 
-  const menuItems: MenuItem[] =
-    tools.length === 0
-      ? [{ label: t("detail.noExternalTool"), disabled: true, onSelect: () => undefined }]
-      : tools.map((tool, index) => ({
-          label: t("detail.openWithTool", { name: tool.name }),
-          onSelect: () => {
-            if (menu) {
-              onExternalDiff(index, menu.path, baseOid);
-            }
-          },
-        }));
+  // 文件右键：先给只读的文件历史 / Blame，再列外部对比工具（未配置时给出占位项）。
+  const menuItems: MenuItem[] = menu
+    ? [
+        ...fileHistoryMenuItems(menu.path, oid, "commit"),
+        ...(tools.length === 0
+          ? [{ label: t("detail.noExternalTool"), disabled: true, onSelect: () => undefined }]
+          : tools.map((tool, index) => ({
+              label: t("detail.openWithTool", { name: tool.name }),
+              onSelect: () => onExternalDiff(index, menu.path, baseOid),
+            }))),
+      ]
+    : [];
 
   return (
     <aside className="detail-pane" aria-label={t("detail.commitDetails")} style={{ width }}>
@@ -148,6 +195,18 @@ export function CommitDetailPane({
             <span>{commit.author_name}</span>
             <span className="muted">{commit.author_email}</span>
             <span className="muted">{formatDate(commit.authored_at)}</span>
+            {detail.data?.signature_kind && (
+              <span
+                className="signature-badge"
+                title={t("detail.signatureTitle", {
+                  kind: signatureLabel(detail.data.signature_kind),
+                })}
+              >
+                {t("detail.signatureSigned", {
+                  kind: signatureLabel(detail.data.signature_kind),
+                })}
+              </span>
+            )}
             <RefBadges commit={commit} />
           </div>
         )}
@@ -173,9 +232,16 @@ export function CommitDetailPane({
                 ) : (
                   <span className="parent-list">
                     {detail.data.parents.map((parent) => (
-                      <code key={parent} title={parent}>
+                      <button
+                        key={parent}
+                        type="button"
+                        className="parent-oid mono"
+                        title={t("detail.parentJumpTitle", { oid: parent })}
+                        onClick={() => onSelectCommit?.(parent)}
+                        disabled={!onSelectCommit}
+                      >
                         {shortOid(parent)}
-                      </code>
+                      </button>
                     ))}
                   </span>
                 )}
@@ -226,7 +292,12 @@ export function CommitDetailPane({
 
             <div className="detail-columns">
               <div className="detail-files">
-                <h3>{t("detail.changedFiles", { n: files.length })}</h3>
+                <div className="detail-files-head">
+                  <h3>{t("detail.changedFiles", { n: files.length })}</h3>
+                  {files.length > 0 && (
+                    <FileListModeToggle mode={listMode} onChange={setListMode} />
+                  )}
+                </div>
                 {files.length === 0 ? (
                   <p className="muted">{t("detail.noFileChanges")}</p>
                 ) : (
@@ -236,8 +307,8 @@ export function CommitDetailPane({
                       style={{ height: fileVirtualizer.getTotalSize() }}
                     >
                       {fileVirtualizer.getVirtualItems().map((item) => {
-                        const file = files[item.index];
-                        if (!file) {
+                        const row = rows[item.index];
+                        if (!row) {
                           return null;
                         }
                         return (
@@ -253,35 +324,63 @@ export function CommitDetailPane({
                               transform: `translateY(${item.start}px)`,
                             }}
                           >
-                            <button
-                              className={
-                                filePath === file.path ? "file-row active" : "file-row"
-                              }
-                              onClick={() => setFilePath(file.path)}
-                              onContextMenu={(event) => {
-                                event.preventDefault();
-                                setFilePath(file.path);
-                                setMenu({ x: event.clientX, y: event.clientY, path: file.path });
-                              }}
-                              title={t("detail.fileRowTitle", { path: file.path })}
-                            >
-                              <span className={`file-status file-status-${file.status}`}>
-                                {STATUS_LETTER[file.status]}
-                              </span>
-                              <span className="file-path">{file.path}</span>
-                              <span className="file-stats">
-                                {file.gitlink ? (
-                                  <span className="muted">gitlink</span>
-                                ) : file.binary ? (
-                                  <span className="muted">bin</span>
-                                ) : (
-                                  <>
-                                    <span className="diff-add">+{file.additions}</span>
-                                    <span className="diff-del">-{file.deletions}</span>
-                                  </>
-                                )}
-                              </span>
-                            </button>
+                            {row.kind === "dir" ? (
+                              <button
+                                className="file-tree-dir"
+                                style={{ paddingLeft: 4 + row.depth * 12 }}
+                                aria-expanded={!collapsedDirs.has(row.path)}
+                                onClick={() => toggleDir(row.path)}
+                                title={row.path}
+                              >
+                                <Icon name="chevronDown" className="file-tree-chevron" />
+                                <span className="file-tree-name">{row.name}</span>
+                                <span className="file-tree-count">{row.fileCount}</span>
+                              </button>
+                            ) : (
+                              <button
+                                className={
+                                  filePath === row.item.path ? "file-row active" : "file-row"
+                                }
+                                style={
+                                  listMode === "tree"
+                                    ? { paddingLeft: 4 + row.depth * 12 }
+                                    : undefined
+                                }
+                                onClick={() => setFilePath(row.item.path)}
+                                onContextMenu={(event) => {
+                                  event.preventDefault();
+                                  setFilePath(row.item.path);
+                                  setMenu({
+                                    x: event.clientX,
+                                    y: event.clientY,
+                                    path: row.item.path,
+                                  });
+                                }}
+                                title={t("detail.fileRowTitle", {
+                                  path:
+                                    row.item.old_path && row.item.old_path !== row.item.path
+                                      ? `${row.item.old_path} → ${row.item.path}`
+                                      : row.item.path,
+                                })}
+                              >
+                                <span className={`file-status file-status-${row.item.status}`}>
+                                  {STATUS_LETTER[row.item.status]}
+                                </span>
+                                <span className="file-path">{row.name}</span>
+                                <span className="file-stats">
+                                  {row.item.gitlink ? (
+                                    <span className="muted">gitlink</span>
+                                  ) : row.item.binary ? (
+                                    <span className="muted">bin</span>
+                                  ) : (
+                                    <>
+                                      <span className="diff-add">+{row.item.additions}</span>
+                                      <span className="diff-del">-{row.item.deletions}</span>
+                                    </>
+                                  )}
+                                </span>
+                              </button>
+                            )}
                           </li>
                         );
                       })}

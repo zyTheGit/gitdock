@@ -21,6 +21,10 @@ const errors = {
     "工作区有 {{total}} 个文件存在改动（{{parts}}）。不会自动 stash、reset 或 clean：改动会保留在工作区并可能带到目标分支；若目标分支会覆盖这些文件，Git 将拒绝切换并保持现状。",
   stagingBareEmpty: "bare 仓库没有工作区，暂存区为空",
   conflictedIndex: "存在 {{n}} 个未解决冲突文件，暂存区操作已禁用；请在终端解决后继续",
+  discardDestructive:
+    "将永久丢弃 {{total}} 个文件的未暂存改动（已跟踪 {{tracked}} 个、未跟踪 {{untracked}} 个）；无法通过 git reflog 恢复，如需保留请先使用 Stash",
+  hunkDiscardDestructive:
+    "将永久丢弃 {{path}} 工作区中的这一块改动；无法通过 git reflog 恢复，如需保留请先使用 Stash",
 
   // ---- 中断态（InterruptionDto.kinds 由前端渲染）----
   interruptionDetected: "检测到未完成的 Git 操作：{{names}}",
@@ -49,6 +53,19 @@ const errors = {
   stagingReadFileFailed: "无法读取 {{path}}",
   stagingUntrackedDiffFailed: "无法生成未跟踪文件 diff",
   stagingDiffFailed: "无法生成文件 diff",
+  discardRemoveFailed: "无法删除未跟踪文件 {{path}}",
+
+  // ---- git-write 基础设施：hunk 级操作 hunk*（ADR 0027）----
+  hunkPathRequired: "缺少 hunk 的目标文件路径",
+  hunkIndexRequired: "缺少 hunk 序号",
+  hunkKindInvalid: "hunk 操作类型无效",
+  hunkUntrackedNotSupported: "{{path}} 是未跟踪文件，没有可对齐的 index 基准；请整文件暂存",
+  hunkBinaryNotSupported: "{{path}} 是二进制文件，不支持 hunk 级操作；请整文件暂存或在终端处理",
+  hunkNoChanges: "{{path}} 当前没有可操作的文本 hunk，请刷新后重试",
+  hunkIndexOutOfRange:
+    "hunk 序号 {{index}} 超出 {{path}} 当前的块数（{{total}} 块），diff 可能已变化，请刷新后重试",
+  hunkDiffFailed: "无法生成 {{path}} 的实时 diff",
+  hunkApplyFailed: "{{path}} 的这块改动应用失败，Git 拒绝了补丁；请刷新 diff 后重试",
 
   // ---- git-write 基础设施：命令与描述 command*/description* ----
   commandMissingOid: "缺少提交 OID",
@@ -167,6 +184,10 @@ const errors = {
   feedbackTooLong: "反馈内容过长，请精简后再提交",
   feedbackUrlInvalid: "反馈地址无效：{{error}}",
   windowShowFailed: "显示主窗口失败",
+  revealPathInvalid: "只允许在文件管理器中定位当前仓库内的相对路径",
+  revealRootMissing: "无法解析仓库根目录",
+  revealFileMissing: "文件不存在或无法访问",
+  revealLaunchFailed: "启动系统文件管理器失败",
   oidFormatInvalid: "OID 格式无效",
   paginationCursorInvalid: "分页游标无效，请刷新图谱",
 
@@ -206,6 +227,22 @@ const errors = {
   gateNothingToStage: "{{path}} 没有未暂存改动",
   gateNothingToUnstage: "{{path}} 没有已暂存改动",
   gateConflictedIndexStage: "存在未解决的冲突文件，请先在终端处理后再暂存",
+  gateConflictedIndexDiscard:
+    "索引中还有 {{n}} 个未解决冲突文件；冲突内容不能丢弃，请先解决或中止当前操作",
+  gateNothingToDiscard: "{{path}} 没有未暂存改动（已暂存的改动需先取消暂存）",
+  gateHunkPathRequired: "缺少 hunk 的目标文件路径",
+  gateHunkIndexRequired: "缺少 hunk 序号",
+  gateHunkUntracked: "{{path}} 是未跟踪文件，没有可对齐的 index 基准；请整文件暂存",
+  gateHunkRename: "{{path}} 涉及重命名 / 复制，hunk 级操作请先在终端处理",
+  gateHunkBinary: "{{path}} 是二进制文件，hunk 级操作请整文件暂存或在终端处理",
+  gateHunkGitlink: "{{path}} 是子模块（gitlink）变更，不支持 hunk 级操作",
+  gateHunkNoChanges: "{{path}} 当前没有可操作的文本 hunk，请刷新后重试",
+  gateHunkIndexOutOfRange:
+    "hunk 序号 {{index}} 超出 {{path}} 当前的块数（{{total}} 块），diff 可能已变化，请刷新后重试",
+  gateConflictedIndexHunk:
+    "索引中还有 {{n}} 个未解决冲突文件；冲突内容不能做 hunk 级操作，请先解决或中止当前操作",
+  gateUntrackedDirectory: "{{path}} 是未跟踪目录，暂不支持整体删除，请在终端清理",
+  gateGitDirPath: "拒绝操作 .git 内部路径：{{path}}",
   gateInterruptionInvalid: "继续/中止只支持 cherry-pick、revert、merge 或 rebase 中断",
   gateInterruptionRequired: "{{verb}}操作需要指定中断类型（cherry_pick 或 revert）",
   gateInterruptionMismatch: "请求的是 {{action}} 中断，但检测到 {{other}} 中断标记（{{marker}}）",
@@ -237,6 +274,11 @@ const errors = {
   gateRemoteUnborn: "当前分支尚无提交",
   gateRemoteDetached: "detached HEAD 不支持 pull / push，请先切换本地分支",
   gateRemoteNoUpstream: "当前分支没有上游分支，请先在终端设置 upstream",
+  gatePushBranchNotCurrent: "只能为当前检出的分支建立上游；当前分支是 {{current}}，不是 {{branch}}",
+  gatePushUpstreamExists: "分支 {{branch}} 已有上游 {{upstream}}，请直接使用 Push",
+  gateRemoteAmbiguous: "仓库配置了多个远程且没有 origin，请显式指定其中一个：{{options}}",
+  gateRemoteUnknown: "远程 {{remote}} 未配置；已配置的远程：{{options}}",
+  gateInvalidRemoteBranch: "远程分支名不合法：{{branch}}（应形如 origin/<branch>）",
   gateRemoteDirtyPull: "工作区不干净；pull --ff-only 前请先提交或 stash",
   gateRemoteBranchMissing: "本地分支 {{branch}} 不存在",
   gateRemoteBranchSelf: "不能把当前分支整合到它自己",
@@ -254,6 +296,49 @@ const errors = {
   gateTagNotCommit: "标签 {{tag}} 未指向提交对象，无法把附注消息作为描述",
   gateUnbornHeadTag: "当前分支尚无提交，无法创建标签",
   gateTagMissing: "本地标签 {{tag}} 不存在",
+  // ---- 重置 reset（ADR-0029）----
+  gateResetModeRequired: "请选择重置模式（soft / mixed / hard）",
+  gateConflictedIndexReset:
+    "索引中还有 {{n}} 个未解决冲突文件，请先解决或中止当前操作后再重置",
+  gateResetTargetRequired: "缺少重置的目标提交",
+  gateResetTargetInvalid: "{{oid}} 不存在或不是提交，无法重置",
+  gateResetNoop: "目标 {{oid}} 就是当前 HEAD，{{mode}} 模式没有可重置的内容",
+  resetHardDestructive:
+    "硬重置将永久丢弃 {{total}} 个文件的暂存与工作区改动（已暂存 {{staged}}、已修改 {{tracked}}）；未跟踪文件 {{untracked}} 个不会被删除。未提交改动无法通过 Reflog 恢复",
+  resetDivergesUpstream:
+    "目标 {{oid}} 落后于上游 {{upstream}}：重置会丢弃已推送到远端的提交，本地分支将与远端分叉（远端仍保留这些提交，可 pull 或经 Reflog 找回）",
+  resetModeRequired: "缺少重置模式（soft / mixed / hard）",
+
+  // ---- 冲突解决（ADR-0033）----
+  gateConflictPathRequired: "缺少冲突文件路径",
+  gateConflictPathNotConflicted: "{{path}} 当前不是冲突文件，请刷新后重试",
+  conflictMarkersPresent:
+    "{{path}} 仍包含冲突标记（{{marker}}）；标记已解决后这些标记会原样进入提交，请确认已手工处理",
+  gateSummaryResolveConflictOurs: "将用所选一侧（ours）的内容覆盖 {{path}} 的工作区文件；不会自动暂存",
+  gateSummaryResolveConflictTheirs: "将用所选一侧（theirs）的内容覆盖 {{path}} 的工作区文件；不会自动暂存",
+  gateSummaryMarkConflictResolved: "将把 {{path}} 标记为已解决（git add）；工作区文件内容会原样暂存",
+  gateSummaryCreateWorktree: "将在 {{path}} 检出分支 {{branch}} 创建 worktree",
+  gateSummaryRemoveWorktree: "将移除 worktree {{path}}（未提交改动不会被保留）",
+  gateSummaryWorktreeUnavailable: "无法处理 worktree 路径 {{path}}",
+  resolveConflictOursDone: "已用所选一侧（ours）的内容覆盖 {{path}}；该文件仍未暂存，确认后请标记为已解决",
+  resolveConflictTheirsDone: "已用所选一侧（theirs）的内容覆盖 {{path}}；该文件仍未暂存，确认后请标记为已解决",
+  markConflictResolvedDone: "已把 {{path}} 标记为已解决",
+
+  // ---- worktree（ADR-0034）----
+  gateWorktreePathRequired: "缺少 worktree 路径",
+  gateWorktreePathInvalid: "路径无效：{{path}}",
+  gateWorktreePathGitDir: "拒绝在 .git 内创建 worktree：{{path}}",
+  gateWorktreeTargetExists: "目标已存在且不是目录：{{path}}",
+  gateWorktreeTargetNotEmpty: "目标目录已存在且非空：{{path}}",
+  gateWorktreeParentMissing: "父目录不存在或不是目录：{{path}}",
+  gateWorktreePathInaccessible: "目标路径不可访问：{{path}}",
+  gateWorktreeNotFound: "路径不在 worktree 列表中：{{path}}；请刷新后重试",
+  gateWorktreeIsMain: "拒绝移除主 worktree：{{path}}",
+  gateWorktreeLocked: "worktree {{path}} 已被锁定；请先在终端解锁",
+  gateWorktreeUnavailable:
+    "worktree 目录不可访问：{{path}}；如已手工删除，请在终端执行 git worktree prune",
+  worktreeRemoveDirty:
+    "worktree {{path}} 存在未提交改动或未跟踪文件，Git 会拒绝移除；请先提交或清理，或在终端处理（本应用不会使用 --force）",
 
   // ---- 写前 Gate：GateReportDto.summary ----
   gateSummaryBare: "bare 仓库不支持写操作",
@@ -265,6 +350,12 @@ const errors = {
   gateSummaryDescription: "将更新分支 {{branch}} 的本地描述",
   gateSummaryStage: "将暂存 {{n}} 个文件",
   gateSummaryUnstage: "将取消暂存 {{n}} 个文件",
+  gateSummaryHunkStage: "将暂存 {{path}} 的第 {{n}} 块改动（共 {{total}} 块）",
+  gateSummaryHunkUnstage: "将取消暂存 {{path}} 的第 {{n}} 块改动（共 {{total}} 块）",
+  gateSummaryHunkDiscard:
+    "将丢弃 {{path}} 的第 {{n}} 块改动（共 {{total}} 块），无法通过 git reflog 恢复",
+  gateSummaryDiscard:
+    "将永久丢弃 {{total}} 个文件的未暂存改动（已跟踪 {{tracked}} 个、未跟踪 {{untracked}} 个），无法通过 git reflog 恢复",
   gateSummaryCommit: "将创建一个新提交",
   gateSummaryAmend: "将替换上一条提交 {{oid}}（{{subject}}），生成新的提交标识",
   gateSummaryAmendUnavailable: "无法修改 HEAD 提交",
@@ -285,11 +376,19 @@ const errors = {
   gateSummaryFetch: "将 fetch 远程更新",
   gateSummaryPull: "将 pull --ff-only（{{upstream}}）",
   gateSummaryPush: "将 push 当前分支（{{upstream}}）",
+  gateSummaryFetchPrune: "将 fetch 远程更新，并清理远端已删除分支的本地远程跟踪引用",
+  gateSummaryCheckoutRemote:
+    "将把远程分支 {{branch}} 检出为本地分支 {{local}} 并跟踪它；有改动的文件会保留在工作区",
+  gateSummaryPushSetUpstream:
+    "将为本地分支 {{branch}} 建立上游并首次推送到 {{remote}}/{{branch}}（git push -u）",
+  gateSummaryTagPush: "将推送本地标签 {{tag}} 到远程 {{remote}}（refs/tags/{{tag}}）",
   gateSummaryMerge: "将把 {{branch}} merge 到当前分支 {{current}}（--no-edit）",
   gateSummaryRebase: "将把当前分支 {{current}} rebase 到 {{branch}}；可用 git rebase --abort 恢复",
   gateSummaryContinue: "将执行 git {{action}} --continue，完成当前 {{action}} 操作",
   gateSummaryAbort:
     "将执行 git {{action}} --abort，回到操作开始前的状态；已手工解决的冲突内容会丢失",
+  gateSummaryReset:
+    "将把 {{branch}} 重置到 {{oid}}（{{mode}} 模式，影响 {{total}} 个文件；hard 会永久丢弃未提交改动）",
 
   // ---- 写操作执行结果 WriteOutcomeDto ----
   outcomeRejected: "操作被拒绝：{{issues}}",
@@ -309,6 +408,13 @@ const errors = {
   outcomeSwitchedWithChanges: "已切换到分支 {{branch}}，{{n}} 个文件的工作区改动已保留",
   outcomeStaged: "已暂存 {{n}} 个文件",
   outcomeUnstaged: "已取消暂存 {{n}} 个文件",
+  outcomeHunkStaged: "已暂存 {{path}} 的第 {{n}} 块改动",
+  outcomeHunkUnstaged: "已取消暂存 {{path}} 的第 {{n}} 块改动",
+  outcomeHunkDiscarded: "已丢弃 {{path}} 的第 {{n}} 块改动",
+  outcomeDiscarded:
+    "已丢弃 {{total}} 个文件的未暂存改动（回退已跟踪 {{tracked}} 个、删除未跟踪 {{untracked}} 个）",
+  outcomeDiscardRejected: "丢弃未暂存改动被 Git 拒绝，工作区内容保持不变",
+  outcomeDiscardFailed: "丢弃未暂存改动时删除文件失败；已完成的删除不回滚",
   outcomeCommitSucceeded: "提交成功（{{oid}}），图谱已刷新",
   outcomeAmendSucceeded: "已修改提交（{{oid}}），图谱已刷新",
   outcomeCompleted: "操作已完成，图谱已刷新",
@@ -332,8 +438,21 @@ const errors = {
   outcomeFetchSucceeded: "已 fetch 远程更新，图谱已刷新",
   outcomePullSucceeded: "已拉取并快进当前分支，工作区已刷新",
   outcomePushSucceeded: "已推送当前分支",
+  outcomeFetchPruned: "已 fetch 远程更新，并清理远端已删除分支的本地远程跟踪引用，图谱已刷新",
+  outcomeCheckedOutRemoteBranch:
+    "已把远程分支 {{branch}} 检出为本地分支 {{local}}（跟踪 {{branch}}），图谱已刷新",
+  outcomePushUpstreamSet: "已推送 {{branch}}，并建立上游 {{upstream}}",
+  outcomeTagPushed: "已推送标签 {{tag}} 到远程 {{remote}}",
+  outcomeCheckoutRemoteRejected:
+    "检出远程分支被 Git 拒绝（本地分支可能已创建但未切换），未执行 stash / reset / clean；请根据诊断信息处理",
+  outcomeTagPushRejected:
+    "远端已存在同名标签且指向不同提交；本应用不提供 force push，请在终端确认后处理",
   outcomeMergeSucceeded: "已把 {{branch}} merge 到当前分支",
   outcomeRebaseSucceeded: "已把当前分支 rebase 到 {{branch}}",
+  outcomeResetSoft: "已 soft 重置到 {{oid}}：分支指针已回退，暂存区与工作区改动全部保留，图谱已刷新",
+  outcomeResetMixed: "已 mixed 重置到 {{oid}}：分支指针已回退，原暂存改动已退回工作区未暂存，图谱已刷新",
+  outcomeResetHard: "已 hard 重置到 {{oid}}：未提交改动已丢弃，原提交可通过 Reflog 找回，图谱已刷新",
+  outcomeResetRejected: "重置被 Git 拒绝（{{mode}} → {{oid}}），未移动分支指针；请刷新后重试",
   outcomeRemoteAuthFailed:
     "远程认证失败；本应用不接收密码。请在内置终端完成一次 fetch/push 授权，或配置系统凭据管理器 / SSH agent 后重试",
   outcomePullNotFastForward:
@@ -346,6 +465,8 @@ const errors = {
   outcomeGitRejected: "Git 拒绝了本次操作",
   outcomeStdinWriteFailed: "无法向 git 写入路径列表",
   outcomeWaitFailed: "等待 git 命令结束失败",
+  worktreeCreated: "已在 {{path}} 创建 worktree，检出分支 {{branch}}",
+  worktreeRemoved: "已移除 worktree {{path}}",
 } as const;
 
 export default errors;

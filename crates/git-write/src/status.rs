@@ -1,6 +1,8 @@
 //! porcelain v2 工作区状态解析与汇总。
 
-use git_core::{lossy_text as text, ErrorCode, Result, UserVisibleError, WorkspaceStatusDto};
+use git_core::{
+    lossy_text as text, ErrorCode, GateIssueDto, Result, UserVisibleError, WorkspaceStatusDto,
+};
 
 use crate::GitWriteModule;
 
@@ -10,6 +12,31 @@ pub(crate) struct StatusSummary {
     pub(crate) untracked: u32,
     pub(crate) conflicted: u32,
     pub(crate) conflicted_files: Vec<String>,
+}
+
+/// 工作区改动的分项计数文案（Gate warning / issue 共用）。
+pub(crate) fn dirty_parts(status: &StatusSummary) -> String {
+    let mut parts = Vec::new();
+    if status.tracked > 0 {
+        parts.push(format!("{} 个已修改文件", status.tracked));
+    }
+    if status.staged > 0 {
+        parts.push(format!("{} 个已暂存文件", status.staged));
+    }
+    if status.untracked > 0 {
+        parts.push(format!("{} 个未跟踪文件", status.untracked));
+    }
+    parts.join("、")
+}
+
+/// 「工作区不干净」拒绝项；cherry-pick / revert 等要求干净工作区的操作用。
+pub(crate) fn dirty_issue(status: &StatusSummary) -> GateIssueDto {
+    let parts = dirty_parts(status);
+    GateIssueDto::new(
+        "gate_worktree_dirty",
+        format!("工作区不干净（{parts}），请先提交或在终端处理"),
+    )
+    .with_arg("parts", parts)
 }
 
 pub(crate) struct StatusEntry {

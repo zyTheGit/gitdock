@@ -10,9 +10,11 @@ import { terminal } from "./terminal";
 import { settings } from "./settings";
 import { refresh } from "./refresh";
 import { fileList } from "./file-list";
+import { treeView } from "./tree-view";
 import { splitView } from "./split-view";
 import { unifiedView } from "./unified-view";
 import { wrap } from "./wrap";
+import { whitespace } from "./whitespace";
 import { expand } from "./expand";
 import { restore } from "./restore";
 import { zoomOut } from "./zoom-out";
@@ -34,6 +36,9 @@ import { rocket } from "./rocket";
 import { palette } from "./palette";
 import { keyboard } from "./keyboard";
 import { gitBranch } from "./git-branch";
+import { branch } from "./branch";
+import { remote } from "./remote";
+import { tag } from "./tag";
 import { info } from "./info";
 
 /**
@@ -50,9 +55,11 @@ const ICONS = {
   settings,
   refresh,
   fileList,
+  treeView,
   splitView,
   unifiedView,
   wrap,
+  whitespace,
   expand,
   restore,
   zoomOut,
@@ -74,6 +81,9 @@ const ICONS = {
   palette,
   keyboard,
   gitBranch,
+  branch,
+  remote,
+  tag,
   info,
 } satisfies Record<string, IconSpec>;
 

@@ -25,7 +25,9 @@ const diff = {
   changedFiles: "Changed files",
   fileContextMenuHint: "{{path}} (right-click to compare with an external tool)",
   previousFile: "Previous file",
+  previousFileHint: "Previous file ({{keys}})",
   nextFile: "Next file",
+  nextFileHint: "Next file ({{keys}})",
   switchFile: "Switch compared file",
   filePickerLabel: "{{index}}/{{total}} · {{path}}",
   binaryFile: "Binary file; text diff not shown.",
@@ -38,6 +40,27 @@ const diff = {
   noHighlight:
     "Syntax highlighting is off (language unsupported or too many changed lines); inline change markers are kept.",
   noTextDiff: "No text diff to show for this file.",
+  hunkActionsGroup: "Actions for hunk {{n}}",
+  hunkStage: "Stage hunk",
+  hunkStageTitle: "Stage only hunk {{n}} of {{total}}",
+  hunkUnstage: "Unstage hunk",
+  hunkUnstageTitle: "Unstage only hunk {{n}} of {{total}}",
+  hunkDiscard: "Discard hunk",
+  hunkDiscardTitle: "Discard hunk {{n}} of {{total}} (asks for confirmation)",
+  hunkRunning: "Working…",
+  hunkActionsWhitespaceHint:
+    "Whitespace differences are ignored: the hunk numbering no longer matches the write path, so hunk actions are hidden until you turn off “Ignore whitespace”.",
+  ignoreWhitespace: "Ignore whitespace",
+  ignoreWhitespaceTitle: "Ignore whitespace changes inside and at the end of lines (git diff -w)",
+  searchLabel: "Search in diff",
+  searchTitle: "Search in this diff (Esc closes)",
+  searchPlaceholder: "Search diff content",
+  searchPrevious: "Previous match",
+  searchNext: "Next match",
+  searchClose: "Close search",
+  imageBefore: "Before",
+  imageAfter: "After",
+  imageAlt: "{{label}} ({{kind}} image)",
 } satisfies DiffMessages;
 
 export default diff;

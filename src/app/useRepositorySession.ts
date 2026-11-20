@@ -8,11 +8,13 @@ import { ipc } from "../shared/ipc";
 import type {
   AppInfoDto,
   GraphScope,
+  RepoId,
   RepoStateDto,
   RepositoryChangedDto,
   SettingsDto,
   WorkspaceStatusDto,
 } from "../shared/types";
+import type { RepoOpenResult } from "./useRepoTabs";
 
 const EVENT_REPOSITORY_CHANGED = "repository-changed";
 
@@ -23,6 +25,8 @@ export interface RepositorySession {
   repo: RepoStateDto | null;
   workspace: WorkspaceStatusDto | null;
   busy: boolean;
+  /** 仅「新增/打开仓库」期间为 true：各视图据此显示导入提示。 */
+  opening: boolean;
   error: string | null;
   setError: (message: string | null) => void;
   diagnostic: string | null;
@@ -36,19 +40,32 @@ export interface RepositorySession {
   refresh: () => Promise<void>;
   readSnapshot: () => Promise<[RepoStateDto, WorkspaceStatusDto]>;
   applySnapshot: (state: RepoStateDto, status: WorkspaceStatusDto) => void;
+  /** 标签切换/关闭后落地后端返回的活动仓库状态；null 表示回到欢迎页。 */
+  applyActiveState: (state: RepoStateDto | null) => Promise<void>;
+  /** 标签操作会静默改写 open_repositories；设置弹窗保存前必须拿到最新设置。 */
+  reloadSettings: () => Promise<void>;
 }
 
 interface RepositorySessionOptions {
   scope: GraphScope;
-  /** 打开仓库成功后先归零视图状态，再落仓库，避免旧 scope 对新仓库触发无效拉取。 */
-  onOpened: () => void;
+  /** 当前活动标签 id：事件按它路由到本会话或不活动标签的脏点。 */
+  activeRepoId: RepoId | null;
+  /** 打开或激活标签（useRepoTabs.open）；成功后由会话落地快照。 */
+  openTab: (path: string) => Promise<RepoOpenResult>;
+  /** 打开/激活完成后同步每标签视图态（新标签归零，已有标签恢复）。 */
+  onOpened: (result: RepoOpenResult) => void;
+  /** 非活动标签收到仓库变更：只标脏，不拉取图谱（ADR-0032）。 */
+  onBackgroundChange: (repoId: RepoId) => void;
   writeBusyRef: MutableRefObject<boolean>;
 }
 
-/** 单仓库会话：打开/关闭、启动恢复、监听刷新、最新状态快照；图谱随 repo + scope 重载。 */
+/** 仓库会话：打开/激活标签、监听刷新、最新状态快照；图谱随 repo + scope 重载。 */
 export function useRepositorySession({
   scope,
+  activeRepoId,
+  openTab,
   onOpened,
+  onBackgroundChange,
   writeBusyRef,
 }: RepositorySessionOptions): RepositorySession {
   const { t } = useI18n();
@@ -57,15 +74,19 @@ export function useRepositorySession({
   const [repo, setRepo] = useState<RepoStateDto | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceStatusDto | null>(null);
   const [busy, setBusy] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const restored = useRef(false);
   const repoRef = useRef<RepoStateDto | null>(null);
   const busyRef = useRef(false);
+  const activeIdRef = useRef<RepoId | null>(activeRepoId);
+  const backgroundRef = useRef(onBackgroundChange);
   repoRef.current = repo;
   busyRef.current = busy;
+  activeIdRef.current = activeRepoId;
+  backgroundRef.current = onBackgroundChange;
 
   const graph = useGraph(repo?.path ?? null, scope);
   // graph 每次渲染都是新对象，但 reload 只在 repoPath 变化时重建；依赖它可避免监听器反复重订阅。
@@ -81,56 +102,71 @@ export function useRepositorySession({
     setWorkspace(status);
   }, []);
 
+  const applyActiveState = useCallback(async (state: RepoStateDto | null) => {
+    setRepo(state);
+    setWorkspace(state ? await ipc.workspaceStatus().catch(() => null) : null);
+  }, []);
+
+  const reloadSettings = useCallback(async () => {
+    try {
+      setSettings(await ipc.loadSettings());
+    } catch (err) {
+      setError(errorText(err));
+    }
+  }, []);
+
   const open = useCallback(
     async (path: string): Promise<boolean> => {
       setBusy(true);
+      setOpening(true);
       setError(null);
+      setDiagnostic(null);
       setWorkspace(null);
       try {
-        const state = await ipc.openRepository(path);
-        onOpened();
-        setRepo(state);
-        setWorkspace(await ipc.workspaceStatus().catch(() => null));
-        setSettings(await ipc.rememberRepository(state.path));
+        const result = await openTab(path);
+        // 视图态先归零或恢复，再落仓库：同一次批量更新里避免旧 scope 对新仓库发请求。
+        onOpened(result);
+        setRepo(result.state);
+        // 徽章与「最近打开」写回不阻塞导入完成；图谱随 repo 变化独立加载，
+        // 结果回来时若已切到别的仓库则丢弃，避免旧仓库状态覆盖新视图。
+        const openedPath = result.state.path;
+        void Promise.all([
+          ipc.workspaceStatus().catch(() => null),
+          ipc.rememberRepository(openedPath),
+        ])
+          .then(([status, settings]) => {
+            if (repoRef.current?.path !== openedPath) {
+              return;
+            }
+            setWorkspace(status);
+            setSettings(settings);
+          })
+          .catch((err) => setError(errorText(err)));
         return true;
       } catch (err) {
         setWorkspace(null);
         setError(errorText(err));
         return false;
       } finally {
+        setOpening(false);
         setBusy(false);
       }
     },
-    [onOpened],
+    [onOpened, openTab],
   );
 
+  // 启动只准备好应用信息与设置；仓库恢复由 App 按标签列表统一发起。
   useEffect(() => {
     void (async () => {
       try {
-        const [appInfo, loaded, startupPath] = await Promise.all([
-          ipc.appInfo(),
-          ipc.loadSettings(),
-          ipc.startupRepository().catch(() => null),
-        ]);
+        const [appInfo, loaded] = await Promise.all([ipc.appInfo(), ipc.loadSettings()]);
         setInfo(appInfo);
         setSettings(loaded);
-        if (restored.current) {
-          return;
-        }
-        restored.current = true;
-        // 启动传参优先；打开失败再回退到“恢复上次仓库”。
-        const opened = startupPath ? await open(startupPath) : false;
-        if (!opened && loaded.restore_last_repository) {
-          const last = loaded.recent_repositories[0];
-          if (last) {
-            await open(last.path);
-          }
-        }
       } catch (err) {
         setError(errorText(err));
       }
     })();
-  }, [open]);
+  }, []);
 
   // 只从最近列表移除展示项，不删除磁盘上的仓库；再次打开即可重新加入。
   const forget = useCallback(async (path: string) => {
@@ -160,6 +196,7 @@ export function useRepositorySession({
   const refresh = useCallback(async () => {
     setBusy(true);
     setError(null);
+    setDiagnostic(null);
     try {
       const [state, status] = await readSnapshot();
       applySnapshot(state, status);
@@ -194,6 +231,12 @@ export function useRepositorySession({
     let timer: number | undefined;
     let unlisten: (() => void) | undefined;
     void listen<RepositoryChangedDto>(EVENT_REPOSITORY_CHANGED, (event) => {
+      const activeId = activeIdRef.current;
+      // 非活动标签的变化只标脏：拉取图谱留给切回该标签时进行（ADR-0032）。
+      if (activeId !== null && event.payload.repo_id !== activeId) {
+        backgroundRef.current(event.payload.repo_id);
+        return;
+      }
       const current = repoRef.current;
       if (!current || event.payload.path !== current.path) {
         return;
@@ -235,6 +278,7 @@ export function useRepositorySession({
     repo,
     workspace,
     busy,
+    opening,
     error,
     setError,
     diagnostic,
@@ -248,5 +292,7 @@ export function useRepositorySession({
     refresh,
     readSnapshot,
     applySnapshot,
+    applyActiveState,
+    reloadSettings,
   };
 }

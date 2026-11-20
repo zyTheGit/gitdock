@@ -1,5 +1,6 @@
 import { useMemo, useRef, type ReactNode } from "react";
 import type { HunkData, HunkTokens, TokenNode } from "react-diff-view";
+import { HunkActionButtons, type HunkActionsConfig } from "./HunkActions";
 
 // 并排 diff：左右两栏等宽，纵向与横向滚动均互相同步。
 // react-diff-view 的表格只能整体横向滚动，长行会把另一侧一起推出视野。
@@ -7,6 +8,8 @@ import type { HunkData, HunkTokens, TokenNode } from "react-diff-view";
 interface SplitDiffPanesProps {
   hunks: HunkData[];
   tokens: HunkTokens | null;
+  /** hunk 级操作按钮；只在左栏头部渲染一次，右栏保持纯文本头部。 */
+  hunkActions?: HunkActionsConfig;
 }
 
 type LineKind = "normal" | "insert" | "delete" | "empty";
@@ -17,7 +20,8 @@ interface SideLine {
   nodes?: TokenNode[];
 }
 
-type SideRow = { header: string } | { line: SideLine };
+/** 头部行携带 0 起始块序号，供 hunk 操作按钮定位（与 patch 中的块顺序一致）。 */
+type SideRow = { header: string; hunk: number } | { line: SideLine };
 
 interface Rows {
   left: SideRow[];
@@ -35,9 +39,9 @@ function emptyRow(): SideRow {
 export function buildRows(hunks: HunkData[], tokens: HunkTokens | null): Rows {
   const left: SideRow[] = [];
   const right: SideRow[] = [];
-  for (const hunk of hunks) {
-    left.push({ header: hunk.content });
-    right.push({ header: hunk.content });
+  hunks.forEach((hunk, hunkIndex) => {
+    left.push({ header: hunk.content, hunk: hunkIndex });
+    right.push({ header: hunk.content, hunk: hunkIndex });
     const changes = hunk.changes;
     let index = 0;
     while (index < changes.length) {
@@ -79,7 +83,7 @@ export function buildRows(hunks: HunkData[], tokens: HunkTokens | null): Rows {
         right.push(lineRow("insert", newLine, tokens?.new[newLine - 1]));
       }
     }
-  }
+  });
   return { left, right };
 }
 
@@ -109,11 +113,12 @@ function renderNodes(nodes: TokenNode[] | undefined): ReactNode {
   });
 }
 
-function paneRows(rows: SideRow[]) {
+function paneRows(rows: SideRow[], total: number, actions?: HunkActionsConfig) {
   return rows.map((row, index) =>
     "header" in row ? (
       <div key={index} className="split-hunk">
-        {row.header}
+        <span className="split-hunk-text">{row.header}</span>
+        <HunkActionButtons index={row.hunk} total={total} actions={actions} />
       </div>
     ) : (
       <div key={index} className={`split-line ${row.line.kind}`}>
@@ -124,7 +129,7 @@ function paneRows(rows: SideRow[]) {
   );
 }
 
-export function SplitDiffPanes({ hunks, tokens }: SplitDiffPanesProps) {
+export function SplitDiffPanes({ hunks, tokens, hunkActions }: SplitDiffPanesProps) {
   const rows = useMemo(() => buildRows(hunks, tokens), [hunks, tokens]);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
@@ -165,12 +170,12 @@ export function SplitDiffPanes({ hunks, tokens }: SplitDiffPanesProps) {
   return (
     <div className="split-panes">
       <div className="split-pane" ref={leftRef} onScroll={() => onScroll("left")}>
-        {paneRows(rows.left)}
+        {paneRows(rows.left, hunks.length, hunkActions)}
       </div>
       {/* 分隔线独立成列：行号槽位是不透明的 sticky 元素，画在内阴影上会被逐行盖掉。 */}
       <div className="split-divider" aria-hidden="true" />
       <div className="split-pane" ref={rightRef} onScroll={() => onScroll("right")}>
-        {paneRows(rows.right)}
+        {paneRows(rows.right, hunks.length)}
       </div>
     </div>
   );

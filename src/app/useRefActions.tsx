@@ -1,9 +1,12 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { CheckoutRemoteBranchDialog } from "../features/repository/CheckoutRemoteBranchDialog";
 import { CreateBranchDialog } from "../features/repository/CreateBranchDialog";
 import { CreateTagDialog } from "../features/repository/CreateTagDialog";
 import { DeleteRefDialog, type DeleteKind } from "../features/repository/DeleteRefDialog";
+import { PushTagDialog } from "../features/repository/PushTagDialog";
 import { RenameBranchDialog } from "../features/repository/RenameBranchDialog";
-import type { CommitSummaryDto, RepoStateDto } from "../shared/types";
+import { remoteNamesFromRefs } from "../features/repository/remotes";
+import type { CommitSummaryDto, RefDto, RepoStateDto } from "../shared/types";
 
 interface UseRefActionsParams {
   repo: RepoStateDto | null;
@@ -29,8 +32,18 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
   const [createTagOpen, setCreateTagOpen] = useState(false);
   const [createTagStart, setCreateTagStart] = useState<CommitSummaryDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [checkoutRemote, setCheckoutRemote] = useState<string | null>(null);
+  const [pushTag, setPushTag] = useState<string | null>(null);
 
   const available = Boolean(repo) && !writeDisabled;
+  const localBranches = useMemo(
+    () =>
+      (repo?.refs ?? [])
+        .filter((ref) => ref.kind === "local_branch")
+        .map((ref) => ref.short_name),
+    [repo?.refs],
+  );
+  const remoteNames = useMemo(() => remoteNamesFromRefs(repo?.refs ?? []), [repo?.refs]);
 
   const openCreateBranch = useCallback(
     (commit?: CommitSummaryDto) => {
@@ -99,6 +112,25 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
     [available],
   );
 
+  /** 远程分支短名（`origin/feat-a`）：检出为本地跟踪分支前先确认（ADR-0028）。 */
+  const openCheckoutRemote = useCallback(
+    (remoteBranch: string) => {
+      if (available) {
+        setCheckoutRemote(remoteBranch);
+      }
+    },
+    [available],
+  );
+
+  const openPushTag = useCallback(
+    (tag: string) => {
+      if (available) {
+        setPushTag(tag);
+      }
+    },
+    [available],
+  );
+
   const dialogs = (
     <>
       {repo && createBranchOpen && (
@@ -133,6 +165,22 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
           onMutated={onMutated}
         />
       )}
+      {repo && checkoutRemote !== null && (
+        <CheckoutRemoteBranchDialog
+          remoteBranch={checkoutRemote}
+          localBranches={localBranches}
+          onCancel={() => setCheckoutRemote(null)}
+          onMutated={onMutated}
+        />
+      )}
+      {repo && pushTag !== null && (
+        <PushTagDialog
+          tag={pushTag}
+          remotes={remoteNames}
+          onCancel={() => setPushTag(null)}
+          onMutated={onMutated}
+        />
+      )}
     </>
   );
 
@@ -144,6 +192,8 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
     openDeleteBranchRemote,
     openDeleteTag,
     openDeleteTagRemote,
+    openCheckoutRemote,
+    openPushTag,
     menuActions: {
       onNewBranch: openCreateBranch,
       onNewTag: openCreateTag,
@@ -151,6 +201,8 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
       onDeleteBranch: openDeleteBranch,
       onDeleteBranchRemote: openDeleteBranchRemote,
       onDeleteTagRemote: openDeleteTagRemote,
+      onCheckoutRemote: (branch: RefDto) => openCheckoutRemote(branch.short_name),
+      onPushTag: (tag: RefDto) => openPushTag(tag.short_name),
     },
     dialogs,
   };

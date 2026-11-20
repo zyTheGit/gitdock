@@ -9,6 +9,9 @@ const compare = {
   clearSlot: "清空 {{title}}",
   barLabel: "对比选择",
   swapSides: "交换 Base 与 Compare",
+  slotWorktree: "当前工作区",
+  worktreeShort: "工作区",
+  useWorktree: "用当前工作区填入这一侧",
   hintActive: "Compare 相对 Base 共同祖先的改动 · {{modifier}}+点击可替换",
   hintIdle: "{{modifier}}+点击提交填入 Compare，或用「对比分支…」按分支选择",
   replaceWhichSide: "替换哪一侧？",
@@ -18,13 +21,16 @@ const compare = {
   cancel: "取消",
 
   // 分支对比对话框
-  dialogTitle: "对比分支",
-  closeDialog: "关闭分支对比",
+  dialogTitle: "对比引用",
+  closeDialog: "关闭对比引用",
   fieldBase: "Base（基准）",
   fieldCompare: "Compare（对比）",
+  groupLocal: "本地分支",
+  groupRemote: "远程分支",
+  groupTags: "标签",
   modeHint: "默认按三点 diff 比较（Base 与 Compare 的共同祖先 → Compare），可在对比视图切换为两点快照。",
-  sameBranchError: "Base 与 Compare 不能是同一分支。",
-  sameCommitHint: "两个分支当前指向同一提交，对比结果将为空。",
+  sameBranchError: "Base 与 Compare 不能是同一引用。",
+  sameCommitHint: "两个引用当前指向同一提交，对比结果将为空。",
   currentBranchOption: "{{branch}}（当前）",
   startCompare: "开始对比",
 
@@ -43,6 +49,10 @@ const compare = {
   clearFilter: "清除",
   changedFilesCount: "变更文件 {{n}} 个",
   selectTool: "选择外部对比工具",
+  statusFilter: "按文件状态筛选",
+  filterAll: "全部",
+  filterEmpty: "当前状态筛选没有匹配的文件。",
+  externalWorktreeUnavailable: "工作区一侧不是提交，不支持外部工具对比",
 
   // 结果头部
   titleThreeDot: "Compare 相对 Base 共同祖先的改动",
@@ -51,12 +61,15 @@ const compare = {
   modeThreeDot: "三点 diff",
   modeTwoDot: "两点快照",
   modeTwoDotFallback: "两点快照降级",
+  modeWorktree: "工作区快照",
   modeThreeDotHint: "git diff base...compare：只显示 Compare 相对共同祖先的改动",
   modeTwoDotHint: "git diff base compare：显示两个提交的完整快照差异",
+  modeWorktreeHint: "工作区没有提交历史，没有共同祖先可算，只能按两端快照对比",
   sideCounts: "左侧 Base 独有 {{baseOnly}} · 右侧 Compare 独有 {{compareOnly}}",
   viewGraph: "查看图谱",
   directoryDiff: "目录对比",
   directoryDiffHint: "把两侧提交的完整目录树导出到临时文件夹，再交给外部工具对比",
+  directoryDiffWorktreeHint: "工作区一侧不是提交，无法导出目录树；请选择两个提交后再用目录对比",
 
   // 提交列表
   resizeHandle: "调整提交列表高度",

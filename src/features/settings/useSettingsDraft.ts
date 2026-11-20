@@ -98,6 +98,10 @@ export function useSettingsDraft(
         restore_last_repository: restore,
         watch_enabled: watch,
         lazygit_path: lazygitPath.trim() || null,
+        // 打开仓库列表由标签栏静默维护（ADR-0032）：save_settings 缺字段会清空恢复列表，
+        // 因此必须原样回传加载到的值。
+        open_repositories: settings.open_repositories ?? [],
+        active_repository: settings.active_repository ?? null,
 
         font_scale: fontScale,
       });

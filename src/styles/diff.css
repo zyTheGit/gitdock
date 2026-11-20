@@ -363,15 +363,27 @@
   top: 0;
   left: 0;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: max-content;
   min-width: 100%;
-  padding: 3px 10px;
+  /* 固定高度：左栏头部带操作按钮、右栏只有文本，两栏逐行仍然对齐。 */
+  height: 26px;
+  padding: 0 10px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   background: var(--bg-elevated);
   color: var(--muted);
   font-size: 12px;
   line-height: 18px;
+}
+
+.split-hunk-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .diff-file-nav {
@@ -466,4 +478,102 @@
 .diff-note {
   font-size: 12px;
   margin: 6px 0 0;
+}
+
+/* 放大视图侧栏：计数与「扁平 / 目录树」切换并排。 */
+.expanded-files-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.expanded-files .view-toggle.file-list-toggle button {
+  width: 22px;
+  height: 18px;
+}
+
+.expanded-files .file-tree-dir .file-tree-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* hunk 头部操作（ADR 0027）：统一视图的补充头部行与并排视图共用同一套紧凑按钮。 */
+.hunk-actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.hunk-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.hunk-actions button svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hunk-actions button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.hunk-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.hunk-actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.hunk-actions button.danger {
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+.hunk-actions button.danger:hover:not(:disabled) {
+  color: var(--danger-text);
+  border-color: var(--danger-text);
+}
+
+/* react-diff-view 的 <Hunk> 不渲染 @@ 头部：操作按钮需要宿主行，故补一个 tbody。 */
+.diff-hunk-head .diff-hunk-head-cell {
+  padding: 2px 10px;
+  background: var(--bg-elevated);
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.diff-hunk-head-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.diff-hunk-head-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
 }

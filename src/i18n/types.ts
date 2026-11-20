@@ -5,12 +5,14 @@ import type zhCnDiff from "./locales/zh-CN/diff";
 import type zhCnErrors from "./locales/zh-CN/errors";
 import type zhCnGitlog from "./locales/zh-CN/gitlog";
 import type zhCnGraph from "./locales/zh-CN/graph";
+import type zhCnHistory from "./locales/zh-CN/history";
 import type zhCnRepository from "./locales/zh-CN/repository";
 import type zhCnSearch from "./locales/zh-CN/search";
 import type zhCnSettings from "./locales/zh-CN/settings";
 import type zhCnShell from "./locales/zh-CN/shell";
 import type zhCnStaging from "./locales/zh-CN/staging";
 import type zhCnTerminal from "./locales/zh-CN/terminal";
+import type zhCnWorktree from "./locales/zh-CN/worktree";
 import type zhCnWrite from "./locales/zh-CN/write";
 
 // i18next 类型增强：消息 key 的类型来自 zh-CN 资源（as const），
@@ -36,6 +38,8 @@ declare module "i18next" {
       write: typeof zhCnWrite;
       errors: typeof zhCnErrors;
       gitlog: typeof zhCnGitlog;
+      history: typeof zhCnHistory;
+      worktree: typeof zhCnWorktree;
     };
   }
 }

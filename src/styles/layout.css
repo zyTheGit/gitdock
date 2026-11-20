@@ -13,6 +13,8 @@
   background: var(--bg-panel);
   padding: 12px;
   overflow-y: auto;
+  /* 窄侧栏下长引用名由各行自行省略；这里兜底，避免任何子元素撑出横向滚动条。 */
+  overflow-x: hidden;
 }
 
 .pane-splitter {
