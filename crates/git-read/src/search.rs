@@ -4,8 +4,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use git_core::{
-    decode_cursor, encode_cursor, ErrorCode, Oid, Result, SearchField, SearchMatchDto,
-    SearchPageDto, SearchRequest, UserVisibleError,
+    decode_cursor, encode_cursor, ErrorCode, Oid, Result, SearchDateRange, SearchField,
+    SearchMatchDto, SearchPageDto, SearchRequest, UserVisibleError,
 };
 
 use crate::diff::changed_path_matching;
@@ -21,8 +21,33 @@ fn is_hash_prefix(text: &str) -> bool {
     text.len() >= MIN_HASH_PREFIX && text.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
+fn validate_date_range(range: Option<SearchDateRange>) -> Result<()> {
+    if let Some(range) = range {
+        if let (Some(from), Some(to)) = (range.from, range.to) {
+            if from >= to {
+                return Err(
+                    UserVisibleError::new(ErrorCode::InvalidArgument, "搜索日期范围无效")
+                        .with_key("errors.searchDateRangeInvalid"),
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn in_date_range(authored_at: i64, range: Option<SearchDateRange>) -> bool {
+    match range {
+        None => true,
+        Some(range) => {
+            range.from.is_none_or(|from| authored_at >= from)
+                && range.to.is_none_or(|to| authored_at < to)
+        }
+    }
+}
+
 impl GitReadModule {
     pub fn search(&self, request: &SearchRequest, cursor: Option<&str>) -> Result<SearchPageDto> {
+        validate_date_range(request.date_range)?;
         let text = request.text.trim().to_lowercase();
         if text.is_empty() {
             return Ok(SearchPageDto {
@@ -91,6 +116,7 @@ impl GitReadModule {
         let mut results = Vec::new();
         let mut canceled = false;
         let mut scanned = 0usize;
+        let mut path_scanned = 0usize;
         let mut next_cursor = None;
         let end_of_scan = (start + MAX_SCAN).min(index.order.len());
         for oid in &index.order[start..end_of_scan] {
@@ -98,11 +124,20 @@ impl GitReadModule {
                 canceled = true;
                 break;
             }
-            scanned += 1;
             if results.len() >= DEFAULT_PAGE_LIMIT {
                 break;
             }
+            scanned += 1;
             let commit = crate::util::find_commit(&repo, oid)?;
+            let author = commit.author().map_err(|e| {
+                UserVisibleError::new(ErrorCode::Internal, "读取提交作者失败")
+                    .with_key("errors.searchReadAuthorFailed")
+                    .with_detail(e.to_string())
+            })?;
+            let authored_at = crate::util::raw_time_seconds(author.time);
+            if !in_date_range(authored_at, request.date_range) {
+                continue;
+            }
             let message = crate::util::lossy(
                 commit
                     .message_raw()
@@ -113,11 +148,6 @@ impl GitReadModule {
                     })?
                     .as_ref(),
             );
-            let author = commit.author().map_err(|e| {
-                UserVisibleError::new(ErrorCode::Internal, "读取提交作者失败")
-                    .with_key("errors.searchReadAuthorFailed")
-                    .with_detail(e.to_string())
-            })?;
             let mut fields = Vec::new();
             if message.to_lowercase().contains(text) {
                 fields.push(SearchField::Message);
@@ -131,7 +161,8 @@ impl GitReadModule {
                 fields.push(SearchField::Author);
             }
             let mut matched_path = None;
-            if scanned <= MAX_PATH_SCAN {
+            path_scanned += 1;
+            if path_scanned <= MAX_PATH_SCAN {
                 if let Some(path) = self.match_path(&repo, &commit, text)? {
                     fields.push(SearchField::Path);
                     matched_path = Some(path);

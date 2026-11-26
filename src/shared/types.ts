@@ -230,11 +230,19 @@ export interface CommitBranchContextDto {
   gaps_omitted: number;
 }
 
+export interface SearchDateRange {
+  /** Unix 秒，包含；null 表示不限制起点。 */
+  from?: number | null;
+  /** Unix 秒，不包含；null 表示不限制终点。 */
+  to?: number | null;
+}
+
 export interface SearchRequest {
   search_id: string;
   scope: GraphScope;
   text: string;
   highlight: string;
+  date_range?: SearchDateRange | null;
 }
 
 export interface SearchMatchDto {

@@ -12,7 +12,17 @@ const search = {
   searching: "搜索中…",
   cancel: "取消",
   clear: "清空",
-  clearTitle: "清空关键词与搜索结果",
+  clearTitle: "清空关键词、日期与搜索结果",
+
+  // 日期范围
+  dateRange: "作者日期",
+  dateFrom: "起始日期",
+  dateTo: "结束日期",
+  clearDates: "清除日期",
+  dateRangeInvalid: "起始日期不能晚于结束日期",
+  dateRangeDirty: "日期已修改，重新搜索后生效",
+  appliedDateRange: "作者日期：{{from}} ～ {{to}}",
+  dateUnbounded: "不限",
 
   // 范围与状态
   scopeHint: "搜索范围：{{repo}} · 当前视图 ref 范围 · 文件路径按“改动中出现”匹配",
@@ -20,6 +30,7 @@ const search = {
     "搜索范围：{{repo}} · 当前视图 ref 范围 · 文件路径按“改动中出现”匹配 · 已返回 {{n}} 条",
   canceled: "搜索已取消；已有结果保留，不再继续追加。",
   pathScanHint: "路径匹配每页最多扫描前 {{n}} 个提交。",
+  pathScanHintWithDates: "日期范围内路径匹配每页最多扫描前 {{n}} 个提交。",
   noResults: "没有匹配的提交。hash 前缀至少 7 位。",
 
   // 命中域筛选（只过滤已返回结果）

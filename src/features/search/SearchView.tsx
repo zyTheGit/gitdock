@@ -2,6 +2,15 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { currentLocale, useI18n } from "../../i18n";
 import type { CommitSummaryDto, RepoStateDto, SearchField } from "../../shared/types";
+import {
+  dateDraftFromRange,
+  dateDraftsEqual,
+  EMPTY_DATE_DRAFT,
+  isDateDraftValid,
+  searchDateRangeFromDraft,
+  type SearchDateDraft,
+} from "./dateRange";
+import { SearchDateRange } from "./SearchDateRange";
 import { buildSuggestions, type Suggestion } from "./suggestions";
 import type { SearchLoader } from "./useSearch";
 
@@ -70,14 +79,19 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
   const [active, setActive] = useState(-1);
   const [suggestOpen, setSuggestOpen] = useState(true);
   const [fieldFilter, setFieldFilter] = useState<FieldFilter>("all");
+  const [dateDraft, setDateDraft] = useState<SearchDateDraft>(() => dateDraftFromRange(search.dateRange));
 
   const suggestions = useMemo(() => buildSuggestions(input, commits), [input, commits]);
+  const appliedDateDraft = useMemo(() => dateDraftFromRange(search.dateRange), [search.dateRange]);
+  const dateDirty = !dateDraftsEqual(dateDraft, appliedDateDraft);
+  const dateValid = isDateDraftValid(dateDraft);
 
-  // 搜索词变化（新查询 / 清空）或切换仓库后，输入框与命中域筛选跟着重置。
+  // 搜索词、已生效日期或仓库变化后，输入框与筛选回到本次查询的状态。
   useEffect(() => {
     setInput(search.text);
     setFieldFilter("all");
-  }, [search.text, repo.generation]);
+    setDateDraft(dateDraftFromRange(search.dateRange));
+  }, [search.text, search.dateRange, repo.generation]);
 
   // 命中域筛选只在前端收窄已返回结果，不触发新查询；虚拟滚动按过滤后的行数渲染。
   const filtered = useMemo(
@@ -109,13 +123,13 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
 
   const runSearch = (value: string) => {
     const trimmed = value.trim();
-    if (!trimmed || search.loading) {
+    if (!trimmed || search.loading || !dateValid) {
       return;
     }
     setInput(trimmed);
     setSuggestOpen(false);
     setActive(-1);
-    search.start(trimmed);
+    search.start(trimmed, searchDateRangeFromDraft(dateDraft));
   };
 
   // 说明候选已经指向具体提交，选中即回主视图定位，不再退回结果列表二次确认。
@@ -144,7 +158,7 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
       setActive((current) => Math.max(current - 1, -1));
       return;
     }
-    if (event.key === "Enter" && !search.loading) {
+    if (event.key === "Enter" && !search.loading && dateValid) {
       event.preventDefault();
       const picked = suggestOpen && active >= 0 ? suggestions[active] : undefined;
       if (picked) {
@@ -156,6 +170,16 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
   };
 
   const repoName = repo.path.split(/[\\/]/).filter(Boolean).pop() ?? "";
+  const scopeText =
+    search.results.length > 0
+      ? t("search.scopeWithResults", { repo: repoName, n: search.results.length })
+      : t("search.scopeHint", { repo: repoName });
+  const appliedDateLabel = search.dateRange
+    ? t("search.appliedDateRange", {
+        from: appliedDateDraft.from || t("search.dateUnbounded"),
+        to: appliedDateDraft.to || t("search.dateUnbounded"),
+      })
+    : "";
 
   return (
     <div className="modal-backdrop search-backdrop" role="dialog" aria-modal="true">
@@ -209,7 +233,7 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
           <button
             className="primary"
             onClick={() => runSearch(input)}
-            disabled={search.loading || !input.trim()}
+            disabled={search.loading || !input.trim() || !dateValid}
           >
             {search.loading ? t("search.searching") : t("search.searchButton")}
           </button>
@@ -218,12 +242,13 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
               {t("search.cancel")}
             </button>
           )}
-          {(search.text || search.results.length > 0) && (
+          {(search.text || search.results.length > 0 || dateDraft.from || dateDraft.to) && (
             <button
               onClick={() => {
                 search.cancel();
                 search.reset();
                 setInput("");
+                setDateDraft(EMPTY_DATE_DRAFT);
                 setSuggestOpen(true);
               }}
               title={t("search.clearTitle")}
@@ -233,13 +258,21 @@ export function SearchView({ repo, search, commits, onLocateCommit, onClose }: S
           )}
         </div>
 
+        <SearchDateRange value={dateDraft} onChange={setDateDraft} />
+        {dateDirty && dateValid && (
+          <p className="muted search-date-dirty">{t("search.dateRangeDirty")}</p>
+        )}
+
         <p className="muted search-scope">
-          {search.results.length > 0
-            ? t("search.scopeWithResults", { repo: repoName, n: search.results.length })
-            : t("search.scopeHint", { repo: repoName })}
+          {scopeText}
+          {appliedDateLabel && ` · ${appliedDateLabel}`}
         </p>
         {search.text && (
-          <p className="muted search-path-hint">{t("search.pathScanHint", { n: 2000 })}</p>
+          <p className="muted search-path-hint">
+            {search.dateRange
+              ? t("search.pathScanHintWithDates", { n: 2000 })
+              : t("search.pathScanHint", { n: 2000 })}
+          </p>
         )}
 
         {search.results.length > 0 && (

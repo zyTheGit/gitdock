@@ -100,6 +100,14 @@ pub enum SearchField {
     Path,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchDateRange {
+    /// Unix 秒，包含；None 表示不限制起点。
+    pub from: Option<i64>,
+    /// Unix 秒，不包含；None 表示不限制终点。
+    pub to: Option<i64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchRequest {
     /// 前端生成，用于取消。
@@ -107,6 +115,8 @@ pub struct SearchRequest {
     pub scope: GraphScope,
     pub text: String,
     pub highlight: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub date_range: Option<SearchDateRange>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

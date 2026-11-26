@@ -108,6 +108,7 @@ const errors = {
   searchReadMessageFailed: "Failed to read commit message",
   searchReadAuthorFailed: "Failed to read commit author",
   searchReadTreeFailed: "Failed to read commit tree",
+  searchDateRangeInvalid: "Invalid search date range; please check the start and end dates",
   readHeadMessageFailed: "Failed to read the HEAD commit message",
   commitTempFileCreateFailed: "Failed to create the temporary commit message file",
   terminalResizeFailed: "Failed to resize terminal",

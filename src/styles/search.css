@@ -19,6 +19,94 @@
   padding: 7px 10px;
 }
 
+.search-date-range {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 34px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* 日期输入沿用工具栏输入框的尺寸与语义令牌，覆盖浏览器默认的内凹边框和等宽字体。 */
+.search-date-range > input[type="date"] {
+  flex: none;
+  width: 138px;
+  min-height: 34px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.search-date-range > input[type="date"]:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.search-date-range > input[type="date"]:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.search-date-range > input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-left: 2px;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.search-date-range > input[type="date"]:hover::-webkit-calendar-picker-indicator,
+.search-date-range > input[type="date"]:focus::-webkit-calendar-picker-indicator {
+  opacity: 0.9;
+}
+
+.search-date-sep {
+  flex: none;
+  width: 10px;
+  height: 1px;
+  background: var(--border);
+}
+
+.search-date-range > input[type="date"][aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.search-date-range > input[type="date"][aria-invalid="true"]:focus-visible {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
+.search-date-clear {
+  min-height: 28px;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--accent);
+  background: transparent;
+  border-color: transparent;
+}
+
+.search-date-clear:hover:not(:disabled) {
+  border-color: transparent;
+  text-decoration: underline;
+}
+
+.search-date-error {
+  color: var(--danger-text);
+}
+
+.search-date-dirty {
+  flex: none;
+  margin: 0;
+  font-size: 11px;
+}
+
 .search-suggestions {
   position: absolute;
   top: calc(100% + 4px);

@@ -122,6 +122,7 @@ const errors = {
   searchReadMessageFailed: "读取提交信息失败",
   searchReadAuthorFailed: "读取提交作者失败",
   searchReadTreeFailed: "读取提交树失败",
+  searchDateRangeInvalid: "搜索日期范围无效，请检查起止日期",
   readHeadMessageFailed: "读取 HEAD 提交消息失败",
   commitTempFileCreateFailed: "无法创建提交消息临时文件",
 

@@ -3,7 +3,7 @@ import { i18next } from "../../i18n";
 import { errorText } from "../../shared/error";
 import { scopeKey } from "../../shared/graphScope";
 import { ipc } from "../../shared/ipc";
-import type { GraphScope, SearchMatchDto } from "../../shared/types";
+import type { GraphScope, SearchDateRange, SearchMatchDto } from "../../shared/types";
 
 export interface SearchLoader {
   results: SearchMatchDto[];
@@ -13,7 +13,8 @@ export interface SearchLoader {
   hasMore: boolean;
   canceled: boolean;
   text: string;
-  start: (text: string) => void;
+  dateRange: SearchDateRange | null;
+  start: (text: string, dateRange?: SearchDateRange | null) => void;
   loadMore: () => void;
   cancel: () => void;
   reset: () => void;
@@ -29,11 +30,13 @@ export function useSearch(repoGeneration: number, scope: GraphScope): SearchLoad
   const [hasMore, setHasMore] = useState(false);
   const [canceled, setCanceled] = useState(false);
   const [text, setText] = useState("");
+  const [dateRange, setDateRange] = useState<SearchDateRange | null>(null);
 
   const token = useRef(0);
   const searchId = useRef<string | null>(null);
   const cursor = useRef<string | null>(null);
   const textRef = useRef("");
+  const dateRangeRef = useRef<SearchDateRange | null>(null);
   const scopeRef = useRef(scope);
   const generationRef = useRef(repoGeneration);
   scopeRef.current = scope;
@@ -44,6 +47,7 @@ export function useSearch(repoGeneration: number, scope: GraphScope): SearchLoad
     searchId.current = null;
     cursor.current = null;
     textRef.current = "";
+    dateRangeRef.current = null;
     setResults([]);
     setLoading(false);
     setLoadingMore(false);
@@ -51,6 +55,7 @@ export function useSearch(repoGeneration: number, scope: GraphScope): SearchLoad
     setHasMore(false);
     setCanceled(false);
     setText("");
+    setDateRange(null);
   }, []);
 
   // 切换范围或仓库 generation 变化后，旧搜索游标已经失效。
@@ -58,7 +63,7 @@ export function useSearch(repoGeneration: number, scope: GraphScope): SearchLoad
     reset();
   }, [reset, repoGeneration, scopeKey(scope)]);
 
-  const start = useCallback((value: string) => {
+  const start = useCallback((value: string, range: SearchDateRange | null = null) => {
     const trimmed = value.trim();
     if (!trimmed) {
       reset();
@@ -69,14 +74,19 @@ export function useSearch(repoGeneration: number, scope: GraphScope): SearchLoad
     searchId.current = id;
     cursor.current = null;
     textRef.current = trimmed;
+    dateRangeRef.current = range;
     setText(trimmed);
+    setDateRange(range);
     setResults([]);
     setError(null);
     setHasMore(false);
     setCanceled(false);
     setLoading(true);
     ipc
-      .search({ search_id: id, scope: scopeRef.current, text: trimmed, highlight: trimmed }, null)
+      .search(
+        { search_id: id, scope: scopeRef.current, text: trimmed, highlight: trimmed, date_range: range },
+        null,
+      )
       .then((page) => {
         if (current !== token.current) {
           return;
@@ -112,7 +122,13 @@ export function useSearch(repoGeneration: number, scope: GraphScope): SearchLoad
     setLoadingMore(true);
     ipc
       .search(
-        { search_id: id, scope: scopeRef.current, text: textRef.current, highlight: textRef.current },
+        {
+          search_id: id,
+          scope: scopeRef.current,
+          text: textRef.current,
+          highlight: textRef.current,
+          date_range: dateRangeRef.current,
+        },
         cursor.current,
       )
       .then((page) => {
@@ -161,6 +177,7 @@ export function useSearch(repoGeneration: number, scope: GraphScope): SearchLoad
     hasMore,
     canceled,
     text,
+    dateRange,
     start,
     loadMore,
     cancel,

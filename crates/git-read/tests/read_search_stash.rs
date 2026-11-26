@@ -16,6 +16,7 @@ fn search_matches_message_author_and_path() {
         scope: GraphScope::All,
         text: text.to_owned(),
         highlight: text.to_owned(),
+        date_range: None,
     };
 
     let message = read
@@ -62,6 +63,7 @@ fn hash_search_requires_seven_char_prefix() {
         scope: GraphScope::All,
         text: text.to_owned(),
         highlight: text.to_owned(),
+        date_range: None,
     };
 
     // 不足 7 位的十六进制串不得按 hash 命中。
