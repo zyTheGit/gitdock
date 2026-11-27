@@ -42,13 +42,13 @@ jobs:
       - run: npm run check
 
   licenses:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          arguments: check
+          command: check licenses advisories
 
   build:
     needs: [verify, licenses]
