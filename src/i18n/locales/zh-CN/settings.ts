@@ -10,6 +10,7 @@ const settings = {
   save: "保存",
   saving: "保存中…",
   browse: "浏览…",
+  footerImmediateHint: "本分区设置修改后立即生效，无需点击保存。",
 
   // 分区导航
   navAria: "设置分区",
@@ -88,9 +89,11 @@ const settings = {
   keybindRejectCtrlAltLinux: "Ctrl+Alt 在多数布局中等于 AltGr（特殊字符）。",
   keybindRejectAltReserved: "Alt+{{key}} 由系统保留。",
   keybindRejectCtrlLetter: "Ctrl/⌘+字母 保留给复制、粘贴、查找等通用快捷键。",
+  keybindRejectCtrlShiftLetter: "Ctrl/⌘+Shift+字母 保留给开发者工具、刷新与标签页控制。",
   keybindRejectUnsupported: "不支持的组合 {{modifier}}+{{key}}。",
   keybindRejectUnrecognized: "无法识别该组合。",
   keybindRejectClash: "与「{{action}}」用了同一个组合。",
+  actionCommandPalette: "打开命令面板",
   actionTerminalToggle: "展开 / 收起终端",
   actionZoomIn: "界面放大一档",
   actionZoomOut: "界面缩小一档",
@@ -104,7 +107,6 @@ const settings = {
   fixedArrows: "图谱列表聚焦时上下移动选中提交；仓库切换器、搜索建议里移动高亮；拖拽分隔条时调整栏宽，按住 Shift 步长更大",
   fixedEnter: "确认仓库切换器 / 搜索输入框里的高亮项",
   fixedCtrlClick: "{{modifier}}+点击：把提交放进对比双槽，第二次点击换到另一个槽位",
-  fixedCommandPalette: "{{modifier}}+Shift+P：打开命令面板，搜索并执行当前可用操作",
   fixedSettings: "{{modifier}}+逗号：打开设置（入口在顶栏设置按钮）",
   fixedPanelTabNext: "{{modifier}}+PageDown：切到底部面板的下一个标签",
   fixedPanelTabPrev: "{{modifier}}+PageUp：切到底部面板的上一个标签",
@@ -146,6 +148,9 @@ const settings = {
   gitConfigReload: "重新读取",
   gitConfigReloading: "重新读取中…",
   gitConfigReloaded: "已重新读取配置",
+  gitConfigUnsavedConfirm: "当前有未保存的 Git 配置改动，继续操作将丢弃这些修改。",
+  gitConfigUnsavedDiscard: "丢弃改动并继续",
+  gitConfigUnsavedKeep: "留在本页",
 
   // Git 配置：各配置项（键名 user.name 等与枚举取值原文在组件内）
   gitConfigUserNameLabel: "提交署名",
@@ -192,6 +197,7 @@ const settings = {
   aboutUndoSkip: "撤销跳过",
   aboutRecheck: "重新检查",
   aboutCheckUpdate: "检查更新",
+  aboutAutoCheckLabel: "启动时自动检查更新（每 24 小时最多一次）",
   aboutSubmitIssue: "提交 Issue…",
   aboutFeedbackHint: "反馈框只预填应用版本、操作系统与 Git 版本，不含日志或仓库路径；点击后由你在浏览器中检查并提交。",
 

@@ -47,6 +47,12 @@ button.active {
   background: var(--accent-soft);
 }
 
+.context-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
 /* 统一下拉：原生 select 保留键盘与无障碍，箭头与容器由组件自绘。 */
 .select-control {
   position: relative;

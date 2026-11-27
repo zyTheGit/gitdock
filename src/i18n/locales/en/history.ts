@@ -20,6 +20,7 @@ const history = {
   locateCommit: "Locate this commit in the graph",
   compareAdjacent: "Compare adjacent versions",
   compareSingle: "Show single change",
+  openExternalDiff: "External diff",
   adjacentPair: "Adjacent versions {{from}} → {{to}}",
   blameBinary: "Binary files cannot be attributed line by line.",
   blameTooLarge: "File is too large; line attribution was skipped.",

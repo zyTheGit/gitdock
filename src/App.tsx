@@ -34,7 +34,7 @@ import type {
 import { useSearch } from "./features/search/useSearch";
 import { copyText } from "./shared/clipboard";
 import { errorText } from "./shared/error";
-import { ipc } from "./shared/ipc";
+import { ipc, setActiveIpcRepoId } from "./shared/ipc";
 import { initPlatform } from "./shared/platform";
 import type { RefDto } from "./shared/types";
 
@@ -59,6 +59,7 @@ export default function App() {
   const [stagingSelection, setStagingSelection] = useState<StagingActionSelection | null>(null);
   const [openRepositoryOpen, setOpenRepositoryOpen] = useState(false);
   const [reflogOpen, setReflogOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const stagingActionHandlersRef = useRef<StagingActionHandlers | null>(null);
   const refsUi = useNarrowRefs();
@@ -67,6 +68,7 @@ export default function App() {
   const tabs = useRepoTabs();
   const activeRepoIdRef = useRef(tabs.activeId);
   activeRepoIdRef.current = tabs.activeId;
+  setActiveIpcRepoId(tabs.activeId);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   const pendingLocateRef = useRef<{ oid: string; repoId: number } | null>(null);
@@ -81,6 +83,7 @@ export default function App() {
     setDescriptionTag(null);
     setOpenRepositoryOpen(false);
     setReflogOpen(false);
+    setSearchOpen(false);
     setCommandPaletteOpen(false);
     setStagingSelection(null);
   }, []);
@@ -162,9 +165,9 @@ export default function App() {
     () => graph.view.rows.flatMap((row) => (row.commit ? [row.commit] : [])),
     [graph.view],
   );
-  // 关闭搜索只退回图谱：关键词与结果保留，直到显式「清空」或切换仓库/范围。
+  // 关闭搜索仅收起弹层，保留底层视图（图谱 / 对比 / 暂存）；关键词与结果保留直到显式清空或切仓。
   const closeSearch = useCallback(() => {
-    setMode("graph");
+    setSearchOpen(false);
   }, []);
   const selectLocatedOid = useCallback((oid: string, repoId: number) => {
     if (activeRepoIdRef.current !== repoId) {
@@ -183,6 +186,7 @@ export default function App() {
         return;
       }
       closeSearch();
+      setMode("graph");
       void graph.jumpTo(oid).then((ok) => {
         if (activeRepoIdRef.current !== repoId) {
           return;
@@ -261,12 +265,7 @@ export default function App() {
     void runUpdateCheck();
   }, [info]);
 
-  // 两个槽位齐全时自动进入对比视图；用户点“查看图谱”后保持图谱，直到再次选择。
-  useEffect(() => {
-    if (slots.compare && slots.base) {
-      setMode("compare");
-    }
-  }, [slots.base?.oid, slots.compare?.oid]);
+  // 双槽填满时不再强行自动跳转对比页，由工具栏或 CompareBar 显式进入，避免打断图谱浏览。
 
   const launchExternal = useCallback(
     async (
@@ -302,8 +301,8 @@ export default function App() {
     [setError],
   );
 
-  // 全局 Esc 分层退出（放大 diff 已消费的按键让路），细节见 useGlobalEsc。
-  useGlobalEsc({ closeSearch, mode, slots, setMode });
+  // 全局 Esc 分层退出（放大 diff、搜索弹层等模态已消费的按键让路），细节见 useGlobalEsc。
+  useGlobalEsc({ mode, slots, setMode });
 
   // 描述编辑只依赖 Git CLI；不受中断态、bare 工作区写限制影响。
   const descriptionDisabled = busy || write.busy || !repo || !info?.git_version_supported;
@@ -361,6 +360,8 @@ export default function App() {
     refs,
     mode,
     setMode,
+    searchOpen,
+    setSearchOpen,
     selectedOid,
     setSelectedOid,
     stagingBusy,
@@ -386,6 +387,7 @@ export default function App() {
     refresh: session.refresh,
     clearRemoteError: remote.clearError,
     setMode,
+    onOpenSearch: () => setSearchOpen(true),
   });
   // 右键菜单条目组装（提交行/分支/标签共享写与对比动作），细节见 useCommitMenus。
   const commitMenus = useCommitMenus({
@@ -452,6 +454,8 @@ export default function App() {
       launchDirectoryDiff={launchDirectoryDiff}
       stagingMutated={stagingMutated}
       locateFromSearch={locateFromSearch}
+      searchOpen={searchOpen}
+      onToggleSearch={() => setSearchOpen((open) => !open)}
       closeSearch={closeSearch}
       onCopyOid={(oid) => void refNav.copyOid(oid)}
       onOpenUpdate={() => void openReleasePage()}
@@ -460,6 +464,7 @@ export default function App() {
         slots.setSide("base", branchSlot(base));
         slots.setSide("compare", branchSlot(compare));
         setBranchCompareOpen(false);
+        setMode("compare");
       }}
       onBranchMenu={(event, branch) => {
         setBranchMenu({ x: event.clientX, y: event.clientY, branch });

@@ -36,6 +36,8 @@ interface UseAppActionCatalogParams {
   refs: RefDto[];
   mode: ViewMode;
   setMode: (mode: ViewMode) => void;
+  searchOpen: boolean;
+  setSearchOpen: (open: boolean) => void;
   selectedOid: string | null;
   setSelectedOid: (oid: string | null) => void;
   stagingBusy: boolean;
@@ -66,6 +68,8 @@ export function useAppActionCatalog({
   refs,
   mode,
   setMode,
+  searchOpen,
+  setSearchOpen,
   selectedOid,
   setSelectedOid,
   stagingBusy,
@@ -131,7 +135,7 @@ export function useAppActionCatalog({
         session.opening,
     ),
     writeDisabled: write.disabled,
-    view: repo ? mode : "welcome",
+    view: !repo ? "welcome" : searchOpen ? "search" : mode,
     selectedOid,
     hasHead: Boolean(repo && repo.head.kind !== "unborn" && repo.head.oid),
     compareReady: Boolean(slots.base && slots.compare),
@@ -146,7 +150,7 @@ export function useAppActionCatalog({
   const actionHandlers: ActionHandlers = {
     "shell:showGraph": () => setMode("graph"),
     "shell:showStaging": () => setMode("staging"),
-    "shell:openSearch": () => setMode("search"),
+    "shell:openSearch": () => setSearchOpen(true),
     "shell:toggleRefs": () => refsUi.toggleRefs(),
     "shell:refresh": () => {
       remote.clearError();
@@ -278,6 +282,10 @@ export function useAppActionCatalog({
         stagingActionHandlersRef.current?.discardFile(target.path);
       }
     },
+    "remote:fetch": () => void remote.run("fetch"),
+    "remote:pull": () => void remote.run("pull", "ff_only"),
+    "remote:push": () => void remote.run("push"),
+    "stash:open": () => stash.openStash(),
     "terminal:toggle": () => panel.toggleTerminal(),
   };
 

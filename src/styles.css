@@ -6,6 +6,7 @@
 @import "./styles/layout.css";
 @import "./styles/tabs.css";
 @import "./styles/graph.css";
+@import "./styles/graphOverlays.css";
 @import "./styles/detail.css";
 @import "./styles/diff.css";
 @import "./styles/compare.css";

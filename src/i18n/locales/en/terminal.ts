@@ -4,6 +4,9 @@ import type { TerminalMessages } from "../zh-CN/terminal";
 const terminal = {
   tabLabel: "Terminal",
   title: "Terminal",
+  subtabsAria: "Switch terminal tool",
+  subtabLazygit: "LazyGit",
+  subtabShell: "Shell",
   permissionNote: "Runs with current user privileges",
 
   launchLazygit: "Launch lazygit",

@@ -47,7 +47,6 @@ const FIXED_SHORTCUTS: { keys: string[]; textKey: SettingsKey }[] = [
   { keys: ["↑", "↓"], textKey: "settings.fixedArrows" },
   { keys: ["Enter"], textKey: "settings.fixedEnter" },
   { keys: ["Ctrl", "点击"], textKey: "settings.fixedCtrlClick" },
-  { keys: ["Ctrl", "Shift", "P"], textKey: "settings.fixedCommandPalette" },
   { keys: ["Ctrl", ","], textKey: "settings.fixedSettings" },
   { keys: ["Ctrl", "PageDown"], textKey: "settings.fixedPanelTabNext" },
   { keys: ["Ctrl", "PageUp"], textKey: "settings.fixedPanelTabPrev" },
@@ -59,6 +58,7 @@ const FIXED_SHORTCUTS: { keys: string[]; textKey: SettingsKey }[] = [
 
 /** 可改键动作的展示名 key；shared 的 ACTION_LABELS 供其内部消息使用，界面渲染走 i18n。 */
 const ACTION_LABEL_KEYS: Record<BindableAction, SettingsKey> = {
+  "app.commandPalette": "settings.actionCommandPalette",
   "terminal.toggle": "settings.actionTerminalToggle",
   "zoom.in": "settings.actionZoomIn",
   "zoom.out": "settings.actionZoomOut",

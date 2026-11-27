@@ -34,6 +34,40 @@
   border-bottom: 1px solid var(--terminal-header-border);
 }
 
+.terminal-subtabs {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--terminal-border);
+  border-radius: 6px;
+}
+
+.terminal-subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--terminal-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.terminal-subtab.active {
+  background: color-mix(in srgb, var(--terminal-running) 16%, transparent);
+  color: var(--text);
+}
+
+.terminal-subtab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--terminal-running);
+}
+
 .terminal-title {
   display: flex;
   align-items: baseline;

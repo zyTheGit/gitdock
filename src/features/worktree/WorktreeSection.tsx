@@ -106,13 +106,17 @@ export function WorktreeSection({
   const [createOpen, setCreateOpen] = useState(false);
   const [removing, setRemoving] = useState<WorktreeDto | null>(null);
   const [notice, setNotice] = useState<{ repoPath: string; message: string } | null>(null);
+  const [singleExpanded, setSingleExpanded] = useState(false);
   const repoPathRef = useRef(repo.path);
   repoPathRef.current = repo.path;
-  const collapsed = isCollapsed(SECTION_ID);
+  // 仅主工作区（worktrees.length <= 1）时默认折叠以释放侧栏空间；用户点开后可在当前会话展开。
+  const singleWorktree = !error && (worktrees === null || worktrees.length <= 1);
+  const collapsed = singleWorktree ? !singleExpanded : isCollapsed(SECTION_ID);
 
-  // 切换仓库后上一条结果文案不再适用。
+  // 切换仓库后上一条结果文案与单工作区临时展开状态不再沿用。
   useEffect(() => {
     setNotice(null);
+    setSingleExpanded(false);
   }, [repo.path]);
 
   const finish = useCallback(
@@ -132,7 +136,9 @@ export function WorktreeSection({
   }
 
   const compact = !collapsed && !error && worktrees !== null && worktrees.length === 1;
-  const toggle = () => onToggleCollapse(SECTION_ID);
+  const toggle = singleWorktree
+    ? () => setSingleExpanded((value) => !value)
+    : () => onToggleCollapse(SECTION_ID);
   const openCreate = () => {
     setNotice(null);
     setCreateOpen(true);

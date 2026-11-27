@@ -109,6 +109,9 @@ export function GitConfigSection({ onError }: { onError: (message: string) => vo
   const [saving, setSaving] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    { kind: "scope"; next: GitConfigScope } | { kind: "reload" } | null
+  >(null);
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
@@ -160,6 +163,38 @@ export function GitConfigSection({ onError }: { onError: (message: string) => vo
     value: currentOf(item.key).trim(),
   }));
 
+  const applyPendingAction = (action: NonNullable<typeof pendingAction>) => {
+    setPendingAction(null);
+    if (action.kind === "scope") {
+      setScope(action.next);
+      setDraft({});
+      setNotice(null);
+      return;
+    }
+    void load(true);
+  };
+
+  const requestScopeChange = (next: GitConfigScope) => {
+    if (next === scope) return;
+    if (changed.length > 0) {
+      setPendingAction({ kind: "scope", next });
+      return;
+    }
+    setPendingAction(null);
+    setScope(next);
+    setDraft({});
+    setNotice(null);
+  };
+
+  const requestReload = () => {
+    if (changed.length > 0) {
+      setPendingAction({ kind: "reload" });
+      return;
+    }
+    setPendingAction(null);
+    void load(true);
+  };
+
   const save = async () => {
     setSaving(true);
     setNotice(null);
@@ -203,11 +238,7 @@ export function GitConfigSection({ onError }: { onError: (message: string) => vo
                 className={`git-config-tab${scope === item.value ? " active" : ""}`}
                 disabled={unavailable}
                 title={unavailable ? t("settings.gitConfigRepoTabUnavailable") : undefined}
-                onClick={() => {
-                  setScope(item.value);
-                  setDraft({});
-                  setNotice(null);
-                }}
+                onClick={() => requestScopeChange(item.value)}
               >
                 {t(item.labelKey)}
                 {item.value === "repo" && repoLabel ? (
@@ -316,11 +347,27 @@ export function GitConfigSection({ onError }: { onError: (message: string) => vo
           );
         })}
       </ul>
+      {pendingAction && (
+        <div className="banner warning compact git-config-dirty-confirm" role="alert">
+          <span className="banner-text">{t("settings.gitConfigUnsavedConfirm")}</span>
+          <div className="banner-actions">
+            <button type="button" className="link" onClick={() => applyPendingAction(pendingAction)}>
+              {t("settings.gitConfigUnsavedDiscard")}
+            </button>
+            <button type="button" className="link" onClick={() => setPendingAction(null)}>
+              {t("settings.gitConfigUnsavedKeep")}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="git-config-actions">
         <button
           type="button"
           className="primary"
-          onClick={() => void save()}
+          onClick={() => {
+            setPendingAction(null);
+            void save();
+          }}
           disabled={saving || changed.length === 0 || (scope === "repo" && !repoAvailable)}
         >
           {saving
@@ -332,7 +379,7 @@ export function GitConfigSection({ onError }: { onError: (message: string) => vo
         <button
           type="button"
           className="link"
-          onClick={() => void load(true)}
+          onClick={requestReload}
           disabled={saving || reloading}
         >
           {reloading ? t("settings.gitConfigReloading") : t("settings.gitConfigReload")}

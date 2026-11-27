@@ -28,17 +28,7 @@ jobs:
       # Windows 走 schannel，均无需安装。
       - name: Install Linux system dependencies
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl wget file \
-            libxdo-dev \
-            libssl-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            pkg-config
+        uses: ./.github/actions/install-linux-deps
 
       - uses: actions/setup-node@v4
         with:

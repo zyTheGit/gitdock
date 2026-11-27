@@ -70,7 +70,23 @@ export function useActionCatalog({ state, handlers }: UseActionCatalogParams): {
 } {
   const { t } = useI18n();
   const bindings = useBindings();
-  const items = queryActionCatalog(state).map((action) => {
+  const items = queryActionCatalog(state)
+    .filter((action) => {
+      // 命令面板无显式实体上下文：因缺目标而不可执行的动作直接不列出，避免满屏不可点条目。
+      const reason = action.disabledReason;
+      if (!reason) {
+        return true;
+      }
+      if (
+        reason === "NO_SELECTED_REF" ||
+        reason === "NO_STAGING_FILE" ||
+        reason === "NO_REPOSITORY_TARGET"
+      ) {
+        return false;
+      }
+      return !(reason === "NO_SELECTED_COMMIT" && state.selectedOid === null);
+    })
+    .map((action) => {
     const context = actionContext(action, state);
     const disabledKey = action.disabledReason
       ? DISABLED_KEYS[action.disabledReason] ?? "commands.disabledSelection"

@@ -328,3 +328,55 @@ fn compare_detects_cherry_picked_equivalent_commits() {
     );
     assert!(!result.equivalent_commits.contains_key(feat_tip.as_str()));
 }
+
+#[test]
+fn compare_identical_commit_fast_path_reports_zero_diff() {
+    let set = fixtures();
+    let read = module(&set.linear());
+    let head = oid_of(&current_head(&set.linear()));
+
+    let result = read.compare(&head, &head, None, false).expect("同提交对比");
+    assert_eq!(result.base_only, 0);
+    assert_eq!(result.compare_only, 0);
+    assert!(result.files.is_empty());
+    assert!(result.commits.is_empty());
+    assert!(result.base_commits.is_empty());
+    assert!(result.equivalent_commits.is_empty());
+}
+
+#[test]
+fn compare_skips_equiv_when_commit_touches_too_many_files() {
+    let dir = temp_dir("git-graph-read-equiv-file-cap");
+    let repo = dir.join("repo");
+    std::fs::create_dir_all(&repo).expect("创建仓库目录");
+    init_repo(&repo);
+
+    write(&repo.join("base.txt"), "base\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "init"]);
+
+    git_ok(&repo, &["checkout", "-q", "-b", "feat"]);
+    for i in 0..55 {
+        write(
+            &repo.join(format!("bulk_{i:02}.txt")),
+            &format!("line {i}\n"),
+        );
+    }
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "feat: bulk add 55 files"]);
+    let feat_bulk = oid_of(&current_head(&repo));
+
+    git_ok(&repo, &["checkout", "-q", "main"]);
+    write(&repo.join("main.txt"), "main\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "main work"]);
+    git_ok(&repo, &["cherry-pick", feat_bulk.as_str()]);
+    let main_pick = oid_of(&current_head(&repo));
+
+    let read = module(&repo);
+    let result = read
+        .compare(&main_pick, &feat_bulk, None, false)
+        .expect("超过单提交文件数上限时对比应正常完成");
+    assert!(!result.equivalent_commits.contains_key(feat_bulk.as_str()));
+    assert!(!result.equivalent_commits.contains_key(main_pick.as_str()));
+}

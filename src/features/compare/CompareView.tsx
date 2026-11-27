@@ -29,9 +29,15 @@ interface CompareViewProps {
   tools: ExternalToolConfig[];
   defaultTool?: string | null;
   commitMenu: (commit: CommitSummaryDto) => MenuItem[];
-  onOpenCommit: (oid: string) => void;
   onLocateCommit: (oid: string) => void;
+  onSwap: () => void;
   onExternalDiff: (toolIndex: number, path: string) => void;
+  onExternalCommitFileDiff: (
+    toolIndex: number,
+    left: string | null,
+    right: string,
+    path: string,
+  ) => void;
   onDirectoryDiff: (toolIndex: number) => void;
   onBack: () => void;
 }
@@ -48,10 +54,11 @@ export function CompareView({
   tools,
   defaultTool,
   commitMenu,
-  onOpenCommit: _onOpenCommit,
   onLocateCommit,
+  onSwap,
   onExternalDiff,
-  onDirectoryDiff: _onDirectoryDiff,
+  onExternalCommitFileDiff,
+  onDirectoryDiff,
   onBack,
 }: CompareViewProps) {
   const { t } = useI18n();
@@ -187,7 +194,17 @@ export function CompareView({
         result={result}
         totalAdd={totalAdd}
         totalDel={totalDel}
+        filteredFileCount={files.length}
+        filteredActive={statusFilter !== "all" || bothOnly}
+        hasExternalTools={tools.length > 0}
+        worktreeInvolved={worktreeInvolved}
         onLocateCommit={onLocateCommit}
+        onSwap={onSwap}
+        onDirectoryDiff={() => onDirectoryDiff(safeToolIndex)}
+        onShowBothFiles={() => {
+          setViewTab("files");
+          setBothOnly(true);
+        }}
         onBack={onBack}
       />
 
@@ -254,6 +271,8 @@ export function CompareView({
               baseCommits={result.base_commits}
               baseTruncated={result.base_commits_truncated}
               equivalentMap={result.equivalent_commits}
+              tools={tools}
+              onExternalFileDiff={onExternalCommitFileDiff}
               onLocateCommit={onLocateCommit}
               onCommitContextMenu={(event, commit) =>
                 setCommitMenuPos({ x: event.clientX, y: event.clientY, commit })

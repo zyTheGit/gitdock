@@ -11,15 +11,13 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
+pub use git_core::RepoId;
 use git_core::{ErrorCode, Result, UserVisibleError};
 use refresh::RefreshCoordinator;
 
 use super::super::platform::same_path;
 use super::super::watch::RepositoryWatcher;
 use super::{internal, no_repository, Session};
-
-/// 进程内单调递增的仓库 id；关闭后不复用。
-pub type RepoId = u64;
 
 pub struct RepoEntry {
     pub id: RepoId,

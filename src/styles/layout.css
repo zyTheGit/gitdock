@@ -135,13 +135,8 @@
   overflow: hidden;
 }
 
-/* 高缩放把可视宽度压到约 900 px 以下时，侧栏改为隐藏，优先保证图谱与详情可用。 */
+/* 高缩放把可视宽度压到约 900 px 以下时，收缩主区边距，优先保证图谱与详情可用。 */
 @media (max-width: 900px) {
-  .layout > .sidebar,
-  .layout > .sidebar + .pane-splitter {
-    display: none;
-  }
-
   .main {
     padding: 10px;
   }
@@ -243,10 +238,28 @@
   color: var(--muted);
 }
 
-.terminal-status-button:hover:not(:disabled) {
+.terminal-status-button:hover:not(:disabled),
+.command-palette-status-button:hover:not(:disabled) {
   border-color: transparent;
   background: var(--bg-elevated);
   color: var(--text);
+}
+
+.command-palette-status-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.command-palette-status-button kbd {
+  font-size: 10px;
+  color: var(--muted);
 }
 
 .terminal-status-button.active {

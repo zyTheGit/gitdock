@@ -52,6 +52,10 @@ export function RepoTabBar({
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
+  if (tabs.length <= 1 && !opening) {
+    return null;
+  }
+
   // 中键关闭：只在标签本体上生效，避免误触选中的标签被拖动式操作。
   const onAuxClick = (event: MouseEvent<HTMLElement>, repoId: RepoId) => {
     if (event.button !== 1 || busy) {

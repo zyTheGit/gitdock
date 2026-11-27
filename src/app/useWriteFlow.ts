@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { outcomeMessage } from "../features/write/messages";
 import { errorText, outcomeText } from "../shared/error";
-import { ipc } from "../shared/ipc";
+import { activeIpcRepoId, ipc } from "../shared/ipc";
 import type {
   AppInfoDto,
   CommitSummaryDto,
@@ -100,11 +100,19 @@ export function useWriteFlow({
 
   const fetchGate = useCallback(async (request: WriteRequest): Promise<GateReportDto | null> => {
     const seq = ++gateSeq.current;
+    const targetRepoId = activeIpcRepoId() ?? undefined;
     validatingCountRef.current += 1;
     setValidating(true);
     try {
-      const gate = await ipc.validateWrite(request);
+      const gate = await ipc.validateWrite(request, targetRepoId);
       if (gateSeq.current !== seq) {
+        return null;
+      }
+      if (
+        gate.repo_id !== undefined &&
+        activeIpcRepoId() !== null &&
+        gate.repo_id !== activeIpcRepoId()
+      ) {
         return null;
       }
       setPrompt((current) => (current ? { ...current, gate, gateError: undefined } : current));
@@ -256,6 +264,14 @@ export function useWriteFlow({
     }
     const { kind, commit, commits, branch, interruption, gate } = prompt;
     const requestedRepoPath = repoPath;
+    const targetRepoId = gate.repo_id;
+    if (
+      targetRepoId !== undefined &&
+      activeIpcRepoId() !== null &&
+      targetRepoId !== activeIpcRepoId()
+    ) {
+      return;
+    }
     const request: WriteRequest = {
       kind,
       oid: commit?.oid,
@@ -271,7 +287,7 @@ export function useWriteFlow({
     setError(null);
     setDiagnostic(null);
     try {
-      const outcome = await ipc.executeWrite(request);
+      const outcome = await ipc.executeWrite(request, targetRepoId);
       if (repoPathRef.current !== requestedRepoPath) {
         return;
       }

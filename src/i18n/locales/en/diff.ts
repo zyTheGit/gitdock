@@ -50,6 +50,7 @@ const diff = {
   hunkRunning: "Working…",
   hunkActionsWhitespaceHint:
     "Whitespace differences are ignored: the hunk numbering no longer matches the write path, so hunk actions are hidden until you turn off “Ignore whitespace”.",
+  disableIgnoreWhitespace: "Show whitespace",
   ignoreWhitespace: "Ignore whitespace",
   ignoreWhitespaceTitle: "Ignore whitespace changes inside and at the end of lines (git diff -w)",
   searchLabel: "Search in diff",

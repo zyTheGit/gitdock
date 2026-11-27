@@ -5,7 +5,7 @@ use std::sync::Arc;
 use git_core::{
     CommitBranchContextDto, CommitDetailDto, CommitTemplateDto, CompareResultDto, ErrorCode,
     FileBlameDto, FileDiffDto, FileHistoryPageDto, GraphPageDto, GraphScope, Oid, ReflogEntryDto,
-    Result, SearchPageDto, SearchRequest, StashDetailDto, StashEntryDto, UserVisibleError,
+    RepoId, Result, SearchPageDto, SearchRequest, StashDetailDto, StashEntryDto, UserVisibleError,
     WorktreeDto,
 };
 use git_read::{DEFAULT_PAGE_LIMIT, DEFAULT_REFLOG_LIMIT};
@@ -19,11 +19,12 @@ pub async fn read_graph_page(
     scope: GraphScope,
     cursor: Option<String>,
     limit: Option<usize>,
+    repo_id: Option<RepoId>,
 ) -> Result<GraphPageDto> {
     let state = Arc::clone(&state);
     blocking(move || {
-        state.with_session(|session| {
-            session.read.read_graph_page(
+        state.with_entry(repo_id, |entry| {
+            entry.session.read.read_graph_page(
                 &scope,
                 cursor.as_deref(),
                 limit.unwrap_or(DEFAULT_PAGE_LIMIT),
@@ -39,41 +40,58 @@ pub async fn read_graph_page_around(
     scope: GraphScope,
     oid: String,
     limit: Option<usize>,
+    repo_id: Option<RepoId>,
 ) -> Result<GraphPageDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let oid = parse_oid(&oid)?;
-        state.with_session(|session| {
-            session
-                .read
-                .read_graph_page_around(&scope, &oid, limit.unwrap_or(DEFAULT_PAGE_LIMIT))
+        state.with_entry(repo_id, |entry| {
+            entry.session.read.read_graph_page_around(
+                &scope,
+                &oid,
+                limit.unwrap_or(DEFAULT_PAGE_LIMIT),
+            )
         })
     })
     .await
 }
 
 #[tauri::command]
-pub async fn read_commit(state: State<'_, Shared>, oid: String) -> Result<CommitDetailDto> {
+pub async fn read_commit(
+    state: State<'_, Shared>,
+    oid: String,
+    repo_id: Option<RepoId>,
+) -> Result<CommitDetailDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let oid = parse_oid(&oid)?;
-        state.with_session(|session| session.read.read_commit(&oid))
+        state.with_entry(repo_id, |entry| entry.session.read.read_commit(&oid))
     })
     .await
 }
 
 #[tauri::command]
-pub async fn read_head_message(state: State<'_, Shared>) -> Result<Option<String>> {
+pub async fn read_head_message(
+    state: State<'_, Shared>,
+    repo_id: Option<RepoId>,
+) -> Result<Option<String>> {
     let state = Arc::clone(&state);
-    blocking(move || state.with_session(|session| session.read.read_head_message())).await
+    blocking(move || state.with_entry(repo_id, |entry| entry.session.read.read_head_message()))
+        .await
 }
 
 #[tauri::command]
-pub async fn branches_containing(state: State<'_, Shared>, oid: String) -> Result<Vec<String>> {
+pub async fn branches_containing(
+    state: State<'_, Shared>,
+    oid: String,
+    repo_id: Option<RepoId>,
+) -> Result<Vec<String>> {
     let state = Arc::clone(&state);
     blocking(move || {
         let oid = parse_oid(&oid)?;
-        state.with_session(|session| session.read.branches_containing(&oid))
+        state.with_entry(repo_id, |entry| {
+            entry.session.read.branches_containing(&oid)
+        })
     })
     .await
 }
@@ -83,44 +101,61 @@ pub async fn commit_branch_context(
     state: State<'_, Shared>,
     oid: String,
     limit: Option<u32>,
+    repo_id: Option<RepoId>,
 ) -> Result<CommitBranchContextDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let oid = parse_oid(&oid)?;
-        let limit = limit.unwrap_or(3).clamp(1, 20) as usize;
-        state.with_session(|session| session.read.commit_branch_context(&oid, limit))
+        let limit = limit.unwrap_or(3).clamp(0, 20) as usize;
+        state.with_entry(repo_id, |entry| {
+            entry.session.read.commit_branch_context(&oid, limit)
+        })
     })
     .await
 }
 
 #[tauri::command]
-pub async fn read_stashes(state: State<'_, Shared>) -> Result<Vec<StashEntryDto>> {
+pub async fn read_stashes(
+    state: State<'_, Shared>,
+    repo_id: Option<RepoId>,
+) -> Result<Vec<StashEntryDto>> {
     let state = Arc::clone(&state);
-    blocking(move || state.with_session(|session| session.read.read_stashes())).await
+    blocking(move || state.with_entry(repo_id, |entry| entry.session.read.read_stashes())).await
 }
 
 /// Worktree 列表（ADR-0034）：`git worktree list --porcelain` 的子进程查询落在
 /// git-write 的只读 seam 上，不经过 Gate、不持写锁。
 #[tauri::command]
-pub async fn read_worktrees(state: State<'_, Shared>) -> Result<Vec<WorktreeDto>> {
+pub async fn read_worktrees(
+    state: State<'_, Shared>,
+    repo_id: Option<RepoId>,
+) -> Result<Vec<WorktreeDto>> {
     let state = Arc::clone(&state);
-    blocking(move || state.with_session(|session| session.write.list_worktrees())).await
+    blocking(move || state.with_entry(repo_id, |entry| entry.session.write.list_worktrees())).await
 }
 
 /// 提交模板（ADR-0034）：未配置、文件缺失/不可读或超过 64 KiB 时返回 None。
 #[tauri::command]
-pub async fn read_commit_template(state: State<'_, Shared>) -> Result<Option<CommitTemplateDto>> {
+pub async fn read_commit_template(
+    state: State<'_, Shared>,
+    repo_id: Option<RepoId>,
+) -> Result<Option<CommitTemplateDto>> {
     let state = Arc::clone(&state);
-    blocking(move || state.with_session(|session| session.write.read_commit_template())).await
+    blocking(move || state.with_entry(repo_id, |entry| entry.session.write.read_commit_template()))
+        .await
 }
 
 /// 单条 stash 的文件预览（ADR-0030）：只读合并 tracked 改动与 `-u` 未跟踪文件。
 #[tauri::command]
-pub async fn read_stash_detail(state: State<'_, Shared>, oid: String) -> Result<StashDetailDto> {
+pub async fn read_stash_detail(
+    state: State<'_, Shared>,
+    oid: String,
+    repo_id: Option<RepoId>,
+) -> Result<StashDetailDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let oid = parse_oid(&oid)?;
-        state.with_session(|session| session.read.read_stash_detail(&oid))
+        state.with_entry(repo_id, |entry| entry.session.read.read_stash_detail(&oid))
     })
     .await
 }
@@ -131,13 +166,15 @@ pub async fn read_stash_file_diff(
     oid: String,
     path: String,
     ignore_whitespace: Option<bool>,
+    repo_id: Option<RepoId>,
 ) -> Result<FileDiffDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let oid = parse_oid(&oid)?;
         let ignore_whitespace = ignore_whitespace.unwrap_or(false);
-        state.with_session(|session| {
-            session
+        state.with_entry(repo_id, |entry| {
+            entry
+                .session
                 .read
                 .read_stash_file_diff(&oid, &path, ignore_whitespace)
         })
@@ -150,11 +187,13 @@ pub async fn read_stash_file_diff(
 pub async fn read_reflog(
     state: State<'_, Shared>,
     limit: Option<usize>,
+    repo_id: Option<RepoId>,
 ) -> Result<Vec<ReflogEntryDto>> {
     let state = Arc::clone(&state);
     blocking(move || {
-        state.with_session(|session| {
-            session
+        state.with_entry(repo_id, |entry| {
+            entry
+                .session
                 .read
                 .read_reflog(limit.unwrap_or(DEFAULT_REFLOG_LIMIT))
         })
@@ -168,12 +207,18 @@ pub async fn read_file_diff(
     oid: String,
     path: String,
     ignore_whitespace: Option<bool>,
+    repo_id: Option<RepoId>,
 ) -> Result<FileDiffDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let oid = parse_oid(&oid)?;
         let ignore_whitespace = ignore_whitespace.unwrap_or(false);
-        state.with_session(|session| session.read.read_file_diff(&oid, &path, ignore_whitespace))
+        state.with_entry(repo_id, |entry| {
+            entry
+                .session
+                .read
+                .read_file_diff(&oid, &path, ignore_whitespace)
+        })
     })
     .await
 }
@@ -186,11 +231,12 @@ pub async fn read_file_history(
     oid_or_scope: Option<String>,
     cursor: Option<String>,
     limit: Option<usize>,
+    repo_id: Option<RepoId>,
 ) -> Result<FileHistoryPageDto> {
     let state = Arc::clone(&state);
     blocking(move || {
-        state.with_session(|session| {
-            session.read.read_file_history(
+        state.with_entry(repo_id, |entry| {
+            entry.session.read.read_file_history(
                 &path,
                 oid_or_scope.as_deref(),
                 cursor.as_deref(),
@@ -207,11 +253,14 @@ pub async fn read_file_blame(
     state: State<'_, Shared>,
     oid: String,
     path: String,
+    repo_id: Option<RepoId>,
 ) -> Result<FileBlameDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let oid = parse_oid(&oid)?;
-        state.with_session(|session| session.read.read_file_blame(&oid, &path))
+        state.with_entry(repo_id, |entry| {
+            entry.session.read.read_file_blame(&oid, &path)
+        })
     })
     .await
 }
@@ -225,11 +274,13 @@ pub async fn compare_commits(
     compare_oid: String,
     path_filter: Option<String>,
     two_dot: bool,
+    repo_id: Option<RepoId>,
 ) -> Result<CompareResultDto> {
     let state = Arc::clone(&state);
     blocking(move || {
-        state.with_session(|session| {
-            session
+        state.with_entry(repo_id, |entry| {
+            entry
+                .session
                 .read
                 .compare_sides(&base, &compare_oid, path_filter.as_deref(), two_dot)
         })
@@ -245,12 +296,13 @@ pub async fn compare_file_diff(
     path: String,
     two_dot: bool,
     ignore_whitespace: Option<bool>,
+    repo_id: Option<RepoId>,
 ) -> Result<FileDiffDto> {
     let state = Arc::clone(&state);
     blocking(move || {
         let ignore_whitespace = ignore_whitespace.unwrap_or(false);
-        state.with_session(|session| {
-            session.read.compare_sides_file_diff(
+        state.with_entry(repo_id, |entry| {
+            entry.session.read.compare_sides_file_diff(
                 &base,
                 &compare_oid,
                 &path,
@@ -267,10 +319,15 @@ pub async fn search(
     state: State<'_, Shared>,
     request: SearchRequest,
     cursor: Option<String>,
+    repo_id: Option<RepoId>,
 ) -> Result<SearchPageDto> {
     let state = Arc::clone(&state);
-    blocking(move || state.with_session(|session| session.read.search(&request, cursor.as_deref())))
-        .await
+    blocking(move || {
+        state.with_entry(repo_id, |entry| {
+            entry.session.read.search(&request, cursor.as_deref())
+        })
+    })
+    .await
 }
 
 const MAX_EXTERNAL_BYTES: usize = 50 * 1024 * 1024;
@@ -284,6 +341,7 @@ pub async fn launch_external_diff(
     right: String,
     path: String,
     three_dot: bool,
+    repo_id: Option<RepoId>,
 ) -> Result<()> {
     let state = Arc::clone(&state);
     blocking(move || {
@@ -298,8 +356,9 @@ pub async fn launch_external_diff(
             })?;
         let left = left.map(|value| parse_oid(&value)).transpose()?;
         let right = parse_oid(&right)?;
-        let sides = state.with_session(|session| {
-            session
+        let sides = state.with_entry(repo_id, |entry| {
+            entry
+                .session
                 .read
                 .file_sides(left.as_ref(), &right, &path, three_dot)
         })?;
@@ -335,6 +394,7 @@ pub async fn launch_external_dir_diff(
     tool_index: usize,
     base: String,
     compare_oid: String,
+    repo_id: Option<RepoId>,
 ) -> Result<()> {
     let state = Arc::clone(&state);
     blocking(move || {
@@ -349,8 +409,9 @@ pub async fn launch_external_dir_diff(
             })?;
         let base = parse_oid(&base)?;
         let compare = parse_oid(&compare_oid)?;
-        // 导出可能耗时数秒，不占用会话读锁：按当前仓库路径新开只读模块。
-        let path = state.with_session(|session| Ok(session.read.path().to_path_buf()))?;
+        // 导出可能耗时数秒，不占用会话读锁：按目标仓库路径新开只读模块。
+        let path =
+            state.with_entry(repo_id, |entry| Ok(entry.session.read.path().to_path_buf()))?;
         let read = git_read::GitReadModule::open(&path, None)?;
         crate::app::dir_diff::run(&read, &tool, &base, &compare, &state.paths.external_tmp_dir)
     })
@@ -358,11 +419,15 @@ pub async fn launch_external_dir_diff(
 }
 
 #[tauri::command]
-pub async fn cancel_search(state: State<'_, Shared>, search_id: String) -> Result<()> {
+pub async fn cancel_search(
+    state: State<'_, Shared>,
+    search_id: String,
+    repo_id: Option<RepoId>,
+) -> Result<()> {
     let state = Arc::clone(&state);
     blocking(move || {
-        state.with_session(|session| {
-            session.read.cancel_search(&search_id);
+        state.with_entry(repo_id, |entry| {
+            entry.session.read.cancel_search(&search_id);
             Ok(())
         })
     })

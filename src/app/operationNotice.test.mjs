@@ -47,7 +47,10 @@ registerHooks({
         };
       }
       if (specifier === "../shared/ipc") {
-        return { url: stubUrl("export const ipc = {};"), shortCircuit: true };
+        return {
+          url: stubUrl("export const ipc = {}; export const activeIpcRepoId = () => null;"),
+          shortCircuit: true,
+        };
       }
     }
     return nextResolve(specifier, context);

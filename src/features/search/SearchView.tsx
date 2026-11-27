@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { currentLocale, useI18n } from "../../i18n";
+import { useEscClose } from "../../shared/useEscClose";
 import type { CommitSummaryDto, RepoStateDto, SearchField } from "../../shared/types";
 import {
   dateDraftFromRange,
@@ -75,6 +76,7 @@ interface SearchViewProps {
 
 export function SearchView({ repo, search, commits, onLocateCommit, onClose }: SearchViewProps) {
   const { t } = useI18n();
+  useEscClose(onClose);
   const [input, setInput] = useState(search.text);
   const [active, setActive] = useState(-1);
   const [suggestOpen, setSuggestOpen] = useState(true);

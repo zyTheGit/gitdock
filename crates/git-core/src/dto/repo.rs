@@ -1,6 +1,9 @@
 use crate::oid::{ObjectFormat, Oid};
 use serde::{Deserialize, Serialize};
 
+/// 进程内单调递增的仓库会话 id；关闭后不复用（ADR-0032 / ADR-0039）。
+pub type RepoId = u64;
+
 /* ------------------------------ 仓库与 ref ------------------------------ */
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

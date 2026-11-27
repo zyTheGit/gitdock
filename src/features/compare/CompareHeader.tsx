@@ -11,7 +11,14 @@ interface CompareHeaderProps {
   result: CompareResultDto | null;
   totalAdd: number;
   totalDel: number;
+  filteredFileCount?: number;
+  filteredActive?: boolean;
+  hasExternalTools: boolean;
+  worktreeInvolved: boolean;
   onLocateCommit: (oid: string) => void;
+  onSwap: () => void;
+  onDirectoryDiff: () => void;
+  onShowBothFiles: () => void;
   onBack: () => void;
 }
 
@@ -33,7 +40,14 @@ export function CompareHeader({
   result,
   totalAdd,
   totalDel,
+  filteredFileCount,
+  filteredActive = false,
+  hasExternalTools,
+  worktreeInvolved,
   onLocateCommit,
+  onSwap,
+  onDirectoryDiff,
+  onShowBothFiles,
   onBack,
 }: CompareHeaderProps) {
   const { t } = useI18n();
@@ -156,6 +170,29 @@ export function CompareHeader({
               {t("compare.modeTwoDotShort")}
             </button>
           </div>
+          <button
+            type="button"
+            className="compare-swap-btn"
+            onClick={onSwap}
+            title={t("compare.swapSides")}
+            aria-label={t("compare.swapSides")}
+          >
+            ⇄
+          </button>
+          {hasExternalTools && (
+            <button
+              type="button"
+              disabled={worktreeInvolved}
+              title={
+                worktreeInvolved
+                  ? t("compare.directoryDiffWorktreeHint")
+                  : t("compare.directoryDiffHint")
+              }
+              onClick={onDirectoryDiff}
+            >
+              {t("compare.directoryDiff")}
+            </button>
+          )}
           <button onClick={onBack}>{t("compare.viewGraph")}</button>
         </div>
       </div>
@@ -196,7 +233,14 @@ export function CompareHeader({
           {fileStats && (
             <div className="compare-file-stats">
               <span className="muted">
-                {t("compare.changedFilesCount", { n: fileStats.total })}
+                {filteredActive &&
+                filteredFileCount !== undefined &&
+                filteredFileCount !== fileStats.total
+                  ? t("compare.filteredFilesCount", {
+                      shown: filteredFileCount,
+                      total: fileStats.total,
+                    })
+                  : t("compare.changedFilesCount", { n: fileStats.total })}
               </span>
               {fileStats.added > 0 && <span className="stat-chip stat-add">A {fileStats.added}</span>}
               {fileStats.modified > 0 && (
@@ -209,9 +253,14 @@ export function CompareHeader({
                 <span className="stat-chip stat-ren">R {fileStats.renamed}</span>
               )}
               {fileStats.bothCount > 0 && (
-                <span className="stat-chip stat-both">
+                <button
+                  type="button"
+                  className="stat-chip stat-both stat-both-btn"
+                  title={t("compare.filterBothHint")}
+                  onClick={onShowBothFiles}
+                >
                   {t("compare.bothChangedCount", { n: fileStats.bothCount })}
-                </span>
+                </button>
               )}
               <span className="diff-add">+{totalAdd}</span>
               <span className="diff-del">-{totalDel}</span>

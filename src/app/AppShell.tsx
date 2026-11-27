@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useSyncExternalStore, type MouseEvent } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { AppDialogs } from "./AppDialogs";
+import type { AppShellProps } from "./appShellTypes";
 import { MainWorkspace } from "./MainWorkspace";
 import { PanelArea } from "./PanelArea";
 import { RefsPopover } from "./RefsPopover";
@@ -7,24 +8,9 @@ import { RepoTabBar } from "./RepoTabBar";
 import { RepositorySidebar } from "./RepositorySidebar";
 import { StatusBar, type StatusBarProps } from "./StatusBar";
 import { TopBar } from "./TopBar";
-import type { BranchMenuState, RowMenuState, TagMenuState, useCommitMenus } from "./useCommitMenus";
-import type { useBottomPanel } from "./useBottomPanel";
-import type { useFontScale } from "./useFontScale";
 import { SIDEBAR_WIDTH } from "./usePaneWidths";
-import type { usePaneWidths } from "./usePaneWidths";
 import { REFS_POPOVER_ID } from "./useNarrowRefs";
-import type { useNarrowRefs } from "./useNarrowRefs";
-import type { useRefActions } from "./useRefActions";
-import type { useRemoteActions } from "./useRemoteActions";
-import type { useRepoTabs } from "./useRepoTabs";
-import type { useRepoTabState } from "./useRepoTabState";
-import type { useRepositorySession } from "./useRepositorySession";
-import type { useSettingsEntry } from "./useSettingsEntry";
-import type { useStashActions } from "./useStashActions";
-import type { useTabController } from "./useTabController";
-import { pendingUpdate, type useUpdateCheck } from "./useUpdateCheck";
-import type { useWriteFlow } from "./useWriteFlow";
-import type { useActionCatalog } from "./useActionCatalog";
+import { pendingUpdate } from "./useUpdateCheck";
 import type { ActionId } from "./actionCatalogTypes";
 import { OperationNoticeStack } from "./OperationNoticeView";
 import {
@@ -34,93 +20,12 @@ import {
   subscribeOperationNotice,
   type OperationNoticeAction,
 } from "./operationNotice";
-import type { useCompareSlots } from "../features/compare/useCompare";
-import type { CompareLoader } from "../features/compare/useCompare";
-import type {
-  StagingActionBridgeRef,
-  StagingActionSelection,
-} from "../features/staging/stagingActionBridge";
 import { OpenRepositoryDialog } from "../features/repository/OpenRepositoryDialog";
 import { CommandPalette } from "../features/commands/CommandPalette";
-import type { useSearch } from "../features/search/useSearch";
 import { useI18n } from "../i18n";
-import type { useAppLanguage } from "../i18n/useAppLanguage";
 import { PaneSplitter } from "../shared/PaneSplitter";
 import { displaySpec, useBindings } from "../shared/keybindings";
-import type { CommitSummaryDto, ExternalToolConfig, RefDto } from "../shared/types";
-
-interface AppShellProps {
-  session: ReturnType<typeof useRepositorySession>;
-  tabs: ReturnType<typeof useRepoTabs>;
-  tabCtrl: ReturnType<typeof useTabController>;
-  tabState: ReturnType<typeof useRepoTabState>;
-  slots: ReturnType<typeof useCompareSlots>;
-  compare: CompareLoader;
-  search: ReturnType<typeof useSearch>;
-  searchCommits: CommitSummaryDto[];
-  graph: ReturnType<typeof useRepositorySession>["graph"];
-  panel: ReturnType<typeof useBottomPanel>;
-  remote: ReturnType<typeof useRemoteActions>;
-  stash: ReturnType<typeof useStashActions>;
-  write: ReturnType<typeof useWriteFlow>;
-  refActions: ReturnType<typeof useRefActions>;
-  commitMenus: ReturnType<typeof useCommitMenus>;
-  panes: ReturnType<typeof usePaneWidths>;
-  settingsEntry: ReturnType<typeof useSettingsEntry>;
-  zoom: ReturnType<typeof useFontScale>;
-  language: ReturnType<typeof useAppLanguage>;
-  updateState: ReturnType<typeof useUpdateCheck>;
-  refs: RefDto[];
-  tools: ExternalToolConfig[];
-  headLabel: string;
-  selectedOid: string | null;
-  focusTarget: { oid: string; seq: number } | null;
-  pathFilter: string;
-  twoDot: boolean;
-  rowMenu: RowMenuState | null;
-  branchMenu: BranchMenuState | null;
-  tagMenu: TagMenuState | null;
-  branchCompareOpen: boolean;
-  descriptionBranch: string | null;
-  descriptionTag: RefDto | null;
-  launchExternal: (
-    toolIndex: number,
-    left: string | null,
-    right: string,
-    path: string,
-    threeDot: boolean,
-  ) => void;
-  launchDirectoryDiff: (toolIndex: number) => void;
-  stagingMutated: (message: string) => Promise<void>;
-  locateFromSearch: (oid: string) => void;
-  closeSearch: () => void;
-  onCopyOid: (oid: string) => void;
-  onOpenUpdate: () => void;
-  onCloseBranchCompare: () => void;
-  onConfirmBranchCompare: (base: RefDto, compare: RefDto) => void;
-  onBranchMenu: (event: MouseEvent, branch: RefDto) => void;
-  onTagMenu: (event: MouseEvent, tag: RefDto) => void;
-  onCloseRowMenu: () => void;
-  onCloseBranchMenu: () => void;
-  onCloseTagMenu: () => void;
-  onCloseDescriptionBranch: () => void;
-  onCloseDescriptionTag: () => void;
-  onDescriptionSaved: (message: string) => void;
-  onFocusTarget: (target: { oid: string; seq: number } | null) => void;
-  onRowMenu: (state: RowMenuState | null) => void;
-  onStagingBusy: (busy: boolean) => void;
-  refsUi: ReturnType<typeof useNarrowRefs>;
-  stagingBusy: boolean;
-  stagingActionHandlersRef: StagingActionBridgeRef;
-  setStagingSelection: (selection: StagingActionSelection | null) => void;
-  openRepositoryOpen: boolean;
-  setOpenRepositoryOpen: (open: boolean) => void;
-  reflogOpen: boolean;
-  setReflogOpen: (open: boolean) => void;
-  commandPaletteOpen: boolean;
-  setCommandPaletteOpen: (open: boolean) => void;
-  actions: ReturnType<typeof useActionCatalog>;
-}
+import type { RefDto } from "../shared/types";
 
 /** 主壳装配与布局；统一仓库弹层的开合在此持有，其余状态与回调来自 App。 */
 export function AppShell({
@@ -161,6 +66,8 @@ export function AppShell({
   launchDirectoryDiff,
   stagingMutated,
   locateFromSearch,
+  searchOpen,
+  onToggleSearch,
   closeSearch,
   onCopyOid,
   onOpenUpdate,
@@ -277,8 +184,10 @@ export function AppShell({
     terminalActive: panel.panelOpen && panel.activeTab === "terminal",
     terminalRunning: panel.terminalRunning,
     terminalShortcut: displaySpec(bindings["terminal.toggle"]),
+    commandPaletteShortcut: displaySpec(bindings["app.commandPalette"]),
     updateVersion,
     onToggleTerminal: () => actions.execute("terminal:toggle"),
+    onOpenCommandPalette: () => setCommandPaletteOpen(true),
     onOpenUpdate,
   };
 
@@ -287,7 +196,6 @@ export function AppShell({
     headLabel,
     refs,
     writeDisabled: write.disabled,
-    onCompareBranches: () => actions.execute("compare:pickBranches"),
     onSwitchBranch: (branch: RefDto) =>
       actions.execute("refs:switchBranch", { kind: "ref", ref: branch }),
     onNavigateRef: (ref: RefDto) =>
@@ -307,8 +215,6 @@ export function AppShell({
       actions.execute("shell:showGraph");
     } else if (next === "staging") {
       actions.execute("shell:showStaging");
-    } else if (next === "search") {
-      actions.execute("shell:openSearch");
     } else {
       actions.execute("compare:openResults");
     }
@@ -340,7 +246,8 @@ export function AppShell({
         onPickRepo={() => void session.pick()}
         onRefresh={() => actions.execute("shell:refresh")}
         onOpenSettings={() => actions.execute("shell:openSettings")}
-        closeSearch={() => actions.execute("shell:showGraph")}
+        searchOpen={searchOpen}
+        onToggleSearch={onToggleSearch}
         setMode={applyMode}
         onOpenBranchCompare={() => actions.execute("compare:pickBranches")}
       />
@@ -387,7 +294,7 @@ export function AppShell({
 
         <MainWorkspace
           repo={repo}
-          repoId={tabs.activeId}
+          changeTick={session.changeTick}
           scrollRestore={tabState.scrollRestore}
           info={info}
           busy={busy || tabs.busy}
@@ -463,7 +370,7 @@ export function AppShell({
       )}
       <AppDialogs
         repo={repo}
-        mode={mode}
+        searchOpen={searchOpen}
         settings={settings}
         info={info}
         toast={toast}

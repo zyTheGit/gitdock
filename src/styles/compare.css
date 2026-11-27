@@ -96,62 +96,37 @@
   flex: none;
 }
 
-.compare-slot-menu-trigger,
-.compare-preset-trigger {
+.compare-slot-worktree {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 22px;
   height: 22px;
-  padding: 0;
-  border: none;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
   background: transparent;
   color: var(--muted);
-  font-size: 16px;
+  font-size: 11px;
   line-height: 1;
+  white-space: nowrap;
 }
 
-.compare-slot-menu-trigger:hover:not(:disabled),
-.compare-preset-trigger:hover:not(:disabled),
-.compare-slot-menu-trigger[aria-expanded="true"] {
+.compare-open-btn {
+  flex: none;
+  padding: 4px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.compare-slot-worktree:hover:not(:disabled) {
   background: var(--bg-elevated);
+  border-color: var(--border);
   color: var(--text);
 }
 
-.compare-slot-menu-panel {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 30;
-  min-width: 10rem;
-  max-width: min(16rem, 80vw);
-  padding: 4px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px var(--shadow-sm);
-}
-
-.compare-slot-menu-item {
-  width: 100%;
-  padding: 6px 8px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  text-align: left;
-  white-space: normal;
-}
-
-.compare-slot-menu-item:hover:not(:disabled) {
-  background: var(--accent-soft);
-}
-
 .compare-slot-clear:focus-visible,
-.compare-slot-menu-trigger:focus-visible,
-.compare-preset-trigger:focus-visible,
-.compare-slot-menu-item:focus-visible,
-.compare-slot-menu-panel:focus-visible {
+.compare-slot-worktree:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -208,19 +183,12 @@
     width: 18px;
   }
 
-  .compare-slot-menu-trigger,
-  .compare-preset-trigger {
-    width: 20px;
+  .compare-slot-worktree {
+    padding: 0 4px;
   }
 
   .compare-swap {
     padding: 3px 5px;
-  }
-}
-
-@media (forced-colors: active) {
-  .compare-slot-menu-panel {
-    border-color: CanvasText;
   }
 }
 

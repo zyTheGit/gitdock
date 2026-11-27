@@ -35,7 +35,8 @@ interface TopBarProps {
   onPickRepo: () => void;
   onRefresh: () => void;
   onOpenSettings: () => void;
-  closeSearch: () => void;
+  searchOpen: boolean;
+  onToggleSearch: () => void;
   setMode: (mode: ViewMode) => void;
   onOpenBranchCompare: () => void;
 }
@@ -67,7 +68,8 @@ export function TopBar({
   onPickRepo,
   onRefresh,
   onOpenSettings,
-  closeSearch,
+  searchOpen,
+  onToggleSearch,
   setMode,
   onOpenBranchCompare,
 }: TopBarProps) {
@@ -114,8 +116,8 @@ export function TopBar({
               <ActionIcon name="gitBranch" /><span>{t("shell.refsLabel")}</span>
             </button>
             <button
-              className={mode === "search" ? "active" : ""}
-              onClick={() => (mode === "search" ? closeSearch() : setMode("search"))}
+              className={searchOpen ? "active" : ""}
+              onClick={onToggleSearch}
               title={t("shell.searchButtonTitle")}
             >
               <ActionIcon name="search" /><span>{t("shell.search")}</span>

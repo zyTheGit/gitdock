@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Icon } from "../../assets/icons";
 import { useI18n } from "../../i18n";
+import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import { formatDate } from "../../shared/format";
-import type { CommitSummaryDto, FileDiffDto } from "../../shared/types";
+import type { CommitSummaryDto, ExternalToolConfig, FileDiffDto } from "../../shared/types";
 import { useCommitDetail, useFileDiff } from "../detail/useCommitDetail";
+import { fileHistoryMenuItems } from "../history/menuItems";
 import { CompareDiffPane } from "./CompareDiffPane";
 import { CompareFileList } from "./CompareFileList";
 
@@ -17,6 +19,13 @@ interface CompareCommitExplorerProps {
   baseCommits: CommitSummaryDto[];
   baseTruncated: boolean;
   equivalentMap?: Record<string, string>;
+  tools: ExternalToolConfig[];
+  onExternalFileDiff: (
+    toolIndex: number,
+    left: string | null,
+    right: string,
+    path: string,
+  ) => void;
   onLocateCommit: (oid: string) => void;
   onCommitContextMenu: (event: MouseEvent, commit: CommitSummaryDto) => void;
 }
@@ -37,6 +46,8 @@ export function CompareCommitExplorer({
   baseCommits,
   baseTruncated,
   equivalentMap,
+  tools,
+  onExternalFileDiff,
   onLocateCommit,
   onCommitContextMenu,
 }: CompareCommitExplorerProps) {
@@ -121,6 +132,7 @@ export function CompareCommitExplorer({
   const [filePath, setFilePath] = useState<string | null>(null);
   const [expandedDiff, setExpandedDiff] = useState(false);
   const [lastDiff, setLastDiff] = useState<FileDiffDto | null>(null);
+  const [fileMenu, setFileMenu] = useState<{ x: number; y: number; path: string } | null>(null);
   const fileDiff = useFileDiff(selectedOid, filePath, repoGeneration);
 
   useEffect(() => {
@@ -140,9 +152,36 @@ export function CompareCommitExplorer({
 
   useEffect(() => {
     setExpandedDiff(false);
+    setFileMenu(null);
   }, [selectedOid]);
 
   const shownDiff = fileDiff.data ?? (expandedDiff ? lastDiff : null);
+  const fileMenuItems: MenuItem[] =
+    fileMenu && selectedEntry && detail.data
+      ? [
+          ...fileHistoryMenuItems(fileMenu.path, selectedEntry.commit.oid, "commit"),
+          ...(tools.length === 0
+            ? [
+                {
+                  label: t("compare.noExternalTool"),
+                  disabled: true,
+                  dividerBefore: true,
+                  onSelect: () => undefined,
+                },
+              ]
+            : tools.map((tool, index) => ({
+                label: t("compare.openWithTool", { name: tool.name }),
+                dividerBefore: index === 0,
+                onSelect: () =>
+                  onExternalFileDiff(
+                    index,
+                    detail.data?.parents[0] ?? null,
+                    selectedEntry.commit.oid,
+                    fileMenu.path,
+                  ),
+              }))),
+        ]
+      : [];
 
   const handleListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
@@ -324,7 +363,10 @@ export function CompareCommitExplorer({
                     baseLabel={baseLabel}
                     compareLabel={compareLabel}
                     onSelect={setFilePath}
-                    onContextMenu={() => undefined}
+                    onContextMenu={(event, path) => {
+                      setFilePath(path);
+                      setFileMenu({ x: event.clientX, y: event.clientY, path });
+                    }}
                   />
                 </div>
                 <CompareDiffPane
@@ -335,6 +377,10 @@ export function CompareCommitExplorer({
                   files={files}
                   activePath={filePath}
                   onSelectFile={setFilePath}
+                  onFileContextMenu={(event, path) => {
+                    setFilePath(path);
+                    setFileMenu({ x: event.clientX, y: event.clientY, path });
+                  }}
                   expanded={expandedDiff}
                   onExpandedChange={setExpandedDiff}
                   sideLabels={{
@@ -360,6 +406,14 @@ export function CompareCommitExplorer({
           </>
         )}
       </div>
+      {fileMenu && (
+        <ContextMenu
+          x={fileMenu.x}
+          y={fileMenu.y}
+          items={fileMenuItems}
+          onClose={() => setFileMenu(null)}
+        />
+      )}
     </div>
   );
 }

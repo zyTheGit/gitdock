@@ -6,8 +6,8 @@ use git_core::{
 };
 
 use super::{
-    commit_summary, gix_error, is_worktree_ref, reachable_set, tree_oid_of_commit,
-    tree_oid_of_object, FileSides, GitReadModule, RefBadges, DEFAULT_PAGE_LIMIT,
+    commit_summary, gix_error, is_worktree_ref, tree_oid_of_commit, tree_oid_of_object, FileSides,
+    GitReadModule, RefBadges, DEFAULT_PAGE_LIMIT,
 };
 use crate::diff::{collect_changes, diff_file};
 use crate::util::{find_commit, gix_oid, oid_from_gix, oid_from_id, parse_oid};
@@ -119,27 +119,20 @@ impl GitReadModule {
             }
         }
 
-        let base_set = reachable_set(&repo, base)?;
-        let compare_set = reachable_set(&repo, compare)?;
-        let base_only = base_set.difference(&compare_set).count() as u32;
-        let compare_only = compare_set.difference(&base_set).count() as u32;
-
-        let stop: HashSet<Oid> = match &merge_base {
-            Some(mb) => reachable_set(&repo, mb)?,
-            None => HashSet::new(),
-        };
         let snapshot = self.refs_snapshot(&repo, generation)?;
         let merge_base_summary = match &merge_base {
             Some(mb) => Some(commit_summary(&repo, mb, &snapshot.badges)?.summary),
             None => None,
         };
-        let (commits, commits_truncated) =
-            collect_unique_commits(&repo, compare_id, &stop, &snapshot.badges)?;
-        let (base_commits, base_commits_truncated) = if merge_base.is_some() {
-            collect_unique_commits(&repo, base_id, &stop, &snapshot.badges)?
-        } else {
-            (Vec::new(), false)
-        };
+        let (compare_only, commits, commits_truncated) =
+            walk_exclusive_commits(&repo, compare_id, base_id, true, &snapshot.badges)?;
+        let (base_only, base_commits, base_commits_truncated) = walk_exclusive_commits(
+            &repo,
+            base_id,
+            compare_id,
+            merge_base.is_some(),
+            &snapshot.badges,
+        )?;
         let equivalent_commits =
             super::compare_equiv::compute_equivalent_commits(&repo, &base_commits, &commits)?;
 
@@ -269,16 +262,23 @@ impl GitReadModule {
     }
 }
 
-fn collect_unique_commits(
+/// 统计并按最新提交序采集 `hidden..tip` 独有提交（等价 `git rev-list hidden..tip`）。
+///
+/// 使用 `with_hidden` 仅在分叉边界遍历，避免大仓库做全历史 `reachable_set`；
+/// `collect_summaries` 为 false（如无共同祖先降级时的 base 侧）仅计数不取摘要。
+fn walk_exclusive_commits(
     repo: &gix::Repository,
     tip: gix::ObjectId,
-    stop: &HashSet<Oid>,
+    hidden: gix::ObjectId,
+    collect_summaries: bool,
     badges: &RefBadges,
-) -> Result<(Vec<CommitSummaryDto>, bool)> {
+) -> Result<(u32, Vec<CommitSummaryDto>, bool)> {
+    let mut count = 0u32;
     let mut commits = Vec::new();
     let mut truncated = false;
     let walk = repo
         .rev_walk([tip])
+        .with_hidden([hidden])
         .sorting(gix::revision::walk::Sorting::ByCommitTime(
             gix::traverse::commit::simple::CommitTimeOrder::NewestFirst,
         ))
@@ -286,17 +286,17 @@ fn collect_unique_commits(
         .map_err(gix_error)?;
     for info in walk {
         let info = info.map_err(gix_error)?;
-        let oid = oid_from_gix(&info.id);
-        if stop.contains(&oid) {
-            continue;
+        count = count.saturating_add(1);
+        if collect_summaries {
+            if commits.len() < DEFAULT_PAGE_LIMIT {
+                let oid = oid_from_gix(&info.id);
+                commits.push(commit_summary(repo, &oid, badges)?);
+            } else {
+                truncated = true;
+            }
         }
-        if commits.len() >= DEFAULT_PAGE_LIMIT {
-            truncated = true;
-            break;
-        }
-        commits.push(commit_summary(repo, &oid, badges)?);
     }
-    Ok((commits, truncated))
+    Ok((count, commits, truncated))
 }
 
 fn collect_changed_paths(
@@ -305,6 +305,9 @@ fn collect_changed_paths(
     new_tree: Option<&Oid>,
     path_filter: Option<&str>,
 ) -> Result<HashSet<String>> {
+    if old_tree == new_tree {
+        return Ok(HashSet::new());
+    }
     let changes = collect_changes(repo, old_tree, new_tree, path_filter)?;
     let mut paths = HashSet::new();
     for change in &changes.files {

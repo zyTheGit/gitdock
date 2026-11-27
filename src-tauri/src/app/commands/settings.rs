@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use git_core::Result;
+use git_core::{RepoId, Result};
 use git_write::config::{ConfigEntryDto, ConfigScope, GitConfigDto};
 use tauri::State;
 
@@ -74,8 +74,11 @@ pub async fn forget_recent_repository(
 
 /// 读取 Git 配置：一次返回用户级与当前仓库级两层的取值和生效来源。未打开仓库时仓库级为空。
 #[tauri::command]
-pub async fn read_git_config(state: State<'_, Shared>) -> Result<GitConfigDto> {
-    let repo = current_repo(&state);
+pub async fn read_git_config(
+    state: State<'_, Shared>,
+    repo_id: Option<RepoId>,
+) -> Result<GitConfigDto> {
+    let repo = current_repo(&state, repo_id);
     blocking(move || git_write::config::read_git_config(repo.as_deref())).await
 }
 
@@ -87,12 +90,17 @@ pub async fn save_git_config(
     state: State<'_, Shared>,
     scope: ConfigScope,
     entries: Vec<ConfigEntryDto>,
+    repo_id: Option<RepoId>,
 ) -> Result<GitConfigDto> {
-    let repo = current_repo(&state);
+    let repo = current_repo(&state, repo_id);
     let state = Arc::clone(&state);
     blocking(move || match repo {
-        Some(repo) => state
-            .with_session(|session| session.write.save_git_config(scope, Some(&repo), &entries)),
+        Some(repo) => state.with_entry(repo_id, |entry| {
+            entry
+                .session
+                .write
+                .save_git_config(scope, Some(&repo), &entries)
+        }),
         // 未打开仓库：只可能保存用户级（项目级由 git-write 以 NotARepository 拒绝）。
         None => git_write::config::save_git_config_without_repo(scope, &entries),
     })
@@ -100,8 +108,8 @@ pub async fn save_git_config(
 }
 
 /// 配置读写用仓库路径：没有会话时返回 None，让 Git 配置面板在未打开仓库时仍可用。
-fn current_repo(state: &AppState) -> Option<PathBuf> {
+fn current_repo(state: &AppState, repo_id: Option<RepoId>) -> Option<PathBuf> {
     state
-        .with_session(|session| Ok(session.read.path().to_path_buf()))
+        .with_entry(repo_id, |entry| Ok(entry.session.read.path().to_path_buf()))
         .ok()
 }

@@ -66,8 +66,7 @@ impl AppState {
             state_dto.generation
         ));
         let entry = self.registry().insert(open_path, Session { read, write })?;
-        self.request_refresh_for(entry.id, RefreshReason::Manual);
-        self.accept_generation_for(entry.id, state_dto.generation);
+        self.record_generation_for(entry.id, Some(RefreshReason::Manual), state_dto.generation);
         self.sync_watcher_pool(app);
         self.persist_open_tabs();
         Ok(state_dto)
@@ -107,8 +106,7 @@ impl AppState {
                 // 单个仓库读取失败不能拖垮整个恢复：标签保留，状态延迟到切换时再读。
                 match self.state_for(&entry) {
                     Ok(dto) => {
-                        self.observe_generation_for(entry.id, dto.generation);
-                        self.accept_generation_for(entry.id, dto.generation);
+                        self.record_generation_for(entry.id, None, dto.generation);
                         Some(dto)
                     }
                     Err(err) => {
@@ -206,8 +204,7 @@ impl AppState {
     fn activate_entry(&self, entry: &Arc<RepoEntry>) -> Result<RepoStateDto> {
         self.registry().set_active(entry.id)?;
         let dto = self.state_for(entry)?;
-        self.observe_generation_for(entry.id, dto.generation);
-        self.accept_generation_for(entry.id, dto.generation);
+        self.record_generation_for(entry.id, None, dto.generation);
         self.persist_open_tabs();
         Ok(dto)
     }

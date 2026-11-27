@@ -20,6 +20,7 @@ const history = {
   locateCommit: "在图谱中定位此提交",
   compareAdjacent: "对比相邻版本",
   compareSingle: "只看单次改动",
+  openExternalDiff: "外部工具对比",
   adjacentPair: "相邻版本 {{from}} → {{to}}",
   blameBinary: "二进制文件不支持逐行追溯。",
   blameTooLarge: "文件过大，已跳过逐行追溯。",

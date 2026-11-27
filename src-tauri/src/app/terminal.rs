@@ -370,12 +370,10 @@ pub fn open(
         // 进程已结束；移除会话会释放 PTY 并解除 reader 阻塞。
         state.terminals.close(id);
         // 终端可能改动了所属仓库；即使监听关闭、标签不在前台，也让前端做一次刷新。
-        state.request_refresh_for(repo_id, RefreshReason::Watch);
         if let Ok(generation) = state.with_entry(Some(repo_id), |entry| {
             entry.session.read.current_generation()
         }) {
-            state.observe_generation_for(repo_id, generation);
-            state.accept_generation_for(repo_id, generation);
+            state.record_generation_for(repo_id, Some(RefreshReason::Watch), generation);
             let _ = app.emit(
                 EVENT_REPOSITORY_CHANGED,
                 RepositoryChangedDto {

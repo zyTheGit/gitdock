@@ -25,6 +25,8 @@ interface CommitComposerProps {
   unborn: boolean;
   /** 已暂存文件非空；空 index 且非 unborn 时普通提交无意义。 */
   hasStaged: boolean;
+  /** 上一条提交已推送至上游（需确认强制改写风险）；未推送的纯本地提交温和提示即可。 */
+  pushedRisk?: boolean;
   /** 与 stage/unstage 等写操作共用的互斥（来自 useWriteFlow.disabled）。 */
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
@@ -41,6 +43,7 @@ export function CommitComposer({
   repoPath,
   unborn,
   hasStaged,
+  pushedRisk = true,
   disabled,
   onBusyChange,
   onCommitted,
@@ -325,7 +328,7 @@ export function CommitComposer({
           {amendDisabled && <p className="muted confirm-hint">{t("staging.amendUnbornHint")}</p>}
           {amend && !amendLoading && (
             <div className="commit-amend-hints">
-              <p>{t("staging.amendRewriteHint")}</p>
+              <p>{t(pushedRisk ? "staging.amendRewriteHint" : "staging.amendLocalHint")}</p>
               <p>{t("staging.amendReflogHint")}</p>
             </div>
           )}
@@ -345,6 +348,7 @@ export function CommitComposer({
       {pendingGate && (
         <AmendConfirmDialog
           gate={pendingGate}
+          pushedRisk={pushedRisk}
           busy={busy}
           onCancel={() => setPendingGate(null)}
           onConfirm={() => void confirmAmend()}

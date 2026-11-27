@@ -48,6 +48,10 @@ export type ActionId =
   | "staging:stageFile"
   | "staging:unstageFile"
   | "staging:discardFile"
+  | "remote:fetch"
+  | "remote:pull"
+  | "remote:push"
+  | "stash:open"
   | "terminal:toggle";
 
 export type ActionTargetKind = "commit" | "ref" | "staging-file" | "repository";

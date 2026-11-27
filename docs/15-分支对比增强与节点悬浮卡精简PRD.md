@@ -1,7 +1,7 @@
 # 15 — 分支对比增强与节点悬浮卡精简 PRD
 
-- 文档版本：v1.0
-- 状态：待评审确认
+- 文档版本：v1.1
+- 状态：已实现（`v0.3.0` / `v0.3.1`；目录对比入口、按提交文件右键与双向交换闭环已在 `T31` 补齐）
 - 关联模块：`crates/git-core`、`crates/git-read`、`src/features/compare/`、`src/features/graph/`、`src/i18n/`、`src/styles/`
 
 ---

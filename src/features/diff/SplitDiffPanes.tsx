@@ -1,6 +1,12 @@
 import { useMemo, useRef, type ReactNode } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { HunkData, HunkTokens, TokenNode } from "react-diff-view";
 import { HunkActionButtons, type HunkActionsConfig } from "./HunkActions";
+
+const SPLIT_VIRTUAL_THRESHOLD = 200;
+const SPLIT_HUNK_HEIGHT = 26;
+const SPLIT_LINE_HEIGHT = 23;
+const SPLIT_OVERSCAN = 25;
 
 // 并排 diff：左右两栏等宽，纵向与横向滚动均互相同步。
 // react-diff-view 的表格只能整体横向滚动，长行会把另一侧一起推出视野。
@@ -113,26 +119,41 @@ function renderNodes(nodes: TokenNode[] | undefined): ReactNode {
   });
 }
 
-function paneRows(rows: SideRow[], total: number, actions?: HunkActionsConfig) {
-  return rows.map((row, index) =>
-    "header" in row ? (
-      <div key={index} className="split-hunk">
-        <span className="split-hunk-text">{row.header}</span>
-        <HunkActionButtons index={row.hunk} total={total} actions={actions} />
-      </div>
-    ) : (
-      <div key={index} className={`split-line ${row.line.kind}`}>
-        <span className={`split-gutter ${row.line.kind}`}>{row.line.line ?? ""}</span>
-        <span className="split-code">{renderNodes(row.line.nodes)}</span>
-      </div>
-    ),
+function renderSideRow(
+  row: SideRow,
+  index: number,
+  total: number,
+  actions?: HunkActionsConfig,
+) {
+  return "header" in row ? (
+    <div key={index} className="split-hunk">
+      <span className="split-hunk-text">{row.header}</span>
+      <HunkActionButtons index={row.hunk} total={total} actions={actions} />
+    </div>
+  ) : (
+    <div key={index} className={`split-line ${row.line.kind}`}>
+      <span className={`split-gutter ${row.line.kind}`}>{row.line.line ?? ""}</span>
+      <span className="split-code">{renderNodes(row.line.nodes)}</span>
+    </div>
   );
+}
+
+function paneRows(rows: SideRow[], total: number, actions?: HunkActionsConfig) {
+  return rows.map((row, index) => renderSideRow(row, index, total, actions));
 }
 
 export function SplitDiffPanes({ hunks, tokens, hunkActions }: SplitDiffPanesProps) {
   const rows = useMemo(() => buildRows(hunks, tokens), [hunks, tokens]);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
+  const virtualized = rows.left.length > SPLIT_VIRTUAL_THRESHOLD;
+  const virtualizer = useVirtualizer({
+    count: virtualized ? rows.left.length : 0,
+    getScrollElement: () => leftRef.current,
+    estimateSize: (index) =>
+      "header" in (rows.left[index] ?? {}) ? SPLIT_HUNK_HEIGHT : SPLIT_LINE_HEIGHT,
+    overscan: SPLIT_OVERSCAN,
+  });
   // 记录最近一次同步写入的值，用于识别由此触发的滚动事件，避免两栏回弹。
   const written = useRef<{ pane: "left" | "right"; top: number; left: number; at: number } | null>(
     null,
@@ -167,15 +188,46 @@ export function SplitDiffPanes({ hunks, tokens, hunkActions }: SplitDiffPanesPro
     };
   };
 
+  const virtualItems = virtualized ? virtualizer.getVirtualItems() : [];
+  const totalHeight = virtualized ? virtualizer.getTotalSize() : 0;
+
   return (
     <div className="split-panes">
       <div className="split-pane" ref={leftRef} onScroll={() => onScroll("left")}>
-        {paneRows(rows.left, hunks.length, hunkActions)}
+        {virtualized ? (
+          <div className="split-pane-inner" style={{ height: totalHeight }}>
+            {virtualItems.map((item) => (
+              <div
+                key={item.key}
+                className="split-virtual-row"
+                style={{ transform: `translateY(${item.start}px)` }}
+              >
+                {renderSideRow(rows.left[item.index], item.index, hunks.length, hunkActions)}
+              </div>
+            ))}
+          </div>
+        ) : (
+          paneRows(rows.left, hunks.length, hunkActions)
+        )}
       </div>
       {/* 分隔线独立成列：行号槽位是不透明的 sticky 元素，画在内阴影上会被逐行盖掉。 */}
       <div className="split-divider" aria-hidden="true" />
       <div className="split-pane" ref={rightRef} onScroll={() => onScroll("right")}>
-        {paneRows(rows.right, hunks.length)}
+        {virtualized ? (
+          <div className="split-pane-inner" style={{ height: totalHeight }}>
+            {virtualItems.map((item) => (
+              <div
+                key={item.key}
+                className="split-virtual-row"
+                style={{ transform: `translateY(${item.start}px)` }}
+              >
+                {renderSideRow(rows.right[item.index], item.index, hunks.length)}
+              </div>
+            ))}
+          </div>
+        ) : (
+          paneRows(rows.right, hunks.length)
+        )}
       </div>
     </div>
   );

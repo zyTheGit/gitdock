@@ -7,7 +7,6 @@ import type {
   useCommitMenus,
 } from "./useCommitMenus";
 import type { useFontScale } from "./useFontScale";
-import type { ViewMode } from "./useGlobalEsc";
 import type { useSettingsEntry } from "./useSettingsEntry";
 import {
   clearSkippedUpdate,
@@ -39,7 +38,7 @@ import type {
 
 interface AppDialogsProps {
   repo: RepoStateDto | null;
-  mode: ViewMode;
+  searchOpen: boolean;
   settings: SettingsDto | null;
   info: AppInfoDto | null;
   toast: string | null;
@@ -99,7 +98,7 @@ interface AppDialogsProps {
  */
 export function AppDialogs({
   repo,
-  mode,
+  searchOpen,
   settings,
   info,
   toast,
@@ -141,7 +140,7 @@ export function AppDialogs({
 }: AppDialogsProps) {
   return (
     <>
-      {mode === "search" && repo && (
+      {searchOpen && repo && (
         <SearchView
           repo={repo}
           search={search}
@@ -225,7 +224,7 @@ export function AppDialogs({
           fontScale={zoom.fontScale}
           updateCheck={updateCheck}
           updateOffer={pendingUpdate(updateCheck)}
-          onCheckUpdate={() => runUpdateCheck()}
+          onCheckUpdate={() => runUpdateCheck({ manual: true })}
           onOpenDownloadPage={openReleasePage}
           onSkipUpdate={skipAvailableUpdate}
           onClearSkippedUpdate={clearSkippedUpdate}

@@ -16,7 +16,6 @@ export interface RepositorySidebarProps {
   /** 全部可导航引用：本地分支、远程分支与标签，由侧栏按 kind 分组。 */
   refs: RefDto[];
   writeDisabled: boolean;
-  onCompareBranches: () => void;
   onSwitchBranch: (branch: RefDto) => void;
   /** 单击引用：在图谱中定位并选中其提交（不切换分支）。 */
   onNavigateRef: (ref: RefDto) => void;
@@ -43,7 +42,6 @@ export function RepositorySidebar({
   headLabel,
   refs,
   writeDisabled,
-  onCompareBranches,
   onSwitchBranch,
   onNavigateRef,
   onNavigated,
@@ -70,7 +68,6 @@ export function RepositorySidebar({
   const filtering = keyword.trim().length > 0;
   const emptyText = filtering ? t("shell.noMatchingRefs") : "";
   const headOid = repo?.head.oid ?? null;
-  const selectableCount = refs.length;
   const navigateRef = (ref: RefDto) => {
     onNavigateRef(ref);
     onNavigated?.();
@@ -124,15 +121,6 @@ export function RepositorySidebar({
             >
               {headOid ? headOid.slice(0, 8) : "—"}
             </button>
-            <details className="repo-details">
-              <summary>{t("shell.repoDetails")}</summary>
-              <dl>
-                <dt>{t("shell.objectFormat")}</dt>
-                <dd>{repo.object_format.toUpperCase()}</dd>
-                <dt>{t("shell.refsLabel")}</dt>
-                <dd>{t("shell.refCount", { n: repo.refs.length })}</dd>
-              </dl>
-            </details>
           </div>
 
           <div className="ref-filter">
@@ -162,19 +150,9 @@ export function RepositorySidebar({
             refs={filtered.local}
             emptyText={emptyText || t("shell.noLocalBranches")}
             actions={
-              <>
-                <button className="link" disabled={writeDisabled} onClick={onCreateBranch}>
-                  {t("repository.createBranch")}
-                </button>
-                <button
-                  className="link"
-                  disabled={selectableCount < 2}
-                  onClick={onCompareBranches}
-                  title={t("shell.compareBranchesTitle")}
-                >
-                  {t("shell.compareBranches")}
-                </button>
-              </>
+              <button className="link" disabled={writeDisabled} onClick={onCreateBranch}>
+                {t("repository.createBranch")}
+              </button>
             }
             isCollapsed={collapse.isCollapsed}
             onToggleCollapse={collapse.toggle}

@@ -1,21 +1,18 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { Diff, Hunk, parseDiff } from "react-diff-view";
 import "react-diff-view/style/index.css";
 import { Icon } from "../../assets/icons";
 import type { FileDiffDto, FileStatus } from "../../shared/types";
 import { noteText } from "../../shared/error";
-import { FileListModeToggle } from "../../shared/FileListModeToggle";
-import { buildFileTree, flattenVisibleTree, type FileTreeRow } from "../../shared/fileTree";
 import { statusLabelKey } from "../../shared/fileStatus";
 import { consumeEsc, isEventInBottomPanel } from "../../shared/esc";
 import { altModifierLabel } from "../../shared/platform";
 import { Select } from "../../shared/Select";
 import { useDiffViewType } from "../../shared/useDiffViewType";
-import { useFileListMode } from "../../shared/useFileListMode";
 import { useIpcResource } from "../../shared/useIpcResource";
 import { useResolvedTheme } from "../../shared/theme";
 import { useI18n } from "../../i18n";
+import { DiffFileSidebar } from "./DiffFileSidebar";
 import { buildDiffTokens } from "./highlight";
 import { HunkHeaderRow, type HunkActionsConfig } from "./HunkActions";
 import { SplitDiffPanes } from "./SplitDiffPanes";
@@ -26,11 +23,6 @@ import { useIgnoreWhitespace } from "./diffOptions";
 
 const DIFF_WRAP_KEY = "git-graph.diff-wrap";
 const DIFF_FILES_OPEN_KEY = "git-graph.diff-files-open";
-
-// 侧栏文件行高度初值（12px 文本 + 上下 padding + 2px 行间距）；文本行高随字体
-// 而定，首帧后由 measureElement 按实际渲染高度（含行间距 padding）修正。
-const EXPANDED_ROW_ESTIMATE = 28;
-const EXPANDED_LIST_OVERSCAN = 12;
 
 function storedWrap(): boolean {
   return localStorage.getItem(DIFF_WRAP_KEY) === "1";
@@ -196,46 +188,6 @@ export function FileDiffView({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [switchable, currentIndex, fileEntries, onSelectFile]);
 
-  const [listMode, setListMode] = useFileListMode();
-  const [collapsedDirs, setCollapsedDirs] = useState<ReadonlySet<string>>(() => new Set());
-  const sidebarTree = useMemo(() => buildFileTree(fileEntries), [fileEntries]);
-  // 侧栏扁平 / 目录树统一成扁平行，交给同一个虚拟滚动。
-  const sidebarRows = useMemo<FileTreeRow<DiffFileEntry>[]>(() => {
-    if (listMode === "tree") {
-      return flattenVisibleTree(sidebarTree, collapsedDirs);
-    }
-    return fileEntries.map((file) => ({
-      kind: "file",
-      key: `f:${file.path}`,
-      path: file.path,
-      name: file.path,
-      depth: 0,
-      item: file,
-      dirPath: "",
-    }));
-  }, [listMode, sidebarTree, fileEntries, collapsedDirs]);
-
-  const toggleDir = (path: string) =>
-    setCollapsedDirs((current) => {
-      const next = new Set(current);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-
-  const sidebarScrollRef = useRef<HTMLDivElement>(null);
-  // 放大视图侧栏文件列表虚拟化：侧栏收起时 ref 置空，重新展开后自然重新测量。
-  const sidebarVirtualizer = useVirtualizer({
-    count: sidebarRows.length,
-    getScrollElement: () => sidebarScrollRef.current,
-    estimateSize: () => EXPANDED_ROW_ESTIMATE,
-    overscan: EXPANDED_LIST_OVERSCAN,
-    getItemKey: (index) => sidebarRows[index]?.key ?? index,
-  });
-
   // 并排且不换行时一律自绘两栏：左右各自横向滚动，不再让整个 diff 一起横滚。
   const paneMode = viewType === "split" && !wrap;
 
@@ -358,90 +310,12 @@ export function FileDiffView({
 
         <div className="file-diff-body">
           {showSidebar && (
-            <aside className="expanded-files" aria-label={t("diff.changedFileList")}>
-              <div className="expanded-files-head">
-                <span>{t("diff.changedFiles")}</span>
-                <span className="expanded-files-head-actions">
-                  <span className="muted">{fileEntries.length}</span>
-                  <FileListModeToggle mode={listMode} onChange={setListMode} />
-                </span>
-              </div>
-              <div className="expanded-files-scroll" ref={sidebarScrollRef}>
-                <ul
-                  className="expanded-files-inner"
-                  style={{ height: sidebarVirtualizer.getTotalSize() }}
-                >
-                  {sidebarVirtualizer.getVirtualItems().map((item) => {
-                    const row = sidebarRows[item.index];
-                    if (!row) {
-                      return null;
-                    }
-                    return (
-                      <li
-                        key={item.key}
-                        data-index={item.index}
-                        ref={(node) => sidebarVirtualizer.measureElement(node)}
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: "100%",
-                          transform: `translateY(${item.start}px)`,
-                        }}
-                      >
-                        {row.kind === "dir" ? (
-                          <button
-                            className="file-tree-dir"
-                            style={{ paddingLeft: 6 + row.depth * 12 }}
-                            aria-expanded={!collapsedDirs.has(row.path)}
-                            onClick={() => toggleDir(row.path)}
-                            title={row.path}
-                          >
-                            <Icon name="chevronDown" className="file-tree-chevron" />
-                            <span className="file-tree-name">{row.name}</span>
-                            <span className="file-tree-count">{row.fileCount}</span>
-                          </button>
-                        ) : (
-                          <button
-                            className={
-                              row.item.path === (activePath ?? diff.path) ? "active" : ""
-                            }
-                            style={
-                              listMode === "tree" ? { paddingLeft: 6 + row.depth * 12 } : undefined
-                            }
-                            onClick={() => onSelectFile?.(row.item.path)}
-                            onContextMenu={(event) => {
-                              if (!onFileContextMenu) {
-                                return;
-                              }
-                              event.preventDefault();
-                              onFileContextMenu(event, row.item.path);
-                            }}
-                            title={
-                              onFileContextMenu
-                                ? t("diff.fileContextMenuHint", { path: row.item.path })
-                                : row.item.path
-                            }
-                            aria-current={
-                              row.item.path === (activePath ?? diff.path) ? "true" : undefined
-                            }
-                          >
-                            <span className={`file-status file-status-${row.item.status}`}>
-                              {t(statusLabelKey(row.item.status))}
-                            </span>
-                            <span className="file-path">{row.name}</span>
-                            <span className="file-stats">
-                              <span className="diff-add">+{row.item.additions}</span>
-                              <span className="diff-del">-{row.item.deletions}</span>
-                            </span>
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </aside>
+            <DiffFileSidebar
+              files={fileEntries}
+              activePath={activePath ?? diff.path}
+              onSelectFile={onSelectFile}
+              onFileContextMenu={onFileContextMenu}
+            />
           )}
 
           <div className="file-diff-main">
@@ -483,7 +357,16 @@ export function FileDiffView({
             )}
 
             {hunkActionsBlocked && (
-              <div className="banner info compact">{t("diff.hunkActionsWhitespaceHint")}</div>
+              <div className="banner info compact">
+                <span className="banner-text">{t("diff.hunkActionsWhitespaceHint")}</span>
+                <button
+                  type="button"
+                  className="link"
+                  onClick={() => setIgnoreWhitespace(false)}
+                >
+                  {t("diff.disableIgnoreWhitespace")}
+                </button>
+              </div>
             )}
             {diff.note &&
               !(

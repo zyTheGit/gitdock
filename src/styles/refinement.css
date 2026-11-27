@@ -99,12 +99,6 @@
   line-height: 18px;
 }
 .repo-oid:hover:not(:disabled) { color: var(--accent); border-color: var(--border); background: var(--bg-elevated); }
-.repo-details { flex: 1 1 100%; color: var(--muted); font-size: 11px; }
-.repo-details summary { cursor: pointer; }
-.repo-details summary:hover { color: var(--text); }
-.repo-details dl { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 3px 8px; margin: 6px 0 0; }
-.repo-details dt { color: var(--muted); }
-.repo-details dd { margin: 0; overflow-wrap: anywhere; color: var(--text); }
 
 /* 引用过滤与可折叠分组（本地分支/远程分支/标签）。 */
 .ref-filter { display: flex; align-items: center; gap: 2px; margin: 8px 0 2px; }
@@ -287,6 +281,9 @@
 }
 .settings-dialog footer button { min-height: 32px; padding: 5px 16px; font-size: 12.5px; }
 .settings-dialog footer .primary { min-width: 82px; }
+.settings-footer-note { margin-right: auto; font-size: 12px; }
+.settings-dialog .about-auto-check { margin: 8px 0 10px; font-size: 12.5px; color: var(--text); }
+.settings-dialog .git-config-dirty-confirm { margin-bottom: 8px; }
 
 .settings-dialog label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
 .settings-dialog label.settings-check,
@@ -536,9 +533,8 @@ kbd { display: inline-block; padding: 1px 5px; border: 1px solid var(--border); 
 .mono, code, .staging-path { font-family: Consolas, "Cascadia Mono", "Microsoft YaHei", monospace; }
 
 @media (max-width: 900px) {
-  /* 侧栏默认是块级容器；恢复显示时不能用 flex，否则仓库信息与分支列表会并排挤成两列。 */
-  .layout > .sidebar, .layout > .sidebar + .pane-splitter { display: block; }
-  .sidebar { width: min(220px, 25vw) !important; }
+  /* 侧栏显隐由 React refsUi.sidebarVisible 统一控制，这里仅限制最大宽避免挤压图谱。 */
+  .sidebar { max-width: min(220px, 28vw); }
   .main { padding: 6px; }
   .topbar { align-items: flex-start; }
   .topbar-actions { margin-left: auto; }
@@ -569,7 +565,6 @@ kbd { display: inline-block; padding: 1px 5px; border: 1px solid var(--border); 
   .topbar { flex-wrap: wrap; }
   .workspace-badge { margin-right: auto; max-width: 48vw; }
   .topbar-actions { width: 100%; justify-content: flex-start; }
-  .layout > .sidebar, .layout > .sidebar + .pane-splitter { display: none; }
   .search-dialog { min-height: 200px; }
 }
 

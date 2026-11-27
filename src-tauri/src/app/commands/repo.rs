@@ -73,13 +73,16 @@ pub async fn close_repository(
 }
 
 #[tauri::command]
-pub async fn repository_state(state: State<'_, Shared>) -> Result<RepoStateDto> {
+pub async fn repository_state(
+    state: State<'_, Shared>,
+    repo_id: Option<RepoId>,
+) -> Result<RepoStateDto> {
     let state = Arc::clone(&state);
     blocking(move || {
-        state.with_session(|session| {
-            let mut dto = session.read.state()?;
+        state.with_entry(repo_id, |entry| {
+            let mut dto = entry.session.read.state()?;
             // 刷新与写前 Gate 必须是同一中断检测来源，否则写后横幅滞后一整个操作。
-            dto.interruption = session.write.inspect_interruption()?;
+            dto.interruption = entry.session.write.inspect_interruption()?;
             Ok(dto)
         })
     })

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "../../i18n";
 import { Icon } from "../../assets/icons";
 import { currentPlatform } from "../../shared/platform";
@@ -6,8 +6,18 @@ import { errorText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type { SettingsDto } from "../../shared/types";
 import { ShellProfileSelect, type ShellProfile } from "./ShellProfileSelect";
-import { useTerminalSession } from "./useTerminalSession";
+import { useTerminalSession, type TerminalMode } from "./useTerminalSession";
 import "../../styles/terminal.css";
+
+const TERMINAL_TAB_STORAGE_KEY = "gitdock.terminal.lastMode";
+
+function readStoredTerminalTab(): TerminalMode {
+  try {
+    return localStorage.getItem(TERMINAL_TAB_STORAGE_KEY) === "shell" ? "shell" : "lazygit";
+  } catch {
+    return "lazygit";
+  }
+}
 
 interface TerminalViewProps {
   repoPath: string;
@@ -41,21 +51,46 @@ export function TerminalView({
   onRepoChanged,
 }: TerminalViewProps) {
   const { t } = useI18n();
+  const [activeTab, setActiveTab] = useState<TerminalMode>(readStoredTerminalTab);
   const [switchError, setSwitchError] = useState<string | null>(null);
+  const [lazygitActive, setLazygitActive] = useState(false);
+  const [shellActive, setShellActive] = useState(false);
 
-  const { hostRef, mode, status, message, lazygitPath, gitBashPath, start, end, focus } =
-    useTerminalSession({
-      repoPath,
-      visible,
-      lazygitConfig,
-      onRunningChange,
-      onRepoChanged,
-    });
+  const lazygitSession = useTerminalSession({
+    repoPath,
+    visible: visible && activeTab === "lazygit",
+    lazygitConfig,
+    onRunningChange: setLazygitActive,
+    onRepoChanged,
+  });
+  const shellSession = useTerminalSession({
+    repoPath,
+    visible: visible && activeTab === "shell",
+    lazygitConfig,
+    onRunningChange: setShellActive,
+    onRepoChanged,
+  });
 
-  const restartable = mode === null || status === "exited" || status === "failed";
-  const lazygitMissing = lazygitPath === null;
-  const lazygitRunning = mode === "lazygit" && (status === "starting" || status === "running");
-  const shellRunning = mode === "shell" && (status === "starting" || status === "running");
+  useEffect(() => {
+    onRunningChange(lazygitActive || shellActive);
+  }, [lazygitActive, shellActive, onRunningChange]);
+
+  const selectTab = (next: TerminalMode) => {
+    setActiveTab(next);
+    try {
+      localStorage.setItem(TERMINAL_TAB_STORAGE_KEY, next);
+    } catch {
+      // 忽略存储不可用情况，保持本次会话切换有效。
+    }
+  };
+
+  const session = activeTab === "lazygit" ? lazygitSession : shellSession;
+  const restartable =
+    session.mode === null || session.status === "exited" || session.status === "failed";
+  const lazygitMissing = lazygitSession.lazygitPath === null;
+  const shellRunning =
+    shellSession.mode === "shell" &&
+    (shellSession.status === "starting" || shellSession.status === "running");
   const isWindows = currentPlatform() === "windows";
   const installCmd =
     currentPlatform() === "windows"
@@ -64,16 +99,15 @@ export function TerminalView({
         ? t("terminal.lazygitInstallMac")
         : t("terminal.lazygitInstallLinux");
 
-  // Shell 下拉（仅 Windows）：先持久化，成功后仅在 Shell 模式下重启会话；
-  // LazyGit 运行中由组件禁用，未启动时只保存、下次启动生效。
+  // Shell 下拉（仅 Windows）：先持久化，仅在 Shell 进程运行中才立即提示重启，与 LazyGit 会话解耦。
   const applyShellProfile = (next: ShellProfile) => {
     setSwitchError(null);
     void ipc
       .setShellProfile(next)
       .then((saved) => {
         onShellProfileSaved(saved);
-        if (mode === "shell") {
-          start("shell");
+        if (shellSession.mode === "shell") {
+          shellSession.start("shell");
         }
       })
       .catch((err) => {
@@ -84,28 +118,49 @@ export function TerminalView({
   return (
     <div className="terminal-view">
       <header className="terminal-header">
+        <div className="terminal-subtabs" role="tablist" aria-label={t("terminal.subtabsAria")}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "lazygit"}
+            className={activeTab === "lazygit" ? "terminal-subtab active" : "terminal-subtab"}
+            onClick={() => selectTab("lazygit")}
+          >
+            <span>{t("terminal.subtabLazygit")}</span>
+            {lazygitActive && <span className="terminal-subtab-dot" aria-hidden="true" />}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "shell"}
+            className={activeTab === "shell" ? "terminal-subtab active" : "terminal-subtab"}
+            onClick={() => selectTab("shell")}
+          >
+            <span>{t("terminal.subtabShell")}</span>
+            {shellActive && <span className="terminal-subtab-dot" aria-hidden="true" />}
+          </button>
+        </div>
         <div className="terminal-title">
-          <strong>{t("terminal.title")}</strong>
           <span className="terminal-path" title={repoPath}>
             {repoPath}
           </span>
           <span className="terminal-permission">{t("terminal.permissionNote")}</span>
         </div>
         <div className="terminal-actions">
-          {isWindows && (
+          {isWindows && activeTab === "shell" && (
             <ShellProfileSelect
               shellProfile={shellProfile}
-              gitBashPath={gitBashPath}
-              disabled={lazygitRunning}
+              gitBashPath={shellSession.gitBashPath}
+              disabled={false}
               needConfirm={shellRunning}
               onApply={applyShellProfile}
             />
           )}
           {restartable ? (
-            <>
+            activeTab === "lazygit" ? (
               <button
                 className="primary terminal-launch-button"
-                onClick={() => start("lazygit")}
+                onClick={() => lazygitSession.start("lazygit")}
                 disabled={lazygitMissing}
                 title={
                   lazygitMissing
@@ -116,16 +171,20 @@ export function TerminalView({
                 <Icon name="play" />
                 <span>{t("terminal.launchLazygit")}</span>
               </button>
-              <button className="terminal-launch-button secondary" onClick={() => start("shell")}>
+            ) : (
+              <button
+                className="primary terminal-launch-button"
+                onClick={() => shellSession.start("shell")}
+              >
                 <Icon name="shell" />
                 <span>{t("terminal.launchShell")}</span>
               </button>
-            </>
+            )
           ) : (
             <button
               className="terminal-launch-button danger"
-              onClick={end}
-              disabled={status === "starting"}
+              onClick={session.end}
+              disabled={session.status === "starting"}
               title={t("terminal.endProcessTitle")}
             >
               <Icon name="stop" />
@@ -134,7 +193,7 @@ export function TerminalView({
           )}
         </div>
       </header>
-      {lazygitMissing && restartable && (
+      {activeTab === "lazygit" && lazygitMissing && restartable && (
         <div className="terminal-notice">
           {t("terminal.lazygitNoticePrefix")}
           <code>{installCmd}</code>
@@ -145,8 +204,19 @@ export function TerminalView({
         </div>
       )}
       {switchError && <div className="terminal-error">{switchError}</div>}
-      {message && <div className="terminal-error">{message}</div>}
-      <div className="terminal-body" ref={hostRef} onMouseDown={() => focus()} />
+      {session.message && <div className="terminal-error">{session.message}</div>}
+      <div
+        className="terminal-body"
+        hidden={activeTab !== "lazygit"}
+        ref={lazygitSession.hostRef}
+        onMouseDown={() => lazygitSession.focus()}
+      />
+      <div
+        className="terminal-body"
+        hidden={activeTab !== "shell"}
+        ref={shellSession.hostRef}
+        onMouseDown={() => shellSession.focus()}
+      />
     </div>
   );
 }

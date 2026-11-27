@@ -301,6 +301,18 @@
   overscroll-behavior-y: auto;
 }
 
+.split-pane-inner {
+  position: relative;
+  min-width: 100%;
+}
+
+.split-virtual-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
 .split-divider {
   background: var(--border);
 }

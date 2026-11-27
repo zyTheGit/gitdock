@@ -11,6 +11,11 @@ use git_read::{GitReadModule, TreeExport, TreeSink};
 use super::config::ExternalToolConfig;
 use super::{external, logging};
 
+/// 单侧目录导出安全上限：防止超大仓库或大二进制树把磁盘与 I/O 打爆。
+const MAX_EXPORT_FILES: usize = 10_000;
+const MAX_EXPORT_BYTES: u64 = 512 * 1024 * 1024;
+const MAX_EXPORT_MB: &str = "512";
+
 /// 导出两侧树并启动外部工具；任一步失败都删除本次临时容器。
 pub fn run(
     read: &GitReadModule,
@@ -64,13 +69,42 @@ fn remove_best_effort(dir: &Path) {
 /// 把 git-read 回调的条目写到目标目录；路径已由 read 层保证相对且不含 `..`。
 struct FsSink {
     root: PathBuf,
+    files: usize,
+    bytes: u64,
+    max_files: usize,
+    max_bytes: u64,
 }
 
 impl FsSink {
     fn new(root: &Path) -> Self {
+        Self::with_limits(root, MAX_EXPORT_FILES, MAX_EXPORT_BYTES)
+    }
+
+    fn with_limits(root: &Path, max_files: usize, max_bytes: u64) -> Self {
         Self {
             root: root.to_path_buf(),
+            files: 0,
+            bytes: 0,
+            max_files,
+            max_bytes,
         }
+    }
+
+    fn check_limits(&mut self, next_bytes: u64) -> Result<()> {
+        let next_files = self.files + 1;
+        let total_bytes = self.bytes.saturating_add(next_bytes);
+        if next_files > self.max_files || total_bytes > self.max_bytes {
+            return Err(UserVisibleError::new(
+                ErrorCode::ExternalToolFailed,
+                "目录对比导出超出安全上限，请改用单文件外部对比",
+            )
+            .with_key("errors.externalDirExportTooLarge")
+            .with_arg("files", self.max_files.to_string())
+            .with_arg("mb", MAX_EXPORT_MB));
+        }
+        self.files = next_files;
+        self.bytes = total_bytes;
+        Ok(())
     }
 
     fn io_failed(err: std::io::Error) -> UserVisibleError {
@@ -92,6 +126,7 @@ impl TreeSink for FsSink {
         executable: bool,
         symlink: bool,
     ) -> Result<()> {
+        self.check_limits(data.len() as u64)?;
         let target = self.root.join(path);
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent).map_err(Self::io_failed)?;
@@ -149,6 +184,27 @@ mod tests {
             std::fs::read(root.join("src/main.rs")).expect("读取"),
             b"fn main() {}"
         );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn fs_sink_rejects_excessive_files_or_bytes() {
+        let root = std::env::temp_dir().join(format!("dir-diff-limit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mut by_count = FsSink::with_limits(&root, 1, 1024);
+        by_count
+            .entry_blob("a.txt", b"ok", false, false)
+            .expect("首文件允许");
+        let err = by_count
+            .entry_blob("b.txt", b"ok", false, false)
+            .expect_err("超出文件数应拒绝");
+        assert_eq!(err.key.as_deref(), Some("errors.externalDirExportTooLarge"));
+
+        let mut by_size = FsSink::with_limits(&root, 10, 4);
+        let err = by_size
+            .entry_blob("big.txt", b"12345", false, false)
+            .expect_err("超出字节数应拒绝");
+        assert_eq!(err.key.as_deref(), Some("errors.externalDirExportTooLarge"));
         let _ = std::fs::remove_dir_all(&root);
     }
 }

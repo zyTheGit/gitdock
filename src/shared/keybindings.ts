@@ -1,5 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { currentPlatform, primaryModifierLabel } from "./platform";
+// @ts-expect-error Node's native TS test runner needs the explicit extension.
+import { currentPlatform, primaryModifierLabel } from "./platform.ts";
 
 /**
  * 可改键的动作集合。
@@ -9,6 +10,7 @@ import { currentPlatform, primaryModifierLabel } from "./platform";
  * 控件内按键是无障碍基线，不该被配置掉。
  */
 export type BindableAction =
+  | "app.commandPalette"
   | "terminal.toggle"
   | "zoom.in"
   | "zoom.out"
@@ -19,6 +21,7 @@ export type BindableAction =
   | "view.staging";
 
 export const BINDABLE_ACTIONS: readonly BindableAction[] = [
+  "app.commandPalette",
   "terminal.toggle",
   "zoom.in",
   "zoom.out",
@@ -30,6 +33,7 @@ export const BINDABLE_ACTIONS: readonly BindableAction[] = [
 ];
 
 export const DEFAULT_BINDINGS: Record<BindableAction, string> = {
+  "app.commandPalette": "Ctrl+Shift+p",
   "terminal.toggle": "Ctrl+`",
   "zoom.in": "Ctrl+=",
   "zoom.out": "Ctrl+-",
@@ -54,6 +58,7 @@ export interface BindingRejection {
     | "settings.keybindRejectCtrlAltLinux"
     | "settings.keybindRejectAltReserved"
     | "settings.keybindRejectCtrlLetter"
+    | "settings.keybindRejectCtrlShiftLetter"
     | "settings.keybindRejectUnsupported"
     | "settings.keybindRejectUnrecognized"
     | "settings.keybindRejectClash";
@@ -144,7 +149,8 @@ export function splitCombo(spec: string): string[] {
     return [spec];
   }
   const ctrlLabel = combo.ctrl && currentPlatform() === "macos" ? primaryModifierLabel() : "Ctrl";
-  return [combo.ctrl && ctrlLabel, combo.alt && "Alt", combo.shift && "Shift", combo.key]
+  const keyLabel = /^[a-z]$/.test(combo.key) ? combo.key.toUpperCase() : combo.key;
+  return [combo.ctrl && ctrlLabel, combo.alt && "Alt", combo.shift && "Shift", keyLabel]
     .filter(Boolean)
     .map(String);
 }
@@ -183,6 +189,9 @@ export function matchesBinding(spec: string, event: KeyboardEvent): boolean {
   if (combo.shift && !actual.shift) {
     return false;
   }
+  if (!combo.shift && actual.shift && /^[a-z]$/.test(combo.key)) {
+    return false;
+  }
   return (
     combo.ctrl === actual.ctrl &&
     combo.alt === actual.alt &&
@@ -191,9 +200,37 @@ export function matchesBinding(spec: string, event: KeyboardEvent): boolean {
 }
 
 /**
- * Ctrl 允许的组合键：数字、符号与功能键。字母一律保留给复制/粘贴/查找
- * 等系统与浏览器行为，不做改键。
+ * Ctrl+字母 / Ctrl+Shift+字母受控放开：保留复制/粘贴/撤销/查找/DevTools/标签页控制等
+ * 系统、浏览器与终端常用热键黑名单，其余字母组合允许自定义绑定。
  */
+const BLOCKED_CTRL_LETTERS = new Set([
+  "c",
+  "v",
+  "x",
+  "a",
+  "z",
+  "y",
+  "f",
+  "r",
+  "w",
+  "n",
+  "t",
+  "l",
+  "p",
+  "q",
+]);
+
+const BLOCKED_CTRL_SHIFT_LETTERS = new Set([
+  "i",
+  "j",
+  "c",
+  "r",
+  "n",
+  "t",
+  "w",
+  "q",
+]);
+
 const CTRL_ALLOWED = new Set([
   "`",
   "1",
@@ -240,11 +277,16 @@ export function rejectionReason(combo: Combo): BindingRejection | null {
   if (!combo.ctrl && !combo.alt) {
     return { key: "settings.keybindRejectNoModifier" };
   }
-  if (combo.shift) {
-    return { key: "settings.keybindRejectShift" };
-  }
   if (combo.ctrl && combo.alt) {
     return { key: ctrlAltRejectKey() };
+  }
+  if (combo.shift) {
+    if (combo.ctrl && !combo.alt && /^[a-z]$/.test(combo.key)) {
+      return BLOCKED_CTRL_SHIFT_LETTERS.has(combo.key)
+        ? { key: "settings.keybindRejectCtrlShiftLetter" }
+        : null;
+    }
+    return { key: "settings.keybindRejectShift" };
   }
   if (combo.alt && !combo.ctrl && RESERVED_ALT.has(combo.key)) {
     return { key: "settings.keybindRejectAltReserved", keyName: combo.key };
@@ -257,7 +299,9 @@ export function rejectionReason(combo: Combo): BindingRejection | null {
       return null;
     }
     if (/^[a-z]$/.test(combo.key)) {
-      return { key: "settings.keybindRejectCtrlLetter" };
+      return BLOCKED_CTRL_LETTERS.has(combo.key)
+        ? { key: "settings.keybindRejectCtrlLetter" }
+        : null;
     }
     return { key: "settings.keybindRejectUnsupported", keyName: combo.key };
   }

@@ -112,8 +112,10 @@ const staging = {
   amendToggle: "Amend the last commit",
   amendLoadingMessage: "Reading the last commit message…",
   amendUnbornHint: "The current branch has no commits yet; there is nothing to amend",
+  amendLocalHint:
+    "This commit exists only on your local branch: amending refreshes the commit OID locally without rewriting remote history.",
   amendRewriteHint:
-    "Replaces the last commit: its identity changes; the author stays the same and the committer is updated.",
+    "Warning: this branch appears pushed to upstream; amending rewrites history and may require force-pushing (--force-with-lease).",
   amendReflogHint:
     "To restore: run git reflog in the terminal to find the record, then git reset --hard HEAD@{1} to return to the commit before the amend.",
   amendConfirmTitle: "Confirm amend",

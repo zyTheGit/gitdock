@@ -45,6 +45,8 @@ interface SettingsDialogProps {
   onError: (message: string) => void;
 }
 
+const DRAFT_SECTIONS = new Set<SettingsSectionKey>(["startup", "terminal", "tools"]);
+
 export function SettingsDialog({
   settings,
   initialSection,
@@ -73,6 +75,7 @@ export function SettingsDialog({
   // Git 配置要读真实配置文件，首次进入该分区才发起读取；之后保留编辑内容。
   const [gitConfigOpened, setGitConfigOpened] = useState(false);
   const draft = useSettingsDraft(settings, fontScale, onError);
+  const showDraftActions = DRAFT_SECTIONS.has(activeSection) || draft.dirty;
 
   useEscClose(onClose, draft.saving);
 
@@ -166,10 +169,21 @@ export function SettingsDialog({
           </div>
         </div>
         <footer>
-          <button onClick={onClose}>{t("settings.cancel")}</button>
-          <button className="primary" onClick={() => void save()} disabled={draft.saving}>
-            {draft.saving ? t("settings.saving") : t("settings.save")}
-          </button>
+          {showDraftActions ? (
+            <>
+              <button onClick={onClose}>{t("settings.cancel")}</button>
+              <button className="primary" onClick={() => void save()} disabled={draft.saving}>
+                {draft.saving ? t("settings.saving") : t("settings.save")}
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="settings-footer-note muted">{t("settings.footerImmediateHint")}</span>
+              <button className="primary" onClick={onClose}>
+                {t("common.close")}
+              </button>
+            </>
+          )}
         </footer>
       </Modal>
       {feedbackOpen && info && (

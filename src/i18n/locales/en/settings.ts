@@ -10,6 +10,7 @@ const settings = {
   save: "Save",
   saving: "Saving…",
   browse: "Browse…",
+  footerImmediateHint: "Changes in this section apply immediately without saving.",
 
   // Section navigation
   navAria: "Settings sections",
@@ -94,9 +95,12 @@ const settings = {
   keybindRejectAltReserved: "Alt+{{key}} is reserved by the system.",
   keybindRejectCtrlLetter:
     "Ctrl/Cmd+letter combos are reserved for common shortcuts such as copy, paste and find.",
+  keybindRejectCtrlShiftLetter:
+    "Ctrl/Cmd+Shift+letter combos are reserved for devtools, reload and tab control.",
   keybindRejectUnsupported: "Unsupported combo {{modifier}}+{{key}}.",
   keybindRejectUnrecognized: "Could not recognize this combo.",
   keybindRejectClash: "Already used by \"{{action}}\".",
+  actionCommandPalette: "Open command palette",
   actionTerminalToggle: "Toggle terminal",
   actionZoomIn: "Zoom in one step",
   actionZoomOut: "Zoom out one step",
@@ -113,7 +117,6 @@ const settings = {
   fixedEnter: "Confirms the highlighted item in the repository switcher / search input",
   fixedCtrlClick:
     "{{modifier}}+click: puts the commit into the compare slots; a second click switches to the other slot",
-  fixedCommandPalette: "{{modifier}}+Shift+P: open the command palette to find and run available actions",
   fixedSettings: "{{modifier}}+comma: open settings (entry is the top-bar settings button)",
   fixedPanelTabNext: "{{modifier}}+PageDown: switch to the next tab of the bottom panel",
   fixedPanelTabPrev: "{{modifier}}+PageUp: switch to the previous tab of the bottom panel",
@@ -162,6 +165,9 @@ const settings = {
   gitConfigReload: "Reload",
   gitConfigReloading: "Reloading…",
   gitConfigReloaded: "Configuration reloaded",
+  gitConfigUnsavedConfirm: "You have unsaved Git config edits; continuing will discard them.",
+  gitConfigUnsavedDiscard: "Discard and continue",
+  gitConfigUnsavedKeep: "Stay here",
 
   // Git configuration: items (keys like user.name and enum values stay verbatim in the component)
   gitConfigUserNameLabel: "Commit author name",
@@ -217,6 +223,7 @@ const settings = {
   aboutUndoSkip: "Undo skip",
   aboutRecheck: "Check again",
   aboutCheckUpdate: "Check for updates",
+  aboutAutoCheckLabel: "Check for updates automatically on startup (at most once every 24h)",
   aboutSubmitIssue: "Submit an issue…",
   aboutFeedbackHint:
     "The feedback dialog only prefills the app version, OS, and Git version — no logs or repository paths; you review and submit it yourself in the browser.",

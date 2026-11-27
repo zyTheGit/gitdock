@@ -156,6 +156,8 @@ const errors = {
   externalFileTooLarge: "File exceeds 50 MB; not passed to external tool",
   externalTempFileWriteFailed: "Failed to write external diff temp file",
   externalDirExportFailed: "Failed to write directory comparison temp file",
+  externalDirExportTooLarge:
+    "Directory export exceeds safety limit ({{files}} files or {{mb}} MB per side); use single-file external diff instead",
   readTreeExportObjectFailed: "Failed to read the commit tree",
   externalArgsUnclosedQuote: "External tool arguments template contains an unclosed quote",
   feedbackTitleRequired: "Feedback title cannot be empty",

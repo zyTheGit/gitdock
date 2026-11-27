@@ -18,6 +18,8 @@ interface FileHistoryViewProps {
   path: string;
   oid: string;
   generation: number;
+  hasExternalTools?: boolean;
+  onExternalDiff?: (left: string | null, right: string, path: string, twoDot: boolean) => void;
   /** 定位提交：关闭对话框并在图谱中选中。 */
   onLocate: (oid: string) => void;
 }
@@ -30,7 +32,14 @@ interface FileHistoryViewProps {
  * 时间线里的下一条（更早的一次改动），并按两点快照对比，避免 merge-base
  * 把两次改动之间的内容吞掉。
  */
-export function FileHistoryView({ path, oid, generation, onLocate }: FileHistoryViewProps) {
+export function FileHistoryView({
+  path,
+  oid,
+  generation,
+  hasExternalTools = false,
+  onExternalDiff,
+  onLocate,
+}: FileHistoryViewProps) {
   const { t } = useI18n();
   const history = useFileHistory(path, oid, generation);
   const entries = history.entries;
@@ -173,6 +182,15 @@ export function FileHistoryView({ path, oid, generation, onLocate }: FileHistory
             >
               {twoDot ? t("history.compareSingle") : t("history.compareAdjacent")}
             </button>
+            {hasExternalTools && onExternalDiff && (
+              <button
+                type="button"
+                disabled={!entry || (!isRoot && !baseOid)}
+                onClick={() => entry && onExternalDiff(baseOid, entry.commit.oid, path, twoDot)}
+              >
+                {t("history.openExternalDiff")}
+              </button>
+            )}
           </span>
         </div>
         {twoDot && entry && previous && (

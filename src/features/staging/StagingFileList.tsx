@@ -1,4 +1,10 @@
-import { useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Icon } from "../../assets/icons";
 import { useI18n } from "../../i18n";
@@ -217,8 +223,49 @@ export function StagingFileList({
     );
   };
 
+  const fileRows = useMemo(
+    () =>
+      rows.flatMap((row, index) =>
+        row.kind === "file" ? [{ index, file: row.item }] : [],
+      ),
+    [rows],
+  );
+
+  const onListKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (fileRows.length === 0) {
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "BUTTON")) {
+      return;
+    }
+    const currentPos = activePath
+      ? fileRows.findIndex((entry) => entry.file.path === activePath)
+      : -1;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      const nextPos =
+        currentPos < 0
+          ? event.key === "ArrowDown"
+            ? 0
+            : fileRows.length - 1
+          : Math.max(0, Math.min(fileRows.length - 1, currentPos + delta));
+      const picked = fileRows[nextPos];
+      if (picked) {
+        onSelect(picked.file, side);
+        virtualizer.scrollToIndex(picked.index, { align: "auto" });
+      }
+      return;
+    }
+    if (event.key === " " && currentPos >= 0) {
+      event.preventDefault();
+      onToggleCheck(side, fileRows[currentPos].file.path);
+    }
+  };
+
   return (
-    <div className="staging-list" ref={scrollRef}>
+    <div className="staging-list" ref={scrollRef} tabIndex={0} onKeyDown={onListKeyDown}>
       <ul className="staging-list-inner" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((item) => {
           const row = rows[item.index];

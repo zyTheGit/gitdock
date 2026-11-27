@@ -46,24 +46,6 @@
   color: var(--on-accent-soft);
 }
 
-.branch-filter {
-  max-width: 200px;
-}
-
-.branch-filter > select {
-  min-width: 0;
-}
-
-.graph-view-label {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 240px;
-  overflow: hidden;
-  color: var(--muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .graph-count {
   flex: none;
   margin-left: auto;

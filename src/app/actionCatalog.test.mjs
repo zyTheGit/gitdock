@@ -62,6 +62,10 @@ const EXPECTED_IDS = [
   "staging:stageFile",
   "staging:unstageFile",
   "staging:discardFile",
+  "remote:fetch",
+  "remote:pull",
+  "remote:push",
+  "stash:open",
   "terminal:toggle",
 ];
 

@@ -12,7 +12,7 @@ import type { useStashActions } from "./useStashActions";
 import type { useWriteFlow } from "./useWriteFlow";
 import type { ScrollRestore } from "./useRepoTabState";
 import { WelcomePane } from "./WelcomePane";
-import type { CompareLoader, useCompareSlots } from "../features/compare/useCompare";
+import { commitSlot, type CompareLoader, type useCompareSlots } from "../features/compare/useCompare";
 import { CompareBar } from "../features/compare/CompareBar";
 import { CompareView } from "../features/compare/CompareView";
 import { CommitDetailPane } from "../features/detail/CommitDetailPane";
@@ -34,7 +34,6 @@ import type {
   CommitSummaryDto,
   ExternalToolConfig,
   GraphScope,
-  RepoId,
   RepoStateDto,
 } from "../shared/types";
 
@@ -54,8 +53,8 @@ type Setters = {
 
 interface MainWorkspaceProps {
   repo: RepoStateDto | null;
-  /** 活动标签 id：暂存区的变更监听只认本仓库事件（ADR-0032）。 */
-  repoId: RepoId | null;
+  /** 活动仓库变更单调计数：由 useRepositorySession 统一派发给暂存区。 */
+  changeTick: number;
   info: AppInfoDto | null;
   busy: boolean;
   /** 新增仓库的导入进行中：欢迎页据此显示「正在打开」。 */
@@ -105,7 +104,7 @@ interface MainWorkspaceProps {
 /** 主区：顶部横幅 + 对比/暂存区/图谱三选一的视图切换。 */
 export function MainWorkspace({
   repo,
-  repoId,
+  changeTick,
   info,
   busy,
   opening,
@@ -193,15 +192,15 @@ export function MainWorkspace({
             tools={tools}
             defaultTool={defaultTool}
             commitMenu={(commit) => commitMenuItems(commit, commitMenus.commitActions)}
-            onOpenCommit={(oid) => {
-              setSelectedOid(oid);
-              setMode("graph");
-            }}
             onLocateCommit={jumpToCommit}
+            onSwap={slots.swap}
             onExternalDiff={(toolIndex, path) => {
               if (slots.base && slots.compare) {
                 void launchExternal(toolIndex, slots.base.oid, slots.compare.oid, path, !twoDot);
               }
+            }}
+            onExternalCommitFileDiff={(toolIndex, left, right, path) => {
+              void launchExternal(toolIndex, left, right, path, false);
             }}
             onDirectoryDiff={launchDirectoryDiff}
             onBack={() => setMode("graph")}
@@ -209,7 +208,7 @@ export function MainWorkspace({
         ) : mode === "staging" ? (
           <StagingView
             repo={repo}
-            repoId={repoId}
+            changeTick={changeTick}
             writeDisabled={write.disabled}
             conflictWriteDisabled={write.interruptionDisabled}
             onBusyChange={setStagingBusy}
@@ -231,6 +230,7 @@ export function MainWorkspace({
               onClear={slots.clear}
               onSetSlot={slots.setSide}
               onSwap={slots.swap}
+              onOpenCompare={() => setMode("compare")}
               onResolvePending={slots.resolvePending}
             />
             <div className={selectedOid ? "workspace detail-open" : "workspace"}>
@@ -257,6 +257,14 @@ export function MainWorkspace({
                 }}
                 remote={remote}
                 onOpenReflog={() => setReflogOpen(true)}
+                writeDisabled={write.disabled}
+                onBatchCherryPick={write.menuWriteActions.onBatchCherryPick}
+                onBatchRevert={write.menuWriteActions.onBatchRevert}
+                onCompareCommits={(left, right) => {
+                  slots.setSide("base", commitSlot(left));
+                  slots.setSide("compare", commitSlot(right));
+                  setMode("compare");
+                }}
                 onMutated={stagingMutated}
               />
               {selectedOid && (
@@ -296,7 +304,20 @@ export function MainWorkspace({
       )}
 
       {/* 文件历史 / Blame：目标由模块级 store 触发，定位复用同一个图谱跳转。 */}
-      {repo && <FileHistoryDialog generation={repo.generation} onLocate={jumpToCommit} />}
+      {repo && (
+        <FileHistoryDialog
+          generation={repo.generation}
+          hasExternalTools={tools.length > 0}
+          onExternalDiff={(left, right, filePath, isTwoDot) => {
+            const idx = Math.max(
+              0,
+              tools.findIndex((tool) => tool.name === defaultTool),
+            );
+            void launchExternal(idx, left, right, filePath, !isTwoDot);
+          }}
+          onLocate={jumpToCommit}
+        />
+      )}
 
       {/* 重置确认框（ADR-0029）：目标由右键菜单经 useWriteFlow 传入，模式在框内选择。 */}
       {repo && write.resetTarget && (

@@ -29,6 +29,22 @@ export function useSettingsDraft(
   );
   const [saving, setSaving] = useState(false);
 
+  const dirty =
+    restore !== settings.restore_last_repository ||
+    watch !== settings.watch_enabled ||
+    lazygitPath.trim() !== (settings.lazygit_path ?? "") ||
+    defaultTool !== (settings.default_tool ?? null) ||
+    tools.length !== settings.external_tools.length ||
+    tools.some((tool, index) => {
+      const origin = settings.external_tools[index];
+      return (
+        !origin ||
+        tool.name.trim() !== origin.name ||
+        tool.executable.trim() !== origin.executable ||
+        tool.args_template !== origin.args_template
+      );
+    });
+
   const update = (index: number, patch: Partial<ExternalToolConfig>) => {
     const previousName = tools[index]?.name;
     setTools((current) =>
@@ -124,6 +140,7 @@ export function useSettingsDraft(
 
     defaultTool,
     setDefaultTool,
+    dirty,
     saving,
     update,
     removeTool,

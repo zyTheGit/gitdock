@@ -179,3 +179,21 @@ fn repositories_are_not_capped_and_existing_paths_still_activate() {
     let recent = registry.by_recent_activity().expect("读取活动顺序失败");
     assert_eq!(recent.first().map(|entry| entry.id), Some(first_id));
 }
+
+#[test]
+fn explicit_repo_id_routes_without_cross_repo_leakage() {
+    let registry = RepoRegistry::new();
+    let first = temp_repo();
+    let second = temp_repo();
+    let first_id = open_or_activate(&registry, &first);
+    let second_id = open_or_activate(&registry, &second);
+    // 当前活动仓库是 second；显式传入 first_id 仍精确命中 first，不串仓。
+    assert_eq!(registry.active_id().expect("读取活动仓库"), Some(second_id));
+    let routed = registry
+        .entry_or_active(Some(first_id))
+        .expect("按显式 repo_id 路由失败");
+    assert_eq!(routed.id, first_id);
+    assert_eq!(routed.path, first.path);
+    let err = error_of(registry.entry_or_active(Some(999_999)));
+    assert_eq!(err.code, git_core::ErrorCode::RepositoryNotFound);
+}

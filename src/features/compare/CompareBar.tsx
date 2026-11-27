@@ -1,12 +1,7 @@
-import { useState } from "react";
 import { useI18n } from "../../i18n";
 import { shortOid } from "../../shared/format";
 import { Modal } from "../../shared/Modal";
-import { primaryModifierLabel } from "../../shared/platform";
 import type { RepoStateDto } from "../../shared/types";
-import { ComparePresets } from "./ComparePresetsDialog";
-import { CompareSlotMenu } from "./CompareSlotMenu";
-import { isCommitOid } from "./comparePresets";
 import {
   isWorktreeSlot,
   worktreeSlot,
@@ -23,6 +18,7 @@ interface CompareBarProps {
   onClear: (side: CompareSide) => void;
   onSetSlot: (side: CompareSide, slot: CompareSlot) => void;
   onSwap: () => void;
+  onOpenCompare: () => void;
   onResolvePending: (side: CompareSide | null) => void;
 }
 
@@ -44,6 +40,11 @@ function Slot({
 }) {
   const { t } = useI18n();
   const worktree = isWorktreeSlot(slot);
+  const worktreeTitle = worktree
+    ? t("compare.worktreeSelected")
+    : worktreeBlocked
+      ? t("compare.worktreeBlocked")
+      : t("compare.useWorktree");
   return (
     <div
       className={slot ? (invalid ? "compare-slot invalid" : "compare-slot") : "compare-slot empty"}
@@ -76,12 +77,16 @@ function Slot({
             <span aria-hidden="true">×</span>
           </button>
         )}
-        <CompareSlotMenu
-          slotTitle={title}
-          worktreeSelected={worktree}
-          worktreeBlocked={worktreeBlocked}
-          onPickWorktree={onPickWorktree}
-        />
+        <button
+          type="button"
+          className="compare-slot-worktree"
+          disabled={worktree || worktreeBlocked}
+          onClick={onPickWorktree}
+          aria-label={worktreeTitle}
+          title={worktreeTitle}
+        >
+          {t("compare.worktreeShort")}
+        </button>
       </div>
     </div>
   );
@@ -97,26 +102,14 @@ export function CompareBar({
   onClear,
   onSetSlot,
   onSwap,
+  onOpenCompare,
   onResolvePending,
 }: CompareBarProps) {
   const { t } = useI18n();
-  const [presetDialog, setPresetDialog] = useState<"save" | "list" | null>(null);
   const worktree = worktreeSlot(t);
-  const modifier = primaryModifierLabel();
-  const hint = compare
-    ? t("compare.hintActive", { modifier })
-    : t("compare.hintIdle", { modifier });
-  const contextTitle = `${t("compare.headTitle", { oid: repo.head.oid || "—" })}\n${hint}`;
-  const saveReason =
-    !base || !compare
-      ? t("compare.presetNeedBoth")
-      : isWorktreeSlot(base) || isWorktreeSlot(compare)
-        ? t("compare.presetWorktreeUnsupported")
-        : !isCommitOid(base.oid) || !isCommitOid(compare.oid)
-          ? t("compare.presetInvalidEndpoint")
-          : null;
+  void repo;
   return (
-    <div className="compare-bar" aria-label={t("compare.barLabel")} title={contextTitle}>
+    <div className="compare-bar" aria-label={t("compare.barLabel")}>
       <Slot
         title={t("compare.slotBase")}
         slot={base}
@@ -143,38 +136,14 @@ export function CompareBar({
         onClear={() => onClear("compare")}
         onPickWorktree={() => onSetSlot("compare", worktree)}
       />
-      <div className="compare-preset-actions">
+      {base && compare && (
         <button
           type="button"
-          className="compare-preset-trigger"
-          aria-label={saveReason ? `${t("compare.presetSave")}: ${saveReason}` : t("compare.presetSave")}
-          title={saveReason ? undefined : t("compare.presetSave")}
-          aria-disabled={saveReason !== null}
-          data-reason={saveReason ?? undefined}
-          aria-haspopup="dialog"
-          onClick={() => {
-            if (!saveReason) {
-              setPresetDialog("save");
-            }
-          }}
+          className="primary compare-open-btn"
+          onClick={onOpenCompare}
         >
-          <span aria-hidden="true">☆</span>
+          {t("compare.openResults")}
         </button>
-        <button
-          type="button"
-          className="compare-preset-trigger"
-          aria-label={t("compare.presetList")}
-          title={t("compare.presetList")}
-          aria-haspopup="dialog"
-          onClick={() => setPresetDialog("list")}
-        >
-          <span aria-hidden="true">☰</span>
-        </button>
-      </div>
-      {!compare && (
-        <div className="compare-hint muted" title={contextTitle}>
-          {t("compare.hintCompactIdle", { modifier })}
-        </div>
       )}
 
       {pending && (
@@ -193,21 +162,6 @@ export function CompareBar({
             <button onClick={() => onResolvePending(null)}>{t("compare.cancel")}</button>
           </div>
         </Modal>
-      )}
-
-      {presetDialog && (
-        <ComparePresets
-          key={repo.path}
-          mode={presetDialog}
-          repoPath={repo.path}
-          base={base}
-          compare={compare}
-          onClose={() => setPresetDialog(null)}
-          onApply={(preset) => {
-            onSetSlot("base", preset.base);
-            onSetSlot("compare", preset.compare);
-          }}
-        />
       )}
     </div>
   );

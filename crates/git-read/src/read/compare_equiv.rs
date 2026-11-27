@@ -14,9 +14,11 @@ use crate::diff::collect_changes;
 use crate::util::{decode_text, find_commit, oid_from_id, try_object_bytes};
 
 /// 单侧最多计算等价指纹的提交数，避免超大历史对比阻塞。
-const MAX_EQUIV_COMMITS: usize = 80;
+const MAX_EQUIV_COMMITS: usize = 40;
 /// 参与指纹计算的单文件字节上限。
-const MAX_EQUIV_FILE_BYTES: usize = 512 * 1024;
+const MAX_EQUIV_FILE_BYTES: usize = 256 * 1024;
+/// 单个提交超过该变更文件数时跳过等价指纹（如批量格式化/大规模重命名）。
+const MAX_EQUIV_FILES_PER_COMMIT: usize = 50;
 
 pub(crate) fn compute_equivalent_commits(
     repo: &gix::Repository,
@@ -66,7 +68,7 @@ fn commit_patch_fingerprint(repo: &gix::Repository, oid: &Oid) -> Result<Option<
     };
     let new_tree = Some(tree_oid_of_object(&commit)?);
     let changes = collect_changes(repo, old_tree.as_ref(), new_tree.as_ref(), None)?;
-    if changes.files.is_empty() {
+    if changes.files.is_empty() || changes.files.len() > MAX_EQUIV_FILES_PER_COMMIT {
         return Ok(None);
     }
 

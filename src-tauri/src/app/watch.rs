@@ -132,7 +132,6 @@ fn run_loop(
             return;
         };
         // 只操作事件所属仓库：非活动标签的变化不能污染活动仓库的代际。
-        state.request_refresh_for(repo_id, RefreshReason::Watch);
         let generation = match state.with_entry(Some(repo_id), |entry| {
             entry.session.read.current_generation()
         }) {
@@ -140,7 +139,8 @@ fn run_loop(
             // 标签已关闭：注册表里找不到该仓库，等停止信号退出即可。
             Err(_) => continue,
         };
-        let generation_changed = state.observe_generation_for(repo_id, generation);
+        let generation_changed =
+            state.record_generation_for(repo_id, Some(RefreshReason::Watch), generation);
         if !generation_changed && !metadata_touched {
             continue;
         }
@@ -152,7 +152,6 @@ fn run_loop(
         if let Err(err) = app.emit(EVENT_REPOSITORY_CHANGED, payload) {
             logging::warn(&format!("发送仓库变更事件失败：{err}"));
         }
-        state.accept_generation_for(repo_id, generation);
     }
 }
 

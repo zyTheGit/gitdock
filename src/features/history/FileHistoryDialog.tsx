@@ -14,6 +14,8 @@ import {
 interface FileHistoryDialogProps {
   /** 仓库 generation：用于丢弃刷新前发出的过期响应。 */
   generation: number;
+  hasExternalTools?: boolean;
+  onExternalDiff?: (left: string | null, right: string, path: string, twoDot: boolean) => void;
   /** 定位提交：由主工作区提供（切图谱 + 选中 + 居中）。 */
   onLocate: (oid: string) => void;
 }
@@ -23,7 +25,12 @@ interface FileHistoryDialogProps {
  * 打开，不需要逐层透传回调；关闭（target 变 null）即整体卸载，Esc 关闭层也随
  * 之释放，不会吃掉主界面的 Esc。
  */
-export function FileHistoryDialog({ generation, onLocate }: FileHistoryDialogProps) {
+export function FileHistoryDialog({
+  generation,
+  hasExternalTools = false,
+  onExternalDiff,
+  onLocate,
+}: FileHistoryDialogProps) {
   const target = useFileHistoryTarget();
   if (!target) {
     return null;
@@ -33,6 +40,8 @@ export function FileHistoryDialog({ generation, onLocate }: FileHistoryDialogPro
       key={`${target.oid}:${target.path}:${target.tab}`}
       target={target}
       generation={generation}
+      hasExternalTools={hasExternalTools}
+      onExternalDiff={onExternalDiff}
       onLocate={onLocate}
     />
   );
@@ -41,11 +50,19 @@ export function FileHistoryDialog({ generation, onLocate }: FileHistoryDialogPro
 interface FileHistoryPanelProps {
   target: FileHistoryTarget;
   generation: number;
+  hasExternalTools: boolean;
+  onExternalDiff?: (left: string | null, right: string, path: string, twoDot: boolean) => void;
   onLocate: (oid: string) => void;
 }
 
 /** 打开后的对话框本体：页签状态与 Esc 层只在可见期间存在。 */
-function FileHistoryPanel({ target, generation, onLocate }: FileHistoryPanelProps) {
+function FileHistoryPanel({
+  target,
+  generation,
+  hasExternalTools,
+  onExternalDiff,
+  onLocate,
+}: FileHistoryPanelProps) {
   const { t } = useI18n();
   const [tab, setTab] = useState<FileHistoryTab>(target.tab);
 
@@ -106,6 +123,8 @@ function FileHistoryPanel({ target, generation, onLocate }: FileHistoryPanelProp
             path={target.path}
             oid={target.oid}
             generation={generation}
+            hasExternalTools={hasExternalTools}
+            onExternalDiff={onExternalDiff}
             onLocate={locate}
           />
         ) : (

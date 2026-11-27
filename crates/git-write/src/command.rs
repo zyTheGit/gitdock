@@ -274,25 +274,17 @@ impl GitWriteModule {
                     _ => ConflictAction::MarkResolved.args(path),
                 }
             }
-            WriteKind::DiscardFiles => {
-                // 兜底构造（正常路径在 execute 入口委托 discard 模块）：只回退工作区，索引不动。
-                let plan = crate::discard::plan(
-                    &self.status_detail()?.entries,
-                    request.paths.as_deref().unwrap_or(&[]),
-                );
-                spec.stdin = Some(crate::discard::nul_pathspec(&plan.tracked));
-                crate::discard::restore_args()
-            }
-            WriteKind::StageHunk | WriteKind::UnstageHunk | WriteKind::DiscardHunk => {
-                // 兜底构造（正常路径在 execute 入口委托 hunk 模块）：补丁由实时 diff 重建，
-                // 仅把「文件头 + 单个 hunk」经 stdin 交给 `git apply`，前端从不提供 patch。
-                let (args, patch) = crate::hunk::command(self, request)?;
-                spec.stdin = Some(patch);
-                args
-            }
-            WriteKind::CreateWorktree | WriteKind::RemoveWorktree => {
-                // 兜底构造（正常路径在 execute 入口委托 worktree 模块）：参数数组，路径不拼 shell。
-                crate::worktree::args_for(request)?
+            WriteKind::DiscardFiles
+            | WriteKind::StageHunk
+            | WriteKind::UnstageHunk
+            | WriteKind::DiscardHunk
+            | WriteKind::CreateWorktree
+            | WriteKind::RemoveWorktree => {
+                // 这些写类型已在 execute 入口由对应专职模块直接处理，不经过通用 command_for。
+                return Err(UserVisibleError::new(
+                    ErrorCode::GitCommandFailed,
+                    "内部路由异常：独立写操作应由专职执行入口处理",
+                ));
             }
         };
         spec.description_write = request.kind == WriteKind::SetBranchDescription;

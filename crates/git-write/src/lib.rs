@@ -13,6 +13,7 @@ mod description;
 mod discard;
 mod execute;
 mod gate;
+mod gate_interruption;
 mod history;
 mod hunk;
 mod interruption_outcome;

@@ -12,6 +12,7 @@ interface UseGlobalShortcutsParams {
   refresh: () => Promise<void>;
   clearRemoteError: () => void;
   setMode: (mode: ViewMode) => void;
+  onOpenSearch: () => void;
 }
 
 /** 有模态层（搜索框、设置、确认框等）时，视图切换快捷键让路，不改变被遮住的界面。 */
@@ -39,13 +40,14 @@ export function useGlobalShortcuts({
   refresh,
   clearRemoteError,
   setMode,
+  onOpenSearch,
 }: UseGlobalShortcutsParams) {
   const openSearch = useCallback(() => {
     if (!repoOpen || modalOpen()) {
       return;
     }
-    setMode("search");
-  }, [repoOpen, setMode]);
+    onOpenSearch();
+  }, [onOpenSearch, repoOpen]);
 
   const refreshWorkspace = useCallback(() => {
     if (!repoOpen || modalOpen()) {
@@ -88,9 +90,9 @@ export function useGlobalShortcuts({
         return;
       }
       event.preventDefault();
-      setMode("search");
+      onOpenSearch();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [repoOpen, setMode]);
+  }, [onOpenSearch, repoOpen]);
 }

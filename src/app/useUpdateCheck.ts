@@ -3,9 +3,47 @@ import { errorText } from "../shared/error";
 import { ipc } from "../shared/ipc";
 import type { UpdateCheckDto, UpdateCheckOutcome, UpdateCheckState } from "../shared/types";
 
-// 「跳过此版本」放在 localStorage：settings.json 的保存会连带重写工具配置，
-// 一次后台网络检查不该产生那种副作用。
+// 「跳过此版本」、自动检查开关与最近检查时间戳放在 localStorage：
+// 避免启动后台检查副作用污染 settings.json 里的工具配置。
 const SKIPPED_VERSION_KEY = "gitdock.update.skippedVersion";
+const LAST_CHECK_KEY = "gitdock.update.lastCheckedAt";
+const AUTO_CHECK_KEY = "gitdock.update.autoCheck";
+const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+export function getAutoUpdateCheck(): boolean {
+  try {
+    return localStorage.getItem(AUTO_CHECK_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+export function setAutoUpdateCheck(enabled: boolean): void {
+  try {
+    localStorage.setItem(AUTO_CHECK_KEY, enabled ? "1" : "0");
+  } catch {
+    // 忽略存储异常，当次会话继续正常操作。
+  }
+}
+
+function checkedWithinInterval(now: number): boolean {
+  try {
+    const raw = localStorage.getItem(LAST_CHECK_KEY);
+    if (!raw) return false;
+    const timestamp = Number(raw);
+    return Number.isFinite(timestamp) && now - timestamp >= 0 && now - timestamp < CHECK_INTERVAL_MS;
+  } catch {
+    return false;
+  }
+}
+
+function recordLastCheck(now: number): void {
+  try {
+    localStorage.setItem(LAST_CHECK_KEY, String(now));
+  } catch {
+    // 忽略隐私模式或配额错误。
+  }
+}
 
 let state: UpdateCheckState = {
   status: "idle",
@@ -20,14 +58,22 @@ function setState(next: UpdateCheckState) {
   listeners.forEach((listener) => listener());
 }
 
-/** 启动时由 App 调用一次；不做时间节流，否则重启后在窗口期内看不到新版本。 */
-export async function runUpdateCheck(): Promise<UpdateCheckOutcome> {
+/** 启动自动检查按 24 小时节流并受开关控制；手动点击不受节流限制。 */
+export async function runUpdateCheck(
+  options?: { manual?: boolean },
+): Promise<UpdateCheckOutcome> {
+  const manual = options?.manual ?? false;
   if (state.status === "checking") {
+    return { kind: "ignored" };
+  }
+  const now = Date.now();
+  if (!manual && (!getAutoUpdateCheck() || checkedWithinInterval(now))) {
     return { kind: "ignored" };
   }
   setState({ ...state, status: "checking" });
   try {
     const result = await ipc.checkForUpdate();
+    recordLastCheck(Date.now());
     setState({ ...state, status: "settled", result });
     return { kind: "checked", result };
   } catch (error) {

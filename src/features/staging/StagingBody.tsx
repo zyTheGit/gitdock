@@ -140,6 +140,17 @@ export function StagingBody({
           repoPath={repo.path}
           unborn={status.unborn}
           hasStaged={status.staged.length > 0}
+          pushedRisk={Boolean(
+            repo.head.kind === "branch" &&
+              repo.head.branch &&
+              repo.refs.some(
+                (ref) =>
+                  ref.kind === "local_branch" &&
+                  ref.short_name === repo.head.branch &&
+                  Boolean(ref.upstream) &&
+                  (ref.ahead ?? 0) === 0,
+              ),
+          )}
           disabled={disabled || status.conflicted_files.length > 0}
           onBusyChange={setBusy}
           onCommitted={commitCommitted}

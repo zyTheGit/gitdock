@@ -42,7 +42,19 @@ export function CommandPalette({
   const executingRef = useRef(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const results = useMemo(() => searchCommandItems(items, query), [items, query]);
+  const results = useMemo(() => {
+    const matched = searchCommandItems(items, query);
+    const enabled: CommandPaletteItem[] = [];
+    const disabled: CommandPaletteItem[] = [];
+    for (const item of matched) {
+      if (item.disabledReason === undefined) {
+        enabled.push(item);
+      } else {
+        disabled.push(item);
+      }
+    }
+    return [...enabled, ...disabled];
+  }, [items, query]);
   const currentActiveIndex = results.length > 0 ? Math.min(activeIndex, results.length - 1) : -1;
   const activeItem = currentActiveIndex >= 0 ? results[currentActiveIndex] : undefined;
   const activeOptionId = activeItem

@@ -6,7 +6,7 @@ import type { RemoteActions as RemoteActionsState } from "../../app/useRemoteAct
 import type { ScrollRestore } from "../../app/useRepoTabState";
 import { FetchPruneDialog } from "../repository/FetchPruneDialog";
 import { PushUpstreamDialog } from "../repository/PushUpstreamDialog";
-import { Select } from "../../shared/Select";
+import { BranchFilterPicker } from "./BranchFilterPicker";
 import { GraphList } from "./GraphList";
 import { RemoteActions } from "./RemoteActions";
 import { useCommitSelection } from "./useCommitSelection";
@@ -30,6 +30,11 @@ interface GraphPaneProps {
   remote: RemoteActionsState;
   /** 打开 Reflog 恢复视图（只读弹窗，ADR-0029）；入口放在图谱工具栏。 */
   onOpenReflog: () => void;
+  /** 写操作是否全局禁用（忙碌/中断态/bare/不支持的 Git 版本）。 */
+  writeDisabled?: boolean;
+  onBatchCherryPick?: (commits: CommitSummaryDto[]) => void;
+  onBatchRevert?: (commits: CommitSummaryDto[]) => void;
+  onCompareCommits?: (base: CommitSummaryDto, compare: CommitSummaryDto) => void;
   /** 写操作成功后刷新仓库快照与图谱（与 App 的 stagingMutated 一致）。 */
   onMutated: (message: string) => Promise<void>;
   /** 标签切换的滚动恢复与偏移上报（ADR-0032）；由 useRepoTabState 提供。 */
@@ -49,6 +54,10 @@ export function GraphPane({
   onContextMenu,
   remote,
   onOpenReflog,
+  writeDisabled = false,
+  onBatchCherryPick,
+  onBatchRevert,
+  onCompareCommits,
   onMutated,
   scrollRestore,
 }: GraphPaneProps) {
@@ -66,6 +75,17 @@ export function GraphPane({
   );
   const selection = useCommitSelection(orderedOids);
   const clearSelection = selection.clear;
+  const selectedCommits = useMemo(() => {
+    if (selection.oids.length < 2) {
+      return [];
+    }
+    const byOid = new Map(
+      view.rows.flatMap((row) => (row.commit ? [[row.commit.oid, row.commit] as const] : [])),
+    );
+    return selection.oids
+      .map((oid) => byOid.get(oid))
+      .filter((commit): commit is CommitSummaryDto => commit !== undefined);
+  }, [selection.oids, view.rows]);
 
   useEffect(() => {
 
@@ -90,49 +110,26 @@ export function GraphPane({
           </button>
         </div>
 
-        <Select
-          className="branch-filter"
-          compact
-          aria-label={t("graph.branchFilterAria")}
-          value={scope.kind === "branch" ? scope.value : ""}
-          options={[{ value: "", label: t("graph.branchFilterPlaceholder") }]}
-          groups={[
-            { label: t("shell.localBranches"), options: localBranches },
-            { label: t("shell.remoteBranches"), options: remoteBranches },
-            { label: t("repository.tags"), options: tags },
-          ]
-            .filter((group) => group.options.length > 0)
-            .map((group) => ({
-              label: group.label,
-              // 后端 GraphScope::Branch 依次解析 refs/heads、refs/remotes、refs/tags。
-              options: group.options.map((ref) => ({
-                value: ref.short_name,
-                label: ref.short_name,
-              })),
-            }))}
-          onChange={(event) => {
-            const value = event.target.value;
-            onScopeChange(value ? { kind: "branch", value } : { kind: "head" });
-          }}
+        <BranchFilterPicker
+          scope={scope}
+          localBranches={localBranches}
+          remoteBranches={remoteBranches}
+          tags={tags}
+          onScopeChange={onScopeChange}
         />
 
-        <span className="graph-view-label">
-          {view.scope
-            ? view.scope.kind === "branch"
-              ? t("graph.scopeBranch", { branch: view.scope.value })
-              : view.scope.kind === "all"
-                ? t("graph.scopeAll")
-                : t("graph.scopeHead")
-            : "—"}
-        </span>
         <span className="graph-count muted">
           {view.hasMore
             ? t("graph.rowCountMore", { n: view.rows.length })
             : t("graph.rowCountAll", { n: view.rows.length })}
         </span>
-        <button className="graph-recovery" title={t("graph.reflogOpenTitle")} onClick={onOpenReflog}>
+        <button
+          className="graph-recovery"
+          title={t("graph.reflogOpenTitle")}
+          aria-label={t("graph.reflogOpen")}
+          onClick={onOpenReflog}
+        >
           <Icon name="restore" />
-          <span>{t("graph.reflogOpen")}</span>
         </button>
         <RemoteActions
           remote={remote}
@@ -148,6 +145,45 @@ export function GraphPane({
           <div className="banner-actions">
             <button className="link" onClick={remote.clearError}>
               {t("common.close")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedCommits.length >= 2 && (
+        <div className="graph-batch-bar" role="region" aria-label={t("graph.batchBarAria")}>
+          <span className="graph-batch-count">
+            {t("graph.batchSelectedCount", { n: selectedCommits.length })}
+          </span>
+          <div className="graph-batch-actions">
+            {selectedCommits.length === 2 && onCompareCommits && (
+              <button
+                type="button"
+                onClick={() => onCompareCommits(selectedCommits[0], selectedCommits[1])}
+              >
+                {t("graph.batchCompareTwo")}
+              </button>
+            )}
+            {onBatchCherryPick && (
+              <button
+                type="button"
+                disabled={writeDisabled}
+                onClick={() => onBatchCherryPick(selectedCommits)}
+              >
+                {t("graph.menuBatchCherryPick", { n: selectedCommits.length })}
+              </button>
+            )}
+            {onBatchRevert && (
+              <button
+                type="button"
+                disabled={writeDisabled}
+                onClick={() => onBatchRevert(selectedCommits)}
+              >
+                {t("graph.menuBatchRevert", { n: selectedCommits.length })}
+              </button>
+            )}
+            <button type="button" className="link" onClick={clearSelection}>
+              {t("graph.batchClear")}
             </button>
           </div>
         </div>

@@ -197,6 +197,11 @@ impl AppState {
         self.registry.entry(repo_id)
     }
 
+    /// 按 `repo_id`（None = 活动仓库）返回条目；无活动标签时报 `errors.repoNotOpen`。
+    pub fn entry_or_active(&self, repo_id: Option<RepoId>) -> Result<Arc<RepoEntry>> {
+        self.registry.entry_or_active(repo_id)
+    }
+
     /// 按 `repo_id`（None = 活动仓库）取出条目；闭包在注册表锁之外执行，
     /// 打开/关闭带来的写锁不会被长时间的 Git 读取阻塞。
     pub fn with_entry<T>(
@@ -204,7 +209,7 @@ impl AppState {
         repo_id: Option<RepoId>,
         f: impl FnOnce(&RepoEntry) -> Result<T>,
     ) -> Result<T> {
-        let entry = self.registry.entry_or_active(repo_id)?;
+        let entry = self.entry_or_active(repo_id)?;
         f(&entry)
     }
 
@@ -214,17 +219,7 @@ impl AppState {
         f(&entry.session)
     }
 
-    /// 活动仓库语义入口（ADR-0032）：无参调用落在活动标签的协调器上。
-    /// 已知 `repo_id` 的内部调用点用带 `_for` 的显式变体。
-    #[allow(dead_code)]
-    pub fn request_refresh(&self, reason: RefreshReason) -> u64 {
-        match self.registry.active_id() {
-            Ok(Some(id)) => self.request_refresh_for(id, reason),
-            _ => 0,
-        }
-    }
-
-    pub fn request_refresh_for(&self, repo_id: RepoId, reason: RefreshReason) -> u64 {
+    fn request_refresh_for(&self, repo_id: RepoId, reason: RefreshReason) -> u64 {
         match self.registry.find(repo_id) {
             Ok(Some(entry)) => entry
                 .refresh
@@ -235,16 +230,7 @@ impl AppState {
         }
     }
 
-    /// 活动仓库语义入口（ADR-0032）；显式仓库的调用点用 `observe_generation_for`。
-    #[allow(dead_code)]
-    pub fn observe_generation(&self, generation: u64) -> bool {
-        match self.registry.active_id() {
-            Ok(Some(id)) => self.observe_generation_for(id, generation),
-            _ => false,
-        }
-    }
-
-    pub fn observe_generation_for(&self, repo_id: RepoId, generation: u64) -> bool {
+    fn observe_generation_for(&self, repo_id: RepoId, generation: u64) -> bool {
         match self.registry.find(repo_id) {
             Ok(Some(entry)) => entry
                 .refresh
@@ -255,17 +241,7 @@ impl AppState {
         }
     }
 
-    /// 记录 UI 已接受的代际；过期结果返回 `false` 且不覆盖当前代际。
-    /// 活动仓库语义入口（ADR-0032）；显式仓库的调用点用 `accept_generation_for`。
-    #[allow(dead_code)]
-    pub fn accept_generation(&self, generation: u64) -> bool {
-        match self.registry.active_id() {
-            Ok(Some(id)) => self.accept_generation_for(id, generation),
-            _ => false,
-        }
-    }
-
-    pub fn accept_generation_for(&self, repo_id: RepoId, generation: u64) -> bool {
+    fn accept_generation_for(&self, repo_id: RepoId, generation: u64) -> bool {
         match self.registry.find(repo_id) {
             Ok(Some(entry)) => entry
                 .refresh
@@ -274,6 +250,21 @@ impl AppState {
                 .unwrap_or(false),
             _ => false,
         }
+    }
+
+    /// 统一登记指定仓库的代际变化：可选发起一轮 RefreshRequest、观测代际是否变化并立即确认已接受。
+    pub fn record_generation_for(
+        &self,
+        repo_id: RepoId,
+        reason: Option<RefreshReason>,
+        generation: u64,
+    ) -> bool {
+        if let Some(reason) = reason {
+            self.request_refresh_for(repo_id, reason);
+        }
+        let changed = self.observe_generation_for(repo_id, generation);
+        self.accept_generation_for(repo_id, generation);
+        changed
     }
 
     /// 为单个仓库启动监听；旧监听先被释放。设置里关闭监听时只停不启。

@@ -4,6 +4,9 @@ import type { MessageShape } from "../messages";
 const terminal = {
   tabLabel: "终端",
   title: "终端",
+  subtabsAria: "终端工具切换",
+  subtabLazygit: "LazyGit",
+  subtabShell: "Shell",
   permissionNote: "以当前用户权限运行",
 
   launchLazygit: "启动 lazygit",

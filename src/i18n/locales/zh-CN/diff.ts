@@ -62,6 +62,7 @@ const diff = {
   hunkRunning: "处理中…",
   hunkActionsWhitespaceHint:
     "已忽略空白差异：diff 块序号与后端写路径不一致，hunk 操作暂时隐藏；关闭「忽略空白」后恢复。",
+  disableIgnoreWhitespace: "关闭忽略空白",
 
   // 忽略空白（ADR 0030）
   ignoreWhitespace: "忽略空白差异",

@@ -51,10 +51,6 @@ export function useStartupRestore({
           return;
         }
         if (!settings.restore_last_repository) {
-          const last = settings.recent_repositories[0];
-          if (last) {
-            await open(last.path);
-          }
           return;
         }
         const restored = await restore(settings);

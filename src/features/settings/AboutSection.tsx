@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getAutoUpdateCheck, setAutoUpdateCheck } from "../../app/useUpdateCheck";
 import { useI18n } from "../../i18n";
 import type {
   AppInfoDto,
@@ -32,6 +33,7 @@ export function AboutSection({
 }: AboutSectionProps) {
   const { t } = useI18n();
   const [updateNotice, setUpdateNotice] = useState<string | null>(null);
+  const [autoCheck, setAutoCheck] = useState(getAutoUpdateCheck);
   const result = updateCheck.result;
   // 当前版本比线上最新还新：正常发版不会出现，只可能是安装包版本号被误标。
   const currentNewer = Boolean(result && !result.available && result.current_newer);
@@ -138,6 +140,18 @@ export function AboutSection({
           )}
         </span>
       </div>
+      <label className="settings-check about-auto-check">
+        <input
+          type="checkbox"
+          checked={autoCheck}
+          onChange={(event) => {
+            const next = event.target.checked;
+            setAutoCheck(next);
+            setAutoUpdateCheck(next);
+          }}
+        />
+        <span>{t("settings.aboutAutoCheckLabel")}</span>
+      </label>
       <div className="about-actions">
         <button type="button" onClick={onOpenFeedback} disabled={!info}>
           {t("settings.aboutSubmitIssue")}

@@ -179,6 +179,8 @@ const errors = {
   externalFileTooLarge: "文件超过 50MB，未交给外部工具",
   externalTempFileWriteFailed: "写入外部 diff 临时文件失败",
   externalDirExportFailed: "写入目录对比临时文件失败",
+  externalDirExportTooLarge:
+    "目录导出超出安全上限（单侧超过 {{files}} 个文件或 {{mb}} MB），请改用单文件外部对比",
   readTreeExportObjectFailed: "读取提交目录树失败",
   externalArgsUnclosedQuote: "外部工具参数模板存在未闭合的引号",
   feedbackTitleRequired: "反馈标题不能为空",

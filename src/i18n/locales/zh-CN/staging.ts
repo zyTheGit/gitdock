@@ -112,7 +112,8 @@ const staging = {
   amendToggle: "修改上一条提交（amend）",
   amendLoadingMessage: "正在读取上一条提交消息…",
   amendUnbornHint: "当前分支尚无提交，没有可修改的提交",
-  amendRewriteHint: "将替换上一条提交：提交标识会改变，author 保持不变、committer 更新。",
+  amendLocalHint: "该提交仅存在于本地分支：改写后提交标识会更新，可在安全重改的前提下整理最近一次提交。",
+  amendRewriteHint: "警告：当前分支已与上游同步，改写上一条提交后将改写历史，推送时可能需要强制推送（force-with-lease）。",
   amendReflogHint:
     "如需恢复：在终端执行 git reflog 查看记录，再执行 git reset --hard HEAD@{1} 回到替换前的提交。",
   amendConfirmTitle: "修改提交确认",

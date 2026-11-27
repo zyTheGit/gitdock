@@ -34,6 +34,8 @@ export interface RepositorySession {
   toast: string | null;
   setToast: (message: string | null) => void;
   graph: GraphLoader;
+  /** 活动仓库收到底层变化事件时的单调计数（供 StagingView 等子视图订阅，避免重复监听 Tauri 事件）。 */
+  changeTick: number;
   open: (path: string) => Promise<boolean>;
   forget: (path: string) => Promise<void>;
   pick: () => Promise<void>;
@@ -78,6 +80,7 @@ export function useRepositorySession({
   const [error, setError] = useState<string | null>(null);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [changeTick, setChangeTick] = useState(0);
 
   const repoRef = useRef<RepoStateDto | null>(null);
   const busyRef = useRef(false);
@@ -244,6 +247,7 @@ export function useRepositorySession({
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         if (!disposed) {
+          setChangeTick((tick) => tick + 1);
           void autoRefresh();
         }
       }, 150);
@@ -286,6 +290,7 @@ export function useRepositorySession({
     toast,
     setToast,
     graph,
+    changeTick,
     open,
     forget,
     pick,

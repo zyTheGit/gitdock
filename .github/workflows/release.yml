@@ -17,7 +17,41 @@ permissions:
   contents: write
 
 jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        uses: ./.github/actions/install-linux-deps
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: npm ci
+
+      - run: npm run check
+
+  licenses:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          arguments: check
+
   build:
+    needs: [verify, licenses]
     strategy:
       fail-fast: false
       matrix:
@@ -25,9 +59,8 @@ jobs:
           # 只打 NSIS：targets 为 all 时 MSI 会再耗一遍构建，且 Release 里出现两套包。
           - os: windows-latest
             bundles: nsis
-          # Linux 双格式产出仅供 G5 比选主包格式，不构成支持承诺。
           - os: ubuntu-22.04
-            bundles: appimage,deb
+            bundles: deb
           # macOS 取 Apple Silicon（macos-latest = arm64）；Intel 延后到 G4 评估。
           - os: macos-latest
             bundles: dmg
@@ -41,17 +74,7 @@ jobs:
       # Tauri 2 Linux 前置 + 本项目特有的 libssl-dev（ureq native-tls → openssl-sys）。
       - name: Install Linux system dependencies
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl wget file \
-            libxdo-dev \
-            libssl-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            pkg-config
+        uses: ./.github/actions/install-linux-deps
 
       - uses: actions/setup-node@v4
         with:
@@ -95,7 +118,6 @@ jobs:
           if-no-files-found: error
           path: |
             target/release/bundle/nsis/*-setup.exe
-            target/release/bundle/appimage/*.AppImage
             target/release/bundle/deb/*.deb
             target/release/bundle/dmg/*.dmg
 
@@ -117,13 +139,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # upload-artifact 保留 nsis/appimage/deb/dmg 子目录，必须递归收集。
+          # upload-artifact 保留 nsis/deb/dmg 子目录，必须递归收集。
           shopt -s globstar nullglob
-          assets=(bundle-artifacts/**/*-setup.exe bundle-artifacts/**/*.AppImage bundle-artifacts/**/*.deb bundle-artifacts/**/*.dmg)
+          assets=(bundle-artifacts/**/*-setup.exe bundle-artifacts/**/*.deb bundle-artifacts/**/*.dmg)
           if [ ${#assets[@]} -eq 0 ]; then
             echo "::error::未找到任何安装包"
             exit 1
           fi
+
+          # 生成校验文件（仅保留文件名，便于用户在下载目录直接 sha256sum -c SHA256SUMS.txt）
+          : > SHA256SUMS.txt
+          for asset in "${assets[@]}"; do
+            printf '%s  %s\n' "$(sha256sum "$asset" | cut -d' ' -f1)" "$(basename "$asset")" >> SHA256SUMS.txt
+          done
+          upload_files=("${assets[@]}" SHA256SUMS.txt)
 
           prerelease=()
           case "$TAG_NAME" in
@@ -132,12 +161,12 @@ jobs:
 
           # publish 未 checkout 仓库，显式指定仓库避免 gh 依赖当前目录。
           if gh release view "$TAG_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG_NAME" "${assets[@]}" --clobber -R "$GITHUB_REPOSITORY"
+            gh release upload "$TAG_NAME" "${upload_files[@]}" --clobber -R "$GITHUB_REPOSITORY"
           else
             # 未签名安装包的平台说明（--generate-notes 的自动日志会追加在其后）：
             # macOS DMG 未经签名/公证，Gatekeeper 会拦截直接打开；正式签名/公证
             # 属 G4（需 Apple Developer 账号）。Linux 主格式已在 G5 裁决为 deb
-            # （docs/10，2026-11-04），AppImage 降为实验级便携通道。
+            # （docs/10，2026-11-04）。
             notes="$(printf '%s\n' \
               '## macOS' \
               '' \
@@ -147,8 +176,10 @@ jobs:
               '' \
               '主格式为 .deb：sudo apt install ./gitdock_<版本>_amd64.deb，WebKitGTK 等依赖自动解析。' \
               '' \
-              'AppImage 为实验级便携通道（免 root）：Ubuntu 22.04+ 需要 FUSE 2，请先 sudo apt install libfuse2。')"
-            gh release create "$TAG_NAME" "${assets[@]}" \
+              '## 校验' \
+              '' \
+              '所有安装包均在 `SHA256SUMS.txt` 中提供 SHA-256 校验值。')"
+            gh release create "$TAG_NAME" "${upload_files[@]}" \
               --title "GitDock $TAG_NAME" \
               --notes "$notes" \
               --generate-notes \

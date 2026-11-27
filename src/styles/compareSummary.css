@@ -183,6 +183,15 @@
   font-weight: 600;
 }
 
+.stat-chip.stat-both-btn {
+  cursor: pointer;
+}
+
+.stat-chip.stat-both-btn:hover {
+  border-color: var(--warning);
+  filter: brightness(1.06);
+}
+
 .compare-commit-tabs {
   flex: none;
   display: flex;

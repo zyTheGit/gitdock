@@ -1,0 +1,133 @@
+/* 图谱工具栏扩展层：可搜索分支/标签过滤弹层与多选批量操作栏。 */
+
+.branch-filter-picker {
+  position: relative;
+  flex: 0 1 200px;
+  min-width: 0;
+}
+
+.branch-filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  max-width: 200px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--bg-panel);
+  color: var(--muted);
+}
+
+.branch-filter-trigger.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.branch-filter-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-filter-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 240px;
+  max-height: 300px;
+  padding: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px var(--shadow-sm);
+}
+
+.branch-filter-search {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.branch-filter-clear {
+  text-align: left;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.branch-filter-clear:hover {
+  background: var(--accent-soft);
+}
+
+.branch-filter-list {
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.branch-filter-group-label {
+  padding: 2px 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.branch-filter-option {
+  display: block;
+  width: 100%;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-filter-option:hover,
+.branch-filter-option.active {
+  background: var(--accent-soft);
+  color: var(--on-accent-soft);
+}
+
+.branch-filter-empty {
+  margin: 4px 6px;
+  font-size: 12px;
+}
+
+.graph-batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--bg-panel));
+  font-size: 12px;
+}
+
+.graph-batch-count {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.graph-batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}

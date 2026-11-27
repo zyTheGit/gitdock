@@ -100,22 +100,43 @@ const SFC_TRUST_SCORE = 3;
 const SFC_SCORE_GAIN = 2;
 
 async function createHighlighter(): Promise<HighlighterCore> {
-  const [core, engine, lightTheme, darkTheme, langs] = await Promise.all([
+  const [core, engine, lightTheme, darkTheme] = await Promise.all([
     import("shiki/core"),
     import("shiki/engine/oniguruma"),
     import("shiki/themes/github-light.mjs"),
     import("shiki/themes/github-dark.mjs"),
-    Promise.all(Object.values(LANGS).map(async (load) => (await load()).default)),
   ]);
   return core.createHighlighterCore({
     themes: [lightTheme.default, darkTheme.default],
-    langs,
+    langs: [],
     engine: engine.createOnigurumaEngine(import("shiki/wasm")),
   });
 }
 
 let highlighterPromise: Promise<HighlighterCore> | null = null;
 let highlighterFailed = false;
+const loadedLangs = new Set<string>();
+const loadingLangs = new Map<string, Promise<void>>();
+
+async function ensureLanguageLoaded(highlighter: HighlighterCore, rawLang: string): Promise<void> {
+  const key = resolveLanguage(rawLang);
+  if (!key || loadedLangs.has(key)) {
+    return;
+  }
+  let pending = loadingLangs.get(key);
+  if (!pending) {
+    pending = LANGS[key as keyof typeof LANGS]()
+      .then((mod) => highlighter.loadLanguage(mod.default))
+      .then(() => {
+        loadedLangs.add(key);
+      })
+      .finally(() => {
+        loadingLangs.delete(key);
+      });
+    loadingLangs.set(key, pending);
+  }
+  await pending;
+}
 
 function getHighlighter(): Promise<HighlighterCore> {
   if (highlighterFailed) {
@@ -295,6 +316,12 @@ export async function highlightLines(
     return assembled;
   }
   const highlighter = await getHighlighter();
+  await ensureLanguageLoaded(highlighter, lang);
+  if (SFC_LANGS.has(lang)) {
+    await Promise.all(
+      SFC_FALLBACK_LANGS.map((fallback) => ensureLanguageLoaded(highlighter, fallback)),
+    );
+  }
   const tokenize = (id: string) =>
     highlighter.codeToTokens(text, { lang: id, theme: THEME_NAMES[theme] }).tokens;
   let tokens = tokenize(lang);

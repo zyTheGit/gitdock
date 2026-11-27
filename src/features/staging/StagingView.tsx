@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { useI18n } from "../../i18n";
 import { useIgnoreWhitespace } from "../diff/diffOptions";
 import { isEscConsumed, isEventInBottomPanel } from "../../shared/esc";
@@ -7,9 +6,7 @@ import { errorText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type {
   FileDiffDto,
-  RepoId,
   RepoStateDto,
-  RepositoryChangedDto,
   StagingStatusDto,
 } from "../../shared/types";
 import { useFileListMode } from "../../shared/useFileListMode";
@@ -28,8 +25,8 @@ type Selection = HunkSelection;
 
 interface StagingViewProps {
   repo: RepoStateDto;
-  /** 活动标签 id：仓库变更事件按 repo_id 过滤，避免其他标签的变更触发本视图重载。 */
-  repoId?: RepoId | null;
+  /** 活动仓库变更单调计数：由 useRepositorySession 统一派发，避免重复注册事件监听。 */
+  changeTick?: number;
   /** 与写操作共用互斥：应用忙碌、中断态、bare 或 Git 版本不支持时禁用。 */
   writeDisabled: boolean;
   /** 冲突解决三件套的禁用条件：中断态内仍可执行，只是同样受忙碌 / bare / 版本限制（ADR-0033）。 */
@@ -46,7 +43,7 @@ interface StagingViewProps {
 
 export function StagingView({
   repo,
-  repoId = null,
+  changeTick = 0,
   writeDisabled,
   conflictWriteDisabled,
   onBusyChange,
@@ -228,39 +225,13 @@ export function StagingView({
     }
   }, [status, selection]);
 
-  // 终端/LazyGit 等外部操作同样会改变 index，只监听并静默重载，不触发写流程。
+  // 终端/LazyGit 等外部操作同样会改变 index：复用会话层单调计数静默重载，不再重复订阅事件。
   useEffect(() => {
-    let disposed = false;
-    let timer: number | undefined;
-    let unlisten: (() => void) | undefined;
-    void listen<RepositoryChangedDto>("repository-changed", (event) => {
-      if (event.payload.path !== repo.path || busyRef.current) {
-        return;
-      }
-      if (repoId !== null && event.payload.repo_id !== repoId) {
-        return;
-      }
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        if (!disposed) {
-          void load(true);
-        }
-      }, 150);
-    })
-      .then((stop) => {
-        if (disposed) {
-          stop();
-        } else {
-          unlisten = stop;
-        }
-      })
-      .catch((err) => setError(`${t("staging.watchFailedPrefix")}${errorText(err)}`));
-    return () => {
-      disposed = true;
-      window.clearTimeout(timer);
-      unlisten?.();
-    };
-  }, [repo.path, load]);
+    if (changeTick === 0 || busyRef.current) {
+      return;
+    }
+    void load(true);
+  }, [changeTick, load]);
 
   // Esc 退出暂存区视图；放大 diff 已在捕获阶段消费的 Esc，以及终端聚焦时的
   // Esc 归终端程序，均让路。监听常驻、经 ref 读回调，无需按 expanded 重装。

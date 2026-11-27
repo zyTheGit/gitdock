@@ -12,8 +12,10 @@ export interface StatusBarProps {
   terminalActive: boolean;
   terminalRunning: boolean;
   terminalShortcut: string;
+  commandPaletteShortcut: string;
   updateVersion: string | null;
   onToggleTerminal: () => void;
+  onOpenCommandPalette: () => void;
   onOpenUpdate: () => void;
 }
 
@@ -26,8 +28,10 @@ export function StatusBar({
   terminalActive,
   terminalRunning,
   terminalShortcut,
+  commandPaletteShortcut,
   updateVersion,
   onToggleTerminal,
+  onOpenCommandPalette,
   onOpenUpdate,
 }: StatusBarProps) {
   const { t } = useI18n();
@@ -51,6 +55,16 @@ export function StatusBar({
             {t("shell.updateAvailable")}
           </button>
         )}
+        <button
+          type="button"
+          className="command-palette-status-button"
+          onClick={onOpenCommandPalette}
+          aria-label={t("commands.title")}
+          title={`${t("commands.title")} (${commandPaletteShortcut})`}
+        >
+          <span>{t("commands.title")}</span>
+          <kbd className="mono">{commandPaletteShortcut}</kbd>
+        </button>
         {repo && (
           <button
             className={terminalActive ? "terminal-status-button active" : "terminal-status-button"}
