@@ -240,7 +240,7 @@
   .graph-list,
   .graph-empty,
   .context-menu,
-  .repo-menu,
+  .open-repository-dialog,
   .bottom-panel,
   .terminal-view {
     border-color: CanvasText;

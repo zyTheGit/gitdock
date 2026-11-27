@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { outcomeMessage } from "../features/write/messages";
 import { errorText, outcomeText } from "../shared/error";
 import { ipc } from "../shared/ipc";
@@ -18,6 +18,26 @@ export type PromptWriteKind = Extract<
 >;
 export type InterruptionWriteKind = Extract<WriteKind, "continue_operation" | "abort_operation">;
 export type SingleInterruption = "cherry_pick" | "revert" | "merge" | "rebase";
+
+export interface WriteFlowRefLock {
+  current: symbol | null;
+}
+
+/** 同步占锁：同一 tick 的后续调用在 React 渲染前就会被拒绝。 */
+export function acquireWriteFlowLock(lock: WriteFlowRefLock): symbol | null {
+  if (lock.current !== null) {
+    return null;
+  }
+  const token = Symbol("write-flow-lock");
+  lock.current = token;
+  return token;
+}
+
+export function releaseWriteFlowLock(lock: WriteFlowRefLock, token: symbol): void {
+  if (lock.current === token) {
+    lock.current = null;
+  }
+}
 
 export interface WritePrompt {
   kind: PromptWriteKind;
@@ -63,12 +83,24 @@ export function useWriteFlow({
   const [validating, setValidating] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
-  busyRef.current = busy;
+  const validationLockRef = useRef<symbol | null>(null);
+  const validatingCountRef = useRef(0);
+  const repoPath = repo?.path ?? null;
+  const repoPathRef = useRef(repoPath);
+  repoPathRef.current = repoPath;
   // Gate 请求序号：改选父提交会连发多次检查，只允许最后一次的结论落到确认框。
   const gateSeq = useRef(0);
 
+  useEffect(() => {
+    gateSeq.current += 1;
+    setPrompt(null);
+    setResetTarget(null);
+    setValidating(false);
+  }, [repoPath]);
+
   const fetchGate = useCallback(async (request: WriteRequest): Promise<GateReportDto | null> => {
     const seq = ++gateSeq.current;
+    validatingCountRef.current += 1;
     setValidating(true);
     try {
       const gate = await ipc.validateWrite(request);
@@ -85,58 +117,94 @@ export function useWriteFlow({
       }
       return null;
     } finally {
-      // 只有最新一次请求负责收尾，较早的请求不能把「检查中」提前关掉。
-      if (gateSeq.current === seq) {
+      validatingCountRef.current -= 1;
+      if (validatingCountRef.current === 0) {
         setValidating(false);
       }
     }
   }, []);
+
+  const validatePrompt = useCallback(async (request: WriteRequest): Promise<void> => {
+    const gate = await fetchGate(request);
+    // merge commit 的 Gate 要求显式 mainline：用默认第 1 父再查一次，让摘要直接显示基线父。
+    if (gate?.is_merge_commit) {
+      await fetchGate({ ...request, mainline: 1 });
+    }
+  }, [fetchGate]);
 
   const start = useCallback(
     async (
       kind: Extract<WriteKind, "cherry_pick" | "revert" | "switch_branch" | "merge" | "rebase">,
       target: { commit?: CommitSummaryDto; branch?: string },
     ) => {
-      setError(null);
-      setDiagnostic(null);
-      setMainline(1);
-      setPrompt({ kind, ...target, gate: null });
-      const request: WriteRequest = { kind, oid: target.commit?.oid, branch: target.branch };
-      const gate = await fetchGate(request);
-      // merge commit 的 Gate 要求显式 mainline：用默认第 1 父再查一次，让摘要直接显示基线父。
-      if (gate?.is_merge_commit) {
-        await fetchGate({ ...request, mainline: 1 });
+      if (busyRef.current || validationLockRef.current !== null || validatingCountRef.current > 0) {
+        return;
+      }
+      const lock = acquireWriteFlowLock(validationLockRef);
+      if (!lock) {
+        return;
+      }
+      try {
+        setError(null);
+        setDiagnostic(null);
+        setMainline(1);
+        setPrompt({ kind, ...target, gate: null });
+        const request: WriteRequest = { kind, oid: target.commit?.oid, branch: target.branch };
+        await validatePrompt(request);
+      } finally {
+        releaseWriteFlowLock(validationLockRef, lock);
       }
     },
-    [fetchGate, setDiagnostic, setError],
+    [setDiagnostic, setError, validatePrompt],
   );
 
   /** 批量 cherry-pick / revert：oids 顺序即执行顺序。 */
   const startBatch = useCallback(
     async (kind: "cherry_pick" | "revert", commits: CommitSummaryDto[]) => {
-      if (commits.length < 2) {
+      if (
+        commits.length < 2 ||
+        busyRef.current ||
+        validationLockRef.current !== null ||
+        validatingCountRef.current > 0
+      ) {
         return;
       }
-      setError(null);
-      setDiagnostic(null);
-      setMainline(1);
-      setPrompt({ kind, commits, gate: null });
-      const request: WriteRequest = { kind, oids: commits.map((commit) => commit.oid) };
-      const gate = await fetchGate(request);
-      if (gate?.is_merge_commit) {
-        await fetchGate({ ...request, mainline: 1 });
+      const lock = acquireWriteFlowLock(validationLockRef);
+      if (!lock) {
+        return;
+      }
+      try {
+        setError(null);
+        setDiagnostic(null);
+        setMainline(1);
+        setPrompt({ kind, commits, gate: null });
+        const request: WriteRequest = { kind, oids: commits.map((commit) => commit.oid) };
+        await validatePrompt(request);
+      } finally {
+        releaseWriteFlowLock(validationLockRef, lock);
       }
     },
-    [fetchGate, setDiagnostic, setError],
+    [setDiagnostic, setError, validatePrompt],
   );
 
   /** 继续/中止没有提交目标，只带中断类型；是否可用仍由 Gate 决定。 */
   const startInterruption = useCallback(
     async (kind: InterruptionWriteKind, interruption: SingleInterruption) => {
-      setError(null);
-      setDiagnostic(null);
-      setPrompt({ kind, interruption, gate: null });
-      await fetchGate({ kind, interruption });
+      if (busyRef.current || validationLockRef.current !== null || validatingCountRef.current > 0) {
+        return;
+      }
+      const lock = acquireWriteFlowLock(validationLockRef);
+      if (!lock) {
+        return;
+      }
+      try {
+        setError(null);
+        setDiagnostic(null);
+        setPrompt({ kind, interruption, gate: null });
+        await fetchGate({ kind, interruption });
+      } finally {
+        releaseWriteFlowLock(validationLockRef, lock);
+      }
     },
     [fetchGate, setDiagnostic, setError],
   );
@@ -144,6 +212,9 @@ export function useWriteFlow({
   /** 打开重置确认框：只记录目标提交，模式与 Gate 由 ResetDialog 内部维护。 */
   const startReset = useCallback(
     (commit: CommitSummaryDto) => {
+      if (busyRef.current || validationLockRef.current !== null || validatingCountRef.current > 0) {
+        return;
+      }
       setError(null);
       setDiagnostic(null);
       setResetTarget(commit);
@@ -174,11 +245,17 @@ export function useWriteFlow({
   );
 
   const run = useCallback(async () => {
-    if (!prompt?.gate?.ok) {
+    if (
+      busyRef.current ||
+      validationLockRef.current !== null ||
+      validatingCountRef.current > 0 ||
+      !repoPath ||
+      !prompt?.gate?.ok
+    ) {
       return;
     }
     const { kind, commit, commits, branch, interruption, gate } = prompt;
-    const repoPath = repo?.path;
+    const requestedRepoPath = repoPath;
     const request: WriteRequest = {
       kind,
       oid: commit?.oid,
@@ -188,11 +265,16 @@ export function useWriteFlow({
       // 非 merge commit 不得携带 mainline，否则 Gate 会拒绝。
       mainline: gate.is_merge_commit ? mainline : undefined,
     };
+    // 先同步占锁，再触发渲染；同一事件循环内的快速连点也不能重复执行。
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     setDiagnostic(null);
     try {
       const outcome = await ipc.executeWrite(request);
+      if (repoPathRef.current !== requestedRepoPath) {
+        return;
+      }
       setPrompt(null);
       setToast(outcomeMessage(kind, outcome, branch, interruption));
       if (outcome.status === "failed") {
@@ -218,17 +300,24 @@ export function useWriteFlow({
         }
       }
     } catch (err) {
-      setPrompt(null);
-      setError(errorText(err));
+      if (repoPathRef.current === requestedRepoPath) {
+        setPrompt(null);
+        setError(errorText(err));
+      }
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
-  }, [prompt, mainline, repo?.path, readSnapshot, applySnapshot, reload, setDiagnostic, setError, setToast]);
+  }, [prompt, mainline, repoPath, readSnapshot, applySnapshot, reload, setDiagnostic, setError, setToast]);
 
   const cancel = useCallback(() => {
-    if (!busyRef.current) {
-      setPrompt(null);
+    if (busyRef.current) {
+      return;
     }
+    // 允许在 Gate 检查中取消：立即使旧结论失效，占锁由 start 的 finally 释放。
+    gateSeq.current += 1;
+    setPrompt(null);
+    setValidating(false);
   }, []);
 
   const disabled =

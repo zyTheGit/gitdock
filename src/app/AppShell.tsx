@@ -1,7 +1,8 @@
-import type { MouseEvent } from "react";
+import { useCallback, useEffect, useSyncExternalStore, type MouseEvent } from "react";
 import { AppDialogs } from "./AppDialogs";
 import { MainWorkspace } from "./MainWorkspace";
 import { PanelArea } from "./PanelArea";
+import { RefsPopover } from "./RefsPopover";
 import { RepoTabBar } from "./RepoTabBar";
 import { RepositorySidebar } from "./RepositorySidebar";
 import { StatusBar, type StatusBarProps } from "./StatusBar";
@@ -11,6 +12,8 @@ import type { useBottomPanel } from "./useBottomPanel";
 import type { useFontScale } from "./useFontScale";
 import { SIDEBAR_WIDTH } from "./usePaneWidths";
 import type { usePaneWidths } from "./usePaneWidths";
+import { REFS_POPOVER_ID } from "./useNarrowRefs";
+import type { useNarrowRefs } from "./useNarrowRefs";
 import type { useRefActions } from "./useRefActions";
 import type { useRemoteActions } from "./useRemoteActions";
 import type { useRepoTabs } from "./useRepoTabs";
@@ -21,8 +24,24 @@ import type { useStashActions } from "./useStashActions";
 import type { useTabController } from "./useTabController";
 import { pendingUpdate, type useUpdateCheck } from "./useUpdateCheck";
 import type { useWriteFlow } from "./useWriteFlow";
+import type { useActionCatalog } from "./useActionCatalog";
+import type { ActionId } from "./actionCatalogTypes";
+import { OperationNoticeStack } from "./OperationNoticeView";
+import {
+  bindOperationNoticeRepo,
+  dismissOperationNotice,
+  getOperationNoticeSnapshot,
+  subscribeOperationNotice,
+  type OperationNoticeAction,
+} from "./operationNotice";
 import type { useCompareSlots } from "../features/compare/useCompare";
 import type { CompareLoader } from "../features/compare/useCompare";
+import type {
+  StagingActionBridgeRef,
+  StagingActionSelection,
+} from "../features/staging/stagingActionBridge";
+import { OpenRepositoryDialog } from "../features/repository/OpenRepositoryDialog";
+import { CommandPalette } from "../features/commands/CommandPalette";
 import type { useSearch } from "../features/search/useSearch";
 import { useI18n } from "../i18n";
 import type { useAppLanguage } from "../i18n/useAppLanguage";
@@ -75,10 +94,8 @@ interface AppShellProps {
   stagingMutated: (message: string) => Promise<void>;
   locateFromSearch: (oid: string) => void;
   closeSearch: () => void;
-  onNavigateRef: (ref: RefDto) => void;
   onCopyOid: (oid: string) => void;
   onOpenUpdate: () => void;
-  onOpenBranchCompare: () => void;
   onCloseBranchCompare: () => void;
   onConfirmBranchCompare: (base: RefDto, compare: RefDto) => void;
   onBranchMenu: (event: MouseEvent, branch: RefDto) => void;
@@ -92,9 +109,20 @@ interface AppShellProps {
   onFocusTarget: (target: { oid: string; seq: number } | null) => void;
   onRowMenu: (state: RowMenuState | null) => void;
   onStagingBusy: (busy: boolean) => void;
+  refsUi: ReturnType<typeof useNarrowRefs>;
+  stagingBusy: boolean;
+  stagingActionHandlersRef: StagingActionBridgeRef;
+  setStagingSelection: (selection: StagingActionSelection | null) => void;
+  openRepositoryOpen: boolean;
+  setOpenRepositoryOpen: (open: boolean) => void;
+  reflogOpen: boolean;
+  setReflogOpen: (open: boolean) => void;
+  commandPaletteOpen: boolean;
+  setCommandPaletteOpen: (open: boolean) => void;
+  actions: ReturnType<typeof useActionCatalog>;
 }
 
-/** 主壳渲染层：只做装配与布局，状态与回调全部来自 App（T01 拆分，行为不变）。 */
+/** 主壳装配与布局；统一仓库弹层的开合在此持有，其余状态与回调来自 App。 */
 export function AppShell({
   session,
   tabs,
@@ -134,10 +162,8 @@ export function AppShell({
   stagingMutated,
   locateFromSearch,
   closeSearch,
-  onNavigateRef,
   onCopyOid,
   onOpenUpdate,
-  onOpenBranchCompare,
   onCloseBranchCompare,
   onConfirmBranchCompare,
   onBranchMenu,
@@ -151,13 +177,96 @@ export function AppShell({
   onFocusTarget,
   onRowMenu,
   onStagingBusy,
+  refsUi,
+  stagingBusy,
+  stagingActionHandlersRef,
+  setStagingSelection,
+  openRepositoryOpen,
+  setOpenRepositoryOpen,
+  reflogOpen,
+  setReflogOpen,
+  commandPaletteOpen,
+  setCommandPaletteOpen,
+  actions,
 }: AppShellProps) {
   const { t } = useI18n();
-  const { repo, info, settings, workspace, busy, opening, error, diagnostic, toast, setError, setDiagnostic, setSettings } =
+  const { repo, info, settings, workspace, busy, opening, error, diagnostic, toast, setToast, setError, setDiagnostic, setSettings } =
     session;
   const { mode, scope, setScope, setSelectedOid, setMode, setPathFilter, setTwoDot } = tabState;
   const bindings = useBindings();
   const updateVersion = pendingUpdate(updateState)?.latest_version ?? null;
+  const repoPath = repo?.path ?? null;
+  bindOperationNoticeRepo(repoPath, tabs.activeId);
+  const noticeSnapshot = useSyncExternalStore(
+    subscribeOperationNotice,
+    getOperationNoticeSnapshot,
+    getOperationNoticeSnapshot,
+  );
+  const noticeBusy =
+    busy || tabs.busy || write.busy || write.validating || remote.busy !== null || stagingBusy;
+  const resolveNoticeAction = useCallback(
+    (action: OperationNoticeAction): OperationNoticeAction => {
+      let disabledReason: string | undefined = noticeBusy ? t("notices.actionBusy") : undefined;
+      if (action.target === "head") {
+        const oid = action.oid ?? (repo?.head.kind === "unborn" ? undefined : repo?.head.oid);
+        if (!oid && !disabledReason) {
+          disabledReason = t("notices.actionNoHead");
+        }
+        return { ...action, oid, disabledReason };
+      }
+      if (action.target === "conflicts") {
+        if (!repo && !disabledReason) {
+          disabledReason = t("notices.actionUnavailable");
+        } else if (workspace?.conflicted === 0 && !disabledReason) {
+          disabledReason = t("notices.actionNoConflicts");
+        }
+        return { ...action, disabledReason };
+      }
+      if (action.target === "reflog" && !repo && !disabledReason) {
+        disabledReason = t("notices.actionUnavailable");
+      }
+      if (action.target === "remote" && remote.disabled && !disabledReason) {
+        disabledReason = t("notices.actionUnavailable");
+      }
+      return { ...action, disabledReason };
+    },
+    [noticeBusy, remote.disabled, repo, t, workspace?.conflicted],
+  );
+  const resolvedNotices = noticeSnapshot.notices.map((notice) => ({
+    ...notice,
+    actions: notice.actions?.map(resolveNoticeAction),
+  }));
+  const dismissNotice = useCallback((id: number) => dismissOperationNotice(id), []);
+  const handleNoticeAction = useCallback(
+    (action: OperationNoticeAction) => {
+      // refActions/stash 未暴露 dialog busy；动作触发前按最新已知状态重新计算 disabled。
+      const resolved = resolveNoticeAction(action);
+      if (resolved.disabledReason) {
+        return;
+      }
+      if (resolved.target === "head" && resolved.oid) {
+        actions.execute("graph:locateSelectedCommit", { kind: "commit", oid: resolved.oid });
+      } else if (resolved.target === "reflog") {
+        actions.execute("graph:openReflog");
+      } else if (resolved.target === "conflicts") {
+        actions.execute("staging:showConflicts");
+      } else if (resolved.target === "remote") {
+        // remote.run 自身有同步 ref 占锁，同 tick 连点不会重复 validate/execute。
+        remote.run(resolved.operation);
+      }
+    },
+    [actions, remote, resolveNoticeAction],
+  );
+  const handleStagingBusy = useCallback(
+    (value: boolean) => {
+      onStagingBusy(value);
+    },
+    [onStagingBusy],
+  );
+
+  useEffect(() => {
+    setToast(null);
+  }, [repoPath, setToast]);
 
   const statusBarProps: StatusBarProps = {
     busy,
@@ -169,78 +278,119 @@ export function AppShell({
     terminalRunning: panel.terminalRunning,
     terminalShortcut: displaySpec(bindings["terminal.toggle"]),
     updateVersion,
-    onToggleTerminal: panel.toggleTerminal,
+    onToggleTerminal: () => actions.execute("terminal:toggle"),
     onOpenUpdate,
   };
 
-  const switchBranch = (branch: RefDto) => void write.start("switch_branch", { branch: branch.short_name });
+  const sidebarProps = {
+    repo,
+    headLabel,
+    refs,
+    writeDisabled: write.disabled,
+    onCompareBranches: () => actions.execute("compare:pickBranches"),
+    onSwitchBranch: (branch: RefDto) =>
+      actions.execute("refs:switchBranch", { kind: "ref", ref: branch }),
+    onNavigateRef: (ref: RefDto) =>
+      actions.execute("refs:locateCommit", { kind: "ref", ref }),
+    onCopyOid,
+    onBranchMenu,
+    onCreateBranch: () => actions.execute("repository:createBranch"),
+    onTagMenu,
+    onOpenWorktree: (path: string) => {
+      refsUi.closeRefs();
+      void session.open(path);
+    },
+  };
+
+  const applyMode: typeof setMode = (next) => {
+    if (next === "graph") {
+      actions.execute("shell:showGraph");
+    } else if (next === "staging") {
+      actions.execute("shell:showStaging");
+    } else if (next === "search") {
+      actions.execute("shell:openSearch");
+    } else {
+      actions.execute("compare:openResults");
+    }
+  };
 
   return (
     <div className="app">
       <TopBar
         repo={repo}
         workspace={workspace}
+        tabs={tabs.tabs}
+        activeRepoId={tabs.activeId}
         recent={settings?.recent_repositories ?? []}
-        busy={busy}
+        busy={noticeBusy}
         mode={mode}
         compareReady={Boolean(slots.base && slots.compare)}
         refCount={refs.length}
+        narrow={refsUi.isNarrow}
+        refsOpen={refsUi.isOpen}
+        sidebarVisible={refsUi.sidebarVisible}
+        onToggleRefs={() => actions.execute("shell:toggleRefs")}
+        refsButtonRef={refsUi.triggerRef}
+        refsPopoverId={REFS_POPOVER_ID}
+        onActivateRepo={(repoId) =>
+          actions.execute("repository:activateTab", { kind: "repository", repoId })
+        }
         onOpenRepo={(path) => void session.open(path)}
         onForgetRepo={(path) => void session.forget(path)}
         onPickRepo={() => void session.pick()}
-        onRefresh={() => {
-          remote.clearError();
-          void session.refresh();
-        }}
-        onOpenSettings={() => settingsEntry.openSettings()}
-        closeSearch={closeSearch}
-        setMode={setMode}
-        onOpenBranchCompare={onOpenBranchCompare}
+        onRefresh={() => actions.execute("shell:refresh")}
+        onOpenSettings={() => actions.execute("shell:openSettings")}
+        closeSearch={() => actions.execute("shell:showGraph")}
+        setMode={applyMode}
+        onOpenBranchCompare={() => actions.execute("compare:pickBranches")}
       />
-      {tabs.tabs.length > 0 && (
-        <RepoTabBar
-          tabs={tabs.tabs}
-          activeId={tabs.activeId}
-          dirtyIds={tabs.dirtyIds}
-          busy={tabs.busy}
-          opening={opening}
-          onActivate={(repoId) => void tabCtrl.activateTab(repoId)}
-          onClose={(repoId) => void tabCtrl.closeTab(repoId)}
-          onOpen={() => void session.pick()}
+      <RepoTabBar
+        tabs={tabs.tabs}
+        activeId={tabs.activeId}
+        dirtyIds={tabs.dirtyIds}
+        busy={tabs.busy || remote.busy !== null}
+        opening={opening}
+        onActivate={(repoId) =>
+          actions.execute("repository:activateTab", { kind: "repository", repoId })
+        }
+        onClose={(repoId) =>
+          actions.execute("repository:closeTab", { kind: "repository", repoId })
+        }
+      />
+      {refsUi.isNarrow && refsUi.isOpen && repo && (
+        <RefsPopover
+          {...sidebarProps}
+          id={REFS_POPOVER_ID}
+          open
+          onClose={refsUi.closeRefs}
+          triggerRef={refsUi.triggerRef}
         />
       )}
 
       <div className="layout">
-        <RepositorySidebar
-          width={panes.sidebarWidth}
-          repo={repo}
-          headLabel={headLabel}
-          refs={refs}
-          writeDisabled={write.disabled}
-          onCompareBranches={onOpenBranchCompare}
-          onSwitchBranch={switchBranch}
-          onNavigateRef={onNavigateRef}
-          onCopyOid={onCopyOid}
-          onBranchMenu={onBranchMenu}
-          onCreateBranch={() => refActions.openCreateBranch()}
-          onTagMenu={onTagMenu}
-          onOpenWorktree={(path) => void session.open(path)}
-        />
-        <PaneSplitter
-          label={t("shell.sidebarResizeLabel")}
-          width={panes.sidebarWidth}
-          min={SIDEBAR_WIDTH.min}
-          max={SIDEBAR_WIDTH.max}
-          defaultValue={SIDEBAR_WIDTH.reset}
-          onChange={panes.setSidebarWidth}
-        />
+        {!refsUi.isNarrow && refsUi.sidebarVisible && (
+          <>
+            <RepositorySidebar
+              {...sidebarProps}
+              width={panes.sidebarWidth}
+            />
+            <PaneSplitter
+              label={t("shell.sidebarResizeLabel")}
+              width={panes.sidebarWidth}
+              min={SIDEBAR_WIDTH.min}
+              max={SIDEBAR_WIDTH.max}
+              defaultValue={SIDEBAR_WIDTH.reset}
+              onChange={panes.setSidebarWidth}
+            />
+          </>
+        )}
 
         <MainWorkspace
           repo={repo}
           repoId={tabs.activeId}
           scrollRestore={tabState.scrollRestore}
           info={info}
-          busy={busy}
+          busy={busy || tabs.busy}
           opening={opening}
           error={error}
           diagnostic={diagnostic}
@@ -264,8 +414,13 @@ export function AppShell({
           launchExternal={launchExternal}
           launchDirectoryDiff={launchDirectoryDiff}
           stagingMutated={stagingMutated}
+          stagingActionHandlersRef={stagingActionHandlersRef}
+          onStagingSelectionChange={setStagingSelection}
+          reflogOpen={reflogOpen}
+          setReflogOpen={setReflogOpen}
+          reflogWriteDisabled={noticeBusy || write.disabled}
           onCreateBranch={refActions.openCreateBranch}
-          onPick={() => void session.pick()}
+          onPick={() => actions.execute("repository:open")}
           setters={{
             setMode,
             setScope,
@@ -274,9 +429,10 @@ export function AppShell({
             setPathFilter,
             setTwoDot,
             setRowMenu: onRowMenu,
-            setStagingBusy: onStagingBusy,
+            setStagingBusy: handleStagingBusy,
             setError,
             setDiagnostic,
+            setToast,
           }}
         />
       </div>
@@ -288,18 +444,32 @@ export function AppShell({
         lazygitConfig={settings?.lazygit_path ?? ""}
         shellProfile={settings?.shell_profile === "git_bash" ? "git_bash" : "default"}
         onShellProfileSaved={setSettings}
-        onOpenSettings={() => settingsEntry.openSettings()}
+        onOpenSettings={() => actions.execute("shell:openSettings")}
         onTerminalRunningChange={tabCtrl.handleTerminalRunning}
         onTerminalRepoChanged={tabCtrl.handleTerminalRepoChanged}
         terminalShortcut={displaySpec(bindings["terminal.toggle"])}
       />
       <StatusBar {...statusBarProps} />
+      {openRepositoryOpen && (
+        <OpenRepositoryDialog
+          currentPath={repo?.path ?? null}
+          recent={settings?.recent_repositories ?? []}
+          busy={busy || tabs.busy}
+          onOpen={(path) => void session.open(path)}
+          onForget={session.forget}
+          onPick={() => void session.pick()}
+          onClose={() => setOpenRepositoryOpen(false)}
+        />
+      )}
       <AppDialogs
         repo={repo}
         mode={mode}
         settings={settings}
         info={info}
         toast={toast}
+        notice={null}
+        onDismissNotice={dismissNotice}
+        onNoticeAction={handleNoticeAction}
         search={search}
         searchCommits={searchCommits}
         onLocateCommit={locateFromSearch}
@@ -333,6 +503,20 @@ export function AppShell({
         onSettingsSaved={setSettings}
         onSettingsError={setError}
       />
+      {resolvedNotices.length > 0 && (
+        <OperationNoticeStack
+          notices={resolvedNotices}
+          onDismiss={dismissNotice}
+          onAction={handleNoticeAction}
+        />
+      )}
+      {commandPaletteOpen && (
+        <CommandPalette
+          items={actions.items}
+          onExecute={(id) => actions.execute(id as ActionId)}
+          onClose={() => setCommandPaletteOpen(false)}
+        />
+      )}
     </div>
   );
 }

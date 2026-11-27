@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useI18n } from "../../i18n";
 import { consumeEsc } from "../../shared/esc";
-import { gateSummaryText, warningText } from "../../shared/error";
 import { Modal } from "../../shared/Modal";
 import type { GateReportDto } from "../../shared/types";
+import { GateReportView } from "../write/GateReportView";
 
 interface AmendConfirmDialogProps {
   /** 已通过 Gate 的 amend 报告；summary_args 带被替换 HEAD 的 oid/subject。 */
@@ -67,17 +67,7 @@ export function AmendConfirmDialog({ gate, busy, onCancel, onConfirm }: AmendCon
         <p className="muted confirm-hint">{t("staging.amendReflogHint")}</p>
       </section>
 
-      <section className="gate-report">
-        <h3>{t("write.gateTitle")}</h3>
-        <p className="gate-ok">{gateSummaryText(gate)}</p>
-        {gate.warnings.length > 0 && (
-          <ul className="gate-issues">
-            {gate.warnings.map((warning) => (
-              <li key={`${warning.code}:${warning.message}`}>{warningText(warning)}</li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <GateReportView gate={gate} gateError={null} validating={false} />
 
       <footer>
         <button onClick={onCancel} disabled={busy}>

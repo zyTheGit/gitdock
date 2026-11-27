@@ -9,6 +9,8 @@ const worktree = {
   loading: "正在读取 worktree…",
   empty: "没有读取到 worktree。",
   mainBadge: "main",
+  linkedBadge: "linked",
+  mainRemoveTitle: "主 Worktree 不可移除",
   lockedBadge: "locked",
   lockedTitle: "已锁定：{{reason}}",
   lockedNoReason: "已锁定（未给出原因）",

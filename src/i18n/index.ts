@@ -1,6 +1,7 @@
 import i18next from "i18next";
 import { initReactI18next, useTranslation } from "react-i18next";
 import enCommon from "./locales/en/common";
+import enCommands from "./locales/en/commands";
 import enCompare from "./locales/en/compare";
 import enDetail from "./locales/en/detail";
 import enDiff from "./locales/en/diff";
@@ -8,6 +9,7 @@ import enErrors from "./locales/en/errors";
 import enGitlog from "./locales/en/gitlog";
 import enGraph from "./locales/en/graph";
 import enHistory from "./locales/en/history";
+import enNotices from "./locales/en/notices";
 import enRepository from "./locales/en/repository";
 import enSearch from "./locales/en/search";
 import enSettings from "./locales/en/settings";
@@ -17,6 +19,7 @@ import enTerminal from "./locales/en/terminal";
 import enWorktree from "./locales/en/worktree";
 import enWrite from "./locales/en/write";
 import zhCnCommon from "./locales/zh-CN/common";
+import zhCnCommands from "./locales/zh-CN/commands";
 import zhCnCompare from "./locales/zh-CN/compare";
 import zhCnDetail from "./locales/zh-CN/detail";
 import zhCnDiff from "./locales/zh-CN/diff";
@@ -24,6 +27,7 @@ import zhCnErrors from "./locales/zh-CN/errors";
 import zhCnGitlog from "./locales/zh-CN/gitlog";
 import zhCnGraph from "./locales/zh-CN/graph";
 import zhCnHistory from "./locales/zh-CN/history";
+import zhCnNotices from "./locales/zh-CN/notices";
 import zhCnRepository from "./locales/zh-CN/repository";
 import zhCnSearch from "./locales/zh-CN/search";
 import zhCnSettings from "./locales/zh-CN/settings";
@@ -41,6 +45,7 @@ const LANGUAGE_STORAGE_KEY = "gitdock.language";
 /** 消息域清单：新域须同时建 locales/<lang>/<domain>.ts 并在此与 types.ts 注册。 */
 export const MESSAGE_NAMESPACES = [
   "common",
+  "commands",
   "shell",
   "repository",
   "graph",
@@ -55,6 +60,7 @@ export const MESSAGE_NAMESPACES = [
   "errors",
   "gitlog",
   "history",
+  "notices",
   "worktree",
 ] as const;
 
@@ -95,6 +101,7 @@ export function initI18n(): void {
     resources: {
       "zh-CN": {
         common: zhCnCommon,
+        commands: zhCnCommands,
         shell: zhCnShell,
         repository: zhCnRepository,
         graph: zhCnGraph,
@@ -109,10 +116,12 @@ export function initI18n(): void {
         errors: zhCnErrors,
         gitlog: zhCnGitlog,
         history: zhCnHistory,
+        notices: zhCnNotices,
         worktree: zhCnWorktree,
       },
       en: {
         common: enCommon,
+        commands: enCommands,
         shell: enShell,
         repository: enRepository,
         graph: enGraph,
@@ -127,6 +136,7 @@ export function initI18n(): void {
         errors: enErrors,
         gitlog: enGitlog,
         history: enHistory,
+        notices: enNotices,
         worktree: enWorktree,
       },
     },

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckoutRemoteBranchDialog } from "../features/repository/CheckoutRemoteBranchDialog";
 import { CreateBranchDialog } from "../features/repository/CreateBranchDialog";
 import { CreateTagDialog } from "../features/repository/CreateTagDialog";
@@ -34,6 +34,18 @@ export function useRefActions({ repo, writeDisabled, onMutated }: UseRefActionsP
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [checkoutRemote, setCheckoutRemote] = useState<string | null>(null);
   const [pushTag, setPushTag] = useState<string | null>(null);
+
+  const repoPath = repo?.path ?? null;
+  useEffect(() => {
+    setCreateBranchOpen(false);
+    setCreateBranchStart(null);
+    setRenameBranch(null);
+    setCreateTagOpen(false);
+    setCreateTagStart(null);
+    setDeleteTarget(null);
+    setCheckoutRemote(null);
+    setPushTag(null);
+  }, [repoPath]);
 
   const available = Boolean(repo) && !writeDisabled;
   const localBranches = useMemo(

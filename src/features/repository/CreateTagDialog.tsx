@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import {
+  captureOperationNoticeRepoPath,
+  publishOperationNotice,
+  writeErrorNotice,
+  writeOutcomeNotice,
+} from "../../app/operationNotice";
 import { useI18n } from "../../i18n";
-import { consumeEsc } from "../../shared/esc";
+import { useEscClose } from "../../shared/useEscClose";
 import { errorText, issueText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
 import type { CommitSummaryDto, GateIssueDto, WriteRequest } from "../../shared/types";
+import { GateReportView } from "../write/GateReportView";
 
 interface CreateTagDialogProps {
   /** 图谱选中提交；null 表示以当前 HEAD 为目标。 */
@@ -24,25 +31,16 @@ export function CreateTagDialog({ start, hasHead, onCancel, onMutated }: CreateT
   const [error, setError] = useState<string | null>(null);
 
   const busyRef = useRef(false);
-  busyRef.current = busy;
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || busyRef.current) {
-        return;
-      }
-      consumeEsc(event);
-      onCancel();
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [onCancel]);
+  useEscClose(onCancel, busy);
 
   const submit = useCallback(async () => {
     const tag = name.trim();
     if (!tag || busyRef.current) {
       return;
     }
+    const requestedRepoPath = captureOperationNoticeRepoPath();
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     setIssues(null);
@@ -54,20 +52,41 @@ export function CreateTagDialog({ start, hasHead, onCancel, onMutated }: CreateT
         message: message.trim() || undefined,
       };
       const gate = await ipc.validateWrite(request);
+      if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
+        return;
+      }
       if (!gate.ok) {
+        const gateMessage = gate.issues.map(issueText).join("\n");
         setIssues(gate.issues);
+        publishOperationNotice(writeErrorNotice("create_tag", gateMessage), requestedRepoPath);
         return;
       }
       const outcome = await ipc.executeWrite(request);
-      if (outcome.status !== "succeeded") {
-        setError([outcomeText(outcome), outcome.stderr?.trim()].filter(Boolean).join("\n\n"));
+      if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
         return;
       }
+      if (outcome.status !== "succeeded") {
+        const outcomeMessageText = outcomeText(outcome);
+        setError(outcomeMessageText);
+        publishOperationNotice(
+          writeOutcomeNotice("create_tag", outcome, { summary: outcomeMessageText }),
+          requestedRepoPath,
+        );
+        return;
+      }
+      publishOperationNotice(writeOutcomeNotice("create_tag", outcome), requestedRepoPath);
       await onMutated(outcomeText(outcome));
-      onCancel();
+      if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+        onCancel();
+      }
     } catch (err) {
-      setError(errorText(err));
+      if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+        const errorMessage = errorText(err);
+        setError(errorMessage);
+        publishOperationNotice(writeErrorNotice("create_tag", errorMessage), requestedRepoPath);
+      }
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }, [message, name, onCancel, onMutated, start?.oid]);
@@ -124,14 +143,7 @@ export function CreateTagDialog({ start, hasHead, onCancel, onMutated }: CreateT
           <p className="danger-text confirm-hint">{t("repository.noStartPoint")}</p>
         )}
         {issues && (
-          <div className="gate-report">
-            <p className="danger-text">{t("write.gateFailedPrefix")}</p>
-            <ul className="gate-issues">
-              {issues.map((issue) => (
-                <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
-              ))}
-            </ul>
-          </div>
+          <GateReportView gate={null} gateError={null} validating={false} issues={issues} />
         )}
         {error && <p className="danger-text">{error}</p>}
       </section>

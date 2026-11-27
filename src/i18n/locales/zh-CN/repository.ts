@@ -1,11 +1,13 @@
 import type { MessageShape } from "../messages";
 
-/** repository 域：仓库切换器与仓库会话提示。 */
+/** repository 域：打开仓库弹层与仓库会话提示。 */
 const repository = {
-  groupCurrent: "当前窗口",
+  groupCurrent: "当前仓库",
   groupRecent: "最近仓库",
-  switchRepoTitle: "切换或打开仓库",
-  switchRepoMenu: "切换仓库",
+  switchRepoTitle: "选择或打开仓库",
+  switchRepoMenu: "仓库选择",
+  openDialogTitle: "打开仓库",
+  closeDialog: "关闭弹层",
   searchPlaceholder: "搜索仓库名或路径…",
   noMatches: "没有匹配的仓库",
   recentCleared: "最近仓库已清空，可从下方“打开本地仓库…”重新添加",
@@ -110,10 +112,11 @@ const repository = {
     "先删除本地标签，再删除远程 origin 上的同名标签；远程标签回退会使他人构建失败或版本追溯中断，删除后需重新创建并推送。",
   // ---- 多仓库标签页（ADR-0032）----
   tabBarAria: "已打开的仓库标签页",
-  tabOpenTitle: "打开另一个仓库",
+  tabOpenTitle: "打开仓库",
   tabOpenAria: "打开仓库",
   tabCloseTitle: "关闭 {{name}}",
   tabCloseAria: "关闭仓库 {{name}}",
+  tabCloseCurrentTitle: "关闭当前仓库标签",
   tabDirtyTitle: "{{name}} 有新的变更",
   tabDirtyAria: "{{name}} 有新的变更，切回后刷新",
   tabOpening: "正在打开…",

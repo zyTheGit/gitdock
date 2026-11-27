@@ -1,5 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { remoteNamesFromRefs } from "../features/repository/remotes";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  publishOperationNotice,
+  writeErrorNotice,
+  writeOutcomeNotice,
+} from "./operationNotice";
 import { errorText, issueText, outcomeText } from "../shared/error";
 import { ipc } from "../shared/ipc";
 import type {
@@ -27,9 +31,8 @@ export interface RemoteActions {
   busy: RemoteSyncKind | null;
   error: string | null;
   clearError: () => void;
-  pullMode: PullMode;
-  setPullMode: (mode: PullMode) => void;
-  run: (kind: RemoteSyncKind) => void;
+  /** Pull 模式由当次菜单选择显式传入，避免 setState 后执行读到旧模式。 */
+  run: (kind: RemoteSyncKind, pullMode?: PullMode) => void;
   /** push 因「没有上游」被拒时的替代流程；非 null 时展示设置上游确认框。 */
   upstream: UpstreamPrompt | null;
   closeUpstream: () => void;
@@ -39,14 +42,13 @@ export interface RemoteActions {
 export function useRemoteActions({ repo, writeDisabled, onMutated }: UseRemoteActionsParams) {
   const [busy, setBusy] = useState<RemoteSyncKind | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pullMode, setPullMode] = useState<PullMode>("ff_only");
   const [upstream, setUpstream] = useState<UpstreamPrompt | null>(null);
   const busyRef = useRef(false);
-  busyRef.current = busy !== null;
 
   const repoPath = repo?.path ?? null;
+  const repoPathRef = useRef(repoPath);
+  repoPathRef.current = repoPath;
   const branch = repo && repo.head.kind === "branch" ? repo.head.branch ?? null : null;
-  const remotes = useMemo(() => remoteNamesFromRefs(repo?.refs ?? []), [repo?.refs]);
   const closeUpstream = useCallback(() => setUpstream(null), []);
 
   const clearError = useCallback(() => setError(null), []);
@@ -66,27 +68,37 @@ export function useRemoteActions({ repo, writeDisabled, onMutated }: UseRemoteAc
       if (issues.length !== 1 || issues[0].code !== "gate_remote_no_upstream") {
         return null;
       }
+      const args = issues[0].args ?? {};
+      const remotes = args.remote
+        ? [args.remote]
+        : args.options?.split("、").filter(Boolean) ?? [];
       if (!repo || !branch || remotes.length === 0 || repo.is_bare) {
         return null;
       }
       return { branch, remotes };
     },
-    [repo, branch, remotes],
+    [repo, branch],
   );
 
   const run = useCallback(
-    async (kind: RemoteSyncKind) => {
-      if (busyRef.current || writeDisabled) {
+    async (kind: RemoteSyncKind, selectedPullMode?: PullMode) => {
+      if (busyRef.current || writeDisabled || !repoPath) {
         return;
       }
+      const requestedRepoPath = repoPath;
+      // 先同步占锁，再触发渲染；同一事件循环内的快速连点也不能提交第二个请求。
+      busyRef.current = true;
       setBusy(kind);
       setError(null);
       try {
         const request: WriteRequest = {
           kind,
-          pull_mode: kind === "pull" ? pullMode : undefined,
+          pull_mode: kind === "pull" ? selectedPullMode ?? "ff_only" : undefined,
         };
         const gate = await ipc.validateWrite(request);
+        if (repoPathRef.current !== requestedRepoPath) {
+          return;
+        }
         if (!gate.ok) {
           // 首次推送（ADR-0028）：不报死错误，改为确认「设置上游并推送」。
           const prompt = kind === "push" ? upstreamPrompt(gate.issues) : null;
@@ -94,22 +106,38 @@ export function useRemoteActions({ repo, writeDisabled, onMutated }: UseRemoteAc
             setUpstream(prompt);
             return;
           }
-          setError(gate.issues.map(issueText).join("\n"));
+          const message = gate.issues.map(issueText).join("\n");
+          setError(message);
+          publishOperationNotice(writeErrorNotice(kind, message), requestedRepoPath);
           return;
         }
         const outcome = await ipc.executeWrite(request);
-        if (outcome.status !== "succeeded") {
-          setError([outcomeText(outcome), outcome.stderr?.trim()].filter(Boolean).join("\n\n"));
+        if (repoPathRef.current !== requestedRepoPath) {
           return;
         }
+        if (outcome.status !== "succeeded") {
+          const message = outcomeText(outcome);
+          setError(message);
+          publishOperationNotice(
+            writeOutcomeNotice(kind, outcome, { summary: message }),
+            requestedRepoPath,
+          );
+          return;
+        }
+        publishOperationNotice(writeOutcomeNotice(kind, outcome), requestedRepoPath);
         await onMutated(outcomeText(outcome));
       } catch (err) {
-        setError(errorText(err));
+        if (repoPathRef.current === requestedRepoPath) {
+          const message = errorText(err);
+          setError(message);
+          publishOperationNotice(writeErrorNotice(kind, message), requestedRepoPath);
+        }
       } finally {
+        busyRef.current = false;
         setBusy(null);
       }
     },
-    [onMutated, pullMode, upstreamPrompt, writeDisabled],
+    [onMutated, repoPath, upstreamPrompt, writeDisabled],
   );
 
   return {
@@ -117,8 +145,6 @@ export function useRemoteActions({ repo, writeDisabled, onMutated }: UseRemoteAc
     busy,
     error,
     clearError,
-    pullMode,
-    setPullMode,
     run,
     upstream,
     closeUpstream,

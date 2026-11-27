@@ -19,6 +19,10 @@ import { StagingDialogs, type FileMenuState } from "./StagingDialogs";
 import { StagingHeader } from "./StagingHeader";
 import { useDiscardFlow } from "./useDiscardFlow";
 import { hunkActionsAllowed, useHunkFlow, type HunkSelection } from "./useHunkFlow";
+import type {
+  StagingActionBridgeRef,
+  StagingActionSelection,
+} from "./stagingActionBridge";
 
 type Selection = HunkSelection;
 
@@ -35,6 +39,8 @@ interface StagingViewProps {
   onOpenStash: () => void;
   onOpenTerminal: () => void;
   onExit: () => void;
+  actionHandlersRef: StagingActionBridgeRef;
+  onSelectionChange?: (selection: StagingActionSelection | null) => void;
 }
 
 
@@ -48,12 +54,14 @@ export function StagingView({
   onOpenStash,
   onOpenTerminal,
   onExit,
+  actionHandlersRef,
+  onSelectionChange,
 }: StagingViewProps) {
   const { t } = useI18n();
   const [fileListMode, setFileListMode] = useFileListMode();
   const [status, setStatus] = useState<StagingStatusDto | null>(null);
   const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusyState] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [diff, setDiff] = useState<FileDiffDto | null>(null);
@@ -68,14 +76,18 @@ export function StagingView({
   const onBusyChangeRef = useRef(onBusyChange);
   const onMutatedRef = useRef(onMutated);
   const onExitRef = useRef(onExit);
+  const onSelectionChangeRef = useRef(onSelectionChange);
   onBusyChangeRef.current = onBusyChange;
   onMutatedRef.current = onMutated;
   onExitRef.current = onExit;
+  onSelectionChangeRef.current = onSelectionChange;
 
-  useEffect(() => {
-    busyRef.current = busy;
-    onBusyChangeRef.current(busy);
-  }, [busy]);
+  // ref 与父级互斥同步更新，不能等 busy state 的 effect 落地。
+  const setBusy = useCallback((value: boolean) => {
+    busyRef.current = value;
+    onBusyChangeRef.current(value);
+    setBusyState(value);
+  }, []);
 
   useEffect(() => () => onBusyChangeRef.current(false), []);
 
@@ -146,6 +158,7 @@ export function StagingView({
 
   // 丢弃未暂存改动（ADR 0026）：确认框 → Gate → 执行，成功路径与 mutate 一致。
   const discard = useDiscardFlow({
+    repoPath: repo.path,
     disabled: writeDisabled,
     isBusy: () => busyRef.current,
     setBusy,
@@ -158,6 +171,7 @@ export function StagingView({
   // hunk 级暂存 / 取消暂存 / 丢弃（ADR 0027）：块序号与后端 hunk_index 同源，
   // 操作后静默重读状态与 diff，让按钮重新对齐；丢弃走破坏性确认框。
   const hunk = useHunkFlow({
+    repoPath: repo.path,
     disabled: writeDisabled || loading || busy,
     selection,
     diff,
@@ -169,6 +183,12 @@ export function StagingView({
     clearChecked: () => setChecked({}),
     onMutated: (message) => onMutatedRef.current(message),
   });
+
+  useEffect(() => {
+    onSelectionChangeRef.current?.(selection);
+  }, [selection]);
+
+  useEffect(() => () => onSelectionChangeRef.current?.(null), []);
 
   // 切换仓库时作废在途请求，避免旧仓库的 diff 落到新仓库界面。
   useEffect(() => {
@@ -295,6 +315,21 @@ export function StagingView({
     },
     [load, select, selection, writeDisabled],
   );
+
+  useEffect(() => {
+    const handlers = {
+      refresh: () => void load(),
+      stageFile: (path: string) => void mutate("unstaged", [path]),
+      unstageFile: (path: string) => void mutate("staged", [path]),
+      discardFile: (path: string) => discard.open([path]),
+    };
+    actionHandlersRef.current = handlers;
+    return () => {
+      if (actionHandlersRef.current === handlers) {
+        actionHandlersRef.current = null;
+      }
+    };
+  }, [actionHandlersRef, discard.open, load, mutate, repo.path]);
 
   // 提交成功：先重读暂存状态（表单由 CommitComposer 自行清空草稿），再走
   // 既有 mutate 通道（toast + 快照 + 图谱刷新），generation 语义与 stage/unstage 一致。

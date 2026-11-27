@@ -1,6 +1,6 @@
 import { useI18n } from "../i18n";
 
-/** 仓库未打开时的欢迎占位：标题、说明与选择目录按钮（纯移动自 App.tsx）。 */
+/** 仓库未打开时的欢迎占位：标题、说明与统一打开仓库弹层入口。 */
 export function WelcomePane({
   busy,
   opening,
@@ -15,8 +15,14 @@ export function WelcomePane({
     <section className="welcome">
       <h1>{t("shell.welcomeTitle")}</h1>
       <p>{t("shell.welcomeBody")}</p>
-      <button className="primary large" onClick={onPick} disabled={busy}>
-        {opening ? t("shell.openingRepository") : t("shell.chooseRepoDirectory")}
+      <button
+        type="button"
+        className="primary large"
+        title={t("repository.tabOpenTitle")}
+        onClick={onPick}
+        disabled={busy}
+      >
+        {opening ? t("shell.openingRepository") : t("repository.tabOpenAria")}
       </button>
     </section>
   );

@@ -21,6 +21,8 @@ interface ReflogDialogProps {
   onCreateBranch: (commit: CommitSummaryDto) => void;
   /** 复用既有 cherry-pick 确认流程，绝不自动执行。 */
   onCherryPick: (commit: CommitSummaryDto) => void;
+  /** 复制结果反馈：弹窗盖住主区，统一走应用级 toast（层级高于遮罩）。 */
+  onToast: (message: string) => void;
 }
 
 type RowAction = "branch" | "cherry";
@@ -36,6 +38,7 @@ export function ReflogDialog({
   onLocate,
   onCreateBranch,
   onCherryPick,
+  onToast,
 }: ReflogDialogProps) {
   const { t } = useI18n();
   const [entries, setEntries] = useState<ReflogEntryDto[] | null>(null);
@@ -101,9 +104,13 @@ export function ReflogDialog({
     [onCherryPick, onCreateBranch],
   );
 
-  const copy = useCallback((oid: string) => {
-    void copyText(oid);
-  }, []);
+  const copy = useCallback(
+    async (oid: string) => {
+      const ok = await copyText(oid);
+      onToast(ok ? t("shell.oidCopied") : t("shell.copyFailed"));
+    },
+    [onToast, t],
+  );
 
   return (
     <Modal
@@ -163,7 +170,10 @@ export function ReflogDialog({
                     </span>
                   </div>
                   <div className="reflog-row-actions">
-                    <button onClick={() => copy(entry.new_oid)} title={t("graph.reflogCopyTitle")}>
+                    <button
+                      onClick={() => void copy(entry.new_oid)}
+                      title={t("graph.reflogCopyTitle")}
+                    >
                       {t("graph.reflogCopyOid")}
                     </button>
                     <button

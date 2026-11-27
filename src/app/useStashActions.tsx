@@ -16,13 +16,15 @@ export function useStashActions({ writeDisabled, onMutated }: UseStashActionsPar
     }
   }, [writeDisabled]);
 
+  const closeStash = useCallback(() => setOpen(false), []);
+
   const dialog = open ? (
     <StashDialog
       writeDisabled={writeDisabled}
-      onClose={() => setOpen(false)}
+      onClose={closeStash}
       onMutated={onMutated}
     />
   ) : null;
 
-  return { openStash, dialog };
+  return { openStash, closeStash, dialog };
 }

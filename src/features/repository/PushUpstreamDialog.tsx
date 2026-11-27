@@ -8,7 +8,7 @@ import type { WriteRequest } from "../../shared/types";
 interface PushUpstreamDialogProps {
   /** 当前检出的本地分支。 */
   branch: string;
-  /** 仓库已配置的 remote 名（来自远程跟踪引用缓存）。 */
+  /** 仓库已配置的 remote 名（来自 Gate 的配置探测）。 */
   remotes: string[];
   onCancel: () => void;
   onMutated: (message: string) => Promise<void>;

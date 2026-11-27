@@ -158,6 +158,45 @@ fn checkout_remote_branch_gate_rejections() {
 }
 
 #[test]
+fn push_without_upstream_reports_configured_remote_without_tracking_refs() {
+    let dir = temp_dir("write-remote-push-gate-origin");
+    let repo = dir.join("repo");
+    std::fs::create_dir_all(&repo).expect("创建仓库");
+    git_ok(&repo, &["init", "-q", "-b", "main"]);
+    configure_repo(&repo);
+    commit(&repo, "a.txt", "base\n", "c1");
+    git_ok(
+        &repo,
+        &[
+            "remote",
+            "add",
+            "origin",
+            dir.join("remote.git").to_string_lossy().as_ref(),
+        ],
+    );
+    let module = GitWriteModule::new(&repo).expect("打开写模块");
+
+    let report = module
+        .validate(&base_request(WriteKind::Push))
+        .expect("Gate");
+    assert!(!report.ok);
+    let issue = report
+        .issues
+        .iter()
+        .find(|issue| issue.code == "gate_remote_no_upstream")
+        .expect("缺少上游");
+    assert_eq!(
+        issue
+            .args
+            .as_ref()
+            .and_then(|args| args.get("remote"))
+            .map(String::as_str),
+        Some("origin")
+    );
+    assert!(!ref_exists(&repo, "refs/remotes/origin/main"));
+}
+
+#[test]
 fn push_set_upstream_establishes_tracking() {
     let sandbox = remote_sandbox("write-remote-push-upstream");
     let (local, remote) = (sandbox.local(), sandbox.remote());

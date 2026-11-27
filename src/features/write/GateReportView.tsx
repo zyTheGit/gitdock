@@ -1,24 +1,47 @@
+import type { ReactNode } from "react";
 import { useI18n } from "../../i18n";
 import { gateSummaryText, issueText, warningText } from "../../shared/error";
-import type { GateReportDto } from "../../shared/types";
+import type { GateIssueDto, GateReportDto } from "../../shared/types";
 
 interface GateReportViewProps {
   gate: GateReportDto | null;
   gateError: string | null;
   /** 正在按当前选择重新检查；期间不得放行执行。 */
   validating: boolean;
+  /** 独立 Gate 预览（例如提交/丢弃确认框）的拒绝原因。 */
+  issues?: GateIssueDto[] | null;
+  /** 调用方已用常驻危险文案说明的警告，不在 Gate 块重复展示。 */
+  hideWarnings?: readonly string[];
+  children?: ReactNode;
 }
 
 /**
  * 写前检查结论块：摘要 / 拒绝原因 / 警告 / 受影响路径。
  * 与 ConfirmWriteDialog 的 Gate 区域保持同一套语义，供远程写对话框复用。
  */
-export function GateReportView({ gate, gateError, validating }: GateReportViewProps) {
+export function GateReportView({
+  gate,
+  gateError,
+  validating,
+  issues,
+  hideWarnings = [],
+  children,
+}: GateReportViewProps) {
   const { t } = useI18n();
+  const warnings = gate?.warnings.filter((warning) => !hideWarnings.includes(warning.code)) ?? [];
   return (
     <section className="gate-report">
       <h3>{t("write.gateTitle")}</h3>
-      {gateError ? (
+      {issues ? (
+        <>
+          <p className="danger-text">{t("write.gateFailedPrefix")}</p>
+          <ul className="gate-issues">
+            {issues.map((issue) => (
+              <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
+            ))}
+          </ul>
+        </>
+      ) : gateError ? (
         <p className="danger-text">{gateError}</p>
       ) : !gate ? (
         <p className="muted">{t("write.gateChecking")}</p>
@@ -35,7 +58,7 @@ export function GateReportView({ gate, gateError, validating }: GateReportViewPr
         </>
       )}
       {validating && gate && <p className="muted">{t("write.gateRechecking")}</p>}
-      {gate?.warnings.map((warning) => (
+      {warnings.map((warning) => (
         <p className="gate-warning" key={`${warning.code}:${warning.message}`}>
           {warningText(warning)}
         </p>
@@ -59,6 +82,7 @@ export function GateReportView({ gate, gateError, validating }: GateReportViewPr
           </ul>
         </div>
       )}
+      {children}
     </section>
   );
 }

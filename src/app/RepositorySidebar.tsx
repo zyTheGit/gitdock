@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent } from "react";
+import { useMemo, useState, type MouseEvent, type RefObject } from "react";
 import { useI18n } from "../i18n";
 import type { RepoStateDto, RefDto } from "../shared/types";
 import { RefTreeSection } from "../features/repository/RefTreeSection";
@@ -7,8 +7,10 @@ import { latestTagsFirst } from "../features/repository/tagOrder";
 import { useRefTreeCollapse } from "../features/repository/useRefTreeCollapse";
 import { WorktreeSection } from "../features/worktree/WorktreeSection";
 
-interface RepositorySidebarProps {
-  width: number;
+export interface RepositorySidebarProps {
+  id?: string;
+  className?: string;
+  width: number | string;
   repo: RepoStateDto | null;
   headLabel: string;
   /** 全部可导航引用：本地分支、远程分支与标签，由侧栏按 kind 分组。 */
@@ -18,6 +20,9 @@ interface RepositorySidebarProps {
   onSwitchBranch: (branch: RefDto) => void;
   /** 单击引用：在图谱中定位并选中其提交（不切换分支）。 */
   onNavigateRef: (ref: RefDto) => void;
+  /** 浮层中完成引用导航后关闭；普通侧栏不传，保持原行为。 */
+  onNavigated?: () => void;
+  filterInputRef?: RefObject<HTMLInputElement>;
   onCopyOid: (oid: string) => void;
   onBranchMenu: (event: MouseEvent, ref: RefDto) => void;
   onCreateBranch: () => void;
@@ -31,6 +36,8 @@ function filterKind(refs: RefDto[], kind: RefDto["kind"]): RefDto[] {
 }
 
 export function RepositorySidebar({
+  id = "repository-sidebar",
+  className,
   width,
   repo,
   headLabel,
@@ -39,6 +46,8 @@ export function RepositorySidebar({
   onCompareBranches,
   onSwitchBranch,
   onNavigateRef,
+  onNavigated,
+  filterInputRef,
   onCopyOid,
   onBranchMenu,
   onCreateBranch,
@@ -62,6 +71,10 @@ export function RepositorySidebar({
   const emptyText = filtering ? t("shell.noMatchingRefs") : "";
   const headOid = repo?.head.oid ?? null;
   const selectableCount = refs.length;
+  const navigateRef = (ref: RefDto) => {
+    onNavigateRef(ref);
+    onNavigated?.();
+  };
 
   // 本地分支相对上游的紧凑计数（ADR-0028）：0 与 undefined 都不显示，避免噪音。
   const upstreamMeta = (ref: RefDto) => {
@@ -92,7 +105,7 @@ export function RepositorySidebar({
   };
 
   return (
-    <aside className="sidebar" style={{ width }}>
+    <aside id={id} className={`sidebar${className ? ` ${className}` : ""}`} style={{ width }}>
       {!repo && <p className="muted">{t("shell.sidebarNoRepo")}</p>}
       {repo && (
         <>
@@ -124,6 +137,7 @@ export function RepositorySidebar({
 
           <div className="ref-filter">
             <input
+              ref={filterInputRef}
               value={keyword}
               placeholder={t("shell.refFilterPlaceholder")}
               aria-label={t("shell.refFilterAria")}
@@ -164,7 +178,7 @@ export function RepositorySidebar({
             }
             isCollapsed={collapse.isCollapsed}
             onToggleCollapse={collapse.toggle}
-            onActivate={onNavigateRef}
+            onActivate={navigateRef}
             onActivateDouble={
               writeDisabled
                 ? undefined
@@ -172,6 +186,7 @@ export function RepositorySidebar({
                     // 双击只对非当前分支发起 switch_branch；当前分支上双击仍是定位。
                     if (!ref.is_head) {
                       onSwitchBranch(ref);
+                      onNavigated?.();
                     }
                   }
             }
@@ -188,7 +203,7 @@ export function RepositorySidebar({
             emptyText={emptyText || t("shell.noRemoteBranches")}
             isCollapsed={collapse.isCollapsed}
             onToggleCollapse={collapse.toggle}
-            onActivate={onNavigateRef}
+            onActivate={navigateRef}
             onMenu={onBranchMenu}
           />
 
@@ -200,7 +215,7 @@ export function RepositorySidebar({
             emptyText={emptyText || t("repository.noTags")}
             isCollapsed={collapse.isCollapsed}
             onToggleCollapse={collapse.toggle}
-            onActivate={onNavigateRef}
+            onActivate={navigateRef}
             onMenu={onTagMenu}
           />
 

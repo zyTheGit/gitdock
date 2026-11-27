@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useI18n } from "../../i18n";
 import { Icon } from "../../assets/icons";
-import type { CommitSummaryDto, PullMode, RepoStateDto, GraphScope } from "../../shared/types";
-import type { RemoteActions } from "../../app/useRemoteActions";
+import type { CommitSummaryDto, RepoStateDto, GraphScope } from "../../shared/types";
+import type { RemoteActions as RemoteActionsState } from "../../app/useRemoteActions";
 import type { ScrollRestore } from "../../app/useRepoTabState";
 import { FetchPruneDialog } from "../repository/FetchPruneDialog";
 import { PushUpstreamDialog } from "../repository/PushUpstreamDialog";
 import { Select } from "../../shared/Select";
 import { GraphList } from "./GraphList";
+import { RemoteActions } from "./RemoteActions";
 import { useCommitSelection } from "./useCommitSelection";
 import type { GraphLoader } from "./useGraph";
 
@@ -26,7 +27,7 @@ interface GraphPaneProps {
     commit: CommitSummaryDto,
     selectedCommits: CommitSummaryDto[],
   ) => void;
-  remote: RemoteActions;
+  remote: RemoteActionsState;
   /** 打开 Reflog 恢复视图（只读弹窗，ADR-0029）；入口放在图谱工具栏。 */
   onOpenReflog: () => void;
   /** 写操作成功后刷新仓库快照与图谱（与 App 的 stagingMutated 一致）。 */
@@ -133,51 +134,11 @@ export function GraphPane({
           <Icon name="restore" />
           <span>{t("graph.reflogOpen")}</span>
         </button>
-        <div className="remote-actions">
-          <button
-            disabled={remote.disabled || remote.busy !== null}
-            title={t("graph.fetchTitle")}
-            onClick={() => remote.run("fetch")}
-          >
-            <Icon name="cloudDownload" />
-            <span>{remote.busy === "fetch" ? t("graph.fetching") : t("graph.fetch")}</span>
-          </button>
-          <button
-            disabled={remote.disabled || remote.busy !== null}
-            title={t("graph.fetchPruneTitle")}
-            onClick={() => setPruneOpen(true)}
-          >
-            <Icon name="refresh" />
-            <span>{t("graph.fetchPrune")}</span>
-          </button>
-          <Select
-            className="pull-mode"
-            compact
-            aria-label={t("graph.pullModeAria")}
-            value={remote.pullMode}
-            options={[
-              { value: "ff_only", label: t("graph.pullModeFfOnly") },
-              { value: "merge", label: t("graph.pullModeMerge") },
-            ]}
-            onChange={(event) => remote.setPullMode(event.target.value as PullMode)}
-          />
-          <button
-            disabled={remote.disabled || remote.busy !== null}
-            title={t("graph.pullTitle")}
-            onClick={() => remote.run("pull")}
-          >
-            <Icon name="download" />
-            <span>{remote.busy === "pull" ? t("graph.pulling") : t("graph.pull")}</span>
-          </button>
-          <button
-            disabled={remote.disabled || remote.busy !== null}
-            title={t("graph.pushTitle")}
-            onClick={() => remote.run("push")}
-          >
-            <Icon name="upload" />
-            <span>{remote.busy === "push" ? t("graph.pushing") : t("graph.push")}</span>
-          </button>
-        </div>
+        <RemoteActions
+          remote={remote}
+          disabled={pruneOpen || remote.upstream !== null}
+          onFetchPrune={() => setPruneOpen(true)}
+        />
       </div>
 
       {error && <div className="banner danger">{error}</div>}

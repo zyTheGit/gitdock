@@ -1,8 +1,8 @@
 import { useI18n } from "../../i18n";
-import { gateSummaryText, issueText, warningText } from "../../shared/error";
 import { Modal } from "../../shared/Modal";
 import { useEscClose } from "../../shared/useEscClose";
 import type { CommitSummaryDto, GateReportDto, WriteKind } from "../../shared/types";
+import { GateReportView } from "./GateReportView";
 
 type DialogKind = Extract<
   WriteKind,
@@ -134,49 +134,11 @@ export function ConfirmWriteDialog({
         </p>
       </section>
 
-      <section className="gate-report">
-        <h3>{t("write.gateTitle")}</h3>
-        {gateError ? (
-          <p className="danger-text">{gateError}</p>
-        ) : !gate ? (
-          <p className="muted">{t("write.gateChecking")}</p>
-        ) : gate.ok ? (
-          <p className="gate-ok">{gateSummaryText(gate)}</p>
-        ) : (
-          <>
-            <p className="danger-text">{t("write.gateFailedPrefix")}</p>
-            <ul className="gate-issues">
-              {gate.issues.map((issue) => (
-                <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
-              ))}
-            </ul>
-          </>
-        )}
-        {validating && gate && <p className="muted">{t("write.gateRechecking")}</p>}
-        {gate?.warnings.map((warning) => (
-          <p className="gate-warning" key={`${warning.code}:${warning.message}`}>
-            {warningText(warning)}
-          </p>
-        ))}
-        {gate && gate.affected_paths.length > 0 && (
-          <div className="gate-affected">
-            <p className="muted">
-              {gate.affected_total > gate.affected_paths.length
-                ? t("write.affectedFilesTruncated", {
-                    n: gate.affected_total,
-                    m: gate.affected_paths.length,
-                  })
-                : t("write.affectedFiles", { n: gate.affected_total })}
-            </p>
-            <ul className="gate-paths">
-              {gate.affected_paths.map((path) => (
-                <li className="mono" key={path}>
-                  {path}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+      <GateReportView
+        gate={gate}
+        gateError={gateError ?? null}
+        validating={validating}
+      >
         {gate?.is_merge_commit &&
           (gate.parents.length > 0 ? (
             <fieldset className="mainline-picker">
@@ -206,7 +168,7 @@ export function ConfirmWriteDialog({
           ) : (
             <p className="muted">{t("write.mergeNoParents")}</p>
           ))}
-      </section>
+      </GateReportView>
 
       <footer>
         <button onClick={onCancel} disabled={busy}>

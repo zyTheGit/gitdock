@@ -9,6 +9,8 @@ const worktree = {
   loading: "Reading worktrees…",
   empty: "No worktrees were returned.",
   mainBadge: "main",
+  linkedBadge: "linked",
+  mainRemoveTitle: "The main worktree cannot be removed",
   lockedBadge: "locked",
   lockedTitle: "Locked: {{reason}}",
   lockedNoReason: "Locked (no reason recorded)",

@@ -22,6 +22,94 @@
   gap: 2px;
 }
 
+/* 单条已加载结果：折叠开关、worktree 行和分区操作合并为一行。 */
+.worktree-compact-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ref-toggle.worktree-compact-toggle {
+  flex: none;
+  gap: 0;
+  padding: 3px 2px;
+}
+
+.worktree-list-compact {
+  flex: 1;
+  min-width: 0;
+}
+
+.worktree-list-compact .worktree-item {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.worktree-row-compact {
+  min-width: 0;
+  align-items: center;
+}
+
+.worktree-open.worktree-open-compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+}
+
+.worktree-open-compact .worktree-label {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.worktree-open-compact .worktree-name {
+  min-width: 0;
+}
+
+.worktree-open-compact .worktree-path {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+.worktree-compact-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.worktree-compact-actions .link {
+  padding: 2px 4px;
+  font-size: 12px;
+}
+
+.worktree-compact-actions .worktree-refresh {
+  min-width: 22px;
+}
+
+.worktree-notice.worktree-compact-notice {
+  margin-left: 20px;
+}
+
+.worktree-section-compact {
+  container-type: inline-size;
+}
+
+/* 窄侧栏下保留可见路径，不把主体压成不可读的零宽省略号。 */
+@container (max-width: 240px) {
+  .worktree-open.worktree-open-compact {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1px;
+  }
+
+  .worktree-open-compact .worktree-path {
+    text-align: left;
+  }
+}
+
 /* 行主体：两行（分支 + 路径），整块可点击打开。 */
 .worktree-open {
   display: flex;

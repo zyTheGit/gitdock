@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { errorText, outcomeText } from "../../shared/error";
+import { publishOperationNotice, writeErrorNotice, writeOutcomeNotice } from "../../app/operationNotice";
+import { errorText, issueText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import type { GateIssueDto, GateReportDto, StagingStatusDto } from "../../shared/types";
 
@@ -8,6 +9,8 @@ import type { GateIssueDto, GateReportDto, StagingStatusDto } from "../../shared
  * 「确认框 → Gate → 执行 → 收尾」，不直接读写仓库。
  */
 export interface DiscardFlowOptions {
+  /** 当前仓库路径；异步结果只允许回写同一仓库。 */
+  repoPath: string;
   /** 写互斥/加载中：此时不接受新的丢弃请求。 */
   disabled: boolean;
   /** 已有写操作在跑（stage/unstage/提交/静默重载）。 */
@@ -90,7 +93,7 @@ export function useDiscardFlow(options: DiscardFlowOptions): DiscardFlow {
     if (!pending || pending.length === 0 || runningRef.current) {
       return;
     }
-    const { disabled, isBusy } = optionsRef.current;
+    const { disabled, isBusy, repoPath } = optionsRef.current;
     if (disabled || isBusy()) {
       return;
     }
@@ -106,25 +109,48 @@ export function useDiscardFlow(options: DiscardFlowOptions): DiscardFlow {
     try {
       const request = { kind: "discard_files" as const, paths: pending };
       const report = await ipc.validateWrite(request);
+      if (optionsRef.current.repoPath !== repoPath) {
+        return;
+      }
       setGate(report);
       if (!report.ok) {
+        const message = report.issues.map(issueText).join("\n");
         setIssues(report.issues);
+        publishOperationNotice(writeErrorNotice("discard_files", message), repoPath);
         return;
       }
       setValidating(false);
       setBusy(true);
       const outcome = await ipc.executeWrite(request);
+      if (optionsRef.current.repoPath !== repoPath) {
+        return;
+      }
       if (outcome.status !== "succeeded") {
-        setError([outcomeText(outcome), outcome.stderr?.trim()].filter(Boolean).join("\n\n"));
+        const message = outcomeText(outcome);
+        setError(message);
+        publishOperationNotice(
+          writeOutcomeNotice("discard_files", outcome, { summary: message }),
+          repoPath,
+        );
         return;
       }
       const message = outcomeText(outcome);
+      publishOperationNotice(writeOutcomeNotice("discard_files", outcome), repoPath);
       clearChecked();
       await reload();
+      if (optionsRef.current.repoPath !== repoPath) {
+        return;
+      }
       await onMutated(message);
-      reset();
+      if (optionsRef.current.repoPath === repoPath) {
+        reset();
+      }
     } catch (err) {
-      setError(errorText(err));
+      if (optionsRef.current.repoPath === repoPath) {
+        const message = errorText(err);
+        setError(message);
+        publishOperationNotice(writeErrorNotice("discard_files", message), repoPath);
+      }
     } finally {
       runningRef.current = false;
       setValidating(false);

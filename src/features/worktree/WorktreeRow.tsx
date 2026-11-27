@@ -6,24 +6,32 @@ import type { WorktreeDto } from "../../shared/types";
 interface WorktreeRowProps {
   entry: WorktreeDto;
   writeDisabled: boolean;
+  /** 单条分区复用同一行能力，仅收紧布局并保留禁用态移除入口。 */
+  compact?: boolean;
   /** 在标签页中打开该 worktree 路径（复用既有标签机制）。 */
   onOpen: (path: string) => void;
   onRemove: (entry: WorktreeDto) => void;
 }
 
-/** 一行 worktree：分支 / 短 OID、路径、状态徽标，主 worktree 不提供移除。 */
-export function WorktreeRow({ entry, writeDisabled, onOpen, onRemove }: WorktreeRowProps) {
+/** 一行 worktree：分支 / 短 OID、路径、状态徽标；完整列表不提供主 worktree 移除。 */
+export function WorktreeRow({
+  entry,
+  writeDisabled,
+  compact = false,
+  onOpen,
+  onRemove,
+}: WorktreeRowProps) {
   const { t } = useI18n();
   const label =
     entry.branch ?? (entry.head_oid ? shortOid(entry.head_oid) : t("worktree.detached"));
   const openTitle = t("worktree.openTitle", { path: entry.path });
 
   return (
-    <li className="worktree-item">
-      <div className="worktree-row">
+    <li className={compact ? "worktree-item worktree-item-compact" : "worktree-item"}>
+      <div className={compact ? "worktree-row worktree-row-compact" : "worktree-row"}>
         <button
           type="button"
-          className="worktree-open"
+          className={compact ? "worktree-open worktree-open-compact" : "worktree-open"}
           title={openTitle}
           aria-label={openTitle}
           onClick={() => onOpen(entry.path)}
@@ -32,6 +40,9 @@ export function WorktreeRow({ entry, writeDisabled, onOpen, onRemove }: Worktree
             <span className="worktree-name">{label}</span>
             {entry.is_main && (
               <span className="tag worktree-badge">{t("worktree.mainBadge")}</span>
+            )}
+            {compact && !entry.is_main && (
+              <span className="tag worktree-badge">{t("worktree.linkedBadge")}</span>
             )}
             {entry.locked && (
               <span
@@ -63,13 +74,17 @@ export function WorktreeRow({ entry, writeDisabled, onOpen, onRemove }: Worktree
             {entry.path}
           </span>
         </button>
-        {!entry.is_main && (
+        {(!entry.is_main || compact) && (
           <button
             type="button"
             className="worktree-remove"
-            disabled={writeDisabled}
-            title={t("worktree.remove")}
-            aria-label={`${t("worktree.remove")}: ${label}`}
+            disabled={writeDisabled || entry.is_main}
+            title={entry.is_main ? t("worktree.mainRemoveTitle") : t("worktree.remove")}
+            aria-label={
+              entry.is_main
+                ? t("worktree.mainRemoveTitle")
+                : `${t("worktree.remove")}: ${label}`
+            }
             onClick={() => onRemove(entry)}
           >
             <Icon name="trash" className="worktree-remove-icon" />

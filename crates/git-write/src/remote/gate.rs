@@ -49,10 +49,20 @@ pub(crate) fn validate_remote(
                 "detached HEAD 不支持 pull / push，请先切换本地分支",
             ));
         } else if upstream.is_none() {
-            issues.push(issue(
+            let mut no_upstream = issue(
                 "gate_remote_no_upstream",
                 "当前分支没有上游分支，请先在终端设置 upstream",
-            ));
+            );
+            if request.kind == WriteKind::Push {
+                let available = module.remote_names().unwrap_or_default();
+                let choice = select_remote(None, &available);
+                if let RemoteChoice::Selected(remote) = choice {
+                    no_upstream = no_upstream.with_arg("remote", remote);
+                } else if let RemoteChoice::Ambiguous(remotes) = choice {
+                    no_upstream = no_upstream.with_arg("options", remotes.join("、"));
+                }
+            }
+            issues.push(no_upstream);
         }
     }
 

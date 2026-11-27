@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "./app/AppShell";
 import { useCommitMenus, type BranchMenuState, type RowMenuState, type TagMenuState } from "./app/useCommitMenus";
+import { useAppActionCatalog } from "./app/useAppActionCatalog";
+import { useCommandPaletteShortcut } from "./app/useCommandPaletteShortcut";
+import { useNarrowRefs } from "./app/useNarrowRefs";
 import { useGlobalEsc } from "./app/useGlobalEsc";
 import { useGlobalShortcuts } from "./app/useGlobalShortcuts";
 import { useBottomPanel } from "./app/useBottomPanel";
@@ -24,6 +27,10 @@ import { openReleasePage, runUpdateCheck, useUpdateCheck } from "./app/useUpdate
 import { useWriteFlow } from "./app/useWriteFlow";
 import { useCompareResult, useCompareSlots } from "./features/compare/useCompare";
 import { branchSlot } from "./features/repository/branchMenus";
+import type {
+  StagingActionHandlers,
+  StagingActionSelection,
+} from "./features/staging/stagingActionBridge";
 import { useSearch } from "./features/search/useSearch";
 import { copyText } from "./shared/clipboard";
 import { errorText } from "./shared/error";
@@ -49,9 +56,20 @@ export default function App() {
   const [descriptionBranch, setDescriptionBranch] = useState<string | null>(null);
   const [descriptionTag, setDescriptionTag] = useState<RefDto | null>(null);
   const [stagingBusy, setStagingBusy] = useState(false);
+  const [stagingSelection, setStagingSelection] = useState<StagingActionSelection | null>(null);
+  const [openRepositoryOpen, setOpenRepositoryOpen] = useState(false);
+  const [reflogOpen, setReflogOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const stagingActionHandlersRef = useRef<StagingActionHandlers | null>(null);
+  const refsUi = useNarrowRefs();
   const writeBusyRef = useRef(false);
 
   const tabs = useRepoTabs();
+  const activeRepoIdRef = useRef(tabs.activeId);
+  activeRepoIdRef.current = tabs.activeId;
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const pendingLocateRef = useRef<{ oid: string; repoId: number } | null>(null);
 
   const resetOverlays = useCallback(() => {
     setFocusTarget(null);
@@ -61,6 +79,10 @@ export default function App() {
     setBranchCompareOpen(false);
     setDescriptionBranch(null);
     setDescriptionTag(null);
+    setOpenRepositoryOpen(false);
+    setReflogOpen(false);
+    setCommandPaletteOpen(false);
+    setStagingSelection(null);
   }, []);
 
   // 打开或激活成功后：新标签归零视图态，已有标签恢复历史视图态。
@@ -99,6 +121,9 @@ export default function App() {
     setToast,
   });
   writeBusyRef.current = write.busy || stagingBusy;
+  useEffect(() => {
+    setStagingBusy(false);
+  }, [repo?.path]);
   const remoteClearRef = useRef<() => void>(() => undefined);
 
   useStartupRestore({
@@ -119,6 +144,18 @@ export default function App() {
   const generation = repo?.generation ?? 0;
   const slots = useCompareSlots(repo, tabs.activeId);
   const compare = useCompareResult(slots.base, slots.compare, generation, pathFilter, twoDot);
+  const compareWithHead = useCallback(
+    (branch: RefDto) => {
+      if (repo?.head.oid && !slots.base) {
+        slots.setSide("base", {
+          oid: repo.head.oid,
+          label: repo.head.kind === "branch" ? repo.head.branch ?? "HEAD" : "detached HEAD",
+        });
+      }
+      slots.setSide("compare", branchSlot(branch));
+    },
+    [repo, slots.base, slots.setSide],
+  );
   const search = useSearch(generation, scope);
   // 搜索候选只从已加载的图谱页提取，避免为候选额外查询历史。
   const searchCommits = useMemo(
@@ -129,22 +166,56 @@ export default function App() {
   const closeSearch = useCallback(() => {
     setMode("graph");
   }, []);
-  // 搜索结果直接在主图谱定位：关闭弹框、载入目标页，成功后再选中并居中。
-  // 等目标页落地才发出滚动请求，避免对旧页的行先滚一次。
+  const selectLocatedOid = useCallback((oid: string, repoId: number) => {
+    if (activeRepoIdRef.current !== repoId) {
+      return;
+    }
+    setSelectedOid(oid);
+    focusSeq.current += 1;
+    setFocusTarget({ oid, seq: focusSeq.current });
+  }, []);
+
+  // 搜索定位先沿用当前范围；恢复通知指向的新 HEAD 可能在其他分支，失败时切全量重试。
   const locateFromSearch = useCallback(
     (oid: string) => {
+      const repoId = tabs.activeId;
+      if (repoId === null) {
+        return;
+      }
       closeSearch();
       void graph.jumpTo(oid).then((ok) => {
-        if (!ok) {
+        if (activeRepoIdRef.current !== repoId) {
           return;
         }
-        setSelectedOid(oid);
-        focusSeq.current += 1;
-        setFocusTarget({ oid, seq: focusSeq.current });
+        if (ok) {
+          selectLocatedOid(oid, repoId);
+          return;
+        }
+        if (scopeRef.current.kind !== "all") {
+          pendingLocateRef.current = { oid, repoId };
+          setScope({ kind: "all" });
+        }
       });
     },
-    [closeSearch, graph.jumpTo],
+    [closeSearch, graph.jumpTo, selectLocatedOid, setScope, tabs.activeId],
   );
+
+  useEffect(() => {
+    pendingLocateRef.current = null;
+  }, [tabs.activeId]);
+
+  useEffect(() => {
+    const pending = pendingLocateRef.current;
+    if (!pending || scope.kind !== "all" || activeRepoIdRef.current !== pending.repoId) {
+      return;
+    }
+    pendingLocateRef.current = null;
+    void graph.jumpTo(pending.oid).then((ok) => {
+      if (ok) {
+        selectLocatedOid(pending.oid, pending.repoId);
+      }
+    });
+  }, [graph.jumpTo, scope.kind, selectLocatedOid, tabs.activeId]);
   const tools = settings?.external_tools ?? [];
   // 侧栏/右键菜单的只读导航：单击定位提交、过滤图谱与复制 OID，不进入写流程。
   const refNav = useRefNavigation({
@@ -274,6 +345,39 @@ export default function App() {
   const stash = useStashActions({ writeDisabled: write.disabled, onMutated: stagingMutated });
   const remote = useRemoteActions({ repo, writeDisabled: write.disabled, onMutated: stagingMutated });
   remoteClearRef.current = remote.clearError;
+
+  const actions = useAppActionCatalog({
+    session,
+    tabs,
+    tabCtrl,
+    slots,
+    panel,
+    remote,
+    stash,
+    write,
+    refActions,
+    settingsEntry,
+    refsUi,
+    refs,
+    mode,
+    setMode,
+    selectedOid,
+    setSelectedOid,
+    stagingBusy,
+    stagingSelection,
+    stagingActionHandlersRef,
+    locateFromSearch,
+    navigateRef: refNav.navigate,
+    filterRef: refNav.filter,
+    copyDescription,
+    compareWithHead,
+    setOpenRepositoryOpen,
+    setReflogOpen,
+    setBranchCompareOpen,
+  });
+  const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
+  useCommandPaletteShortcut(openCommandPalette);
+
   // 全局快捷键：终端/缩放（可改键）、搜索、刷新与视图切换，细节见 useGlobalShortcuts。
   useGlobalShortcuts({
     repoOpen: Boolean(repo),
@@ -289,10 +393,9 @@ export default function App() {
     branchMenu,
     tagMenu,
     repo,
-    slots,
     writeDisabled: write.disabled,
     descriptionDisabled,
-    onCopyMessage: copyDescription,
+    execute: actions.execute,
     ...write.menuWriteActions,
     onDeleteTag: (name) => refActions.openDeleteTag(name),
     onEditDescription: (shortName) => {
@@ -305,13 +408,6 @@ export default function App() {
       setDiagnostic(null);
       setDescriptionTag(tag);
     },
-    onSelectCommit: (oid) => {
-      setSelectedOid(oid);
-      setMode("graph");
-    },
-    onSwitchBranch: (branch) => void write.start("switch_branch", { branch: branch.short_name }),
-    onRevealRef: refNav.navigate,
-    onFilterRef: refNav.filter,
     ...refActions.menuActions,
   });
 
@@ -357,10 +453,8 @@ export default function App() {
       stagingMutated={stagingMutated}
       locateFromSearch={locateFromSearch}
       closeSearch={closeSearch}
-      onNavigateRef={refNav.navigate}
       onCopyOid={(oid) => void refNav.copyOid(oid)}
       onOpenUpdate={() => void openReleasePage()}
-      onOpenBranchCompare={() => setBranchCompareOpen(true)}
       onCloseBranchCompare={() => setBranchCompareOpen(false)}
       onConfirmBranchCompare={(base, compare) => {
         slots.setSide("base", branchSlot(base));
@@ -380,6 +474,17 @@ export default function App() {
       onFocusTarget={setFocusTarget}
       onRowMenu={setRowMenu}
       onStagingBusy={setStagingBusy}
+      refsUi={refsUi}
+      stagingBusy={stagingBusy}
+      stagingActionHandlersRef={stagingActionHandlersRef}
+      setStagingSelection={setStagingSelection}
+      openRepositoryOpen={openRepositoryOpen}
+      setOpenRepositoryOpen={setOpenRepositoryOpen}
+      reflogOpen={reflogOpen}
+      setReflogOpen={setReflogOpen}
+      commandPaletteOpen={commandPaletteOpen}
+      setCommandPaletteOpen={setCommandPaletteOpen}
+      actions={actions}
     />
   );
 }

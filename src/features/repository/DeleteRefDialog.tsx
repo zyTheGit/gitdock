@@ -1,10 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import {
+  captureOperationNoticeRepoPath,
+  publishOperationNotice,
+  remoteDeletePartialNotice,
+  writeErrorNotice,
+  writeOutcomeNotice,
+} from "../../app/operationNotice";
 import { useI18n } from "../../i18n";
-import { consumeEsc } from "../../shared/esc";
+import { useEscClose } from "../../shared/useEscClose";
 import { errorText, issueText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
 import type { GateIssueDto, WriteKind, WriteRequest } from "../../shared/types";
+import { GateReportView } from "../write/GateReportView";
 
 export type DeleteKind = Extract<WriteKind, "delete_branch" | "delete_tag">;
 
@@ -25,19 +33,8 @@ export function DeleteRefDialog({ kind, name, remote, onCancel, onMutated }: Del
   const [error, setError] = useState<string | null>(null);
 
   const busyRef = useRef(false);
-  busyRef.current = busy;
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || busyRef.current) {
-        return;
-      }
-      consumeEsc(event);
-      onCancel();
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [onCancel]);
+  useEscClose(onCancel, busy);
 
   const joinIssues = (list: GateIssueDto[]) => list.map((issue) => issueText(issue)).join("；");
 
@@ -45,51 +42,101 @@ export function DeleteRefDialog({ kind, name, remote, onCancel, onMutated }: Del
     if (busyRef.current) {
       return;
     }
+    const requestedRepoPath = captureOperationNoticeRepoPath();
+    let localMessage: string | null = null;
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     setIssues(null);
     try {
       const request: WriteRequest = { kind, branch: name };
       const gate = await ipc.validateWrite(request);
+      if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
+        return;
+      }
       if (!gate.ok) {
+        const message = joinIssues(gate.issues);
         setIssues(gate.issues);
+        publishOperationNotice(writeErrorNotice(kind, message), requestedRepoPath);
         return;
       }
       const outcome = await ipc.executeWrite(request);
+      if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
+        return;
+      }
       if (outcome.status !== "succeeded") {
-        setError([outcomeText(outcome), outcome.stderr?.trim()].filter(Boolean).join("\n\n"));
-        return;
-      }
-      const localMessage = outcomeText(outcome);
-      if (!remote) {
-        await onMutated(localMessage);
-        onCancel();
-        return;
-      }
-      // 第二段（ADR 0022）：本地已删除，远程失败必须明确告知恢复方式。
-      const remoteRequest: WriteRequest = {
-        kind: kind === "delete_branch" ? "delete_branch_remote" : "delete_tag_remote",
-        branch: name,
-      };
-      const remoteGate = await ipc.validateWrite(remoteRequest);
-      if (!remoteGate.ok) {
-        setError([localMessage, joinIssues(remoteGate.issues)].filter(Boolean).join("\n\n"));
-        return;
-      }
-      const remoteOutcome = await ipc.executeWrite(remoteRequest);
-      if (remoteOutcome.status !== "succeeded") {
-        setError(
-          [localMessage, outcomeText(remoteOutcome), remoteOutcome.stderr?.trim()]
-            .filter(Boolean)
-            .join("\n\n"),
+        const message = outcomeText(outcome);
+        setError(message);
+        publishOperationNotice(
+          writeOutcomeNotice(kind, outcome, { summary: message }),
+          requestedRepoPath,
         );
         return;
       }
+      localMessage = outcomeText(outcome);
+      if (!remote) {
+        publishOperationNotice(writeOutcomeNotice(kind, outcome), requestedRepoPath);
+        await onMutated(localMessage);
+        if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+          onCancel();
+        }
+        return;
+      }
+      // 本地已删除：先刷新本地结果，再尝试远程，失败时也不能伪装成整体成功。
+      await onMutated(localMessage);
+      if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
+        return;
+      }
+      const remoteKind: WriteKind =
+        kind === "delete_branch" ? "delete_branch_remote" : "delete_tag_remote";
+      const remoteRequest: WriteRequest = { kind: remoteKind, branch: name };
+      const remoteGate = await ipc.validateWrite(remoteRequest);
+      if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
+        return;
+      }
+      if (!remoteGate.ok) {
+        const remoteMessage = joinIssues(remoteGate.issues);
+        setError([localMessage, remoteMessage].filter(Boolean).join("\n\n"));
+        publishOperationNotice(
+          remoteDeletePartialNotice(kind, localMessage, remoteMessage),
+          requestedRepoPath,
+        );
+        return;
+      }
+      const remoteOutcome = await ipc.executeWrite(remoteRequest);
+      if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
+        return;
+      }
+      if (remoteOutcome.status !== "succeeded") {
+        const remoteMessage = outcomeText(remoteOutcome);
+        setError([localMessage, remoteMessage].filter(Boolean).join("\n\n"));
+        publishOperationNotice(
+          remoteDeletePartialNotice(kind, localMessage, remoteMessage, remoteOutcome.stderr),
+          requestedRepoPath,
+        );
+        return;
+      }
+      publishOperationNotice(
+        writeOutcomeNotice(remoteKind, remoteOutcome, { details: localMessage }),
+        requestedRepoPath,
+      );
       await onMutated(outcomeText(remoteOutcome));
-      onCancel();
+      if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+        onCancel();
+      }
     } catch (err) {
-      setError(errorText(err));
+      if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+        const message = errorText(err);
+        setError(message);
+        publishOperationNotice(
+          localMessage === null
+            ? writeErrorNotice(kind, message)
+            : remoteDeletePartialNotice(kind, localMessage, message),
+          requestedRepoPath,
+        );
+      }
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }, [kind, name, remote, onCancel, onMutated]);
@@ -127,14 +174,7 @@ export function DeleteRefDialog({ kind, name, remote, onCancel, onMutated }: Del
         </p>
         <p className="danger-text confirm-hint">{warning}</p>
         {issues && (
-          <div className="gate-report">
-            <p className="danger-text">{t("write.gateFailedPrefix")}</p>
-            <ul className="gate-issues">
-              {issues.map((issue) => (
-                <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
-              ))}
-            </ul>
-          </div>
+          <GateReportView gate={null} gateError={null} validating={false} issues={issues} />
         )}
         {error && <p className="danger-text">{error}</p>}
       </section>

@@ -1,4 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  captureOperationNoticeRepoPath,
+  publishOperationNotice,
+  writeErrorNotice,
+  writeOutcomeNotice,
+} from "../../app/operationNotice";
 import { useI18n } from "../../i18n";
 import { errorText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
@@ -29,7 +35,6 @@ export function ResetDialog({ commit, onCancel, onMutated }: ResetDialogProps) {
   const [busy, setBusy] = useState(false);
   const [execError, setExecError] = useState<string | null>(null);
   const busyRef = useRef(false);
-  busyRef.current = busy;
 
   useEscClose(onCancel, busy);
 
@@ -70,20 +75,37 @@ export function ResetDialog({ commit, onCancel, onMutated }: ResetDialogProps) {
       return;
     }
     // 同步占用：连点时第二次调用在重渲染前就会命中这里。
+    const requestedRepoPath = captureOperationNoticeRepoPath();
     busyRef.current = true;
     setBusy(true);
     setExecError(null);
     try {
       const outcome = await ipc.executeWrite(request);
-      if (outcome.status !== "succeeded") {
-        setExecError([outcomeText(outcome), outcome.stderr?.trim()].filter(Boolean).join("\n\n"));
+      if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
         return;
       }
+      if (outcome.status !== "succeeded") {
+        const message = outcomeText(outcome);
+        setExecError(message);
+        publishOperationNotice(
+          writeErrorNotice("reset", message, outcome.stderr),
+          requestedRepoPath,
+        );
+        return;
+      }
+      publishOperationNotice(writeOutcomeNotice("reset", outcome), requestedRepoPath);
       await onMutated(outcomeText(outcome));
-      onCancel();
+      if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+        onCancel();
+      }
     } catch (err) {
-      setExecError(errorText(err));
+      if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+        const message = errorText(err);
+        setExecError(message);
+        publishOperationNotice(writeErrorNotice("reset", message), requestedRepoPath);
+      }
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }, [acknowledged, mode, onCancel, onMutated, preview.gate, request]);
@@ -93,7 +115,7 @@ export function ResetDialog({ commit, onCancel, onMutated }: ResetDialogProps) {
       className="confirm-dialog reset-dialog"
       onBackdropClick={() => {
         // 执行中不允许关闭：请求已发出，关掉对话框不会撤销写操作。
-        if (!busy) {
+        if (!busyRef.current) {
           onCancel();
         }
       }}

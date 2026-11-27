@@ -113,6 +113,7 @@ const settings = {
   fixedEnter: "Confirms the highlighted item in the repository switcher / search input",
   fixedCtrlClick:
     "{{modifier}}+click: puts the commit into the compare slots; a second click switches to the other slot",
+  fixedCommandPalette: "{{modifier}}+Shift+P: open the command palette to find and run available actions",
   fixedSettings: "{{modifier}}+comma: open settings (entry is the top-bar settings button)",
   fixedPanelTabNext: "{{modifier}}+PageDown: switch to the next tab of the bottom panel",
   fixedPanelTabPrev: "{{modifier}}+PageUp: switch to the previous tab of the bottom panel",

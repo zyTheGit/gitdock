@@ -1,0 +1,198 @@
+.command-palette {
+  display: flex;
+  flex-direction: column;
+  width: min(680px, calc(100vw - 32px));
+  max-width: 680px;
+  max-height: min(560px, calc(100vh - 32px));
+  max-height: min(560px, calc(100dvh - 32px));
+  overflow: hidden;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 18px 48px var(--shadow-lg);
+}
+
+.command-palette-search-row {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.command-palette-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.command-palette-input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.command-palette-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.command-palette-close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.command-palette-close:hover {
+  color: var(--text);
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+}
+
+.command-palette-close:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.command-palette-list {
+  min-height: 0;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  scrollbar-gutter: stable;
+}
+
+.command-palette-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 9px 10px;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.command-palette-option.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.command-palette-option[aria-disabled="true"] {
+  color: var(--muted);
+  cursor: default;
+}
+
+.command-palette-option-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.command-palette-option-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.command-palette-option[aria-disabled="true"] .command-palette-option-title {
+  color: var(--muted);
+}
+
+.command-palette-option-context {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.command-palette-shortcut {
+  flex: none;
+  margin-top: 1px;
+  padding: 2px 6px;
+  font: 11px Consolas, "Cascadia Mono", monospace;
+  color: var(--on-accent-soft);
+  white-space: nowrap;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.command-palette-option[aria-disabled="true"] .command-palette-shortcut {
+  color: var(--muted);
+}
+
+.command-palette-disabled-reason {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--danger-text);
+  overflow-wrap: anywhere;
+}
+
+.command-palette-empty {
+  margin: 0;
+  padding: 20px 12px 24px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.command-palette-hint {
+  flex: none;
+  margin: 0;
+  padding: 8px 12px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 520px) {
+  .command-palette-search-row {
+    padding: 8px;
+  }
+
+  .command-palette-option {
+    gap: 8px;
+    padding: 8px;
+  }
+}
+
+@media (forced-colors: active) {
+  .command-palette {
+    border-color: CanvasText;
+  }
+
+  .command-palette-option.active {
+    border-color: Highlight;
+  }
+
+  .command-palette-input:focus-visible,
+  .command-palette-close:focus-visible {
+    border-color: Highlight;
+  }
+}

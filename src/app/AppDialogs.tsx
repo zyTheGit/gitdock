@@ -17,6 +17,8 @@ import {
   skipAvailableUpdate,
 } from "./useUpdateCheck";
 import type { useWriteFlow } from "./useWriteFlow";
+import { OperationNotice } from "./OperationNoticeView";
+import type { OperationNotice as OperationNoticeModel, OperationNoticeAction } from "./operationNotice";
 import { BranchCompareDialog } from "../features/compare/BranchCompareDialog";
 import { SearchView } from "../features/search/SearchView";
 import type { SearchLoader } from "../features/search/useSearch";
@@ -41,6 +43,9 @@ interface AppDialogsProps {
   settings: SettingsDto | null;
   info: AppInfoDto | null;
   toast: string | null;
+  notice: OperationNoticeModel | null;
+  onDismissNotice: (id: number) => void;
+  onNoticeAction: (action: OperationNoticeAction) => void;
 
   /** 搜索面板：搜索状态仍由 App 的 useSearch 持有。 */
   search: SearchLoader;
@@ -98,6 +103,9 @@ export function AppDialogs({
   settings,
   info,
   toast,
+  notice,
+  onDismissNotice,
+  onNoticeAction,
   search,
   searchCommits,
   onLocateCommit,
@@ -191,7 +199,11 @@ export function AppDialogs({
       )}
       {refDialogs}
       {stashDialog}
-      {toast && <div className="toast" role="status">{toast}</div>}
+      {notice ? (
+        <OperationNotice notice={notice} onDismiss={onDismissNotice} onAction={onNoticeAction} />
+      ) : toast ? (
+        <div className="toast" role="status">{toast}</div>
+      ) : null}
       {branchCompareOpen && repo && refs.length >= 2 && (
         <BranchCompareDialog
           refs={refs}

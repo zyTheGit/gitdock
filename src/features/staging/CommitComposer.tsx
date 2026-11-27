@@ -6,12 +6,14 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { Icon } from "../../assets/icons";
+import { publishOperationNotice, writeErrorNotice, writeOutcomeNotice } from "../../app/operationNotice";
 import { useI18n } from "../../i18n";
 import { errorText, issueText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { primaryModifierLabel } from "../../shared/platform";
 import type { GateIssueDto, GateReportDto, WriteKind, WriteOutcomeDto } from "../../shared/types";
 import { outcomeMessage } from "../write/messages";
+import { GateReportView } from "../write/GateReportView";
 import { AmendConfirmDialog } from "./AmendConfirmDialog";
 import { readCommitDraft, storeCommitDraft } from "./commitDraft";
 
@@ -60,7 +62,10 @@ export function CommitComposer({
 
   const headMessageRef = useRef<string | null>(null);
   const busyRef = useRef(false);
+  const amendLoadingRef = useRef(false);
   const previousRepoRef = useRef(repoPath);
+  const repoPathRef = useRef(repoPath);
+  repoPathRef.current = repoPath;
   const onBusyChangeRef = useRef(onBusyChange);
   const onCommittedRef = useRef(onCommitted);
   // 异步预填落地时再查一次消息：渲染期同步刷新，避免覆盖用户已输入的内容。
@@ -68,15 +73,16 @@ export function CommitComposer({
   textRef.current = text;
   /** 每个仓库只会尝试读取一次提交模板。 */
   const templateRepoRef = useRef<string | null>(null);
-  busyRef.current = busy;
   onBusyChangeRef.current = onBusyChange;
   onCommittedRef.current = onCommitted;
 
-  // 提交执行中与其他写操作互斥：上报给暂存区，由它并入既有 busy 通道。
-  useEffect(() => {
-    onBusyChangeRef.current(busy);
-  }, [busy]);
+  const setOperationBusy = useCallback((value: boolean) => {
+    busyRef.current = value;
+    onBusyChangeRef.current(value);
+    setBusy(value);
+  }, []);
 
+  // unmount 时解除暂存区共享互斥。
   useEffect(() => () => onBusyChangeRef.current(false), []);
 
   // 草稿按仓库会话保存：切仓库丢弃上一仓库的草稿，提交成功后在 applyOutcome 中清空。
@@ -136,36 +142,47 @@ export function CommitComposer({
   // 开启 amend 时经 read_head_message 预填现有消息；读不到（unborn）则禁用开关。
   const onAmendToggle = useCallback(
     async (next: boolean) => {
-      if (!next || amendDisabled || amendLoading || busyRef.current) {
+      if (!next || amendDisabled || amendLoadingRef.current || busyRef.current) {
         setAmend(next);
         return;
       }
+      const requestedRepoPath = repoPath;
       if (headMessageRef.current === null) {
+        amendLoadingRef.current = true;
         setAmendLoading(true);
         setAmendError(null);
         try {
           const message = await ipc.readHeadMessage();
+          if (repoPathRef.current !== requestedRepoPath) {
+            return;
+          }
           if (message === null) {
             setAmendUnborn(true);
             return;
           }
           headMessageRef.current = message;
         } catch (err) {
-          setAmendError(`${t("staging.amendLoadFailedPrefix")}${errorText(err)}`);
+          if (repoPathRef.current === requestedRepoPath) {
+            setAmendError(`${t("staging.amendLoadFailedPrefix")}${errorText(err)}`);
+          }
           return;
         } finally {
+          amendLoadingRef.current = false;
           setAmendLoading(false);
         }
       }
-      setText(headMessageRef.current ?? "");
-      setAmend(true);
+      if (repoPathRef.current === requestedRepoPath) {
+        setText(headMessageRef.current ?? "");
+        setAmend(true);
+      }
     },
-    [amendDisabled, amendLoading, t],
+    [amendDisabled, repoPath, t],
   );
 
   const applyOutcome = useCallback(
     async (kind: CommitKind, outcome: WriteOutcomeDto) => {
       if (outcome.status === "succeeded") {
+        publishOperationNotice(writeOutcomeNotice(kind, outcome), repoPath);
         setText("");
         storeCommitDraft(repoPath, "");
         setTemplatePath(null);
@@ -178,9 +195,13 @@ export function CommitComposer({
         await onCommittedRef.current(outcomeMessage(kind, outcome));
         return;
       }
-      // failed / rejected（含 pre-commit hook 拒绝）：headline 与 stderr 都要可见。
-      setError([outcomeText(outcome), outcome.stderr?.trim()].filter(Boolean).join("\n\n"));
+      const message = outcomeText(outcome);
+      setError(message);
       setPendingGate(null);
+      publishOperationNotice(
+        writeErrorNotice(kind, message, outcome.stderr),
+        repoPath,
+      );
     },
     [repoPath],
   );
@@ -188,47 +209,68 @@ export function CommitComposer({
   const submit = useCallback(async () => {
     const message = text.trim();
     const blocked = !amend && !hasStaged && !unborn;
-    if (!message || busyRef.current || amendLoading || disabled || blocked) {
+    if (!message || busyRef.current || amendLoadingRef.current || disabled || blocked) {
       return;
     }
+    const requestedRepoPath = repoPath;
     const kind: CommitKind = amend ? "amend_commit" : "create_commit";
-    setBusy(true);
+    setOperationBusy(true);
     setError(null);
     setIssues(null);
     try {
       const gate = await ipc.validateWrite({ kind, message });
+      if (repoPathRef.current !== requestedRepoPath) {
+        return;
+      }
       if (!gate.ok) {
+        const gateMessage = gate.issues.map(issueText).join("\n");
         setIssues(gate.issues);
+        publishOperationNotice(writeErrorNotice(kind, gateMessage), requestedRepoPath);
         return;
       }
       if (kind === "create_commit") {
-        await applyOutcome(kind, await ipc.executeWrite({ kind, message }));
+        const outcome = await ipc.executeWrite({ kind, message });
+        if (repoPathRef.current === requestedRepoPath) {
+          await applyOutcome(kind, outcome);
+        }
         return;
       }
       setPendingGate(gate);
     } catch (err) {
-      setError(errorText(err));
+      if (repoPathRef.current === requestedRepoPath) {
+        const message = errorText(err);
+        setError(message);
+        publishOperationNotice(writeErrorNotice(kind, message), requestedRepoPath);
+      }
     } finally {
-      setBusy(false);
+      setOperationBusy(false);
     }
-  }, [amend, amendLoading, applyOutcome, disabled, hasStaged, text, unborn]);
+  }, [amend, applyOutcome, disabled, hasStaged, repoPath, setOperationBusy, text, unborn]);
 
   const confirmAmend = useCallback(async () => {
     const message = text.trim();
     if (!message || busyRef.current) {
       return;
     }
-    setBusy(true);
+    const requestedRepoPath = repoPath;
+    setOperationBusy(true);
     setError(null);
     try {
-      await applyOutcome("amend_commit", await ipc.executeWrite({ kind: "amend_commit", message }));
+      const outcome = await ipc.executeWrite({ kind: "amend_commit", message });
+      if (repoPathRef.current === requestedRepoPath) {
+        await applyOutcome("amend_commit", outcome);
+      }
     } catch (err) {
-      setError(errorText(err));
-      setPendingGate(null);
+      if (repoPathRef.current === requestedRepoPath) {
+        const message = errorText(err);
+        setError(message);
+        setPendingGate(null);
+        publishOperationNotice(writeErrorNotice("amend_commit", message), requestedRepoPath);
+      }
     } finally {
-      setBusy(false);
+      setOperationBusy(false);
     }
-  }, [applyOutcome, text]);
+  }, [applyOutcome, repoPath, setOperationBusy, text]);
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
@@ -289,14 +331,7 @@ export function CommitComposer({
           )}
           {amendError && <p className="danger-text">{amendError}</p>}
           {issues && (
-            <div className="gate-report">
-              <p className="danger-text">{t("write.gateFailedPrefix")}</p>
-              <ul className="gate-issues">
-                {issues.map((issue) => (
-                  <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
-                ))}
-              </ul>
-            </div>
+            <GateReportView gate={null} gateError={null} validating={false} issues={issues} />
           )}
           {error && <p className="danger-text commit-composer-error">{error}</p>}
           <footer className="commit-composer-actions">

@@ -1,5 +1,4 @@
 import type { MouseEvent } from "react";
-import { useState } from "react";
 import { Banners } from "./Banners";
 import type { ViewMode } from "./useGlobalEsc";
 import type { useBottomPanel } from "./useBottomPanel";
@@ -23,6 +22,10 @@ import { FileHistoryDialog } from "../features/history/FileHistoryDialog";
 import { ReflogDialog } from "../features/graph/ReflogDialog";
 import { ResetDialog } from "../features/write/ResetDialog";
 import { StagingView } from "../features/staging/StagingView";
+import type {
+  StagingActionBridgeRef,
+  StagingActionSelection,
+} from "../features/staging/stagingActionBridge";
 import { useI18n } from "../i18n";
 import { PaneSplitter } from "../shared/PaneSplitter";
 import { copyText } from "../shared/clipboard";
@@ -46,6 +49,7 @@ type Setters = {
   setStagingBusy: (busy: boolean) => void;
   setError: (message: string | null) => void;
   setDiagnostic: (text: string | null) => void;
+  setToast: (message: string | null) => void;
 };
 
 interface MainWorkspaceProps {
@@ -87,6 +91,11 @@ interface MainWorkspaceProps {
   ) => void;
   launchDirectoryDiff: (toolIndex: number) => void;
   stagingMutated: (message: string) => Promise<void>;
+  stagingActionHandlersRef: StagingActionBridgeRef;
+  onStagingSelectionChange: (selection: StagingActionSelection | null) => void;
+  reflogOpen: boolean;
+  setReflogOpen: (open: boolean) => void;
+  reflogWriteDisabled: boolean;
   /** 以指定提交为起点打开既有创建分支对话框（Reflog 恢复视图复用，ADR-0029）。 */
   onCreateBranch: (commit: CommitSummaryDto) => void;
   onPick: () => void;
@@ -123,6 +132,11 @@ export function MainWorkspace({
   launchExternal,
   launchDirectoryDiff,
   stagingMutated,
+  stagingActionHandlersRef,
+  onStagingSelectionChange,
+  reflogOpen,
+  setReflogOpen,
+  reflogWriteDisabled,
   onCreateBranch,
   onPick,
   setters,
@@ -139,6 +153,7 @@ export function MainWorkspace({
     setStagingBusy,
     setError,
     setDiagnostic,
+    setToast,
   } = setters;
 
   // 详情面板里点击父提交：定位到图谱并切换详情（必要时切到全量范围）。
@@ -150,7 +165,6 @@ export function MainWorkspace({
     setSelectedOid,
     setFocusTarget,
   });
-  const [reflogOpen, setReflogOpen] = useState(false);
 
   return (
     <main className="main">
@@ -202,6 +216,8 @@ export function MainWorkspace({
             onOpenStash={stash.openStash}
             onOpenTerminal={panel.openTerminal}
             onExit={() => setMode("graph")}
+            actionHandlersRef={stagingActionHandlersRef}
+            onSelectionChange={onStagingSelectionChange}
           />
         ) : (
           <>
@@ -294,7 +310,7 @@ export function MainWorkspace({
       {repo && reflogOpen && (
         <ReflogDialog
           generation={repo.generation}
-          writeDisabled={write.disabled}
+          writeDisabled={reflogWriteDisabled}
           onClose={() => setReflogOpen(false)}
           onLocate={(oid) => {
             setReflogOpen(false);
@@ -308,6 +324,7 @@ export function MainWorkspace({
             setReflogOpen(false);
             write.menuWriteActions.onCherryPick(commit);
           }}
+          onToast={setToast}
         />
       )}
     </main>

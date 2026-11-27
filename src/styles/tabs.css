@@ -10,7 +10,7 @@
   background: var(--bg-panel);
 }
 
-/* 只有标签本体滚动，「+」固定在滚动区外，标签再多也始终可见。 */
+/* 只有标签本体滚动，标签再多也保持标签条稳定。 */
 .repo-tabs-scroll {
   display: flex;
   align-items: center;
@@ -77,7 +77,7 @@
   background: var(--accent);
 }
 
-/* 导入中的占位提示：弱化呈现，只说明「+」已生效、正在打开仓库。 */
+/* 导入中的占位提示：弱化呈现，只说明正在打开仓库。 */
 .repo-tab-opening {
   display: inline-flex;
   flex: none;
@@ -89,8 +89,7 @@
   white-space: nowrap;
 }
 
-.repo-tab-close,
-.repo-tab-add {
+.repo-tab-close {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -111,21 +110,14 @@
   margin-right: 4px;
 }
 
-.repo-tab-close:hover:not(:disabled),
-.repo-tab-add:hover:not(:disabled) {
+.repo-tab-close:hover:not(:disabled) {
   background: var(--accent-soft);
   color: var(--on-accent-soft);
 }
 
-.repo-tab-close:disabled,
-.repo-tab-add:disabled {
+.repo-tab-close:disabled {
   opacity: 0.5;
   cursor: default;
-}
-
-.repo-tab-add {
-  margin-left: 4px;
-  font-size: 16px;
 }
 
 /* 每仓库终端面板实例：非活动标签保持挂载（PTY 与 xterm 缓冲保活），只隐藏。 */

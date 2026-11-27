@@ -40,6 +40,11 @@
   border-color: var(--border);
 }
 
+.repo-switch-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .repo-switch-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -70,6 +75,39 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 16px 40px var(--shadow-lg);
+  overflow: hidden;
+}
+
+.open-repository-dialog {
+  width: min(560px, 92vw);
+  max-height: min(76vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px var(--shadow-lg);
+  overflow: hidden;
+}
+
+.open-repository-dialog header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 8px;
+}
+
+.open-repository-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.open-repository-dialog-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -160,6 +198,7 @@
 }
 
 .repo-menu-item:hover .repo-menu-remove,
+.repo-menu-item:focus-within .repo-menu-remove,
 .repo-menu-remove:focus-visible {
   visibility: visible;
 }
@@ -248,4 +287,60 @@
 
 .workspace-badge:disabled {
   cursor: default;
+}
+
+/* 引用浮层紧跟仓库标签栏；零高锚点避免顶栏换行时写死 top 偏移。 */
+.refs-popover-anchor {
+  position: relative;
+  z-index: 45;
+  flex: none;
+  height: 0;
+}
+
+.refs-popover {
+  position: absolute;
+  top: 0;
+  left: 8px;
+  display: flex;
+  flex-direction: column;
+  width: min(280px, calc(100vw - 16px));
+  max-height: min(70vh, 640px);
+  max-height: min(70dvh, 640px);
+  overflow: hidden;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px var(--shadow-lg);
+}
+
+.refs-popover-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.refs-popover-header h2 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.refs-popover-close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.refs-popover .refs-popover-sidebar {
+  flex: 1;
+  width: 100% !important;
+  min-height: 0;
+  padding: 8px;
+  border-right: 0;
 }

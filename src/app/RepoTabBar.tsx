@@ -12,12 +12,10 @@ interface RepoTabBarProps {
   opening: boolean;
   onActivate: (repoId: RepoId) => void;
   onClose: (repoId: RepoId) => void;
-  /** 复用仓库选择对话框（WelcomePane / 顶栏切换器的同一流程）。 */
-  onOpen: () => void;
 }
 
 /**
- * 多仓库标签条（ADR-0032）：仓库名 + 活动态 + 非活动标签脏点 + 关闭按钮 + 打开新仓库。
+ * 多仓库标签条（ADR-0032）：仓库名 + 活动态 + 非活动标签脏点 + 关闭按钮。
  * 不监听任何按键：Esc 分层仍由 window 层统一处理，标签条不吞按键。
  */
 export function RepoTabBar({
@@ -28,7 +26,6 @@ export function RepoTabBar({
   opening,
   onActivate,
   onClose,
-  onOpen,
 }: RepoTabBarProps) {
   const { t } = useI18n();
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -119,16 +116,6 @@ export function RepoTabBar({
           </span>
         )}
       </div>
-      <button
-        type="button"
-        className="repo-tab-add"
-        title={t("repository.tabOpenTitle")}
-        aria-label={t("repository.tabOpenAria")}
-        disabled={busy}
-        onClick={onOpen}
-      >
-        +
-      </button>
     </div>
   );
 }

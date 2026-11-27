@@ -1,4 +1,5 @@
 import type zhCnCommon from "./locales/zh-CN/common";
+import type zhCnCommands from "./locales/zh-CN/commands";
 import type zhCnCompare from "./locales/zh-CN/compare";
 import type zhCnDetail from "./locales/zh-CN/detail";
 import type zhCnDiff from "./locales/zh-CN/diff";
@@ -6,6 +7,7 @@ import type zhCnErrors from "./locales/zh-CN/errors";
 import type zhCnGitlog from "./locales/zh-CN/gitlog";
 import type zhCnGraph from "./locales/zh-CN/graph";
 import type zhCnHistory from "./locales/zh-CN/history";
+import type zhCnNotices from "./locales/zh-CN/notices";
 import type zhCnRepository from "./locales/zh-CN/repository";
 import type zhCnSearch from "./locales/zh-CN/search";
 import type zhCnSettings from "./locales/zh-CN/settings";
@@ -25,6 +27,7 @@ declare module "i18next" {
     nsSeparator: ".";
     resources: {
       common: typeof zhCnCommon;
+      commands: typeof zhCnCommands;
       shell: typeof zhCnShell;
       repository: typeof zhCnRepository;
       graph: typeof zhCnGraph;
@@ -39,6 +42,7 @@ declare module "i18next" {
       errors: typeof zhCnErrors;
       gitlog: typeof zhCnGitlog;
       history: typeof zhCnHistory;
+      notices: typeof zhCnNotices;
       worktree: typeof zhCnWorktree;
     };
   }

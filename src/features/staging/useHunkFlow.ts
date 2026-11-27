@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { publishOperationNotice, writeErrorNotice, writeOutcomeNotice } from "../../app/operationNotice";
 import { useI18n } from "../../i18n";
 import { errorText, issueText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
@@ -31,6 +32,8 @@ export interface HunkDiscardTarget {
 
 /** 一次操作结束后静默重读状态与当前文件 diff 的入口（由 StagingView 提供）。 */
 export interface HunkFlowOptions {
+  /** 当前仓库路径；旧仓库异步结果不得回写或发布通知。 */
+  repoPath: string;
   /** 写互斥 / 加载中：不接受新的 hunk 请求。 */
   disabled: boolean;
   selection: HunkSelection | null;
@@ -144,9 +147,12 @@ export function useHunkFlow(options: HunkFlowOptions): HunkFlow {
    * 操作结束后对齐 UI：静默重读状态，再按最新列表判断是否需要重读当前 diff。
    * 文件已不在该侧时不动 diff —— 选择由 StagingView 的 status 副作用清空并自动换文件。
    */
-  const settle = useCallback(async (path: string, side: Side) => {
+  const settle = useCallback(async (path: string, side: Side, repoPath: string) => {
     const { reload, reloadDiff } = optionsRef.current;
     const next = await reload();
+    if (optionsRef.current.repoPath !== repoPath) {
+      return;
+    }
     const current = optionsRef.current.selection;
     if (!next || !current || current.path !== path || current.side !== side) {
       return;
@@ -166,6 +172,7 @@ export function useHunkFlow(options: HunkFlowOptions): HunkFlow {
         return;
       }
       const { path, side } = selection;
+      const repoPath = opts.repoPath;
       const request: WriteRequest = { kind, path, hunk_index: index };
       runningRef.current = true;
       setRunning(true);
@@ -173,24 +180,44 @@ export function useHunkFlow(options: HunkFlowOptions): HunkFlow {
       opts.setError(null);
       try {
         const report = await ipc.validateWrite(request);
+        if (optionsRef.current.repoPath !== repoPath) {
+          return;
+        }
         if (!report.ok) {
-          opts.setError(gateText(report));
-          await settle(path, side);
+          const message = gateText(report);
+          opts.setError(message);
+          publishOperationNotice(writeErrorNotice(kind, message), repoPath);
+          await settle(path, side, repoPath);
           return;
         }
         const outcome = await ipc.executeWrite(request);
+        if (optionsRef.current.repoPath !== repoPath) {
+          return;
+        }
         if (outcome.status !== "succeeded") {
-          opts.setError([outcomeText(outcome), outcome.stderr?.trim()].filter(Boolean).join("\n\n"));
-          await settle(path, side);
+          const message = outcomeText(outcome);
+          opts.setError(message);
+          publishOperationNotice(
+            writeOutcomeNotice(kind, outcome, { summary: message }),
+            repoPath,
+          );
+          await settle(path, side, repoPath);
           return;
         }
         const message = outcomeText(outcome);
+        publishOperationNotice(writeOutcomeNotice(kind, outcome), repoPath);
         opts.clearChecked();
-        await settle(path, side);
-        await opts.onMutated(message);
+        await settle(path, side, repoPath);
+        if (optionsRef.current.repoPath === repoPath) {
+          await opts.onMutated(message);
+        }
       } catch (err) {
-        opts.setError(errorText(err));
-        await settle(path, side);
+        if (optionsRef.current.repoPath === repoPath) {
+          const message = errorText(err);
+          opts.setError(message);
+          publishOperationNotice(writeErrorNotice(kind, message), repoPath);
+        }
+        await settle(path, side, repoPath);
       } finally {
         runningRef.current = false;
         setRunning(false);
@@ -235,6 +262,7 @@ export function useHunkFlow(options: HunkFlowOptions): HunkFlow {
       return;
     }
     const { path, index } = confirmingDiscard;
+    const repoPath = opts.repoPath;
     const request: WriteRequest = { kind: "discard_hunk", path, hunk_index: index };
     runningRef.current = true;
     setRunning(true);
@@ -246,32 +274,53 @@ export function useHunkFlow(options: HunkFlowOptions): HunkFlow {
     setDiscardError(null);
     try {
       const report = await ipc.validateWrite(request);
+      if (optionsRef.current.repoPath !== repoPath) {
+        return;
+      }
       setGateWarnings(report.warnings);
       if (!report.ok) {
+        const message = gateText(report);
         setGateIssues(report.issues);
+        publishOperationNotice(writeErrorNotice("discard_hunk", message), repoPath);
         // 越界意味着看 diff 期间块数已漂移：立即重读，让对话框背后的序号重新对齐。
-        await settle(path, "unstaged");
+        await settle(path, "unstaged", repoPath);
         return;
       }
       setDiscardValidating(false);
       setDiscardBusy(true);
       const outcome = await ipc.executeWrite(request);
+      if (optionsRef.current.repoPath !== repoPath) {
+        return;
+      }
       if (outcome.status !== "succeeded") {
-        setDiscardError(
-          [outcomeText(outcome), outcome.stderr?.trim()].filter(Boolean).join("\n\n"),
+        const message = outcomeText(outcome);
+        setDiscardError(message);
+        publishOperationNotice(
+          writeOutcomeNotice("discard_hunk", outcome, { summary: message }),
+          repoPath,
         );
-        await settle(path, "unstaged");
+        await settle(path, "unstaged", repoPath);
         return;
       }
       const message = outcomeText(outcome);
+      publishOperationNotice(writeOutcomeNotice("discard_hunk", outcome), repoPath);
       opts.clearChecked();
-      await settle(path, "unstaged");
+      await settle(path, "unstaged", repoPath);
+      if (optionsRef.current.repoPath !== repoPath) {
+        return;
+      }
       await opts.onMutated(message);
-      setConfirmingDiscard(null);
-      setGateWarnings(null);
+      if (optionsRef.current.repoPath === repoPath) {
+        setConfirmingDiscard(null);
+        setGateWarnings(null);
+      }
     } catch (err) {
-      setDiscardError(errorText(err));
-      await settle(path, "unstaged");
+      if (optionsRef.current.repoPath === repoPath) {
+        const message = errorText(err);
+        setDiscardError(message);
+        publishOperationNotice(writeErrorNotice("discard_hunk", message), repoPath);
+      }
+      await settle(path, "unstaged", repoPath);
     } finally {
       runningRef.current = false;
       setRunning(false);

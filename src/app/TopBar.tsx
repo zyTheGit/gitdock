@@ -1,24 +1,35 @@
+import type { RefObject } from "react";
 import { Icon } from "../assets/icons";
 import { useI18n } from "../i18n";
 import { primaryModifierLabel } from "../shared/platform";
 import { RepositorySwitcher } from "../features/repository/RepositorySwitcher";
 import { WorkspaceBadge } from "./WorkspaceBadge";
-import type { RecentRepository, RepoStateDto, WorkspaceStatusDto } from "../shared/types";
+import type { RecentRepository, RepoId, RepoStateDto, RepoTabDto, WorkspaceStatusDto } from "../shared/types";
 import type { ViewMode } from "./useGlobalEsc";
 
-function ActionIcon({ name }: { name: "search" | "stage" | "compare" | "refresh" | "settings" }) {
+function ActionIcon({ name }: { name: "search" | "compare" | "refresh" | "settings" | "gitBranch" }) {
   return <Icon name={name} className="topbar-action-icon" />;
 }
 
 interface TopBarProps {
   repo: RepoStateDto | null;
   workspace: WorkspaceStatusDto | null;
+  tabs: RepoTabDto[];
+  activeRepoId: RepoId | null;
   recent: RecentRepository[];
   busy: boolean;
   mode: ViewMode;
   compareReady: boolean;
   /** 可参与对比的引用数（本地分支 + 远程分支 + 标签）。 */
   refCount: number;
+  /** ≤640px 时打开引用浮层；宽窗口时切换普通侧栏。 */
+  narrow: boolean;
+  refsOpen: boolean;
+  sidebarVisible: boolean;
+  onToggleRefs: () => void;
+  refsButtonRef: RefObject<HTMLButtonElement>;
+  refsPopoverId: string;
+  onActivateRepo: (repoId: RepoId) => void;
   onOpenRepo: (path: string) => void;
   onForgetRepo: (path: string) => void;
   onPickRepo: () => void;
@@ -37,11 +48,20 @@ interface TopBarProps {
 export function TopBar({
   repo,
   workspace,
+  tabs,
+  activeRepoId,
   recent,
   busy,
   mode,
   compareReady,
   refCount,
+  narrow,
+  refsOpen,
+  sidebarVisible,
+  onToggleRefs,
+  refsButtonRef,
+  refsPopoverId,
+  onActivateRepo,
   onOpenRepo,
   onForgetRepo,
   onPickRepo,
@@ -52,12 +72,21 @@ export function TopBar({
   onOpenBranchCompare,
 }: TopBarProps) {
   const { t } = useI18n();
+  const refsExpanded = narrow ? refsOpen : sidebarVisible;
+  const refsTitle = narrow
+    ? t("shell.openRefsTitle")
+    : sidebarVisible
+      ? t("shell.hideSidebarTitle")
+      : t("shell.showSidebarTitle");
   return (
     <header className="topbar">
       <RepositorySwitcher
         currentPath={repo?.path ?? null}
+        tabs={tabs}
+        activeRepoId={activeRepoId}
         recent={recent}
         busy={busy}
+        onActivate={onActivateRepo}
         onOpen={onOpenRepo}
         onForget={onForgetRepo}
         onPick={onPickRepo}
@@ -73,18 +102,23 @@ export function TopBar({
         {repo && (
           <>
             <button
+              type="button"
+              ref={refsButtonRef}
+              className={refsExpanded ? "active" : ""}
+              onClick={onToggleRefs}
+              title={refsTitle}
+              aria-label={t("shell.refsLabel")}
+              aria-expanded={refsExpanded}
+              aria-controls={narrow ? refsPopoverId : "repository-sidebar"}
+            >
+              <ActionIcon name="gitBranch" /><span>{t("shell.refsLabel")}</span>
+            </button>
+            <button
               className={mode === "search" ? "active" : ""}
               onClick={() => (mode === "search" ? closeSearch() : setMode("search"))}
               title={t("shell.searchButtonTitle")}
             >
               <ActionIcon name="search" /><span>{t("shell.search")}</span>
-            </button>
-            <button
-              className={mode === "staging" ? "active" : ""}
-              onClick={() => setMode(mode === "staging" ? "graph" : "staging")}
-              title={t("shell.stagingButtonTitle")}
-            >
-              <ActionIcon name="stage" /><span>{t("shell.staging")}</span>
             </button>
             <button
               className={mode === "compare" ? "active" : ""}

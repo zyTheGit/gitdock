@@ -104,6 +104,7 @@ const settings = {
   fixedArrows: "图谱列表聚焦时上下移动选中提交；仓库切换器、搜索建议里移动高亮；拖拽分隔条时调整栏宽，按住 Shift 步长更大",
   fixedEnter: "确认仓库切换器 / 搜索输入框里的高亮项",
   fixedCtrlClick: "{{modifier}}+点击：把提交放进对比双槽，第二次点击换到另一个槽位",
+  fixedCommandPalette: "{{modifier}}+Shift+P：打开命令面板，搜索并执行当前可用操作",
   fixedSettings: "{{modifier}}+逗号：打开设置（入口在顶栏设置按钮）",
   fixedPanelTabNext: "{{modifier}}+PageDown：切到底部面板的下一个标签",
   fixedPanelTabPrev: "{{modifier}}+PageUp：切到底部面板的上一个标签",

@@ -47,6 +47,7 @@ const FIXED_SHORTCUTS: { keys: string[]; textKey: SettingsKey }[] = [
   { keys: ["↑", "↓"], textKey: "settings.fixedArrows" },
   { keys: ["Enter"], textKey: "settings.fixedEnter" },
   { keys: ["Ctrl", "点击"], textKey: "settings.fixedCtrlClick" },
+  { keys: ["Ctrl", "Shift", "P"], textKey: "settings.fixedCommandPalette" },
   { keys: ["Ctrl", ","], textKey: "settings.fixedSettings" },
   { keys: ["Ctrl", "PageDown"], textKey: "settings.fixedPanelTabNext" },
   { keys: ["Ctrl", "PageUp"], textKey: "settings.fixedPanelTabPrev" },

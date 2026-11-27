@@ -2,6 +2,7 @@
 
 .graph-pane {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -13,11 +14,18 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
   font-size: 12px;
+}
+
+.graph-toolbar > * {
+  min-width: 0;
 }
 
 .scope-tabs {
   display: flex;
+  flex: none;
   gap: 2px;
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -42,13 +50,25 @@
   max-width: 200px;
 }
 
+.branch-filter > select {
+  min-width: 0;
+}
+
 .graph-view-label {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 240px;
+  overflow: hidden;
   color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .graph-count {
+  flex: none;
   margin-left: auto;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .graph-scroll {
@@ -383,13 +403,22 @@
   background: var(--bg-panel);
 }
 
-/* 远程同步按钮组：跟随当前上游，窄窗口下整组换行。 */
+/* 远程同步按钮组：常规宽度一行，窄窗口先整组换行，再在组内收缩换行。 */
 .remote-actions {
   display: flex;
-  flex: none;
-  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
   margin-left: auto;
+}
+
+.remote-action-menu {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Reflog 恢复入口（ADR-0029）：低频救命功能，放在工具栏但不占主区空间。 */
@@ -413,6 +442,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
   padding: 2px 8px;
   font-size: 11px;
   white-space: nowrap;
@@ -422,4 +453,69 @@
   width: 13px;
   height: 13px;
   flex: none;
+}
+
+.remote-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.remote-action-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.remote-actions .remote-action-caret {
+  width: 10px;
+  height: 10px;
+  margin-left: 1px;
+}
+
+.remote-actions-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 100%;
+  max-width: 260px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px var(--shadow-sm);
+}
+
+/* 组换行后 Fetch 可能靠近左缘、Pull 靠近右缘，分别向内展开避免横向溢出。 */
+.remote-actions-menu-fetch {
+  right: auto;
+  left: 0;
+}
+
+.remote-actions-menu-pull {
+  right: 0;
+  left: auto;
+}
+
+.remote-actions-menu button {
+  display: flex;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+}
+
+.remote-actions-menu button:hover:not(:disabled),
+.remote-actions-menu button:focus-visible {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.remote-actions-menu button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
 }

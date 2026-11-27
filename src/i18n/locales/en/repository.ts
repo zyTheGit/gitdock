@@ -2,10 +2,12 @@ import type { RepositoryMessages } from "../zh-CN/repository";
 
 /** repository 域英文资源；用 satisfies 保证与 zh-CN 的 key 结构同构。 */
 const repository = {
-  groupCurrent: "Current window",
+  groupCurrent: "Current repository",
   groupRecent: "Recent repositories",
-  switchRepoTitle: "Switch or open repository",
-  switchRepoMenu: "Switch repository",
+  switchRepoTitle: "Choose or open a repository",
+  switchRepoMenu: "Repository selection",
+  openDialogTitle: "Open repository",
+  closeDialog: "Close dialog",
   searchPlaceholder: "Search repositories by name or path…",
   noMatches: "No matching repositories",
   recentCleared: "Recent repositories cleared; add one back via \"Open local repository…\" below",
@@ -116,10 +118,11 @@ const repository = {
     "Deletes the local tag first, then the same-name tag on origin; removing a remote tag can break other people's builds or version traceability, so it must be recreated and pushed again.",
   // ---- Multi-repo tabs (ADR-0032) ----
   tabBarAria: "Open repository tabs",
-  tabOpenTitle: "Open another repository",
+  tabOpenTitle: "Open repository",
   tabOpenAria: "Open repository",
   tabCloseTitle: "Close {{name}}",
   tabCloseAria: "Close repository {{name}}",
+  tabCloseCurrentTitle: "Close current repository tab",
   tabDirtyTitle: "{{name}} has new changes",
   tabDirtyAria: "{{name}} has new changes and refreshes when you switch back",
   tabOpening: "Opening…",

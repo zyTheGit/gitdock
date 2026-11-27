@@ -1,4 +1,10 @@
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useId, useRef, useState, type ReactNode } from "react";
+import {
+  captureOperationNoticeRepoPath,
+  publishOperationNotice,
+  writeErrorNotice,
+  writeOutcomeNotice,
+} from "../../app/operationNotice";
 import { useI18n } from "../../i18n";
 import { errorText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
@@ -45,11 +51,11 @@ export function RemoteWriteDialog({
   children,
 }: RemoteWriteDialogProps) {
   const { t } = useI18n();
+  const titleId = useId();
   const preview = useGatePreview(request);
   const [busy, setBusy] = useState(false);
   const [execError, setExecError] = useState<string | null>(null);
   const busyRef = useRef(false);
-  busyRef.current = busy;
 
   useEscClose(onCancel, busy);
 
@@ -57,19 +63,37 @@ export function RemoteWriteDialog({
     if (busyRef.current || !request || !preview.gate?.ok) {
       return;
     }
+    const requestedRepoPath = captureOperationNoticeRepoPath();
+    busyRef.current = true;
     setBusy(true);
     setExecError(null);
     try {
       const outcome = await ipc.executeWrite(request);
-      if (outcome.status !== "succeeded") {
-        setExecError([outcomeText(outcome), outcome.stderr?.trim()].filter(Boolean).join("\n\n"));
+      if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
         return;
       }
+      if (outcome.status !== "succeeded") {
+        const message = outcomeText(outcome);
+        setExecError(message);
+        publishOperationNotice(
+          writeErrorNotice(request.kind, message, outcome.stderr),
+          requestedRepoPath,
+        );
+        return;
+      }
+      publishOperationNotice(writeOutcomeNotice(request.kind, outcome), requestedRepoPath);
       await onMutated(outcomeText(outcome));
-      onCancel();
+      if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+        onCancel();
+      }
     } catch (err) {
-      setExecError(errorText(err));
+      if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+        const message = errorText(err);
+        setExecError(message);
+        publishOperationNotice(writeErrorNotice(request.kind, message), requestedRepoPath);
+      }
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }, [request, preview.gate, onCancel, onMutated]);
@@ -77,9 +101,9 @@ export function RemoteWriteDialog({
   const blocked = busy || !request || preview.validating || Boolean(preview.gateError) || !preview.gate?.ok;
 
   return (
-    <Modal className="confirm-dialog">
+    <Modal className="confirm-dialog" labelledBy={titleId}>
       <header>
-        <h2>{title}</h2>
+        <h2 id={titleId}>{title}</h2>
         <button
           className="detail-close"
           onClick={onCancel}

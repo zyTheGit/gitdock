@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  captureOperationNoticeRepoPath,
+  publishOperationNotice,
+  writeErrorNotice,
+  writeOutcomeNotice,
+} from "../../app/operationNotice";
 import { useI18n } from "../../i18n";
 import { errorText, issueText, outcomeText } from "../../shared/error";
 import { ipc } from "../../shared/ipc";
 import { Modal } from "../../shared/Modal";
 import { useEscClose } from "../../shared/useEscClose";
 import type { GateIssueDto, StashEntryDto, WriteKind, WriteRequest } from "../../shared/types";
+import { GateReportView } from "../write/GateReportView";
 import { StashEntryRow } from "./StashEntryRow";
 import { StashPreviewPane } from "./StashPreviewPane";
 
@@ -30,14 +37,19 @@ export function StashDialog({ writeDisabled, onClose, onMutated }: StashDialogPr
 
   const busyRef = useRef(false);
   const pendingDropRef = useRef<StashEntryDto | null>(null);
-  busyRef.current = busy;
   pendingDropRef.current = pendingDrop;
 
   const load = useCallback(async () => {
+    const requestedRepoPath = captureOperationNoticeRepoPath();
     try {
-      setEntries(await ipc.readStashes());
+      const nextEntries = await ipc.readStashes();
+      if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+        setEntries(nextEntries);
+      }
     } catch (err) {
-      setError(errorText(err));
+      if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+        setError(errorText(err));
+      }
     }
   }, []);
 
@@ -67,9 +79,13 @@ export function StashDialog({ writeDisabled, onClose, onMutated }: StashDialogPr
 
   const finish = useCallback(
     async (outcomeStatus: string, text: string) => {
+      const requestedRepoPath = captureOperationNoticeRepoPath();
       await load();
+      if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
+        return;
+      }
       await onMutated(text);
-      if (outcomeStatus === "succeeded") {
+      if (captureOperationNoticeRepoPath() === requestedRepoPath && outcomeStatus === "succeeded") {
         setMessage("");
       }
     },
@@ -81,37 +97,60 @@ export function StashDialog({ writeDisabled, onClose, onMutated }: StashDialogPr
       if (busyRef.current || writeDisabled) {
         return;
       }
+      const requestedRepoPath = captureOperationNoticeRepoPath();
+      busyRef.current = true;
       setBusy(true);
       setError(null);
       setIssues(null);
       try {
         const gate = await ipc.validateWrite(request);
+        if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
+          return;
+        }
         if (!gate.ok) {
+          const message = gate.issues.map(issueText).join("\n");
           setIssues(gate.issues);
+          publishOperationNotice(writeErrorNotice(request.kind, message), requestedRepoPath);
           return;
         }
         const outcome = await ipc.executeWrite(request);
+        if (captureOperationNoticeRepoPath() !== requestedRepoPath) {
+          return;
+        }
         if (outcome.status === "rejected") {
-          setError(outcomeText(outcome));
+          const message = outcomeText(outcome);
+          setError(message);
+          publishOperationNotice(writeErrorNotice(request.kind, message), requestedRepoPath);
           return;
         }
         if (outcome.status === "failed") {
-          setError([failedText, outcomeText(outcome), outcome.stderr?.trim()].filter(Boolean).join("\n\n"));
+          const message = [failedText, outcomeText(outcome)].filter(Boolean).join("\n\n");
+          setError(message);
+          publishOperationNotice(
+            writeErrorNotice(request.kind, message, outcome.stderr),
+            requestedRepoPath,
+          );
           return;
         }
         if (outcome.status === "conflicted") {
-          setError(
-            [outcomeText(outcome), t("staging.stashConflictHint"), outcome.stderr?.trim()]
-              .filter(Boolean)
-              .join("\n\n"),
+          setError(`${outcomeText(outcome)}\n${t("staging.stashConflictHint")}`);
+          publishOperationNotice(
+            writeOutcomeNotice(request.kind, outcome, { details: t("staging.stashConflictHint") }),
+            requestedRepoPath,
           );
           await finish(outcome.status, outcomeText(outcome));
           return;
         }
+        publishOperationNotice(writeOutcomeNotice(request.kind, outcome), requestedRepoPath);
         await finish(outcome.status, outcomeText(outcome));
       } catch (err) {
-        setError(errorText(err));
+        if (captureOperationNoticeRepoPath() === requestedRepoPath) {
+          const message = errorText(err);
+          setError(message);
+          publishOperationNotice(writeErrorNotice(request.kind, message), requestedRepoPath);
+        }
       } finally {
+        busyRef.current = false;
         setBusy(false);
       }
     },
@@ -216,14 +255,7 @@ export function StashDialog({ writeDisabled, onClose, onMutated }: StashDialogPr
               </section>
 
               {issues && (
-                <div className="gate-report">
-                  <p className="danger-text">{t("write.gateFailedPrefix")}</p>
-                  <ul className="gate-issues">
-                    {issues.map((issue) => (
-                      <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
-                    ))}
-                  </ul>
-                </div>
+                <GateReportView gate={null} gateError={null} validating={false} issues={issues} />
               )}
               {error && <p className="danger-text stash-error">{error}</p>}
 

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useI18n } from "../../i18n";
 import { consumeEsc } from "../../shared/esc";
-import { gateSummaryText, issueText, warningText } from "../../shared/error";
 import { Modal } from "../../shared/Modal";
 import type { GateIssueDto, GateReportDto } from "../../shared/types";
+import { GateReportView } from "../write/GateReportView";
 
 interface DiscardConfirmDialogProps {
   /** 待丢弃的仓库内相对路径（当前勾选或右键的那一个）。 */
@@ -81,9 +81,6 @@ export function DiscardConfirmDialog({
   const tracked = paths.filter((path) => !untrackedSet.has(path));
   const untracked = paths.filter((path) => untrackedSet.has(path));
   // 破坏性提示已由常驻文案完整说明，Gate 的同类 warning 不再重复一遍。
-  const warnings = gate
-    ? gate.warnings.filter((warning) => warning.code !== "discard_destructive")
-    : [];
   const confirmLabel = busy
     ? t("staging.discardSubmitting")
     : validating
@@ -119,45 +116,13 @@ export function DiscardConfirmDialog({
       </section>
 
       {(gate || issues) && (
-        <section className="gate-report">
-          <h3>{t("write.gateTitle")}</h3>
-          {issues ? (
-            <>
-              <p className="danger-text">{t("write.gateFailedPrefix")}</p>
-              <ul className="gate-issues">
-                {issues.map((issue) => (
-                  <li key={`${issue.code}:${issue.message}`}>{issueText(issue)}</li>
-                ))}
-              </ul>
-            </>
-          ) : gate?.ok ? (
-            <p className="gate-ok">{gateSummaryText(gate)}</p>
-          ) : null}
-          {warnings.map((warning) => (
-            <p className="gate-warning" key={`${warning.code}:${warning.message}`}>
-              {warningText(warning)}
-            </p>
-          ))}
-          {gate && gate.affected_paths.length > 0 && (
-            <div className="gate-affected">
-              <p className="muted">
-                {gate.affected_total > gate.affected_paths.length
-                  ? t("write.affectedFilesTruncated", {
-                      n: gate.affected_total,
-                      m: gate.affected_paths.length,
-                    })
-                  : t("write.affectedFiles", { n: gate.affected_total })}
-              </p>
-              <ul className="gate-paths">
-                {gate.affected_paths.map((path) => (
-                  <li className="mono" key={path}>
-                    {path}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
+        <GateReportView
+          gate={gate}
+          gateError={null}
+          validating={validating}
+          issues={issues}
+          hideWarnings={["discard_destructive"]}
+        />
       )}
 
       {error && (
