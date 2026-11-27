@@ -79,6 +79,19 @@ const diff = {
   imageBefore: "修改前",
   imageAfter: "修改后",
   imageAlt: "{{label}}（{{kind}} 图片）",
+
+  // 左右来源标头
+  sideParent: "父提交 {{oid}}",
+  sideFirstParent: "第一父提交 {{oid}}",
+  sideParentGeneric: "父提交",
+  sideEmpty: "空（新增）",
+  sideCommit: "提交 {{oid}}",
+  sideBranchCommit: "{{branch}}（{{oid}}）",
+  sideHead: "HEAD",
+  sideIndex: "暂存区",
+  sideWorktree: "工作区",
+  sideBaseline: "基线提交",
+  sideStash: "Stash {{oid}}",
 } as const;
 
 export default diff;

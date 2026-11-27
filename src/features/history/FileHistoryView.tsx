@@ -193,6 +193,19 @@ export function FileHistoryView({ path, oid, generation, onLocate }: FileHistory
               expanded={expanded}
               onExpandedChange={setExpanded}
               loading={diff.loading}
+              sideLabels={
+                entry
+                  ? {
+                      left:
+                        twoDot && previous
+                          ? t("diff.sideCommit", { oid: previous.commit.short_oid })
+                          : isRoot
+                            ? t("diff.sideEmpty")
+                            : t("diff.sideParentGeneric"),
+                      right: t("diff.sideCommit", { oid: entry.commit.short_oid }),
+                    }
+                  : undefined
+              }
             />
           )}
           {!entry && !diff.loading && !diff.error && (

@@ -337,6 +337,23 @@ export function CompareCommitExplorer({
                   onSelectFile={setFilePath}
                   expanded={expandedDiff}
                   onExpandedChange={setExpandedDiff}
+                  sideLabels={{
+                    left:
+                      detail.data.parents.length === 0
+                        ? t("diff.sideEmpty")
+                        : detail.data.baseline === "merge_first_parent"
+                          ? t("diff.sideFirstParent", {
+                              oid: detail.data.parents[0].slice(0, 7),
+                            })
+                          : t("diff.sideParent", {
+                              oid: detail.data.parents[0].slice(0, 7),
+                            }),
+                    right: t("diff.sideBranchCommit", {
+                      branch:
+                        selectedEntry.side === "compare" ? compareLabel : baseLabel,
+                      oid: selectedEntry.commit.short_oid,
+                    }),
+                  }}
                 />
               </div>
             )}

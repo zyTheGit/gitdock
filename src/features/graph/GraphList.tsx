@@ -219,7 +219,10 @@ export function GraphList({
       const commit = oid ? commitsByOid.get(oid) : undefined;
       const lane = Number(node.getAttribute("data-lane") ?? 0);
       if (commit) {
-        queueHover(event, commit, Number.isFinite(lane) ? lane : 0);
+        const rect = node.getBoundingClientRect();
+        const anchorX = rect.left + rect.width / 2;
+        const anchorY = rect.top + rect.height / 2;
+        queueHover(anchorX, anchorY, commit, Number.isFinite(lane) ? lane : 0);
       }
     },
     [commitsByOid, cancelHover, queueHover],
@@ -325,8 +328,8 @@ export function GraphList({
         <CommitHoverCard
           commit={hover.commit}
           lane={hover.lane}
-          x={hover.x}
-          y={hover.y}
+          anchorX={hover.anchorX}
+          anchorY={hover.anchorY}
           context={hover.context}
           contextLoading={hover.contextLoading}
         />

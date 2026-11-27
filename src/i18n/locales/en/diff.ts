@@ -61,6 +61,17 @@ const diff = {
   imageBefore: "Before",
   imageAfter: "After",
   imageAlt: "{{label}} ({{kind}} image)",
+  sideParent: "Parent {{oid}}",
+  sideFirstParent: "First parent {{oid}}",
+  sideParentGeneric: "Parent",
+  sideEmpty: "Empty (new)",
+  sideCommit: "Commit {{oid}}",
+  sideBranchCommit: "{{branch}} ({{oid}})",
+  sideHead: "HEAD",
+  sideIndex: "Staged (index)",
+  sideWorktree: "Working tree",
+  sideBaseline: "Base commit",
+  sideStash: "Stash {{oid}}",
 } satisfies DiffMessages;
 
 export default diff;

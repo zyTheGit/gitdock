@@ -96,21 +96,17 @@ export function GraphCell({ layout, laneCount, height }: GraphCellProps) {
           opacity={edge.pending ? 0.7 : 1}
         />
       ))}
-      <circle
-        cx={nodeX}
-        cy={nodeY}
-        r={layout.parents.length > 1 ? 4.5 : 4}
-        style={{ fill: laneColor(layout.lane), stroke: "var(--graph-lane-edge)" }}
-        strokeWidth={1.5}
-      />
-      <circle
-        cx={nodeX}
-        cy={nodeY}
-        r={9}
-        fill="transparent"
-        data-graph-node=""
-        data-lane={layout.lane}
-      />
+      <g className="graph-node-group" data-graph-node="" data-lane={layout.lane}>
+        <circle
+          className="graph-node-dot"
+          cx={nodeX}
+          cy={nodeY}
+          r={layout.parents.length > 1 ? 4.5 : 4}
+          style={{ fill: laneColor(layout.lane), stroke: "var(--graph-lane-edge)" }}
+          strokeWidth={1.5}
+        />
+        <circle cx={nodeX} cy={nodeY} r={9} fill="transparent" />
+      </g>
     </svg>
   );
 }

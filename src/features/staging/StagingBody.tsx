@@ -154,6 +154,13 @@ export function StagingBody({
             onExpandedChange={onExpandedChange}
             loading={diffLoading}
             hunkActions={hunkActions}
+            sideLabels={
+              selection.side === "staged"
+                ? { left: t("diff.sideHead"), right: t("diff.sideIndex") }
+                : selection.side === "unstaged"
+                  ? { left: t("diff.sideIndex"), right: t("diff.sideWorktree") }
+                  : { left: t("diff.sideEmpty"), right: t("diff.sideWorktree") }
+            }
           />
         ) : (
           <div className="placeholder">

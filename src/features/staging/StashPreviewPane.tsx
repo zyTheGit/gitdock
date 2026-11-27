@@ -102,6 +102,14 @@ export function StashPreviewPane({ oid }: { oid: string | null }) {
                 expanded={expanded}
                 onExpandedChange={setExpanded}
                 loading={diff.loading}
+                sideLabels={
+                  oid
+                    ? {
+                        left: t("diff.sideBaseline"),
+                        right: t("diff.sideStash", { oid: oid.slice(0, 7) }),
+                      }
+                    : undefined
+                }
               />
             )}
           </div>
