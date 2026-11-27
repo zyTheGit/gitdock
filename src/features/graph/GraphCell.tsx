@@ -103,6 +103,14 @@ export function GraphCell({ layout, laneCount, height }: GraphCellProps) {
         style={{ fill: laneColor(layout.lane), stroke: "var(--graph-lane-edge)" }}
         strokeWidth={1.5}
       />
+      <circle
+        cx={nodeX}
+        cy={nodeY}
+        r={9}
+        fill="transparent"
+        data-graph-node=""
+        data-lane={layout.lane}
+      />
     </svg>
   );
 }

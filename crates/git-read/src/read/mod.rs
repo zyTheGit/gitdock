@@ -4,6 +4,7 @@
 //! 每次返回都携带 generation，前端据此丢弃过期响应。
 
 mod compare;
+mod compare_equiv;
 mod detail;
 mod export;
 mod file_blame;

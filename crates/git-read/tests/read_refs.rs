@@ -221,6 +221,66 @@ fn commit_branch_context_reports_branch_gaps() {
         .expect("feature 分支差异");
     assert_eq!(limited_gap.head_only_commits.len(), 1);
     assert!(limited_gap.head_only_truncated);
+    assert!(limited.included_in_head);
+}
+
+#[test]
+fn commit_branch_context_reports_head_inclusion_remote_branches_and_skips_gaps() {
+    let dir = temp_dir("git-graph-read-hover-context");
+    let repo = dir.join("repo");
+    std::fs::create_dir_all(&repo).expect("创建仓库目录");
+    init_repo(&repo);
+
+    write(&repo.join("a.txt"), "1\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "root"]);
+    let root = oid_of(&current_head(&repo));
+
+    git_ok(&repo, &["checkout", "-q", "-b", "feat"]);
+    write(&repo.join("b.txt"), "2\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "feat tip"]);
+    let feat_tip = oid_of(&current_head(&repo));
+
+    // 模拟远程跟踪分支与 origin/HEAD 符号引用
+    git_ok(
+        &repo,
+        &["update-ref", "refs/remotes/origin/feat", feat_tip.as_str()],
+    );
+    git_ok(
+        &repo,
+        &[
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/feat",
+        ],
+    );
+
+    git_ok(&repo, &["checkout", "-q", "main"]);
+    let read = module(&repo);
+
+    let off_head = read
+        .commit_branch_context(&feat_tip, 0)
+        .expect("读取未合并提交上下文");
+    assert!(!off_head.included_in_head);
+    assert_eq!(off_head.branches, vec!["feat".to_string()]);
+    assert_eq!(off_head.remote_branches, vec!["origin/feat".to_string()]);
+    assert!(off_head.gaps.is_empty());
+    assert_eq!(off_head.gaps_omitted, 0);
+
+    let on_head = read
+        .commit_branch_context(&root, 0)
+        .expect("读取 HEAD 内提交上下文");
+    assert!(on_head.included_in_head);
+    assert!(on_head.gaps.is_empty());
+
+    // detached HEAD 场景
+    git_ok(&repo, &["checkout", "-q", "--detach", feat_tip.as_str()]);
+    let detached = read
+        .commit_branch_context(&feat_tip, 0)
+        .expect("detached HEAD 上下文");
+    assert!(detached.included_in_head);
+    assert!(detached.current_branch.is_none());
 }
 
 #[test]

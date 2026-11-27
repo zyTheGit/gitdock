@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
 use git_core::{
-    ChangedFileDto, CompareMode, CompareResultDto, ErrorCode, FileDiffDto, Oid, Result,
-    UserVisibleError, WarningDto,
+    ChangedFileDto, CommitSummaryDto, CompareChangeOrigin, CompareMode, CompareResultDto,
+    ErrorCode, FileDiffDto, Oid, Result, UserVisibleError, WarningDto,
 };
 
 use super::{
     commit_summary, gix_error, is_worktree_ref, reachable_set, tree_oid_of_commit,
-    tree_oid_of_object, FileSides, GitReadModule, DEFAULT_PAGE_LIMIT,
+    tree_oid_of_object, FileSides, GitReadModule, RefBadges, DEFAULT_PAGE_LIMIT,
 };
 use crate::diff::{collect_changes, diff_file};
 use crate::util::{find_commit, gix_oid, oid_from_gix, oid_from_id, parse_oid};
@@ -77,17 +77,47 @@ impl GitReadModule {
         let compare_id = gix_oid(compare)?;
         let merge_base_id = repo.merge_base(base_id, compare_id).map_err(gix_error)?;
         let merge_base = merge_base_id.as_ref().map(oid_from_id);
-        let (old_tree, mode) = match (&merge_base, two_dot) {
-            (Some(_), true) => (Some(tree_oid_of_commit(&repo, base)?), CompareMode::TwoDot),
-            (Some(mb), false) => (Some(tree_oid_of_commit(&repo, mb)?), CompareMode::ThreeDot),
-            (None, _) => (
-                Some(tree_oid_of_commit(&repo, base)?),
-                CompareMode::TwoDotFallback,
-            ),
+        let merge_base_tree = match &merge_base {
+            Some(mb) => Some(tree_oid_of_commit(&repo, mb)?),
+            None => None,
         };
-        let new_tree = Some(tree_oid_of_commit(&repo, compare)?);
-        let changes = collect_changes(&repo, old_tree.as_ref(), new_tree.as_ref(), path_filter)?;
-        let files: Vec<ChangedFileDto> = changes.files.iter().map(|c| c.to_dto()).collect();
+        let base_tree = tree_oid_of_commit(&repo, base)?;
+        let compare_tree = tree_oid_of_commit(&repo, compare)?;
+        let (old_tree, mode) = match (&merge_base_tree, two_dot) {
+            (Some(_), true) => (Some(base_tree.clone()), CompareMode::TwoDot),
+            (Some(mb_tree), false) => (Some(mb_tree.clone()), CompareMode::ThreeDot),
+            (None, _) => (Some(base_tree.clone()), CompareMode::TwoDotFallback),
+        };
+        let changes = collect_changes(&repo, old_tree.as_ref(), Some(&compare_tree), path_filter)?;
+        let mut files: Vec<ChangedFileDto> = changes.files.iter().map(|c| c.to_dto()).collect();
+
+        if let Some(mb_tree) = merge_base_tree.as_ref() {
+            let base_paths =
+                collect_changed_paths(&repo, Some(mb_tree), Some(&base_tree), path_filter)?;
+            if mode == CompareMode::ThreeDot {
+                for file in &mut files {
+                    file.change_origin = Some(if matches_path_set(file, &base_paths) {
+                        CompareChangeOrigin::Both
+                    } else {
+                        CompareChangeOrigin::CompareOnly
+                    });
+                }
+            } else {
+                let compare_paths =
+                    collect_changed_paths(&repo, Some(mb_tree), Some(&compare_tree), path_filter)?;
+                for file in &mut files {
+                    file.change_origin = match (
+                        matches_path_set(file, &base_paths),
+                        matches_path_set(file, &compare_paths),
+                    ) {
+                        (true, true) => Some(CompareChangeOrigin::Both),
+                        (false, true) => Some(CompareChangeOrigin::CompareOnly),
+                        (true, false) => Some(CompareChangeOrigin::BaseOnly),
+                        (false, false) => None,
+                    };
+                }
+            }
+        }
 
         let base_set = reachable_set(&repo, base)?;
         let compare_set = reachable_set(&repo, compare)?;
@@ -99,27 +129,19 @@ impl GitReadModule {
             None => HashSet::new(),
         };
         let snapshot = self.refs_snapshot(&repo, generation)?;
-        let mut commits = Vec::new();
-        let mut commits_truncated = false;
-        let walk = repo
-            .rev_walk([compare_id])
-            .sorting(gix::revision::walk::Sorting::ByCommitTime(
-                gix::traverse::commit::simple::CommitTimeOrder::NewestFirst,
-            ))
-            .all()
-            .map_err(gix_error)?;
-        for info in walk {
-            let info = info.map_err(gix_error)?;
-            let oid = oid_from_gix(&info.id);
-            if stop.contains(&oid) {
-                continue;
-            }
-            if commits.len() >= DEFAULT_PAGE_LIMIT {
-                commits_truncated = true;
-                break;
-            }
-            commits.push(commit_summary(&repo, &oid, &snapshot.badges)?);
-        }
+        let merge_base_summary = match &merge_base {
+            Some(mb) => Some(commit_summary(&repo, mb, &snapshot.badges)?.summary),
+            None => None,
+        };
+        let (commits, commits_truncated) =
+            collect_unique_commits(&repo, compare_id, &stop, &snapshot.badges)?;
+        let (base_commits, base_commits_truncated) = if merge_base.is_some() {
+            collect_unique_commits(&repo, base_id, &stop, &snapshot.badges)?
+        } else {
+            (Vec::new(), false)
+        };
+        let equivalent_commits =
+            super::compare_equiv::compute_equivalent_commits(&repo, &base_commits, &commits)?;
 
         let mut warnings = Vec::new();
         if merge_base.is_none() {
@@ -139,12 +161,16 @@ impl GitReadModule {
             base: base.clone(),
             compare: compare.clone(),
             merge_base,
+            merge_base_summary,
             mode,
             base_only,
             compare_only,
             files,
             commits,
             commits_truncated,
+            base_commits,
+            base_commits_truncated,
+            equivalent_commits,
             title: format!("{} → {}", base.short(7), compare.short(7)),
             warnings,
             worktree_side: None,
@@ -241,6 +267,61 @@ impl GitReadModule {
             new: new.unwrap_or_default(),
         })
     }
+}
+
+fn collect_unique_commits(
+    repo: &gix::Repository,
+    tip: gix::ObjectId,
+    stop: &HashSet<Oid>,
+    badges: &RefBadges,
+) -> Result<(Vec<CommitSummaryDto>, bool)> {
+    let mut commits = Vec::new();
+    let mut truncated = false;
+    let walk = repo
+        .rev_walk([tip])
+        .sorting(gix::revision::walk::Sorting::ByCommitTime(
+            gix::traverse::commit::simple::CommitTimeOrder::NewestFirst,
+        ))
+        .all()
+        .map_err(gix_error)?;
+    for info in walk {
+        let info = info.map_err(gix_error)?;
+        let oid = oid_from_gix(&info.id);
+        if stop.contains(&oid) {
+            continue;
+        }
+        if commits.len() >= DEFAULT_PAGE_LIMIT {
+            truncated = true;
+            break;
+        }
+        commits.push(commit_summary(repo, &oid, badges)?);
+    }
+    Ok((commits, truncated))
+}
+
+fn collect_changed_paths(
+    repo: &gix::Repository,
+    old_tree: Option<&Oid>,
+    new_tree: Option<&Oid>,
+    path_filter: Option<&str>,
+) -> Result<HashSet<String>> {
+    let changes = collect_changes(repo, old_tree, new_tree, path_filter)?;
+    let mut paths = HashSet::new();
+    for change in &changes.files {
+        paths.insert(change.path().to_owned());
+        if let Some(old_path) = &change.old_path {
+            paths.insert(old_path.clone());
+        }
+    }
+    Ok(paths)
+}
+
+fn matches_path_set(file: &ChangedFileDto, paths: &HashSet<String>) -> bool {
+    paths.contains(&file.path)
+        || file
+            .old_path
+            .as_ref()
+            .is_some_and(|old_path| paths.contains(old_path))
 }
 
 fn worktree_both_sides() -> UserVisibleError {

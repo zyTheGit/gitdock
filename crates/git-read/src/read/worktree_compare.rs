@@ -48,6 +48,7 @@ impl WorktreeChange {
             gitlink: self.gitlink,
             old_oid: self.old_oid.clone(),
             new_oid: self.new_oid.clone(),
+            change_origin: None,
         }
     }
 
@@ -113,12 +114,16 @@ impl GitReadModule {
             base,
             compare,
             merge_base: None,
+            merge_base_summary: None,
             mode: CompareMode::Worktree,
             base_only: 0,
             compare_only: 0,
             files: changes.iter().map(WorktreeChange::to_dto).collect(),
             commits: Vec::new(),
             commits_truncated: false,
+            base_commits: Vec::new(),
+            base_commits_truncated: false,
+            equivalent_commits: Default::default(),
             title,
             warnings,
             worktree_side: Some(if worktree_is_base {

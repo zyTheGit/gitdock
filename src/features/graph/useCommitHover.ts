@@ -4,6 +4,7 @@ import type { CommitBranchContextDto, CommitSummaryDto } from "../../shared/type
 
 export interface CommitHover {
   commit: CommitSummaryDto;
+  lane: number;
   x: number;
   y: number;
   context: CommitBranchContextDto | null;
@@ -11,8 +12,8 @@ export interface CommitHover {
 }
 
 /**
- * 行悬浮卡状态：短暂停留后再查询分支差异，并按提交缓存；
- * viewKey 变化（仓库刷新）后缓存与进行中的请求一起失效。
+ * 节点悬浮卡状态：仅在悬停 Graph 节点圆点后短暂停留再查询分支归属（limit=0 跳过 gap 计算），
+ * 并按提交缓存；viewKey 变化（仓库刷新）后缓存与进行中的请求一起失效。
  */
 export function useCommitHover(viewKey: string) {
   const [hover, setHover] = useState<CommitHover | null>(null);
@@ -34,8 +35,8 @@ export function useCommitHover(viewKey: string) {
     setHover(null);
   }, []);
 
-  // 短暂停留后再显示，避免快速划过时频繁弹卡。
-  const queueHover = useCallback((event: MouseEvent, commit: CommitSummaryDto) => {
+  // 短暂停留后再显示，避免快速划过节点时频繁弹卡。
+  const queueHover = useCallback((event: MouseEvent, commit: CommitSummaryDto, lane: number) => {
     const { clientX: x, clientY: y } = event;
     if (hoverTimer.current !== null) {
       window.clearTimeout(hoverTimer.current);
@@ -43,13 +44,13 @@ export function useCommitHover(viewKey: string) {
     hoverTimer.current = window.setTimeout(() => {
       hoverTimer.current = null;
       const cached = branchContextCache.current.get(commit.oid) ?? null;
-      setHover({ commit, x, y, context: cached, contextLoading: cached === null });
+      setHover({ commit, lane, x, y, context: cached, contextLoading: cached === null });
       if (cached) {
         return;
       }
       const seq = ++branchContextSeq.current;
       void ipc
-        .commitBranchContext(commit.oid, 2)
+        .commitBranchContext(commit.oid, 0)
         .then((context) => {
           branchContextCache.current.set(commit.oid, context);
           if (seq !== branchContextSeq.current) {
@@ -71,7 +72,7 @@ export function useCommitHover(viewKey: string) {
               : current,
           );
         });
-    }, 260);
+    }, 220);
   }, []);
 
   useEffect(() => cancelHover, [cancelHover]);

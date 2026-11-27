@@ -5,7 +5,7 @@ import type { CommitSummaryDto, ExternalToolConfig, FileDiffDto } from "../../sh
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
 import { Select } from "../../shared/Select";
 import { fileHistoryMenuItems } from "../history/menuItems";
-import { CompareCommitList } from "./CompareCommitList";
+import { CompareCommitExplorer } from "./CompareCommitExplorer";
 import { CompareDiffPane } from "./CompareDiffPane";
 import { CompareFileList } from "./CompareFileList";
 import { CompareHeader } from "./CompareHeader";
@@ -30,6 +30,7 @@ interface CompareViewProps {
   defaultTool?: string | null;
   commitMenu: (commit: CommitSummaryDto) => MenuItem[];
   onOpenCommit: (oid: string) => void;
+  onLocateCommit: (oid: string) => void;
   onExternalDiff: (toolIndex: number, path: string) => void;
   onDirectoryDiff: (toolIndex: number) => void;
   onBack: () => void;
@@ -47,17 +48,31 @@ export function CompareView({
   tools,
   defaultTool,
   commitMenu,
-  onOpenCommit,
+  onOpenCommit: _onOpenCommit,
+  onLocateCommit,
   onExternalDiff,
-  onDirectoryDiff,
+  onDirectoryDiff: _onDirectoryDiff,
   onBack,
 }: CompareViewProps) {
   const { t } = useI18n();
   const result = loader.result;
+  const compareKey = `${base.oid}:${compare.oid}`;
+  const [viewTab, setViewTab] = useState<"commits" | "files">("commits");
+  const [autoTabKey, setAutoTabKey] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<CompareStatusFilterValue>("all");
+  const [bothOnly, setBothOnly] = useState(false);
+  const bothCount = useMemo(
+    () => (result?.files ?? []).filter((file) => file.change_origin === "both").length,
+    [result],
+  );
   const files = useMemo(
-    () => (result?.files ?? []).filter((file) => matchesStatusBucket(file.status, statusFilter)),
-    [result, statusFilter],
+    () =>
+      (result?.files ?? []).filter(
+        (file) =>
+          matchesStatusBucket(file.status, statusFilter) &&
+          (!bothOnly || file.change_origin === "both"),
+      ),
+    [result, statusFilter, bothOnly],
   );
   const [filePath, setFilePath] = useState<string | null>(null);
   const [expandedDiff, setExpandedDiff] = useState(false);
@@ -107,8 +122,26 @@ export function CompareView({
     }
   }, [diff.data]);
 
+  const totalCommitDiffCount =
+    (result?.commits.length ?? 0) + (result?.base_commits.length ?? 0);
+
+  // 每次切换对比对并拿到结果时，有提交差异默认进「按提交」，工作区或无提交差异默认进「按文件」。
+  useEffect(() => {
+    if (!result || autoTabKey === compareKey) {
+      return;
+    }
+    setAutoTabKey(compareKey);
+    if (!worktreeInvolved && (result.commits.length > 0 || result.base_commits.length > 0)) {
+      setViewTab("commits");
+    } else {
+      setViewTab("files");
+    }
+  }, [result, compareKey, autoTabKey, worktreeInvolved]);
+
   useEffect(() => {
     setExpandedDiff(false);
+    setBothOnly(false);
+    setAutoTabKey(null);
   }, [base.oid, compare.oid]);
 
   useEffect(() => {
@@ -154,8 +187,7 @@ export function CompareView({
         result={result}
         totalAdd={totalAdd}
         totalDel={totalDel}
-        toolCount={tools.length}
-        onDirectoryDiff={() => onDirectoryDiff(safeToolIndex)}
+        onLocateCommit={onLocateCommit}
         onBack={onBack}
       />
 
@@ -188,84 +220,143 @@ export function CompareView({
 
       {result && (
         <>
-          <div className="compare-filter">
-            <label>
-              {t("compare.pathFilter")}
-              <input
-                value={pathFilter}
-                placeholder={t("compare.pathFilterPlaceholder")}
-                onChange={(event) => onPathFilterChange(event.target.value)}
-              />
-            </label>
-            {pathFilter && (
-              <button className="link" onClick={() => onPathFilterChange("")}>
-                {t("compare.clearFilter")}
-              </button>
-            )}
-            <CompareStatusFilter value={statusFilter} onChange={setStatusFilter} />
-            <span className="muted">{t("compare.changedFilesCount", { n: files.length })}</span>
-            {tools.length > 0 && (
-              <span className="compare-tools">
-                <Select
-                  compact
-                  value={safeToolIndex}
-                  onChange={(event) => setToolIndex(Number(event.target.value))}
-                  aria-label={t("compare.selectTool")}
-                  options={tools.map((tool, index) => ({ value: index, label: tool.name }))}
-                />
-                <button
-                  disabled={!filePath || worktreeInvolved}
-                  title={worktreeInvolved ? t("compare.externalWorktreeUnavailable") : undefined}
-                  onClick={() => {
-                    if (filePath) {
-                      onExternalDiff(safeToolIndex, filePath);
-                    }
-                  }}
-                >
-                  {t("compare.openCurrentFile", {
-                    name: activeTool?.name ?? t("compare.externalToolFallback"),
-                  })}
-                </button>
-              </span>
-            )}
+          <div className="compare-view-tabs" role="tablist" aria-label={t("compare.viewTabsAria")}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewTab === "commits"}
+              className={viewTab === "commits" ? "active" : ""}
+              disabled={worktreeInvolved}
+              title={worktreeInvolved ? t("compare.worktreeNoCommits") : undefined}
+              onClick={() => setViewTab("commits")}
+            >
+              {t("compare.tabByCommits", { n: totalCommitDiffCount })}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewTab === "files"}
+              className={viewTab === "files" ? "active" : ""}
+              onClick={() => setViewTab("files")}
+            >
+              {t("compare.tabByFiles", { n: result.files.length })}
+            </button>
           </div>
 
-          <div className="detail-columns compare-columns">
-            <div className="compare-side">
-              <CompareFileList
-                files={files}
-                activePath={filePath}
-                onSelect={setFilePath}
-                onContextMenu={(event, path) =>
-                  setMenu({ x: event.clientX, y: event.clientY, path })
-                }
-              />
-              <CompareCommitList
-                commits={result.commits}
-                truncated={result.commits_truncated}
-                onOpen={onOpenCommit}
-                onContextMenu={(event, commit) =>
-                  setCommitMenuPos({ x: event.clientX, y: event.clientY, commit })
-                }
-              />
-            </div>
-
-            <CompareDiffPane
-              diffKey={`compare:${base.oid}:${compare.oid}`}
-              diff={shownDiff}
-              loading={diff.loading}
-              error={diff.error}
-              files={files}
-              activePath={filePath}
-              onSelectFile={setFilePath}
-              onFileContextMenu={(event, path) => {
-                setFilePath(path);
-                setMenu({ x: event.clientX, y: event.clientY, path });
-              }}
-              expanded={expandedDiff}
-              onExpandedChange={setExpandedDiff}
+          {viewTab === "commits" && !worktreeInvolved ? (
+            <CompareCommitExplorer
+              repoGeneration={repoGeneration}
+              compareKey={compareKey}
+              baseLabel={base.label}
+              compareLabel={compare.label}
+              compareCommits={result.commits}
+              compareTruncated={result.commits_truncated}
+              baseCommits={result.base_commits}
+              baseTruncated={result.base_commits_truncated}
+              equivalentMap={result.equivalent_commits}
+              onLocateCommit={onLocateCommit}
+              onCommitContextMenu={(event, commit) =>
+                setCommitMenuPos({ x: event.clientX, y: event.clientY, commit })
+              }
             />
-          </div>
+          ) : (
+            <>
+              <div className="compare-filter">
+                <label>
+                  {t("compare.pathFilter")}
+                  <input
+                    value={pathFilter}
+                    placeholder={t("compare.pathFilterPlaceholder")}
+                    onChange={(event) => onPathFilterChange(event.target.value)}
+                  />
+                </label>
+                {pathFilter && (
+                  <button className="link" onClick={() => onPathFilterChange("")}>
+                    {t("compare.clearFilter")}
+                  </button>
+                )}
+                <CompareStatusFilter value={statusFilter} onChange={setStatusFilter} />
+                {bothCount > 0 && (
+                  <button
+                    type="button"
+                    className={bothOnly ? "compare-both-toggle active" : "compare-both-toggle"}
+                    aria-pressed={bothOnly}
+                    title={t("compare.filterBothHint")}
+                    onClick={() => setBothOnly((prev) => !prev)}
+                  >
+                    {t("compare.filterBoth", { n: bothCount })}
+                  </button>
+                )}
+                <span className="muted">{t("compare.changedFilesCount", { n: files.length })}</span>
+                {tools.length > 0 && (
+                  <span className="compare-tools">
+                    <Select
+                      compact
+                      value={safeToolIndex}
+                      onChange={(event) => setToolIndex(Number(event.target.value))}
+                      aria-label={t("compare.selectTool")}
+                      options={tools.map((tool, index) => ({ value: index, label: tool.name }))}
+                    />
+                    <button
+                      disabled={!filePath || worktreeInvolved}
+                      title={worktreeInvolved ? t("compare.externalWorktreeUnavailable") : undefined}
+                      onClick={() => {
+                        if (filePath) {
+                          onExternalDiff(safeToolIndex, filePath);
+                        }
+                      }}
+                    >
+                      {t("compare.openCurrentFile", {
+                        name: activeTool?.name ?? t("compare.externalToolFallback"),
+                      })}
+                    </button>
+                  </span>
+                )}
+              </div>
+
+              <div className="detail-columns compare-columns">
+                <div className="compare-side">
+                  <CompareFileList
+                    files={files}
+                    activePath={filePath}
+                    twoDot={twoDot || result.mode === "two_dot"}
+                    baseLabel={base.label}
+                    compareLabel={compare.label}
+                    onSelect={setFilePath}
+                    onContextMenu={(event, path) =>
+                      setMenu({ x: event.clientX, y: event.clientY, path })
+                    }
+                  />
+                </div>
+
+                <CompareDiffPane
+                  diffKey={`compare:${base.oid}:${compare.oid}`}
+                  diff={shownDiff}
+                  loading={diff.loading}
+                  error={diff.error}
+                  files={files}
+                  activePath={filePath}
+                  onSelectFile={setFilePath}
+                  onFileContextMenu={(event, path) => {
+                    setFilePath(path);
+                    setMenu({ x: event.clientX, y: event.clientY, path });
+                  }}
+                  expanded={expandedDiff}
+                  onExpandedChange={setExpandedDiff}
+                  sideLabels={{
+                    left:
+                      result.mode === "three_dot" && result.merge_base
+                        ? t("compare.diffSideMergeBase", {
+                            oid: result.merge_base.slice(0, 8),
+                            base: base.label,
+                          })
+                        : base.label,
+                    right: compare.label,
+                  }}
+                />
+              </div>
+            </>
+          )}
         </>
       )}
 

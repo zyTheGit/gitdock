@@ -7,6 +7,15 @@ use super::repo::WarningDto;
 
 /* ------------------------------ 对比 ------------------------------ */
 
+/// 分叉对比中文件的改动归属（相对共同祖先）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CompareChangeOrigin {
+    Both,
+    CompareOnly,
+    BaseOnly,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CompareMode {
@@ -37,6 +46,9 @@ pub struct CompareResultDto {
     pub compare: Oid,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merge_base: Option<Oid>,
+    /// 分叉点提交首行摘要；无共同祖先或工作区对比时为 None。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub merge_base_summary: Option<String>,
     pub mode: CompareMode,
     /// 仅 Base 可达的提交数（`rev-list --left-right --count` 左侧）。
     pub base_only: u32,
@@ -46,6 +58,14 @@ pub struct CompareResultDto {
     /// Compare 相对 merge-base 引入的提交，最多首 200 条。
     pub commits: Vec<CommitSummaryDto>,
     pub commits_truncated: bool,
+    /// Base 相对 merge-base 独有的提交，最多首 200 条。
+    #[serde(default)]
+    pub base_commits: Vec<CommitSummaryDto>,
+    #[serde(default)]
+    pub base_commits_truncated: bool,
+    /// 两侧改动内容等价（如经 cherry-pick 同步）的提交映射：`oid -> 对侧等价 oid`。
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub equivalent_commits: std::collections::BTreeMap<String, String>,
     pub title: String,
     pub warnings: Vec<WarningDto>,
     /// 哪一侧是当前工作区；None 表示两侧都是提交。旧响应缺省为 None。
@@ -81,8 +101,14 @@ pub struct CommitBranchContextDto {
     pub head: Option<Oid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_branch: Option<String>,
+    /// 该提交是否包含在当前 HEAD 可达历史中。
+    #[serde(default)]
+    pub included_in_head: bool,
     /// 包含该提交的全部本地分支名（含当前分支）。
     pub branches: Vec<String>,
+    /// 包含该提交的远程分支短名（例如 `origin/develop`）。
+    #[serde(default)]
+    pub remote_branches: Vec<String>,
     /// 相对当前 HEAD 的差异；当前分支自身不列入。
     pub gaps: Vec<BranchGapDto>,
     /// 超过展示上限而未计算的本地分支数。

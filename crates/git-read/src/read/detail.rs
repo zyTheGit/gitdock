@@ -115,67 +115,85 @@ impl GitReadModule {
         let repo = self.repo()?;
         let generation = self.fingerprint(&repo)?;
         let _ = find_commit(&repo, oid)?;
+        let target = gix_oid(oid)?;
         let snapshot = self.refs_snapshot(&repo, generation)?;
         let head_set = match &snapshot.head.oid {
             Some(head_oid) => Some(reachable_set(&repo, head_oid)?),
             None => None,
         };
+        let included_in_head = head_set.as_ref().is_some_and(|set| set.contains(oid));
 
         let containing = self.branches_containing(oid)?;
-        let mut ordered: Vec<(&RefDto, i64)> = Vec::new();
-        for name in &containing {
-            let reference = snapshot
-                .refs
-                .iter()
-                .find(|reference| {
-                    reference.kind == RefKind::LocalBranch && &reference.short_name == name
-                })
-                .ok_or_else(|| {
-                    UserVisibleError::new(ErrorCode::Internal, "读取本地分支失败")
-                        .with_key("errors.readLocalBranchFailed")
-                        .with_detail(format!("找不到本地分支 {name}"))
-                })?;
+        let mut remote_branches: Vec<String> = Vec::new();
+        for reference in &snapshot.refs {
+            if reference.kind != RefKind::RemoteBranch || reference.short_name.ends_with("/HEAD") {
+                continue;
+            }
             let Some(tip) = reference.commit_oid.as_ref() else {
                 continue;
             };
-            let time = find_commit(&repo, tip)?
-                .time()
-                .map(|time| time.seconds)
-                .unwrap_or(0);
-            ordered.push((reference, time));
+            if commit_reaches(&repo, gix_oid(tip)?, target)? {
+                remote_branches.push(reference.short_name.clone());
+            }
         }
-        // tip 就是当前提交的分支优先，其次按最近提交时间。
-        ordered.sort_by(|(left, left_time), (right, right_time)| {
-            let left_is_tip = left.commit_oid.as_ref() == Some(oid);
-            let right_is_tip = right.commit_oid.as_ref() == Some(oid);
-            right_is_tip
-                .cmp(&left_is_tip)
-                .then_with(|| right_time.cmp(left_time))
-                .then_with(|| left.short_name.cmp(&right.short_name))
-        });
+        remote_branches.sort();
 
         let current = snapshot.head.branch.clone();
         let mut gaps = Vec::new();
         let mut gaps_omitted = 0u32;
-        for (reference, _) in &ordered {
-            if current.as_deref() == Some(reference.short_name.as_str()) {
-                continue;
+        if limit > 0 {
+            let mut ordered: Vec<(&RefDto, i64)> = Vec::new();
+            for name in &containing {
+                let reference = snapshot
+                    .refs
+                    .iter()
+                    .find(|reference| {
+                        reference.kind == RefKind::LocalBranch && &reference.short_name == name
+                    })
+                    .ok_or_else(|| {
+                        UserVisibleError::new(ErrorCode::Internal, "读取本地分支失败")
+                            .with_key("errors.readLocalBranchFailed")
+                            .with_detail(format!("找不到本地分支 {name}"))
+                    })?;
+                let Some(tip) = reference.commit_oid.as_ref() else {
+                    continue;
+                };
+                let time = find_commit(&repo, tip)?
+                    .time()
+                    .map(|time| time.seconds)
+                    .unwrap_or(0);
+                ordered.push((reference, time));
             }
-            if gaps.len() >= MAX_GAP_BRANCHES {
-                gaps_omitted += 1;
-                continue;
+            // tip 就是当前提交的分支优先，其次按最近提交时间。
+            ordered.sort_by(|(left, left_time), (right, right_time)| {
+                let left_is_tip = left.commit_oid.as_ref() == Some(oid);
+                let right_is_tip = right.commit_oid.as_ref() == Some(oid);
+                right_is_tip
+                    .cmp(&left_is_tip)
+                    .then_with(|| right_time.cmp(left_time))
+                    .then_with(|| left.short_name.cmp(&right.short_name))
+            });
+
+            for (reference, _) in &ordered {
+                if current.as_deref() == Some(reference.short_name.as_str()) {
+                    continue;
+                }
+                if gaps.len() >= MAX_GAP_BRANCHES {
+                    gaps_omitted += 1;
+                    continue;
+                }
+                let Some(tip) = reference.commit_oid.as_ref() else {
+                    continue;
+                };
+                gaps.push(branch_gap(
+                    &repo,
+                    &reference.short_name,
+                    tip,
+                    snapshot.head.oid.as_ref(),
+                    head_set.as_ref(),
+                    limit,
+                )?);
             }
-            let Some(tip) = reference.commit_oid.as_ref() else {
-                continue;
-            };
-            gaps.push(branch_gap(
-                &repo,
-                &reference.short_name,
-                tip,
-                snapshot.head.oid.as_ref(),
-                head_set.as_ref(),
-                limit,
-            )?);
         }
 
         Ok(CommitBranchContextDto {
@@ -183,7 +201,9 @@ impl GitReadModule {
             oid: oid.clone(),
             head: snapshot.head.oid.clone(),
             current_branch: current,
+            included_in_head,
             branches: containing,
+            remote_branches,
             gaps,
             gaps_omitted,
         })
@@ -215,6 +235,28 @@ impl GitReadModule {
         dto.generation = self.current_generation()?;
         Ok(dto)
     }
+}
+
+fn commit_reaches(
+    repo: &gix::Repository,
+    tip: gix::ObjectId,
+    target: gix::ObjectId,
+) -> Result<bool> {
+    if tip == target {
+        return Ok(true);
+    }
+    let walk = repo
+        .rev_walk([tip])
+        .sorting(gix::revision::walk::Sorting::BreadthFirst)
+        .all()
+        .map_err(gix_error)?;
+    for entry in walk {
+        let info = entry.map_err(gix_error)?;
+        if info.id == target {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// 单个分支相对 HEAD 的差异摘要；`head_set` 为 None 表示 HEAD 尚未出生。

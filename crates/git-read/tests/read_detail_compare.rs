@@ -3,7 +3,7 @@
 mod common;
 
 use common::*;
-use git_core::{CompareMode, FileStatus, Oid};
+use git_core::{CompareChangeOrigin, CompareMode, FileStatus, Oid};
 use test_support::{current_head, fixtures, git_ok, init_repo, oid_of, read_oid, temp_dir, write};
 
 #[test]
@@ -180,5 +180,151 @@ fn compare_without_merge_base_falls_back() {
     assert_eq!(result.base_only, 1);
     assert_eq!(result.compare_only, 1);
     assert!(result.commits.iter().any(|c| c.oid == other));
+    assert!(result.base_commits.is_empty());
+    assert!(result.merge_base_summary.is_none());
+    assert!(result.files.iter().all(|f| f.change_origin.is_none()));
     assert!(result.warnings.iter().any(|w| w.code == "no_merge_base"));
+}
+
+#[test]
+fn compare_diverged_branches_reports_bidirectional_commits_and_change_origin() {
+    let dir = temp_dir("git-graph-read-diverged-compare");
+    let repo = dir.join("repo");
+    std::fs::create_dir_all(&repo).expect("创建仓库目录");
+    init_repo(&repo);
+
+    write(&repo.join("shared.txt"), "base\n");
+    write(&repo.join("base-only.txt"), "base\n");
+    write(&repo.join("comp-only.txt"), "comp\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "common ancestor"]);
+    let mb = oid_of(&current_head(&repo));
+
+    git_ok(&repo, &["checkout", "-q", "-b", "feat"]);
+    write(&repo.join("shared.txt"), "feat change\n");
+    write(&repo.join("comp-only.txt"), "feat change\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "feat commit"]);
+    let feat = oid_of(&current_head(&repo));
+
+    git_ok(&repo, &["checkout", "-q", "main"]);
+    write(&repo.join("shared.txt"), "main change\n");
+    write(&repo.join("base-only.txt"), "main change\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "main commit 1"]);
+    write(&repo.join("base-extra.txt"), "extra\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "main commit 2"]);
+    let main = oid_of(&current_head(&repo));
+
+    let read = module(&repo);
+    let three_dot = read
+        .compare(&main, &feat, None, false)
+        .expect("分叉三点对比");
+    assert_eq!(three_dot.merge_base, Some(mb.clone()));
+    assert_eq!(
+        three_dot.merge_base_summary.as_deref(),
+        Some("common ancestor")
+    );
+    assert_eq!(three_dot.base_only, 2);
+    assert_eq!(three_dot.compare_only, 1);
+    assert_eq!(three_dot.base_commits.len(), 2);
+    assert_eq!(three_dot.commits.len(), 1);
+    assert_eq!(
+        three_dot
+            .files
+            .iter()
+            .find(|f| f.path == "shared.txt")
+            .and_then(|f| f.change_origin),
+        Some(CompareChangeOrigin::Both)
+    );
+    assert_eq!(
+        three_dot
+            .files
+            .iter()
+            .find(|f| f.path == "comp-only.txt")
+            .and_then(|f| f.change_origin),
+        Some(CompareChangeOrigin::CompareOnly)
+    );
+
+    let two_dot = read
+        .compare(&main, &feat, None, true)
+        .expect("分叉两点对比");
+    assert_eq!(two_dot.mode, CompareMode::TwoDot);
+    assert_eq!(two_dot.base_commits.len(), 2);
+    assert_eq!(
+        two_dot
+            .files
+            .iter()
+            .find(|f| f.path == "shared.txt")
+            .and_then(|f| f.change_origin),
+        Some(CompareChangeOrigin::Both)
+    );
+    assert_eq!(
+        two_dot
+            .files
+            .iter()
+            .find(|f| f.path == "comp-only.txt")
+            .and_then(|f| f.change_origin),
+        Some(CompareChangeOrigin::CompareOnly)
+    );
+    assert_eq!(
+        two_dot
+            .files
+            .iter()
+            .find(|f| f.path == "base-only.txt")
+            .and_then(|f| f.change_origin),
+        Some(CompareChangeOrigin::BaseOnly)
+    );
+}
+
+#[test]
+fn compare_detects_cherry_picked_equivalent_commits() {
+    let dir = temp_dir("git-graph-read-cherry-equiv");
+    let repo = dir.join("repo");
+    std::fs::create_dir_all(&repo).expect("创建仓库目录");
+    init_repo(&repo);
+
+    write(&repo.join("app.txt"), "line 1\nline 2\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "init"]);
+
+    git_ok(&repo, &["checkout", "-q", "-b", "feat"]);
+    write(&repo.join("app.txt"), "line 1\nline 2\nfix from feat\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "fix: bug A"]);
+    let feat_fix = oid_of(&current_head(&repo));
+
+    write(&repo.join("only-feat.txt"), "feat only\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "feat: unique work"]);
+    let feat_tip = oid_of(&current_head(&repo));
+
+    git_ok(&repo, &["checkout", "-q", "main"]);
+    write(&repo.join("main-only.txt"), "main work\n");
+    git_ok(&repo, &["add", "-A"]);
+    git_ok(&repo, &["commit", "-q", "-m", "main: divergent commit"]);
+    git_ok(&repo, &["cherry-pick", feat_fix.as_str()]);
+    let main_pick = oid_of(&current_head(&repo));
+    assert_ne!(feat_fix, main_pick);
+
+    let read = module(&repo);
+    let result = read
+        .compare(&main_pick, &feat_tip, None, false)
+        .expect("对比含 cherry-pick 的分叉分支");
+    assert_eq!(
+        result
+            .equivalent_commits
+            .get(feat_fix.as_str())
+            .map(String::as_str),
+        Some(main_pick.as_str())
+    );
+    assert_eq!(
+        result
+            .equivalent_commits
+            .get(main_pick.as_str())
+            .map(String::as_str),
+        Some(feat_fix.as_str())
+    );
+    assert!(!result.equivalent_commits.contains_key(feat_tip.as_str()));
 }

@@ -10,6 +10,9 @@ import { useFileListMode } from "../../shared/useFileListMode";
 interface CompareFileListProps {
   files: ChangedFileDto[];
   activePath: string | null;
+  twoDot: boolean;
+  baseLabel: string;
+  compareLabel: string;
   onSelect: (path: string) => void;
   onContextMenu: (event: MouseEvent, path: string) => void;
 }
@@ -24,6 +27,9 @@ function fullLabel(file: ChangedFileDto): string {
 export function CompareFileList({
   files,
   activePath,
+  twoDot,
+  baseLabel,
+  compareLabel,
   onSelect,
   onContextMenu,
 }: CompareFileListProps) {
@@ -99,6 +105,27 @@ export function CompareFileList({
                     {STATUS_LETTER[row.item.status]}
                   </span>
                   <span className="file-path">{row.name}</span>
+                  {row.item.change_origin === "both" && (
+                    <span className="file-origin file-origin-both" title={t("compare.originBothHint")}>
+                      {t("compare.originBothShort")}
+                    </span>
+                  )}
+                  {twoDot && row.item.change_origin === "compare_only" && (
+                    <span
+                      className="file-origin file-origin-compare"
+                      title={t("compare.originCompareHint", { name: compareLabel })}
+                    >
+                      C
+                    </span>
+                  )}
+                  {twoDot && row.item.change_origin === "base_only" && (
+                    <span
+                      className="file-origin file-origin-base"
+                      title={t("compare.originBaseHint", { name: baseLabel })}
+                    >
+                      B
+                    </span>
+                  )}
                   <span className="file-stats">
                     {row.item.gitlink ? (
                       <span className="muted">gitlink</span>

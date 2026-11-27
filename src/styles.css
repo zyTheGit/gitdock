@@ -9,6 +9,8 @@
 @import "./styles/detail.css";
 @import "./styles/diff.css";
 @import "./styles/compare.css";
+@import "./styles/compareSummary.css";
+@import "./styles/compareCommits.css";
 @import "./styles/staging.css";
 @import "./styles/search.css";
 @import "./styles/controls.css";

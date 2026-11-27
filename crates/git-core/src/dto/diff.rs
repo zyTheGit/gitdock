@@ -1,6 +1,7 @@
 use crate::oid::Oid;
 use serde::{Deserialize, Serialize};
 
+use super::compare::CompareChangeOrigin;
 use super::graph::CommitSummaryDto;
 use super::repo::WarningDto;
 
@@ -31,6 +32,9 @@ pub struct ChangedFileDto {
     pub old_oid: Option<Oid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub new_oid: Option<Oid>,
+    /// 对比结果中该文件的改动归属（相对共同祖先）；非对比场景或无共同祖先时为 None。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub change_origin: Option<CompareChangeOrigin>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

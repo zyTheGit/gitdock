@@ -62,6 +62,8 @@ interface FileDiffViewProps {
    * 不渲染任何按钮，提交详情与对比视图保持纯只读。
    */
   hunkActions?: HunkActionsConfig;
+  /** 左右（旧/新）两侧的来源标签；对比视图传入分支名，让用户一眼看出哪边属于哪个分支。 */
+  sideLabels?: { left: string; right: string };
 }
 
 export function FileDiffView({
@@ -74,6 +76,7 @@ export function FileDiffView({
   onExpandedChange,
   loading,
   hunkActions,
+  sideLabels,
 }: FileDiffViewProps) {
   const { t } = useI18n();
   // 并排 / 统一偏好跨视图共享并持久化，切换提交或重启后保持。
@@ -515,6 +518,19 @@ export function FileDiffView({
               <ImageDiffView diff={diff} />
             ) : parsed ? (
               <>
+                {sideLabels && (
+                  <div className={paneMode ? "diff-side-headers split" : "diff-side-headers unified"}>
+                    <span className="diff-side-label left" title={sideLabels.left}>
+                      <span className="diff-side-mark del">−</span>
+                      <span className="diff-side-text">{sideLabels.left}</span>
+                    </span>
+                    {!paneMode && <span className="muted">→</span>}
+                    <span className="diff-side-label right" title={sideLabels.right}>
+                      <span className="diff-side-mark add">+</span>
+                      <span className="diff-side-text">{sideLabels.right}</span>
+                    </span>
+                  </div>
+                )}
                 {paneMode ? (
                   <SplitDiffPanes
                     hunks={parsed.hunks}

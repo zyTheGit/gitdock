@@ -1,0 +1,312 @@
+/* 对比页「按提交 / 按文件」视图切换与按提交原地浏览样式 */
+
+.compare-view-tabs {
+  flex: none;
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+
+.compare-view-tabs button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 5px 12px;
+}
+
+.compare-view-tabs button + button {
+  border-left: 1px solid var(--border);
+}
+
+.compare-view-tabs button.active {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.commit-explorer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.commit-explorer-side {
+  flex: none;
+  width: 340px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  outline: none;
+}
+
+.commit-explorer-toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  font-size: 12px;
+}
+
+.commit-eq-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.commit-explorer-groups {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.commit-explorer-group {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+
+.commit-explorer-group.side-compare {
+  border-left: 3px solid var(--accent);
+}
+
+.commit-explorer-group.side-base {
+  border-left: 3px solid var(--warning);
+}
+
+.commit-explorer-group-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.commit-explorer-group-head:hover {
+  background: var(--row-hover);
+}
+
+.commit-explorer-chevron {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
+  transition: transform 0.12s ease;
+}
+
+.commit-explorer-group-head[aria-expanded="false"] .commit-explorer-chevron {
+  transform: rotate(-90deg);
+}
+
+.commit-explorer-group-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-explorer-group-count {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.commit-explorer-empty {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.commit-explorer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.commit-explorer-list li + li {
+  border-top: 1px solid var(--row-divider);
+}
+
+.commit-explorer-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+}
+
+.commit-explorer-item:hover {
+  background: var(--row-hover);
+}
+
+.commit-explorer-item.active {
+  background: var(--accent-weak);
+}
+
+.commit-explorer-item.equivalent {
+  opacity: 0.68;
+}
+
+.commit-explorer-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.commit-explorer-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.commit-explorer-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.commit-explorer-author {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-eq-badge {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.commit-explorer-detail {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.commit-explorer-placeholder {
+  margin: 24px auto;
+  font-size: 13px;
+}
+
+.commit-explorer-detail-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  font-size: 12px;
+}
+
+.commit-explorer-detail-info {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.commit-explorer-detail-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-side-pill {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.commit-side-pill.side-compare {
+  background: var(--accent-weak);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.commit-side-pill.side-base {
+  background: var(--warning-weak);
+  border: 1px solid var(--warning-border);
+  color: var(--warning);
+}
+
+.commit-explorer-columns {
+  flex: 1;
+  min-height: 0;
+}
+
+.commit-explorer-files {
+  flex: none;
+  width: 240px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.commit-explorer-files .detail-files {
+  width: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

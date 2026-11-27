@@ -48,6 +48,7 @@ impl RawChange {
             gitlink: self.gitlink,
             old_oid: self.old_oid.clone(),
             new_oid: self.new_oid.clone(),
+            change_origin: None,
         }
     }
 }

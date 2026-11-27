@@ -15,6 +15,7 @@ interface CompareDiffPaneProps {
   onFileContextMenu?: (event: MouseEvent<HTMLButtonElement>, path: string) => void;
   expanded: boolean;
   onExpandedChange: (value: boolean) => void;
+  sideLabels?: { left: string; right: string };
 }
 
 export function CompareDiffPane({
@@ -28,6 +29,7 @@ export function CompareDiffPane({
   onFileContextMenu,
   expanded,
   onExpandedChange,
+  sideLabels,
 }: CompareDiffPaneProps) {
   const { t } = useI18n();
   return (
@@ -45,6 +47,7 @@ export function CompareDiffPane({
           expanded={expanded}
           onExpandedChange={onExpandedChange}
           loading={loading}
+          sideLabels={sideLabels}
         />
       )}
       {!loading && !diff && !error && files.length > 0 && (

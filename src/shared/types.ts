@@ -137,6 +137,8 @@ export interface GraphPageDto {
   warnings: WarningDto[];
 }
 
+export type CompareChangeOrigin = "both" | "compare_only" | "base_only";
+
 export interface ChangedFileDto {
   path: string;
   old_path?: string;
@@ -147,6 +149,8 @@ export interface ChangedFileDto {
   gitlink: boolean;
   old_oid?: string;
   new_oid?: string;
+  /** 对比结果中该文件的改动归属（相对共同祖先）；非对比场景或无共同祖先时缺失。 */
+  change_origin?: CompareChangeOrigin;
 }
 
 export interface CommitDetailDto {
@@ -197,12 +201,17 @@ export interface CompareResultDto {
   base: string;
   compare: string;
   merge_base?: string;
+  merge_base_summary?: string;
   mode: CompareMode;
   base_only: number;
   compare_only: number;
   files: ChangedFileDto[];
   commits: CommitSummaryDto[];
   commits_truncated: boolean;
+  base_commits: CommitSummaryDto[];
+  base_commits_truncated: boolean;
+  /** 两侧改动内容等价（如经 cherry-pick 同步）的提交映射：oid -> 对侧等价 oid。 */
+  equivalent_commits?: Record<string, string>;
   title: string;
   warnings: WarningDto[];
   /** 哪一侧是当前工作区；缺失表示两侧都是提交（ADR-0030）。 */
@@ -225,7 +234,9 @@ export interface CommitBranchContextDto {
   oid: string;
   head?: string;
   current_branch?: string;
+  included_in_head: boolean;
   branches: string[];
+  remote_branches: string[];
   gaps: BranchGapDto[];
   gaps_omitted: number;
 }

@@ -198,21 +198,28 @@ export function GraphList({
     [commitsByOid, cancelHover, onContextMenu, selectedOids],
   );
 
-  // mouseenter / mouseleave 不冒泡，用容器级 mouseover 模拟换行语义：
-  // 按 data-oid 判断是否进入新行，换行时先复刻旧行 mouseleave（关卡、作废旧请求），
-  // 再对新行 queueHover；同一行内子元素间移动不重复触发。
+  // 仅当鼠标移入 Graph 列的提交圆点热区（[data-graph-node]）时才触发悬浮卡；
+  // 移出圆点或划过文字行时立即取消，避免遮挡阅读。
   const handleListMouseOver = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
-      const oid =
-        (event.target as Element).closest("[data-oid]")?.getAttribute("data-oid") ?? null;
+      const node = (event.target as Element).closest("[data-graph-node]");
+      if (!node) {
+        if (hoveredOidRef.current !== null) {
+          hoveredOidRef.current = null;
+          cancelHover();
+        }
+        return;
+      }
+      const oid = node.closest("[data-oid]")?.getAttribute("data-oid") ?? null;
       if (oid === hoveredOidRef.current) {
         return;
       }
       hoveredOidRef.current = oid;
       cancelHover();
       const commit = oid ? commitsByOid.get(oid) : undefined;
+      const lane = Number(node.getAttribute("data-lane") ?? 0);
       if (commit) {
-        queueHover(event, commit);
+        queueHover(event, commit, Number.isFinite(lane) ? lane : 0);
       }
     },
     [commitsByOid, cancelHover, queueHover],
@@ -317,6 +324,7 @@ export function GraphList({
       {hover && (
         <CommitHoverCard
           commit={hover.commit}
+          lane={hover.lane}
           x={hover.x}
           y={hover.y}
           context={hover.context}

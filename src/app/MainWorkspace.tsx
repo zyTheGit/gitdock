@@ -197,6 +197,7 @@ export function MainWorkspace({
               setSelectedOid(oid);
               setMode("graph");
             }}
+            onLocateCommit={jumpToCommit}
             onExternalDiff={(toolIndex, path) => {
               if (slots.base && slots.compare) {
                 void launchExternal(toolIndex, slots.base.oid, slots.compare.oid, path, !twoDot);
