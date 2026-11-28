@@ -345,6 +345,7 @@
   color: var(--muted);
   font-size: 13px;
   background: var(--diff-bg);
+  -webkit-user-select: none;
   user-select: none;
 }
 

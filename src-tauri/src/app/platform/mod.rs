@@ -11,7 +11,7 @@ mod shell;
 mod tools;
 mod url;
 
-pub(crate) use paths::{absolute_path_entries, same_path};
+pub(crate) use paths::{absolute_path_entries, configure_external_tool_env, same_path};
 pub(crate) use reveal::{resolve_in_repo, reveal};
 #[cfg(windows)]
 pub(crate) use shell::detect_git_bash;

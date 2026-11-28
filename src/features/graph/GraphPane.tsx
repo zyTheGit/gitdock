@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { useI18n } from "../../i18n";
 import { Icon } from "../../assets/icons";
+import { consumeEsc, isEscConsumed } from "../../shared/esc";
 import type { CommitSummaryDto, RepoStateDto, GraphScope } from "../../shared/types";
 import type { RemoteActions as RemoteActionsState } from "../../app/useRemoteActions";
 import type { ScrollRestore } from "../../app/useRepoTabState";
@@ -32,6 +33,8 @@ interface GraphPaneProps {
   onOpenReflog: () => void;
   /** 写操作是否全局禁用（忙碌/中断态/bare/不支持的 Git 版本）。 */
   writeDisabled?: boolean;
+  onSingleCherryPick?: (commit: CommitSummaryDto) => void;
+  onSingleRevert?: (commit: CommitSummaryDto) => void;
   onBatchCherryPick?: (commits: CommitSummaryDto[]) => void;
   onBatchRevert?: (commits: CommitSummaryDto[]) => void;
   onCompareCommits?: (base: CommitSummaryDto, compare: CommitSummaryDto) => void;
@@ -55,6 +58,8 @@ export function GraphPane({
   remote,
   onOpenReflog,
   writeDisabled = false,
+  onSingleCherryPick,
+  onSingleRevert,
   onBatchCherryPick,
   onBatchRevert,
   onCompareCommits,
@@ -63,12 +68,13 @@ export function GraphPane({
 }: GraphPaneProps) {
   const { t } = useI18n();
   const [pruneOpen, setPruneOpen] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
   const localBranches = repo.refs.filter((ref) => ref.kind === "local_branch");
   const remoteBranches = repo.refs.filter((ref) => ref.kind === "remote_branch");
   const tags = repo.refs.filter((ref) => ref.kind === "tag");
   const { view, loading, loadingMore, error } = graph;
 
-  // 选择顺序按当前视图行序：锚点在前、Shift 点击的目标在后。
+  // 选择顺序按当前视图行序：锚点在前、Shift 点击的目标在后；点选则按点击顺序。
   const orderedOids = useMemo(
     () => view.rows.map((row) => row.commit?.oid ?? row.layout.oid),
     [view.rows],
@@ -76,7 +82,7 @@ export function GraphPane({
   const selection = useCommitSelection(orderedOids);
   const clearSelection = selection.clear;
   const selectedCommits = useMemo(() => {
-    if (selection.oids.length < 2) {
+    if (selection.oids.length === 0) {
       return [];
     }
     const byOid = new Map(
@@ -87,13 +93,30 @@ export function GraphPane({
       .filter((commit): commit is CommitSummaryDto => commit !== undefined);
   }, [selection.oids, view.rows]);
 
+  const headOid = repo.head.oid ?? null;
   useEffect(() => {
-
     clearSelection();
-  }, [view.viewKey, clearSelection]);
+    setBatchMode(false);
+  }, [view.viewKey, headOid, clearSelection]);
+
+  const exitBatchMode = () => {
+    clearSelection();
+    setBatchMode(false);
+  };
+
+  const handlePaneKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Escape" || isEscConsumed(event.nativeEvent)) {
+      return;
+    }
+    if (!batchMode && selection.oids.length === 0) {
+      return;
+    }
+    consumeEsc(event.nativeEvent);
+    exitBatchMode();
+  };
 
   return (
-    <section className="graph-pane">
+    <section className="graph-pane" onKeyDown={handlePaneKeyDown}>
       <div className="graph-toolbar">
         <div className="scope-tabs">
           <button
@@ -124,6 +147,21 @@ export function GraphPane({
             : t("graph.rowCountAll", { n: view.rows.length })}
         </span>
         <button
+          type="button"
+          className={batchMode ? "graph-batch-toggle active" : "graph-batch-toggle"}
+          aria-pressed={batchMode}
+          title={t("graph.batchModeToggleTitle")}
+          onClick={() => {
+            if (batchMode) {
+              exitBatchMode();
+            } else {
+              setBatchMode(true);
+            }
+          }}
+        >
+          {t("graph.batchModeToggle")}
+        </button>
+        <button
           className="graph-recovery"
           title={t("graph.reflogOpenTitle")}
           aria-label={t("graph.reflogOpen")}
@@ -150,10 +188,12 @@ export function GraphPane({
         </div>
       )}
 
-      {selectedCommits.length >= 2 && (
+      {(batchMode || selectedCommits.length >= 1) && (
         <div className="graph-batch-bar" role="region" aria-label={t("graph.batchBarAria")}>
           <span className="graph-batch-count">
-            {t("graph.batchSelectedCount", { n: selectedCommits.length })}
+            {selectedCommits.length > 0
+              ? t("graph.batchSelectedCount", { n: selectedCommits.length })
+              : t("graph.batchEmptyHint")}
           </span>
           <div className="graph-batch-actions">
             {selectedCommits.length === 2 && onCompareCommits && (
@@ -164,7 +204,16 @@ export function GraphPane({
                 {t("graph.batchCompareTwo")}
               </button>
             )}
-            {onBatchCherryPick && (
+            {selectedCommits.length === 1 && onSingleCherryPick && (
+              <button
+                type="button"
+                disabled={writeDisabled}
+                onClick={() => onSingleCherryPick(selectedCommits[0])}
+              >
+                {t("graph.menuCherryPick")}
+              </button>
+            )}
+            {selectedCommits.length >= 2 && onBatchCherryPick && (
               <button
                 type="button"
                 disabled={writeDisabled}
@@ -173,7 +222,16 @@ export function GraphPane({
                 {t("graph.menuBatchCherryPick", { n: selectedCommits.length })}
               </button>
             )}
-            {onBatchRevert && (
+            {selectedCommits.length === 1 && onSingleRevert && (
+              <button
+                type="button"
+                disabled={writeDisabled}
+                onClick={() => onSingleRevert(selectedCommits[0])}
+              >
+                {t("graph.menuRevert")}
+              </button>
+            )}
+            {selectedCommits.length >= 2 && onBatchRevert && (
               <button
                 type="button"
                 disabled={writeDisabled}
@@ -182,9 +240,16 @@ export function GraphPane({
                 {t("graph.menuBatchRevert", { n: selectedCommits.length })}
               </button>
             )}
-            <button type="button" className="link" onClick={clearSelection}>
-              {t("graph.batchClear")}
-            </button>
+            {selectedCommits.length > 0 && (
+              <button type="button" className="link" onClick={clearSelection}>
+                {t("graph.batchClear")}
+              </button>
+            )}
+            {batchMode && (
+              <button type="button" className="link" onClick={exitBatchMode}>
+                {t("graph.batchExit")}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -196,6 +261,7 @@ export function GraphPane({
           loadingMore={loadingMore}
           selectedOid={selectedOid}
           selectedOids={selection.oids}
+          batchMode={batchMode}
           focusedOid={focusedOid}
           focusSeq={focusSeq}
           scrollRestore={
@@ -210,7 +276,9 @@ export function GraphPane({
           }
           onScrollTop={scrollRestore?.onScroll}
           onSelect={(oid) => {
-            clearSelection();
+            if (!batchMode) {
+              clearSelection();
+            }
             selection.setAnchor(oid);
             onSelect(oid);
           }}

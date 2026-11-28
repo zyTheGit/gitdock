@@ -28,7 +28,12 @@ interface CompareViewProps {
   onTwoDotChange: (value: boolean) => void;
   tools: ExternalToolConfig[];
   defaultTool?: string | null;
-  commitMenu: (commit: CommitSummaryDto) => MenuItem[];
+  writeDisabled?: boolean;
+  onCherryPick?: (commit: CommitSummaryDto) => void;
+  onRevert?: (commit: CommitSummaryDto) => void;
+  onBatchCherryPick?: (commits: CommitSummaryDto[]) => void;
+  onBatchRevert?: (commits: CommitSummaryDto[]) => void;
+  commitMenu: (commit: CommitSummaryDto, selection?: CommitSummaryDto[]) => MenuItem[];
   onLocateCommit: (oid: string) => void;
   onSwap: () => void;
   onExternalDiff: (toolIndex: number, path: string) => void;
@@ -53,6 +58,11 @@ export function CompareView({
   onTwoDotChange,
   tools,
   defaultTool,
+  writeDisabled = false,
+  onCherryPick,
+  onRevert,
+  onBatchCherryPick,
+  onBatchRevert,
   commitMenu,
   onLocateCommit,
   onSwap,
@@ -90,6 +100,7 @@ export function CompareView({
     x: number;
     y: number;
     commit: CommitSummaryDto;
+    selection?: CommitSummaryDto[];
   } | null>(null);
   const defaultToolIndex = Math.max(
     0,
@@ -272,10 +283,15 @@ export function CompareView({
               baseTruncated={result.base_commits_truncated}
               equivalentMap={result.equivalent_commits}
               tools={tools}
+              writeDisabled={writeDisabled}
+              onCherryPick={onCherryPick}
+              onRevert={onRevert}
+              onBatchCherryPick={onBatchCherryPick}
+              onBatchRevert={onBatchRevert}
               onExternalFileDiff={onExternalCommitFileDiff}
               onLocateCommit={onLocateCommit}
-              onCommitContextMenu={(event, commit) =>
-                setCommitMenuPos({ x: event.clientX, y: event.clientY, commit })
+              onCommitContextMenu={(event, commit, selection) =>
+                setCommitMenuPos({ x: event.clientX, y: event.clientY, commit, selection })
               }
             />
           ) : (
@@ -387,7 +403,7 @@ export function CompareView({
         <ContextMenu
           x={commitMenuPos.x}
           y={commitMenuPos.y}
-          items={commitMenu(commitMenuPos.commit)}
+          items={commitMenu(commitMenuPos.commit, commitMenuPos.selection)}
           onClose={() => setCommitMenuPos(null)}
         />
       )}

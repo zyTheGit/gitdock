@@ -345,7 +345,10 @@ const errors = {
 
   // ---- 写前 Gate：GateReportDto.summary ----
   gateSummaryBare: "bare 仓库不支持写操作",
+  gateBatchMergeCommit:
+    "批量操作包含 merge commit（{{oid}}），请单独对该提交执行并选择基线父提交",
   gateSummaryCherryPick: "将 {{action}} {{oid}} 到当前分支 {{branch}}",
+  gateSummaryCherryPickBatch: "将批量 {{action}} {{n}} 个提交到当前分支 {{branch}}",
   gateSummaryCherryPickWithBase:
     "将 {{action}} {{oid}} 到当前分支 {{branch}}，以第 {{n}} 父提交为基线（{{n}}/{{total}}）",
   gateSummarySwitch: "将切换到本地分支 {{branch}}",

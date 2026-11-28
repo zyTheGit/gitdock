@@ -67,6 +67,8 @@
   border-radius: 6px;
   background: var(--bg-panel);
   container: graph / inline-size;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .graph-list-inner {
@@ -92,7 +94,8 @@
   border-bottom: 1px solid var(--row-divider);
   cursor: default;
   white-space: nowrap;
-  /* 行文本通过右键菜单复制；禁止拖动选中，避免 Shift 批量选择时触发原生文本选区。 */
+  /* 行文本通过右键菜单复制；禁止拖动选中，避免 macOS WebKit Shift 批量选择时触发原生文本选区。 */
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -104,23 +107,41 @@
   background: var(--accent-soft);
 }
 
-/* 批量选择：左侧强调条 + 行内序号，区别于单条详情选中。 */
+/* 批量选择：左侧强调条 + 行内点选勾选框/序号，区别于单条详情选中。 */
 .graph-row.batch-selected {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-.graph-row-selection {
-  display: inline-flex;
+.graph-row-check {
+  display: none;
   align-items: center;
   justify-content: center;
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--bg-panel);
+  color: var(--muted);
   font-size: 10.5px;
   flex: none;
+  cursor: pointer;
+}
+
+.graph-row:hover .graph-row-check,
+.graph-row-check.is-visible,
+.graph-row-check.is-selected {
+  display: inline-flex;
+}
+
+.graph-row-check:hover {
+  border-color: var(--accent);
+}
+
+.graph-row-check.is-selected {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .commit-hover-connector {

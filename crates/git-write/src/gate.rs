@@ -71,44 +71,69 @@ impl GitWriteModule {
 
         let (summary, summary_key, summary_args) = match request.kind {
             WriteKind::CherryPick | WriteKind::Revert => {
-                let oid = request
-                    .oid
-                    .as_ref()
-                    .or_else(|| request.oids.as_ref().and_then(|oids| oids.first()))
-                    .ok_or_else(|| {
+                let targets: Vec<_> = match request.oids.as_ref().filter(|oids| !oids.is_empty()) {
+                    Some(oids) => oids.iter().collect(),
+                    None => vec![request.oid.as_ref().ok_or_else(|| {
                         UserVisibleError::new(ErrorCode::InvalidArgument, "缺少提交 OID")
                             .with_key("errors.commandMissingOid")
-                    })?;
-                let parent_oids = self.commit_parents(oid.as_str())?;
-                is_merge_commit = parent_oids.len() > 1;
-                // 父提交列表按 `-m` 的 1 起始顺序给出，供前端选择基线父。
-                parent_options = self.parent_options(&parent_oids)?;
-                let parent_count = parent_oids.len() as u32;
-                if is_merge_commit {
-                    match request.mainline {
-                        None => issues.push(
-                            issue(
-                                "gate_mainline_required",
-                                format!(
-                                    "该提交是 merge commit（共 {parent_count} 个父提交），必须选择基线父提交（-m N）"
-                                ),
-                            )
-                            .with_arg("n", parent_count.to_string()),
-                        ),
-                        Some(n) if n == 0 || n > parent_count => issues.push(
-                            issue(
-                                "gate_mainline_invalid",
-                                format!("基线父序号必须在 1..={parent_count} 之间"),
-                            )
-                            .with_arg("n", parent_count.to_string()),
-                        ),
-                        Some(_) => {}
+                    })?],
+                };
+                if targets.len() == 1 {
+                    let oid = targets[0];
+                    let parent_oids = self.commit_parents(oid.as_str())?;
+                    is_merge_commit = parent_oids.len() > 1;
+                    // 父提交列表按 `-m` 的 1 起始顺序给出，供前端选择基线父。
+                    parent_options = self.parent_options(&parent_oids)?;
+                    let parent_count = parent_oids.len() as u32;
+                    if is_merge_commit {
+                        match request.mainline {
+                            None => issues.push(
+                                issue(
+                                    "gate_mainline_required",
+                                    format!(
+                                        "该提交是 merge commit（共 {parent_count} 个父提交），必须选择基线父提交（-m N）"
+                                    ),
+                                )
+                                .with_arg("n", parent_count.to_string()),
+                            ),
+                            Some(n) if n == 0 || n > parent_count => issues.push(
+                                issue(
+                                    "gate_mainline_invalid",
+                                    format!("基线父序号必须在 1..={parent_count} 之间"),
+                                )
+                                .with_arg("n", parent_count.to_string()),
+                            ),
+                            Some(_) => {}
+                        }
+                    } else if request.mainline.is_some() {
+                        issues.push(issue(
+                            "gate_mainline_not_applicable",
+                            "该提交不是 merge commit，不能指定基线父提交（-m）",
+                        ));
                     }
-                } else if request.mainline.is_some() {
-                    issues.push(issue(
-                        "gate_mainline_not_applicable",
-                        "该提交不是 merge commit，不能指定基线父提交（-m）",
-                    ));
+                } else {
+                    for target in &targets {
+                        let parent_oids = self.commit_parents(target.as_str())?;
+                        if parent_oids.len() > 1 {
+                            let short = target.as_str().get(..8).unwrap_or(target.as_str());
+                            issues.push(
+                                issue(
+                                    "gate_batch_merge_commit",
+                                    format!(
+                                        "批量操作包含 merge commit（{short}），请单独对该提交执行并选择基线父提交"
+                                    ),
+                                )
+                                .with_arg("oid", short),
+                            );
+                            break;
+                        }
+                    }
+                    if request.mainline.is_some() {
+                        issues.push(issue(
+                            "gate_mainline_not_applicable",
+                            "批量操作不支持指定基线父提交（-m），请对 merge commit 单独执行",
+                        ));
+                    }
                 }
                 if head.detached {
                     issues.push(issue(
@@ -128,26 +153,37 @@ impl GitWriteModule {
                     "revert"
                 };
                 let branch = head.branch.as_deref().unwrap_or("（未知分支）");
-                let short = oid.as_str().get(..8).unwrap_or(oid.as_str());
-                match request.mainline {
-                    Some(n) if is_merge_commit && n >= 1 && n <= parent_count => (
-                        format!(
-                            "将 {action} {short} 到当前分支 {branch}，以第 {n} 父提交为基线（{n}/{parent_count}）"
+                if targets.len() > 1 {
+                    let count = targets.len().to_string();
+                    (
+                        format!("将批量 {action} {count} 个提交到当前分支 {branch}"),
+                        "errors.gateSummaryCherryPickBatch",
+                        args_map(&[("action", action), ("n", &count), ("branch", branch)]),
+                    )
+                } else {
+                    let oid = targets[0];
+                    let parent_count = parent_options.len() as u32;
+                    let short = oid.as_str().get(..8).unwrap_or(oid.as_str());
+                    match request.mainline {
+                        Some(n) if is_merge_commit && n >= 1 && n <= parent_count => (
+                            format!(
+                                "将 {action} {short} 到当前分支 {branch}，以第 {n} 父提交为基线（{n}/{parent_count}）"
+                            ),
+                            "errors.gateSummaryCherryPickWithBase",
+                            args_map(&[
+                                ("action", action),
+                                ("oid", short),
+                                ("branch", branch),
+                                ("n", &n.to_string()),
+                                ("total", &parent_count.to_string()),
+                            ]),
                         ),
-                        "errors.gateSummaryCherryPickWithBase",
-                        args_map(&[
-                            ("action", action),
-                            ("oid", short),
-                            ("branch", branch),
-                            ("n", &n.to_string()),
-                            ("total", &parent_count.to_string()),
-                        ]),
-                    ),
-                    _ => (
-                        format!("将 {action} {short} 到当前分支 {branch}"),
-                        "errors.gateSummaryCherryPick",
-                        args_map(&[("action", action), ("oid", short), ("branch", branch)]),
-                    ),
+                        _ => (
+                            format!("将 {action} {short} 到当前分支 {branch}"),
+                            "errors.gateSummaryCherryPick",
+                            args_map(&[("action", action), ("oid", short), ("branch", branch)]),
+                        ),
+                    }
                 }
             }
             WriteKind::SwitchBranch => {

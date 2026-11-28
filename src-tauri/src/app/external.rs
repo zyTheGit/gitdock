@@ -231,6 +231,7 @@ fn spawn(
     // 从 VS Code / Electron 环境继承 ELECTRON_RUN_AS_NODE 时，VS Code、Zed 等
     // Electron 工具会按纯 Node 进程启动并立即退出，表现为“打开无反应”。
     command.env_remove("ELECTRON_RUN_AS_NODE");
+    super::platform::configure_external_tool_env(&mut command, Path::new(&tool.executable));
     command.args(&args);
     // 控制台工具（如 where.exe）从 GUI 进程启动会弹出终端窗口。
     hide_console(&mut command);

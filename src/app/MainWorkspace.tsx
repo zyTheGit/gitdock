@@ -17,7 +17,7 @@ import { CompareBar } from "../features/compare/CompareBar";
 import { CompareView } from "../features/compare/CompareView";
 import { CommitDetailPane } from "../features/detail/CommitDetailPane";
 import { GraphPane } from "../features/graph/GraphPane";
-import { commitMenuItems } from "../features/graph/menus";
+import { commitMenuWithBatch } from "../features/graph/menus";
 import { FileHistoryDialog } from "../features/history/FileHistoryDialog";
 import { ReflogDialog } from "../features/graph/ReflogDialog";
 import { ResetDialog } from "../features/write/ResetDialog";
@@ -191,7 +191,22 @@ export function MainWorkspace({
             onTwoDotChange={setTwoDot}
             tools={tools}
             defaultTool={defaultTool}
-            commitMenu={(commit) => commitMenuItems(commit, commitMenus.commitActions)}
+            writeDisabled={write.disabled}
+            onCherryPick={write.menuWriteActions.onCherryPick}
+            onRevert={write.menuWriteActions.onRevert}
+            onBatchCherryPick={write.menuWriteActions.onBatchCherryPick}
+            onBatchRevert={write.menuWriteActions.onBatchRevert}
+            commitMenu={(commit, selection) =>
+              commitMenuWithBatch(
+                commit,
+                {
+                  ...commitMenus.commitActions,
+                  onBatchCherryPick: write.menuWriteActions.onBatchCherryPick,
+                  onBatchRevert: write.menuWriteActions.onBatchRevert,
+                },
+                selection,
+              )
+            }
             onLocateCommit={jumpToCommit}
             onSwap={slots.swap}
             onExternalDiff={(toolIndex, path) => {
@@ -258,6 +273,8 @@ export function MainWorkspace({
                 remote={remote}
                 onOpenReflog={() => setReflogOpen(true)}
                 writeDisabled={write.disabled}
+                onSingleCherryPick={write.menuWriteActions.onCherryPick}
+                onSingleRevert={write.menuWriteActions.onRevert}
                 onBatchCherryPick={write.menuWriteActions.onBatchCherryPick}
                 onBatchRevert={write.menuWriteActions.onBatchRevert}
                 onCompareCommits={(left, right) => {

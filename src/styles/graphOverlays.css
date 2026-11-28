@@ -109,6 +109,19 @@
   font-size: 12px;
 }
 
+.graph-batch-toggle {
+  flex: none;
+  padding: 2px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.graph-batch-toggle.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--on-accent-soft);
+}
+
 .graph-batch-bar {
   display: flex;
   align-items: center;

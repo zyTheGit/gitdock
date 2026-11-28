@@ -24,6 +24,8 @@ export interface GraphRowProps {
   selectionIndex: number;
   /** 是否处于批量选择模式；是则详情选中让位，避免「有高亮但没有序号」。 */
   batchActive: boolean;
+  /** 用户显式开启了多选模式；未选中行也常驻显示点选勾选框。 */
+  batchMode: boolean;
   located: boolean;
 }
 
@@ -42,6 +44,7 @@ export const GraphRow = memo(function GraphRow({
   selected,
   selectionIndex,
   batchActive,
+  batchMode,
   located,
 }: GraphRowProps) {
   const { t } = useI18n();
@@ -65,9 +68,22 @@ export const GraphRow = memo(function GraphRow({
     >
       <GraphCell layout={layout} laneCount={laneCount} height={height} />
       <div className="graph-row-summary">
-        {selectionIndex >= 0 && (
-          <span className="graph-row-selection mono">{selectionIndex + 1}</span>
-        )}
+        <span
+          className={[
+            "graph-row-check",
+            selectionIndex >= 0 ? "is-selected mono" : "",
+            batchMode || batchActive ? "is-visible" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          data-select-toggle={oid}
+          role="checkbox"
+          aria-checked={selectionIndex >= 0}
+          aria-label={t("graph.toggleSelectCommitAria")}
+          title={t("graph.toggleSelectCommitTitle")}
+        >
+          {selectionIndex >= 0 ? selectionIndex + 1 : ""}
+        </span>
         <span className="commit-summary">{commit?.summary || t("graph.noSummary")}</span>
         {commit?.refs.map((badge) => (
           <span className="ref-group" key={`${badge.kind}:${badge.name}`}>

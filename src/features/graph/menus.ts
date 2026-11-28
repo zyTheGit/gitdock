@@ -49,7 +49,11 @@ export interface RowMenuActions extends CommitMenuActions {
 function batchMenuItems(
   commit: CommitSummaryDto,
   selection: CommitSummaryDto[],
-  actions: RowMenuActions,
+  actions: {
+    writeDisabled: boolean;
+    onBatchCherryPick: (commits: CommitSummaryDto[]) => void;
+    onBatchRevert: (commits: CommitSummaryDto[]) => void;
+  },
 ): MenuItem[] {
   if (selection.length < 2 || !selection.some((item) => item.oid === commit.oid)) {
     return [];
@@ -66,6 +70,21 @@ function batchMenuItems(
       onSelect: () => actions.onBatchRevert(selection),
     },
   ];
+}
+
+export function commitMenuWithBatch(
+  commit: CommitSummaryDto,
+  actions: CommitMenuActions & {
+    onBatchCherryPick: (commits: CommitSummaryDto[]) => void;
+    onBatchRevert: (commits: CommitSummaryDto[]) => void;
+  },
+  selection: CommitSummaryDto[] = [],
+): MenuItem[] {
+  const batch = batchMenuItems(commit, selection, actions);
+  if (batch.length > 0) {
+    return batch;
+  }
+  return commitMenuItems(commit, actions);
 }
 
 export function rowMenuItems(

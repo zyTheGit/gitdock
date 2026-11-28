@@ -25,6 +25,8 @@ interface GraphListProps {
   selectedOid: string | null;
   /** 批量选择集合；顺序即执行顺序。 */
   selectedOids: string[];
+  /** 是否处于显式多选模式；开启后点击提交直接点选而非打开详情。 */
+  batchMode?: boolean;
   focusedOid?: string | null;
   /** 定位请求序号：每次定位递增，用于只滚动一次。 */
   focusSeq?: number | null;
@@ -34,7 +36,7 @@ interface GraphListProps {
   onScrollTop?: (top: number) => void;
   onSelect: (oid: string) => void;
   onRangeSelect?: (oid: string) => void;
-  onToggleSelect?: (oid: string) => void;
+  onToggleSelect?: (oid: string, options?: { includeAnchor?: boolean }) => void;
   onCtrlSelect?: (commit: CommitSummaryDto) => void;
   onContextMenu?: (
     event: MouseEvent,
@@ -51,6 +53,7 @@ export function GraphList({
   loadingMore,
   selectedOid,
   selectedOids,
+  batchMode = false,
   focusedOid,
   focusSeq,
   scrollRestore,
@@ -149,6 +152,17 @@ export function GraphList({
   // GraphRow 靠 memo 浅比较即可阻断无关状态（toast、悬浮卡等）引发的全行重渲染。
   const hoveredOidRef = useRef<string | null>(null);
 
+  const handleListMouseDown = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
+      // macOS WebKit 在 Shift+点击前先触发 mousedown 选区锚定，必须在 mousedown 阶段阻止默认选区行为。
+      event.preventDefault();
+      return;
+    }
+    if ((event.target as Element).closest("[data-select-toggle]")) {
+      event.preventDefault();
+    }
+  }, []);
+
   const handleListClick = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
       const oid = (event.target as Element).closest("[data-oid]")?.getAttribute("data-oid");
@@ -158,15 +172,27 @@ export function GraphList({
 
       const commit = commitsByOid.get(oid);
       cancelHover();
-      // Alt/Option+点击切换单个提交；Shift+点击做区间选择；Ctrl/Cmd+点击填对比槽；普通点击打开详情。
-      if (event.altKey && onToggleSelect) {
+      const toggleHit = (event.target as Element).closest("[data-select-toggle]");
+      if (toggleHit && onToggleSelect) {
         event.preventDefault();
-        onToggleSelect(oid);
+        if (event.shiftKey && onRangeSelect) {
+          window.getSelection()?.removeAllRanges();
+          onRangeSelect(oid);
+        } else {
+          onToggleSelect(oid, { includeAnchor: false });
+        }
         return;
       }
+      // Shift+点击区间选择；Alt/Option+点击切换单个提交；Ctrl/Cmd+点击填对比槽；多选模式下普通点击即点选。
       if (event.shiftKey && onRangeSelect) {
         event.preventDefault();
+        window.getSelection()?.removeAllRanges();
         onRangeSelect(oid);
+        return;
+      }
+      if (event.altKey && onToggleSelect) {
+        event.preventDefault();
+        onToggleSelect(oid, { includeAnchor: true });
         return;
       }
       if ((event.ctrlKey || event.metaKey) && commit && onCtrlSelect) {
@@ -174,9 +200,14 @@ export function GraphList({
         onCtrlSelect(commit);
         return;
       }
+      if (batchMode && onToggleSelect) {
+        event.preventDefault();
+        onToggleSelect(oid, { includeAnchor: false });
+        return;
+      }
       onSelect(oid);
     },
-    [commitsByOid, cancelHover, onCtrlSelect, onRangeSelect, onSelect, onToggleSelect],
+    [batchMode, commitsByOid, cancelHover, onCtrlSelect, onRangeSelect, onSelect, onToggleSelect],
   );
 
   const handleListContextMenu = useCallback(
@@ -291,7 +322,7 @@ export function GraphList({
       aria-label={t("graph.listAria")}
       aria-activedescendant={selectedOid ? `graph-row-${selectedOid}` : undefined}
       onKeyDown={handleListKeyDown}
-
+      onMouseDown={handleListMouseDown}
       onClick={handleListClick}
       onContextMenu={handleListContextMenu}
       onMouseOver={handleListMouseOver}
@@ -318,6 +349,7 @@ export function GraphList({
               selected={selectedOid === oid}
               selectionIndex={selectionIndexOf(oid)}
               batchActive={selectedOids.length > 0}
+              batchMode={batchMode}
               located={focusedOid === oid}
             />
           );

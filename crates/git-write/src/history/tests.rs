@@ -160,3 +160,64 @@ fn cherry_pick_multiple_commits() {
     let log = git_ok(dir, &["log", "--format=%s", "-3"]);
     assert_eq!(log, "c3\nc2\nc1");
 }
+
+#[test]
+fn revert_multiple_commits() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    commit(dir, "a.txt", "base\n", "c1");
+    let first = commit(dir, "one.txt", "1\n", "c2");
+    let second = commit(dir, "two.txt", "2\n", "c3");
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+
+    let request = WriteRequest {
+        oids: Some(vec![
+            Oid::new(&second).expect("oid"),
+            Oid::new(&first).expect("oid"),
+        ]),
+        ..base_request(WriteKind::Revert)
+    };
+    let gate = module.validate(&request).expect("Gate");
+    assert!(gate.ok, "{:?}", gate.issues);
+    assert_eq!(
+        gate.summary_key.as_deref(),
+        Some("errors.gateSummaryCherryPickBatch")
+    );
+    assert_eq!(
+        gate.summary_args
+            .as_ref()
+            .and_then(|args| args.get("n"))
+            .map(String::as_str),
+        Some("2")
+    );
+
+    let outcome = module.execute(&request).expect("revert");
+    assert_eq!(outcome.status, WriteStatus::Succeeded, "{outcome:?}");
+    assert!(!dir.join("one.txt").exists() && !dir.join("two.txt").exists());
+}
+
+#[test]
+fn batch_gate_reports_count_and_rejects_merge_commit() {
+    let temp = init_temp_repo();
+    let dir = temp.path();
+    commit(dir, "a.txt", "base\n", "c1");
+    git_ok(dir, &["switch", "-c", "feature"]);
+    let normal = commit(dir, "f.txt", "f\n", "feature");
+    git_ok(dir, &["switch", "main"]);
+    commit(dir, "m.txt", "m\n", "main");
+    git_ok(dir, &["merge", "--no-ff", "feature", "-m", "merge feature"]);
+    let merge = git_ok(dir, &["rev-parse", "HEAD"]);
+    git_ok(dir, &["switch", "-c", "target", "HEAD~1"]);
+    let module = GitWriteModule::new(dir).expect("打开写模块");
+
+    let request = WriteRequest {
+        oids: Some(vec![
+            Oid::new(&normal).expect("oid"),
+            Oid::new(&merge).expect("oid"),
+        ]),
+        ..base_request(WriteKind::CherryPick)
+    };
+    let gate = module.validate(&request).expect("Gate");
+    assert!(!gate.ok);
+    assert!(issue_codes(&gate).contains(&"gate_batch_merge_commit"));
+}

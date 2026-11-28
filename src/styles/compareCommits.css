@@ -45,6 +45,8 @@
   flex-direction: column;
   gap: 8px;
   outline: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .commit-explorer-toolbar {
@@ -52,11 +54,36 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 4px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-panel);
   font-size: 12px;
+}
+
+.commit-explorer-batch-bar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--bg-panel));
+  font-size: 12px;
+}
+
+.commit-explorer-batch-count {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.commit-explorer-batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .commit-eq-filter {
@@ -171,6 +198,8 @@
   background: transparent;
   text-align: left;
   font-size: 12px;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .commit-explorer-item:hover {
@@ -179,6 +208,43 @@
 
 .commit-explorer-item.active {
   background: var(--accent-weak);
+}
+
+.commit-explorer-item.batch-selected {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.commit-explorer-check {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-panel);
+  color: var(--muted);
+  font-size: 10.5px;
+  flex: none;
+  cursor: pointer;
+}
+
+.commit-explorer-item:hover .commit-explorer-check,
+.commit-explorer-check.is-visible,
+.commit-explorer-check.is-selected {
+  display: inline-flex;
+}
+
+.commit-explorer-check:hover {
+  border-color: var(--accent);
+}
+
+.commit-explorer-check.is-selected {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .commit-explorer-item.equivalent {

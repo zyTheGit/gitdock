@@ -329,7 +329,10 @@ const errors = {
   gateSummaryRemoveWorktree: "Will remove worktree {{path}} (uncommitted changes are not preserved)",
   gateSummaryWorktreeUnavailable: "Cannot handle the worktree path {{path}}",
   gateSummaryBare: "Bare repositories do not support write operations",
+  gateBatchMergeCommit:
+    "Batch contains merge commit ({{oid}}); run it individually to select a mainline parent",
   gateSummaryCherryPick: "Will {{action}} {{oid}} onto the current branch {{branch}}",
+  gateSummaryCherryPickBatch: "Will batch {{action}} {{n}} commits onto the current branch {{branch}}",
   gateSummaryCherryPickWithBase:
     "Will {{action}} {{oid}} onto the current branch {{branch}}, using parent {{n}} as the baseline ({{n}}/{{total}})",
   gateSummarySwitch: "Will switch to local branch {{branch}}",

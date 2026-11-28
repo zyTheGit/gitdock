@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } fro
 import { Icon } from "../../assets/icons";
 import { useI18n } from "../../i18n";
 import { ContextMenu, type MenuItem } from "../../shared/ContextMenu";
+import { consumeEsc, isEscConsumed } from "../../shared/esc";
 import { formatDate } from "../../shared/format";
 import type { CommitSummaryDto, ExternalToolConfig, FileDiffDto } from "../../shared/types";
 import { useCommitDetail, useFileDiff } from "../detail/useCommitDetail";
+import { useCommitSelection } from "../graph/useCommitSelection";
 import { fileHistoryMenuItems } from "../history/menuItems";
+import { CompareCommitBatchBar } from "./CompareCommitBatchBar";
 import { CompareDiffPane } from "./CompareDiffPane";
 import { CompareFileList } from "./CompareFileList";
 
@@ -20,6 +23,11 @@ interface CompareCommitExplorerProps {
   baseTruncated: boolean;
   equivalentMap?: Record<string, string>;
   tools: ExternalToolConfig[];
+  writeDisabled?: boolean;
+  onCherryPick?: (commit: CommitSummaryDto) => void;
+  onRevert?: (commit: CommitSummaryDto) => void;
+  onBatchCherryPick?: (commits: CommitSummaryDto[]) => void;
+  onBatchRevert?: (commits: CommitSummaryDto[]) => void;
   onExternalFileDiff: (
     toolIndex: number,
     left: string | null,
@@ -27,7 +35,11 @@ interface CompareCommitExplorerProps {
     path: string,
   ) => void;
   onLocateCommit: (oid: string) => void;
-  onCommitContextMenu: (event: MouseEvent, commit: CommitSummaryDto) => void;
+  onCommitContextMenu: (
+    event: MouseEvent,
+    commit: CommitSummaryDto,
+    selection: CommitSummaryDto[],
+  ) => void;
 }
 
 interface CommitEntry {
@@ -47,12 +59,18 @@ export function CompareCommitExplorer({
   baseTruncated,
   equivalentMap,
   tools,
+  writeDisabled = false,
+  onCherryPick,
+  onRevert,
+  onBatchCherryPick,
+  onBatchRevert,
   onExternalFileDiff,
   onLocateCommit,
   onCommitContextMenu,
 }: CompareCommitExplorerProps) {
   const { t } = useI18n();
   const [hideEquivalent, setHideEquivalent] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
   const [compareCollapsed, setCompareCollapsed] = useState(
     () => compareCommits.length === 0 && baseCommits.length > 0,
   );
@@ -103,6 +121,30 @@ export function CompareCommitExplorer({
     return list;
   }, [visibleCompare, visibleBase, compareCollapsed, baseCollapsed, equivalentMap]);
 
+  const flatOids = useMemo(
+    () => flatEntries.map((entry) => entry.commit.oid),
+    [flatEntries],
+  );
+  const selection = useCommitSelection(flatOids);
+  const clearSelection = selection.clear;
+  const setSelectionAnchor = selection.setAnchor;
+
+  const selectedCommits = useMemo(() => {
+    if (selection.oids.length === 0) {
+      return [];
+    }
+    const byOid = new Map<string, CommitSummaryDto>();
+    for (const commit of compareCommits) {
+      byOid.set(commit.oid, commit);
+    }
+    for (const commit of baseCommits) {
+      byOid.set(commit.oid, commit);
+    }
+    return selection.oids
+      .map((oid) => byOid.get(oid))
+      .filter((commit): commit is CommitSummaryDto => commit !== undefined);
+  }, [selection.oids, compareCommits, baseCommits]);
+
   const [selectedOid, setSelectedOid] = useState<string | null>(
     () => visibleCompare[0]?.oid ?? visibleBase[0]?.oid ?? null,
   );
@@ -114,6 +156,11 @@ export function CompareCommitExplorer({
   }, [compareKey, compareCommits.length, baseCommits.length]);
 
   useEffect(() => {
+    clearSelection();
+    setBatchMode(false);
+  }, [compareKey, repoGeneration, clearSelection]);
+
+  useEffect(() => {
     setSelectedOid((current) => {
       if (current && flatEntries.some((entry) => entry.commit.oid === current)) {
         return current;
@@ -121,6 +168,12 @@ export function CompareCommitExplorer({
       return flatEntries[0]?.commit.oid ?? null;
     });
   }, [flatEntries]);
+
+  useEffect(() => {
+    if (selectedOid && selection.oids.length === 0) {
+      setSelectionAnchor(selectedOid);
+    }
+  }, [selectedOid, selection.oids.length, setSelectionAnchor]);
 
   const selectedEntry = useMemo(
     () => flatEntries.find((entry) => entry.commit.oid === selectedOid) ?? null,
@@ -183,7 +236,19 @@ export function CompareCommitExplorer({
         ]
       : [];
 
+  const exitBatchMode = () => {
+    clearSelection();
+    setBatchMode(false);
+  };
+
   const handleListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && !isEscConsumed(event.nativeEvent)) {
+      if (batchMode || selection.oids.length > 0) {
+        consumeEsc(event.nativeEvent);
+        exitBatchMode();
+      }
+      return;
+    }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
       return;
     }
@@ -199,6 +264,49 @@ export function CompareCommitExplorer({
     if (target) {
       setSelectedOid(target.commit.oid);
     }
+  };
+
+  const handleCommitMouseDown = (event: MouseEvent<HTMLButtonElement>) => {
+    if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      return;
+    }
+    if ((event.target as Element).closest("[data-select-toggle]")) {
+      event.preventDefault();
+    }
+  };
+
+  const handleCommitClick = (event: MouseEvent<HTMLButtonElement>, oid: string) => {
+    const toggleHit = (event.target as Element).closest("[data-select-toggle]");
+    if (toggleHit) {
+      event.preventDefault();
+      if (event.shiftKey) {
+        window.getSelection()?.removeAllRanges();
+        selection.selectRange(oid);
+      } else {
+        selection.toggle(oid, { includeAnchor: false });
+      }
+      return;
+    }
+    if (event.shiftKey) {
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();
+      selection.selectRange(oid);
+      return;
+    }
+    if (event.altKey) {
+      event.preventDefault();
+      selection.toggle(oid, { includeAnchor: true });
+      return;
+    }
+    if (batchMode) {
+      event.preventDefault();
+      selection.toggle(oid, { includeAnchor: false });
+      return;
+    }
+    clearSelection();
+    setSelectionAnchor(oid);
+    setSelectedOid(oid);
   };
 
   const renderGroup = (
@@ -232,25 +340,45 @@ export function CompareCommitExplorer({
             {commits.map((commit) => {
               const eqOid = equivalentMap?.[commit.oid];
               const active = commit.oid === selectedOid;
+              const selectionIndex = selection.indexOf(commit.oid);
+              const batchSelected = selectionIndex >= 0;
               return (
                 <li key={commit.oid}>
                   <button
                     type="button"
                     className={[
                       "commit-explorer-item",
-                      active ? "active" : "",
+                      active && selection.oids.length === 0 ? "active" : "",
+                      batchSelected ? "batch-selected" : "",
                       eqOid ? "equivalent" : "",
                     ]
                       .filter(Boolean)
                       .join(" ")}
-                    onClick={() => setSelectedOid(commit.oid)}
+                    onMouseDown={handleCommitMouseDown}
+                    onClick={(event) => handleCommitClick(event, commit.oid)}
                     onContextMenu={(event) => {
                       event.preventDefault();
-                      onCommitContextMenu(event, commit);
+                      onCommitContextMenu(event, commit, selectedCommits);
                     }}
                     title={commit.oid}
                   >
                     <div className="commit-explorer-row-top">
+                      <span
+                        className={[
+                          "commit-explorer-check",
+                          batchSelected ? "is-selected mono" : "",
+                          batchMode || selection.oids.length > 0 ? "is-visible" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        data-select-toggle={commit.oid}
+                        role="checkbox"
+                        aria-checked={batchSelected}
+                        aria-label={t("graph.toggleSelectCommitAria")}
+                        title={t("graph.toggleSelectCommitTitle")}
+                      >
+                        {batchSelected ? selectionIndex + 1 : ""}
+                      </span>
                       <span className="commit-explorer-summary">
                         {commit.summary || t("graph.noSummary")}
                       </span>
@@ -285,18 +413,48 @@ export function CompareCommitExplorer({
         onKeyDown={handleListKeyDown}
         aria-label={t("compare.commitExplorerAria")}
       >
-        {equivalentCount > 0 && (
+        {(equivalentCount > 0 || compareCommits.length + baseCommits.length > 0) && (
           <div className="commit-explorer-toolbar">
-            <label className="commit-eq-filter">
-              <input
-                type="checkbox"
-                checked={hideEquivalent}
-                onChange={(event) => setHideEquivalent(event.target.checked)}
-              />
-              <span>{t("compare.hideEquivalent", { n: equivalentCount })}</span>
-            </label>
+            {equivalentCount > 0 ? (
+              <label className="commit-eq-filter">
+                <input
+                  type="checkbox"
+                  checked={hideEquivalent}
+                  onChange={(event) => setHideEquivalent(event.target.checked)}
+                />
+                <span>{t("compare.hideEquivalent", { n: equivalentCount })}</span>
+              </label>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              className={batchMode ? "graph-batch-toggle active" : "graph-batch-toggle"}
+              aria-pressed={batchMode}
+              title={t("graph.batchModeToggleTitle")}
+              onClick={() => {
+                if (batchMode) {
+                  exitBatchMode();
+                } else {
+                  setBatchMode(true);
+                }
+              }}
+            >
+              {t("graph.batchModeToggle")}
+            </button>
           </div>
         )}
+        <CompareCommitBatchBar
+          selectedCommits={selectedCommits}
+          batchMode={batchMode}
+          writeDisabled={writeDisabled}
+          onCherryPick={onCherryPick}
+          onRevert={onRevert}
+          onBatchCherryPick={onBatchCherryPick}
+          onBatchRevert={onBatchRevert}
+          onClear={clearSelection}
+          onExitBatchMode={exitBatchMode}
+        />
         <div className="commit-explorer-groups">
           {renderGroup(
             "compare",
