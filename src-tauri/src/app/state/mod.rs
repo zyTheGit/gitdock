@@ -24,6 +24,7 @@ use super::external;
 use super::gitlog;
 use super::logging;
 use super::terminal::TerminalRegistry;
+use super::update;
 use super::watch;
 
 pub struct Session {
@@ -39,12 +40,14 @@ pub struct AppPaths {
     pub log_path: PathBuf,
     pub index_cache_dir: PathBuf,
     pub external_tmp_dir: PathBuf,
+    pub update_cache_dir: PathBuf,
 }
 
 pub struct AppState {
     registry: RepoRegistry,
     settings: Mutex<SettingsDto>,
     pub terminals: TerminalRegistry,
+    pub updates: update::UpdateManager,
     pub paths: AppPaths,
 }
 
@@ -78,18 +81,22 @@ impl AppState {
         ));
         let settings = config::load(&config_dir);
         let external_tmp_dir = cache_dir.join("external-diff");
+        let update_cache_dir = cache_dir.join("updates");
         // 启动即清空上次会话残留的外部 diff 临时目录：
         // 既控制缓存体积，也缩短工作副本内容在磁盘上的残留时间。
         external::cleanup_root(&external_tmp_dir);
+        update::cleanup_cache(&update_cache_dir, env!("CARGO_PKG_VERSION"));
         Ok(Self {
             registry: RepoRegistry::new(),
             settings: Mutex::new(settings),
             terminals: TerminalRegistry::new(),
+            updates: update::UpdateManager::default(),
             paths: AppPaths {
                 config_dir,
                 log_path,
                 index_cache_dir: cache_dir.join("graph-index"),
                 external_tmp_dir,
+                update_cache_dir,
             },
         })
     }

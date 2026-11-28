@@ -23,7 +23,7 @@ import { useRepoTabState, useTabSelectionGuard } from "./app/useRepoTabState";
 import { useSettingsEntry } from "./app/useSettingsEntry";
 import { useStartupRestore } from "./app/useStartupRestore";
 import { useTabController } from "./app/useTabController";
-import { openReleasePage, runUpdateCheck, useUpdateCheck } from "./app/useUpdateCheck";
+import { runUpdateCheck, useUpdateCheck } from "./app/useUpdateCheck";
 import { useWriteFlow } from "./app/useWriteFlow";
 import { useCompareResult, useCompareSlots } from "./features/compare/useCompare";
 import { branchSlot } from "./features/repository/branchMenus";
@@ -112,6 +112,7 @@ export default function App() {
 
   const panes = usePaneWidths();
   const updateState = useUpdateCheck();
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const write = useWriteFlow({
     repo,
     info,
@@ -458,7 +459,9 @@ export default function App() {
       onToggleSearch={() => setSearchOpen((open) => !open)}
       closeSearch={closeSearch}
       onCopyOid={(oid) => void refNav.copyOid(oid)}
-      onOpenUpdate={() => void openReleasePage()}
+      onOpenUpdate={() => setUpdateDialogOpen(true)}
+      updateDialogOpen={updateDialogOpen}
+      onCloseUpdateDialog={() => setUpdateDialogOpen(false)}
       onCloseBranchCompare={() => setBranchCompareOpen(false)}
       onConfirmBranchCompare={(base, compare) => {
         slots.setSide("base", branchSlot(base));

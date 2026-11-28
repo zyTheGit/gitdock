@@ -164,6 +164,18 @@ const errors = {
   updateFormatInvalid: "版本信息格式异常",
   updateVersionParseFailed: "版本号无法解析",
   updateUrlNotInRepo: "下载地址不属于本仓库的发布页",
+  updateDownloadBusy: "已有更新下载正在进行中",
+  updateAssetUnavailable: "当前平台暂不支持应用内下载，请改用浏览器打开下载页",
+  updateFileMissing: "未找到已下载的更新安装包",
+  updateInstallLaunchFailed: "启动更新安装包失败",
+  updateDownloadFailed: "下载更新失败",
+  updateRedirectRejected: "下载重定向地址无效或指向非白名单域名",
+  updateInvalidAssetName: "安装包文件名非法",
+  updateIoFailed: "读写更新缓存文件失败",
+  updateChecksumMissing: "SHA256SUMS.txt 中未找到对应安装包的校验值",
+  updateFileTooLarge: "更新文件体积超出安全上限",
+  updateDownloadCancelled: "已取消下载更新",
+  updateChecksumMismatch: "安装包 SHA-256 校验失败，已删除损坏文件",
 
   // ---- src-tauri 应用层：外部工具与反馈 external*/feedback*/window* ----
   externalToolNameOrExecutableEmpty: "外部工具的名称与可执行文件不能为空",

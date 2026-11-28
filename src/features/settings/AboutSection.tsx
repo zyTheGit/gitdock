@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getAutoUpdateCheck, setAutoUpdateCheck } from "../../app/useUpdateCheck";
+import { useUpdateDownload } from "../../app/useUpdateDownload";
 import { useI18n } from "../../i18n";
 import type {
   AppInfoDto,
@@ -7,6 +8,7 @@ import type {
   UpdateCheckOutcome,
   UpdateCheckState,
 } from "../../shared/types";
+import { UpdateDownloadControls } from "./UpdateDownloadControls";
 
 interface AboutSectionProps {
   active: boolean;
@@ -34,9 +36,11 @@ export function AboutSection({
   const { t } = useI18n();
   const [updateNotice, setUpdateNotice] = useState<string | null>(null);
   const [autoCheck, setAutoCheck] = useState(getAutoUpdateCheck);
+  const download = useUpdateDownload();
   const result = updateCheck.result;
   // 当前版本比线上最新还新：正常发版不会出现，只可能是安装包版本号被误标。
   const currentNewer = Boolean(result && !result.available && result.current_newer);
+  const downloadTarget = updateOffer ?? (currentNewer ? result : null);
 
   const manualUpdateCheck = async () => {
     setUpdateNotice(null);
@@ -115,7 +119,7 @@ export function AboutSection({
               {t("settings.aboutSkipVersion")}
             </button>
           ) : null}
-          {updateOffer || currentNewer ? (
+          {(updateOffer || currentNewer) && !downloadTarget?.can_download ? (
             <button type="button" className="primary" onClick={() => void openDownloadPage()}>
               {t("settings.aboutOpenDownload")}
             </button>
@@ -140,6 +144,14 @@ export function AboutSection({
           )}
         </span>
       </div>
+      {downloadTarget?.can_download && (
+        <UpdateDownloadControls
+          update={downloadTarget}
+          download={download}
+          onOpenDownloadPage={onOpenDownloadPage}
+          onError={setUpdateNotice}
+        />
+      )}
       <label className="settings-check about-auto-check">
         <input
           type="checkbox"

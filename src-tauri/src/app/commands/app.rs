@@ -9,7 +9,7 @@ use tauri::State;
 
 use super::{blocking, Shared};
 use crate::app::platform;
-use crate::app::update::{self, UpdateCheckDto};
+use crate::app::update::{self, UpdateCheckDto, UpdateDownloadResultDto, UpdateInstallDto};
 
 #[derive(Debug, Serialize)]
 pub struct AppInfoDto {
@@ -79,11 +79,73 @@ pub fn open_feedback_issue(title: String, body: String) -> Result<()> {
     crate::app::external::open_url(&url)
 }
 
-/// 检查远端是否有新版本。只读比较，不下载也不安装；下载地址由后端返回，
-/// 前端拿到的仍是固定在本仓库 Release 页内的 URL。
+/// 检查远端是否有新版本。只读比较并记录当前平台可下载资产；前端拿到的仍是固定在本仓库 Release 页内的 URL。
 #[tauri::command]
-pub async fn check_for_update() -> Result<UpdateCheckDto> {
-    blocking(move || update::check(env!("CARGO_PKG_VERSION"))).await
+pub async fn check_for_update(state: State<'_, Shared>) -> Result<UpdateCheckDto> {
+    let state = Arc::clone(&state);
+    blocking(move || state.updates.check_and_record(env!("CARGO_PKG_VERSION"))).await
+}
+
+/// 在应用缓存目录内流式下载已匹配的平台安装包并校验 SHA-256。
+#[tauri::command]
+pub async fn download_update(
+    state: State<'_, Shared>,
+    app: tauri::AppHandle,
+) -> Result<UpdateDownloadResultDto> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        state.updates.start_download(
+            &app,
+            &state.paths.update_cache_dir,
+            env!("CARGO_PKG_VERSION"),
+        )
+    })
+    .await
+}
+
+/// 取消正在进行中的应用内更新下载。
+#[tauri::command]
+pub fn cancel_update_download(state: State<'_, Shared>) -> Result<()> {
+    state.updates.cancel();
+    Ok(())
+}
+
+/// 按当前平台启动或定位已校验的更新安装包（Windows 拉起向导后优雅退出以释放 exe 锁）。
+#[tauri::command]
+pub async fn install_downloaded_update(
+    state: State<'_, Shared>,
+    app: tauri::AppHandle,
+) -> Result<UpdateInstallDto> {
+    let state_bg = Arc::clone(&state);
+    let result = blocking(move || {
+        let artifact = state_bg.updates.downloaded_file()?;
+        let mode = platform::launch_installer(&artifact.file_path)?;
+        Ok(UpdateInstallDto {
+            mode,
+            file_path: artifact.file_path.display().to_string(),
+            file_name: artifact.file_name,
+        })
+    })
+    .await?;
+    if result.mode == platform::InstallerLaunchMode::LaunchedExit {
+        state.terminals.close_all();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            app.exit(0);
+        });
+    }
+    Ok(result)
+}
+
+/// 在系统文件管理器中定位已下载的更新安装包。
+#[tauri::command]
+pub async fn reveal_downloaded_update(state: State<'_, Shared>) -> Result<()> {
+    let state = Arc::clone(&state);
+    blocking(move || {
+        let artifact = state.updates.downloaded_file()?;
+        platform::reveal(&artifact.file_path)
+    })
+    .await
 }
 
 /// 用系统浏览器打开发布页。地址虽由界面回传，仍在 Rust 侧按前缀校验，

@@ -21,9 +21,10 @@ notify.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 portable-pty = "0.9"
-# 版本检查只需一个 HTTPS GET；ureq 走 Windows schannel，不引入 C 工具链。
+# 版本检查与安装包下载只需 HTTPS GET 与 SHA-256 校验；复用 workspace sha2，不引入重型下载器。
 ureq = { version = "3", default-features = false, features = ["native-tls"] }
 semver = "1"
+sha2.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 base64.workspace = true

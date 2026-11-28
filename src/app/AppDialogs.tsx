@@ -22,6 +22,7 @@ import { BranchCompareDialog } from "../features/compare/BranchCompareDialog";
 import { SearchView } from "../features/search/SearchView";
 import type { SearchLoader } from "../features/search/useSearch";
 import { SettingsDialog } from "../features/settings/SettingsDialog";
+import { UpdateDialog } from "../features/settings/UpdateDialog";
 import { BranchDescriptionDialog } from "../features/write/BranchDescriptionDialog";
 import { ConfirmWriteDialog } from "../features/write/ConfirmWriteDialog";
 import { TagDescriptionDialog } from "../features/write/TagDescriptionDialog";
@@ -88,6 +89,8 @@ interface AppDialogsProps {
   zoom: ReturnType<typeof useFontScale>;
   language: ReturnType<typeof useAppLanguage>;
   updateCheck: UpdateCheckState;
+  updateDialogOpen: boolean;
+  onCloseUpdateDialog: () => void;
   onSettingsSaved: (settings: SettingsDto) => void;
   onSettingsError: (message: string) => void;
 }
@@ -135,6 +138,8 @@ export function AppDialogs({
   zoom,
   language,
   updateCheck,
+  updateDialogOpen,
+  onCloseUpdateDialog,
   onSettingsSaved,
   onSettingsError,
 }: AppDialogsProps) {
@@ -211,6 +216,15 @@ export function AppDialogs({
           initialCompare={initialCompare}
           onCancel={onCloseBranchCompare}
           onConfirm={onConfirmBranchCompare}
+        />
+      )}
+
+      {updateDialogOpen && updateCheck.result && (
+        <UpdateDialog
+          update={updateCheck.result}
+          onOpenDownloadPage={openReleasePage}
+          onSkipVersion={skipAvailableUpdate}
+          onClose={onCloseUpdateDialog}
         />
       )}
 

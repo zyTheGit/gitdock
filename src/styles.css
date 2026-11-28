@@ -16,6 +16,7 @@
 @import "./styles/search.css";
 @import "./styles/controls.css";
 @import "./styles/dialogs.css";
+@import "./styles/updateDialog.css";
 @import "./styles/write.css";
 @import "./styles/terminal.css";
 @import "./styles/panel.css";

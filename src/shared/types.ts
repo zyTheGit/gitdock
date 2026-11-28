@@ -410,9 +410,55 @@ export interface UpdateCheckDto {
   available: boolean;
   /** 当前版本高于线上最新版：安装包版本号被误标，界面需单独提示而不是说“已是最新”。 */
   current_newer: boolean;
-  /** Release 页面地址，只用于交给系统浏览器。 */
+  /** Release 页面地址，始终保留用于浏览器兜底。 */
   page_url: string;
   published_at?: string | null;
+  release_notes?: string | null;
+  asset_name?: string | null;
+  asset_size?: number | null;
+  can_download: boolean;
+}
+
+export type UpdateDownloadPhase =
+  | "idle"
+  | "downloading"
+  | "verifying"
+  | "ready"
+  | "failed"
+  | "cancelled";
+
+export interface UpdateDownloadProgressDto {
+  version: string;
+  phase: "downloading" | "verifying" | "ready";
+  downloaded_bytes: number;
+  total_bytes?: number | null;
+}
+
+export interface UpdateDownloadResultDto {
+  version: string;
+  file_name: string;
+  file_path: string;
+  sha256: string;
+  size: number;
+}
+
+export type InstallerLaunchMode = "launched_exit" | "opened" | "revealed";
+
+export interface UpdateInstallDto {
+  mode: InstallerLaunchMode;
+  file_path: string;
+  file_name: string;
+}
+
+export interface UpdateDownloadState {
+  status: UpdateDownloadPhase;
+  version: string | null;
+  downloadedBytes: number;
+  totalBytes: number | null;
+  result: UpdateDownloadResultDto | null;
+  error: string | null;
+  installing: boolean;
+  installNotice: string | null;
 }
 
 /** 前端更新检查的状态机快照：App 与设置对话框的「关于」分区共用。 */

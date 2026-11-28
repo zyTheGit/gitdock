@@ -71,6 +71,8 @@ export function AppShell({
   closeSearch,
   onCopyOid,
   onOpenUpdate,
+  updateDialogOpen,
+  onCloseUpdateDialog,
   onCloseBranchCompare,
   onConfirmBranchCompare,
   onBranchMenu,
@@ -407,6 +409,8 @@ export function AppShell({
         zoom={zoom}
         language={language}
         updateCheck={updateState}
+        updateDialogOpen={updateDialogOpen}
+        onCloseUpdateDialog={onCloseUpdateDialog}
         onSettingsSaved={setSettings}
         onSettingsError={setError}
       />

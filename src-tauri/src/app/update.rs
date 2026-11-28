@@ -1,272 +1,201 @@
-//! 版本检查：只回答“有没有新版本”，下载安装仍由用户在浏览器里完成。
-//!
-//! 端点与协议都固定写在本模块（HTTPS + 本仓库），前端不能指定地址，因此这个
-//! command 不会被当成通用 HTTP 代理。响应里的 Release 页面地址在返回前还要
-//! 校验一次前缀，避免远端把“打开链接”指向站外。
+//! 版本检查与更新安装包下载协调器（方案 A，ADR-0040）。
 
-use std::time::Duration;
+mod check;
+mod download;
+#[cfg(test)]
+mod tests;
+
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use git_core::{ErrorCode, Result, UserVisibleError};
 use semver::Version;
-use serde::{Deserialize, Serialize};
-use ureq::config::Config;
-use ureq::tls::{RootCerts, TlsConfig, TlsProvider};
+use serde::Serialize;
+use tauri::Emitter;
 
-const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/zyTheGit/gitdock/releases/latest";
-const RELEASE_PAGE_PREFIX: &str = "https://github.com/zyTheGit/gitdock/releases/";
-/// GitHub API 拒绝无 User-Agent 的请求，这里必须随请求发出。
-const USER_AGENT: &str = "GitDock-desktop";
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
+pub use check::{ensure_release_page, UpdateCheckDto};
+pub use download::EVENT_UPDATE_DOWNLOAD_PROGRESS;
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct UpdateCheckDto {
-    pub current_version: String,
-    pub latest_version: String,
-    pub available: bool,
-    /// 当前版本高于线上最新版。正常发版不会出现，出现即说明安装包的版本号被误标
-    /// （例如误 bump 的 3.0.1-rc-2 后来退回了 0.2.x），界面不能只说“已是最新”。
-    pub current_newer: bool,
-    /// Release 页面（不是安装包直链）：由系统浏览器打开，用户自己选择下载。
-    pub page_url: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub published_at: Option<String>,
+use crate::app::logging;
+use crate::app::platform::InstallerLaunchMode;
+use check::ResolvedUpdateTarget;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdateDownloadProgressDto {
+    pub version: String,
+    pub phase: String,
+    pub downloaded_bytes: u64,
+    pub total_bytes: Option<u64>,
 }
 
-#[derive(Debug, Deserialize)]
-struct ReleasePayload {
-    tag_name: String,
-    html_url: String,
-    #[serde(default)]
-    published_at: Option<String>,
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdateDownloadResultDto {
+    pub version: String,
+    pub file_name: String,
+    pub file_path: String,
+    pub sha256: String,
+    pub size: u64,
 }
 
-/// 版本检查用的 HTTPS 客户端。
-///
-/// ureq 不会因为编入了 `native-tls` 就自动使用它：provider 必须在 `TlsConfig` 里
-/// 显式设置，否则 https 请求在连接阶段直接 panic（“provider is Rustls but feature
-/// is not enabled”），而默认 provider 恰好是未编入的 rustls。根证书走 Windows
-/// 证书库，不打包 Mozilla webpki 根。
-fn https_config() -> Config {
-    let tls = TlsConfig::builder()
-        .provider(TlsProvider::NativeTls)
-        .root_certs(RootCerts::PlatformVerifier)
-        .build();
-    Config::builder()
-        .timeout_global(Some(REQUEST_TIMEOUT))
-        .tls_config(tls)
-        .build()
-}
-
-pub fn check(current_version: &str) -> Result<UpdateCheckDto> {
-    let agent = https_config().new_agent();
-    let body = {
-        let mut response = agent
-            .get(LATEST_RELEASE_URL)
-            .header("User-Agent", USER_AGENT)
-            .call()
-            .map_err(map_transport_error)?;
-        // ureq 3：非 2xx 直接报错，响应体读取上限 10 MB。
-        response
-            .body_mut()
-            .read_to_string()
-            .map_err(map_transport_error)?
+/// 启动清理：删掉残留 `.part` 文件，并移除 `<= current_version` 的旧更新缓存目录；
+/// 高于当前版本的已校验安装包保留，避免用户重启前刚下载完却被清空。
+pub fn cleanup_cache(root: &Path, current_version: &str) {
+    let current = Version::parse(current_version.trim().trim_start_matches('v')).ok();
+    let entries = match std::fs::read_dir(root) {
+        Ok(entries) => entries,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return,
+        Err(err) => {
+            logging::warn(&format!("读取更新缓存目录失败：{err}"));
+            return;
+        }
     };
-    parse_release(&body, current_version)
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        if !is_dir {
+            let _ = std::fs::remove_file(&path);
+            continue;
+        }
+        let dir_name = entry.file_name();
+        let parsed = dir_name
+            .to_str()
+            .and_then(|name| Version::parse(name.trim_start_matches('v')).ok());
+        let stale = match (parsed, current.as_ref()) {
+            (Some(ver), Some(cur)) => ver <= *cur,
+            _ => true,
+        };
+        if stale {
+            let _ = std::fs::remove_dir_all(&path);
+        } else if let Ok(sub) = std::fs::read_dir(&path) {
+            for item in sub.flatten() {
+                if item.path().extension().and_then(|e| e.to_str()) == Some("part") {
+                    let _ = std::fs::remove_file(item.path());
+                }
+            }
+        }
+    }
 }
 
-/// 传输层失败一律归到 `Io`。状态码单独成句：ureq 默认只给“状态码 403”，而这个码
-/// 在 GitHub 上有多种可解释的成因，需要一并写出来供日志排查。
-fn map_transport_error(err: ureq::Error) -> UserVisibleError {
-    match err {
-        ureq::Error::StatusCode(code) => {
-            UserVisibleError::new(ErrorCode::Io, format!("版本信息接口返回状态 {code}"))
-                .with_key("errors.updateUnexpectedStatus")
-                .with_arg("code", code.to_string())
-                .with_detail(
-                    "本仓库未公开、还没有任何 Release，或本机 IP 触发了 GitHub 匿名访问限额"
-                        .to_string(),
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdateInstallDto {
+    pub mode: InstallerLaunchMode,
+    pub file_path: String,
+    pub file_name: String,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct DownloadedArtifact {
+    pub file_name: String,
+    pub file_path: PathBuf,
+}
+
+/// 持有最近一次检查到的平台安装包与当前下载任务状态，不从前端接受任意 URL/路径。
+#[derive(Default)]
+pub struct UpdateManager {
+    latest: Mutex<Option<ResolvedUpdateTarget>>,
+    downloaded: Mutex<Option<DownloadedArtifact>>,
+    active_cancel: Mutex<Option<Arc<AtomicBool>>>,
+}
+
+struct CancelSlotGuard<'a>(&'a Mutex<Option<Arc<AtomicBool>>>);
+
+impl Drop for CancelSlotGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut guard) = self.0.lock() {
+            *guard = None;
+        }
+    }
+}
+
+impl UpdateManager {
+    pub fn check_and_record(&self, current_version: &str) -> Result<UpdateCheckDto> {
+        let (dto, target) = check::check_with_target(current_version)?;
+        if let Ok(mut guard) = self.latest.lock() {
+            *guard = target;
+        }
+        Ok(dto)
+    }
+
+    pub fn start_download(
+        &self,
+        app: &tauri::AppHandle,
+        cache_root: &Path,
+        current_version: &str,
+    ) -> Result<UpdateDownloadResultDto> {
+        let cancel = {
+            let mut guard = self
+                .active_cancel
+                .lock()
+                .map_err(|_| UserVisibleError::new(ErrorCode::Internal, "更新下载锁不可用"))?;
+            if guard.is_some() {
+                return Err(UserVisibleError::new(
+                    ErrorCode::InvalidArgument,
+                    "已有更新下载正在进行中",
                 )
+                .with_key("errors.updateDownloadBusy"));
+            }
+            let flag = Arc::new(AtomicBool::new(false));
+            *guard = Some(Arc::clone(&flag));
+            flag
+        };
+        let _slot_guard = CancelSlotGuard(&self.active_cancel);
+
+        let existing_target = self.latest.lock().ok().and_then(|guard| guard.clone());
+        let target = match existing_target {
+            Some(target) => target,
+            None => {
+                let (_, resolved) = check::check_with_target(current_version)?;
+                if let Ok(mut guard) = self.latest.lock() {
+                    *guard = resolved.clone();
+                }
+                resolved.ok_or_else(|| {
+                    UserVisibleError::new(
+                        ErrorCode::InvalidArgument,
+                        "当前平台暂不支持应用内下载，请改用浏览器打开下载页",
+                    )
+                    .with_key("errors.updateAssetUnavailable")
+                })?
+            }
+        };
+
+        let (file_path, sha256, size) =
+            download::download_and_verify(&target, cache_root, &cancel, |progress| {
+                let _ = app.emit(EVENT_UPDATE_DOWNLOAD_PROGRESS, &progress);
+            })?;
+
+        if let Ok(mut guard) = self.downloaded.lock() {
+            *guard = Some(DownloadedArtifact {
+                file_name: target.asset_name.clone(),
+                file_path: file_path.clone(),
+            });
         }
-        other => UserVisibleError::new(ErrorCode::Io, "无法获取最新版本信息")
-            .with_key("errors.updateFetchFailed")
-            .with_detail(other.to_string()),
-    }
-}
 
-/// 纯解析：与网络无关，便于用固定 JSON 覆盖各版本比较分支。
-fn parse_release(body: &str, current_version: &str) -> Result<UpdateCheckDto> {
-    let release: ReleasePayload = serde_json::from_str(body).map_err(|err| {
-        UserVisibleError::new(ErrorCode::Internal, "版本信息格式异常")
-            .with_key("errors.updateFormatInvalid")
-            .with_detail(err.to_string())
-    })?;
-    if !is_pinned_release_page(&release.html_url) {
-        return Err(off_repo_error());
-    }
-    let latest = parse_version(&release.tag_name)?;
-    let current = parse_version(current_version)?;
-    Ok(UpdateCheckDto {
-        current_version: current.to_string(),
-        latest_version: latest.to_string(),
-        available: latest > current,
-        current_newer: latest < current,
-        page_url: release.html_url,
-        published_at: normalize_published_at(release.published_at),
-    })
-}
-
-/// 标签允许 `v0.2.0` 与 `0.2.0` 两种写法；其余一律拒绝，不做模糊比较。
-fn parse_version(value: &str) -> Result<Version> {
-    Version::parse(value.trim().trim_start_matches('v')).map_err(|err| {
-        UserVisibleError::new(ErrorCode::Internal, "版本号无法解析")
-            .with_key("errors.updateVersionParseFailed")
-            .with_detail(err.to_string())
-    })
-}
-
-/// API 返回 `2026-11-02T06:40:11Z`，界面只需要日期部分。
-fn normalize_published_at(value: Option<String>) -> Option<String> {
-    value.and_then(|raw| {
-        let date = raw.split('T').next().unwrap_or_default();
-        (!date.is_empty()).then(|| date.to_owned())
-    })
-}
-
-/// Release 页面必须落在本仓库的 releases 路径内。前缀已含协议与主机名，
-/// 所以 `releases/../..` 这类路径技巧也跳不出 github.com 上的本页范围。
-fn is_pinned_release_page(url: &str) -> bool {
-    url.starts_with(RELEASE_PAGE_PREFIX)
-}
-
-fn off_repo_error() -> UserVisibleError {
-    UserVisibleError::new(ErrorCode::Internal, "下载地址不属于本仓库的发布页")
-        .with_key("errors.updateUrlNotInRepo")
-}
-
-/// command 层复用：界面回传 URL 时同样在 Rust 侧校验，不依赖前端判断。
-pub fn ensure_release_page(url: &str) -> Result<()> {
-    if is_pinned_release_page(url) {
-        Ok(())
-    } else {
-        Err(off_repo_error())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn payload(tag: &str, url: &str) -> String {
-        format!(
-            r#"{{"tag_name":"{tag}","html_url":"{url}","published_at":"2026-11-02T06:40:11Z"}}"#
-        )
+        Ok(UpdateDownloadResultDto {
+            version: target.version,
+            file_name: target.asset_name,
+            file_path: file_path.display().to_string(),
+            sha256,
+            size,
+        })
     }
 
-    /// 回归：漏掉 provider 时 https 请求会在连接阶段 panic，编译和其余测试全绿也发现不了。
-    #[test]
-    fn https_config_selects_the_compiled_tls_provider() {
-        let tls = https_config().tls_config().clone();
-        assert_eq!(tls.provider(), TlsProvider::NativeTls);
-        assert!(matches!(tls.root_certs(), RootCerts::PlatformVerifier));
-    }
-
-    const PAGE: &str = "https://github.com/zyTheGit/gitdock/releases/tag/v0.2.0";
-
-    #[test]
-    fn release_endpoint_is_pinned_to_this_repository() {
-        // 仓库改名或转私有会让检查静默失效，端点漂移必须在这里先失败。
-        assert_eq!(
-            LATEST_RELEASE_URL,
-            "https://api.github.com/repos/zyTheGit/gitdock/releases/latest"
-        );
-    }
-
-    #[test]
-    fn newer_tag_strips_prefix_and_reports_update_available() {
-        let dto = parse_release(&payload("v0.2.0", PAGE), "0.1.0").expect("解析失败");
-        assert!(dto.available);
-        assert!(!dto.current_newer);
-        assert_eq!(dto.latest_version, "0.2.0");
-        assert_eq!(dto.current_version, "0.1.0");
-        assert_eq!(dto.page_url, PAGE);
-        assert_eq!(dto.published_at.as_deref(), Some("2026-11-02"));
-    }
-
-    #[test]
-    fn same_version_reports_no_update() {
-        let dto = parse_release(&payload("0.1.0", PAGE), "0.1.0").expect("解析失败");
-        assert!(!dto.available);
-        assert!(!dto.current_newer);
-    }
-
-    #[test]
-    fn older_tag_never_prompts_downgrade() {
-        let dto = parse_release(&payload("v0.1.0", PAGE), "0.2.0").expect("解析失败");
-        assert!(!dto.available);
-        assert!(dto.current_newer);
-    }
-
-    /// 3.0.1-rc-2 是误 bump 后又被退回 0.2.x 的版本：语义比较会认为它比线上最新
-    /// 还新。这类安装包必须被单独标出来，界面才能提示“版本号可能标注有误”，
-    /// 而不是显示“已是最新版本”——后者会让人误以为不需要重装。
-    #[test]
-    fn mislabeled_installed_version_is_flagged_as_newer_than_latest() {
-        let dto = parse_release(&payload("v0.2.3", PAGE), "3.0.1-rc-2").expect("解析失败");
-        assert!(!dto.available);
-        assert!(dto.current_newer);
-        assert_eq!(dto.latest_version, "0.2.3");
-    }
-
-    #[test]
-    fn prerelease_tag_is_not_offered_as_newer() {
-        let dto = parse_release(&payload("v0.2.0-rc.1", PAGE), "0.2.0").expect("解析失败");
-        assert!(!dto.available);
-    }
-
-    #[test]
-    fn two_digit_component_outperforms_lexical_compare() {
-        let dto = parse_release(&payload("v0.10.0", PAGE), "0.9.0").expect("解析失败");
-        assert!(dto.available);
-    }
-
-    #[test]
-    fn malformed_tag_is_rejected() {
-        let err =
-            parse_release(&payload("nightly-2026", PAGE), "0.1.0").expect_err("应拒绝非 semver");
-        assert_eq!(err.code, ErrorCode::Internal);
-    }
-
-    #[test]
-    fn non_json_body_is_rejected() {
-        let err = parse_release("<html>rate limited</html>", "0.1.0").expect_err("应拒绝非 JSON");
-        assert_eq!(err.code, ErrorCode::Internal);
-    }
-
-    #[test]
-    fn release_url_outside_repository_is_rejected() {
-        let body = payload("v0.2.0", "https://example.test/evil.exe");
-        let err = parse_release(&body, "0.1.0").expect_err("应拒绝站外下载地址");
-        assert_eq!(err.code, ErrorCode::Internal);
-    }
-
-    #[test]
-    fn opened_page_is_validated_on_the_rust_side() {
-        assert!(ensure_release_page(PAGE).is_ok());
-        // 同一仓库的资产下载页同样允许。
-        assert!(ensure_release_page(
-            "https://github.com/zyTheGit/gitdock/releases/download/v0.2.0/a.exe"
-        )
-        .is_ok());
-        for rejected in [
-            // 改名前的仓库地址。
-            "https://github.com/zyTheGit/git-graph/releases/tag/v0.1.0",
-            // 主机名后缀伪装与协议降级。
-            "https://github.com.evil.test/zyTheGit/gitdock/releases/tag/v0.2.0",
-            "http://github.com/zyTheGit/gitdock/releases/tag/v0.2.0",
-            "file:///C:/Windows/System32/calc.exe",
-        ] {
-            let err = ensure_release_page(rejected).expect_err("应拒绝非本仓库发布页");
-            assert_eq!(err.code, ErrorCode::Internal);
+    pub fn cancel(&self) {
+        if let Ok(guard) = self.active_cancel.lock() {
+            if let Some(flag) = guard.as_ref() {
+                flag.store(true, Ordering::Relaxed);
+            }
         }
+    }
+
+    pub(crate) fn downloaded_file(&self) -> Result<DownloadedArtifact> {
+        let guard = self
+            .downloaded
+            .lock()
+            .map_err(|_| UserVisibleError::new(ErrorCode::Internal, "读取已下载安装包状态失败"))?;
+        guard.clone().ok_or_else(|| {
+            UserVisibleError::new(ErrorCode::InvalidArgument, "尚未完成更新包下载")
+                .with_key("errors.updateFileMissing")
+        })
     }
 }

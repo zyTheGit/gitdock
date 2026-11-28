@@ -5,12 +5,14 @@
 //! 替换需求，不做 trait 注入。探测类函数延续安全约定：只检查已知路径、
 //! PATH 只取绝对条目、绝不启动进程。
 
+mod installer;
 mod paths;
 mod reveal;
 mod shell;
 mod tools;
 mod url;
 
+pub(crate) use installer::{launch_installer, InstallerLaunchMode};
 pub(crate) use paths::{absolute_path_entries, configure_external_tool_env, same_path};
 pub(crate) use reveal::{resolve_in_repo, reveal};
 #[cfg(windows)]

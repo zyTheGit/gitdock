@@ -78,6 +78,8 @@ export interface AppShellProps {
   closeSearch: () => void;
   onCopyOid: (oid: string) => void;
   onOpenUpdate: () => void;
+  updateDialogOpen: boolean;
+  onCloseUpdateDialog: () => void;
   onCloseBranchCompare: () => void;
   onConfirmBranchCompare: (base: RefDto, compare: RefDto) => void;
   onBranchMenu: (event: MouseEvent, branch: RefDto) => void;
